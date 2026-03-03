@@ -1,0 +1,366 @@
+.about-hero {
+    background: linear-gradient(180deg, var(--light-blue) 0%, white 100%);
+    padding: 80px 0 60px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.about-hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 56px;
+}
+
+.about-stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    background: white;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.astat {
+    flex: 1;
+    padding: 28px 20px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    transition: var(--transition);
+}
+
+.astat:last-child {
+    border-right: none;
+}
+
+.astat:hover {
+    background: var(--light-blue);
+}
+
+.astat-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--primary);
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.astat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+/* Mission */
+.mission-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+}
+
+.mission-text {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.mission-text p {
+    font-size: 16px;
+    color: var(--gray-600);
+    line-height: 1.8;
+}
+
+.mission-numbers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    background: var(--off-white);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+}
+
+.mn-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-600);
+}
+
+.mission-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.mission-card-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 360px;
+}
+
+.mcard {
+    padding: 24px 28px;
+    border-radius: var(--radius-lg);
+    font-size: 16px;
+    font-weight: 700;
+    transition: var(--transition);
+}
+
+.mcard:hover {
+    transform: translateX(8px);
+}
+
+.mcard-1 {
+    background: var(--primary);
+    color: white;
+}
+
+.mcard-2 {
+    background: var(--accent);
+    color: white;
+    margin-left: 20px;
+}
+
+.mcard-3 {
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: white;
+    margin-left: 40px;
+}
+
+/* Values */
+.value-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.value-icon {
+    font-size: 40px;
+}
+
+.value-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.value-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.7;
+}
+
+/* Timeline */
+.timeline {
+    max-width: 840px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 120px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--light-blue), var(--primary), var(--light-blue));
+}
+
+.timeline-item {
+    display: grid;
+    grid-template-columns: 120px 24px 1fr;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-year {
+    font-family: 'Outfit', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--primary);
+    text-align: right;
+    padding-top: 4px;
+}
+
+.timeline-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 3px solid white;
+    box-shadow: 0 0 0 3px var(--primary);
+    margin-top: 6px;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+.timeline-content {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px 24px;
+    transition: var(--transition);
+}
+
+.timeline-content:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateX(4px);
+}
+
+.timeline-content h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 6px;
+}
+
+.timeline-content p {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* Team */
+.team-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.team-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--light-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    transition: var(--transition);
+}
+
+.team-card:hover .team-avatar {
+    background: var(--primary);
+    transform: scale(1.1);
+}
+
+.team-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.team-role {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.team-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.7;
+}
+
+/* shared final cta */
+.final-cta {
+    text-align: center;
+}
+
+.final-cta-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 32px 0;
+}
+
+.final-cta-inner h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 900;
+    color: white;
+    line-height: 1.2;
+}
+
+.final-cta-inner p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 1024px) {
+    .mission-grid {
+        grid-template-columns: 1fr;
+        gap: 48px;
+    }
+
+    .about-stats-row {
+        flex-wrap: wrap;
+    }
+
+    .astat {
+        flex: 0 0 33.33%;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .timeline::before {
+        left: 80px;
+    }
+
+    .timeline-item {
+        grid-template-columns: 80px 20px 1fr;
+    }
+
+    .timeline-year {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .astat {
+        flex: 0 0 50%;
+    }
+
+    .timeline::before {
+        display: none;
+    }
+
+    .timeline-item {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-year {
+        text-align: left;
+    }
+
+    .timeline-dot {
+        display: none;
+    }
+}
