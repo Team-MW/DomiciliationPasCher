@@ -41,30 +41,21 @@
 
 /* Brand */
 .auth-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
     z-index: 1;
 }
 
-.auth-logo {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+.auth-logo-wordmark {
+    font-family: 'Outfit', sans-serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: -0.03em;
+    white-space: nowrap;
 }
 
-.auth-logo-name {
-    font-family: 'Outfit', sans-serif;
-    font-size: 17px;
-    font-weight: 800;
+.auth-logo-wordmark strong {
+    font-weight: 900;
     color: white;
-    letter-spacing: -0.02em;
 }
 
 /* Content */

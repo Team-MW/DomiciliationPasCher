@@ -32,15 +32,24 @@
     text-decoration: none;
 }
 
-.ec-brand-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #1A56DB, #0EA5E9);
+.ec-brand-link {
+    text-decoration: none;
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+}
+
+.ec-brand-wordmark {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: -0.025em;
+    white-space: nowrap;
+}
+
+.ec-brand-wordmark strong {
+    font-weight: 900;
+    color: white;
 }
 
 .ec-brand-name {

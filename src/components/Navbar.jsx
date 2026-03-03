@@ -25,18 +25,9 @@ export default function Navbar() {
         <header className={`navbar ${scrolled ? 'scrolled' : ''}`} id="navbar">
             <div className="container navbar-inner">
 
-                {/* Logo */}
+                {/* Logo — juste le nom */}
                 <Link to="/" className="navbar-logo" id="nav-logo">
-                    <div className="logo-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                            <polyline points="9 22 9 12 15 12 15 22" />
-                        </svg>
-                    </div>
-                    <div className="logo-text">
-                        <span className="logo-name">DomiciliationPasCher</span>
-                        <span className="logo-tagline">Centre agréé · France</span>
-                    </div>
+                    <span className="logo-wordmark">Domiciliation<strong>PasCher</strong></span>
                 </Link>
 
                 {/* Desktop Nav */}
@@ -56,14 +47,12 @@ export default function Navbar() {
                 {/* Desktop Actions */}
                 <div className="navbar-actions">
                     <SignedOut>
-                        {/* Lien direct vers la page connexion — pas de modal */}
                         <Link to="/connexion" className="btn btn-ghost" id="nav-signin-btn">
                             Se connecter
                         </Link>
                     </SignedOut>
 
                     <SignedIn>
-                        {/* Lien vers espace client + UserButton Clerk */}
                         <Link to="/espace-client" className="btn btn-ghost" id="nav-dashboard-btn">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />

@@ -16,24 +16,30 @@
 /* Brand */
 .footer-logo {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 4px;
     text-decoration: none;
     margin-bottom: 16px;
 }
 
 .footer-logo-name {
     font-family: 'Outfit', sans-serif;
-    font-size: 16px;
-    font-weight: 800;
+    font-size: 18px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.8);
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+
+.footer-logo-name strong {
+    font-weight: 900;
     color: white;
-    letter-spacing: -0.01em;
 }
 
 .footer-logo-tag {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
-    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-top: 0;
 }
 
 .footer-desc {

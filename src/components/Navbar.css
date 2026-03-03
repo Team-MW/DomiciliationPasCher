@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════
-   NAVBAR — Design Premium & Épuré
+   NAVBAR
    ══════════════════════════════════════ */
 
 .navbar {
@@ -28,53 +28,32 @@
     gap: 40px;
 }
 
-/* ── Logo ── */
+/* ── Logo wordmark ── */
 .navbar-logo {
     display: flex;
     align-items: center;
-    gap: 10px;
     text-decoration: none;
     flex-shrink: 0;
+    transition: opacity 0.15s;
 }
 
-.logo-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary) 0%, #0EA5E9 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-    box-shadow: 0 2px 8px rgba(26, 86, 219, 0.25);
+.navbar-logo:hover {
+    opacity: 0.8;
 }
 
-.navbar-logo:hover .logo-icon {
-    transform: scale(1.05);
-    box-shadow: 0 4px 14px rgba(26, 86, 219, 0.35);
-}
-
-.logo-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.logo-name {
+.logo-wordmark {
     font-family: 'Outfit', sans-serif;
-    font-size: 16px;
-    font-weight: 800;
+    font-size: 17px;
+    font-weight: 400;
     color: #0F172A;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.03em;
+    white-space: nowrap;
     line-height: 1;
 }
 
-.logo-tagline {
-    font-size: 10px;
-    font-weight: 500;
-    color: #94A3B8;
-    letter-spacing: 0.03em;
+.logo-wordmark strong {
+    font-weight: 900;
+    color: var(--primary);
 }
 
 /* ── Nav links ── */
@@ -96,7 +75,6 @@
     transition: color 0.15s, background 0.15s;
     letter-spacing: 0;
     white-space: nowrap;
-    position: relative;
 }
 
 .nav-link:hover {
@@ -249,11 +227,5 @@
 
     .mobile-menu {
         display: flex;
-    }
-}
-
-@media (max-width: 480px) {
-    .logo-tagline {
-        display: none;
     }
 }

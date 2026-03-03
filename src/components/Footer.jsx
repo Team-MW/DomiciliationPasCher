@@ -11,17 +11,8 @@ export default function Footer() {
                     {/* Brand */}
                     <div className="footer-brand">
                         <Link to="/" className="footer-logo">
-                            <div className="footer-logo-icon">
-                                <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
-                                    <rect width="32" height="32" rx="8" fill="rgba(255,255,255,0.1)" />
-                                    <path d="M8 22V12L16 7L24 12V22H19V17H13V22H8Z" fill="white" opacity="0.9" />
-                                    <rect x="13" y="17" width="6" height="5" fill="#4A9EFF" />
-                                </svg>
-                            </div>
-                            <div>
-                                <div className="footer-logo-name">DomiciliationPasCher</div>
-                                <div className="footer-logo-tag">Toulouse &amp; Toute la France</div>
-                            </div>
+                            <div className="footer-logo-name">Domiciliation<strong>PasCher</strong></div>
+                            <div className="footer-logo-tag">Toulouse &amp; Toute la France</div>
                         </Link>
                         <p className="footer-desc">
                             La solution de domiciliation la plus compétitive de France. Basés à Toulouse, nous accompagnons les entrepreneurs dans plus de 10 grandes villes françaises.
