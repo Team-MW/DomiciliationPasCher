@@ -12,7 +12,7 @@
 }
 
 .city-benefit:hover {
-    background: var(--light-blue);
+    background: var(--primary-light);
 }
 
 .city-benefit-icon {
@@ -136,7 +136,7 @@
     align-items: center;
     gap: 6px;
     padding: 5px 14px;
-    background: var(--light-blue);
+    background: var(--primary-light);
     border-radius: var(--radius-full);
     font-size: 13px;
     font-weight: 500;
@@ -153,7 +153,7 @@
 
 .map-placeholder {
     height: 240px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, #0F3399 100%);
     border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
@@ -219,6 +219,7 @@
 
 /* shared final cta */
 .final-cta {
+    background: linear-gradient(135deg, var(--primary) 0%, #0F3399 100%);
     text-align: center;
 }
 

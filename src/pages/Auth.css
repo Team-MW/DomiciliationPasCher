@@ -1,0 +1,189 @@
+/* ── Auth layout ── */
+.auth-page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 100vh;
+}
+
+/* ── Left panel ── */
+.auth-left {
+    background: linear-gradient(145deg, #1A56DB 0%, #0F3399 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-left::before {
+    content: '';
+    position: absolute;
+    top: -160px;
+    right: -120px;
+    width: 480px;
+    height: 480px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    pointer-events: none;
+}
+
+.auth-left::after {
+    content: '';
+    position: absolute;
+    bottom: -100px;
+    left: -80px;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.03);
+    pointer-events: none;
+}
+
+/* Brand */
+.auth-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1;
+}
+
+.auth-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.auth-logo-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.02em;
+}
+
+/* Content */
+.auth-left-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    z-index: 1;
+    padding: 48px 0;
+}
+
+.auth-left-content h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(28px, 3vw, 38px);
+    font-weight: 900;
+    color: white;
+    line-height: 1.18;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+}
+
+.auth-left-content p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.72;
+    max-width: 380px;
+    margin-bottom: 40px;
+}
+
+/* Features */
+.auth-features {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.auth-feature {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    transition: background 0.2s;
+}
+
+.auth-feature:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.auth-feature-icon {
+    font-size: 24px;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.auth-feature-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 2px;
+}
+
+.auth-feature-desc {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Footer */
+.auth-left-footer {
+    z-index: 1;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+/* ── Right panel ── */
+.auth-right {
+    background: #F8FAFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 40px;
+}
+
+/* Clerk overrides - keep card clean */
+.auth-right :global(.cl-rootBox) {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-right :global(.cl-card) {
+    border-radius: 20px !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06), 0 8px 32px rgba(15, 23, 42, 0.08) !important;
+    border: 1px solid #E2E8F0 !important;
+    padding: 40px !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    .auth-page {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-left {
+        display: none;
+    }
+
+    .auth-right {
+        min-height: 100vh;
+        padding: 24px 16px;
+    }
+}

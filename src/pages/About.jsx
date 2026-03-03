@@ -23,12 +23,12 @@ const milestones = [
 
 export default function About() {
     return (
-        <main style={{ paddingTop: '80px' }}>
+        <main style={{ paddingTop: '68px' }}>
             {/* Hero */}
             <section className="about-hero">
                 <div className="container">
                     <div className="about-hero-content animate-in">
-                        <div className="section-label">Notre histoire</div>
+                        <div className="section-eyebrow">Notre histoire</div>
                         <h1 className="section-title">Votre partenaire de confiance<br /><span>depuis Toulouse</span></h1>
                         <p className="section-subtitle">
                             Fondée à Toulouse, DomiciliationPasCher.fr est née d'une conviction simple : créer une entreprise ne doit pas coûter une fortune. Nous proposons les meilleures adresses de France au meilleur prix.
@@ -56,7 +56,7 @@ export default function About() {
                 <div className="container">
                     <div className="mission-grid animate-in">
                         <div className="mission-text">
-                            <div className="section-label" style={{ justifyContent: 'flex-start' }}>Notre mission</div>
+                            <div className="section-eyebrow" style={{ justifyContent: 'flex-start' }}>Notre mission</div>
                             <h2 className="section-title" style={{ textAlign: 'left' }}>Simplifier la création<br /><span>d'entreprise en France</span></h2>
                             <p>Nous croyons que chaque entrepreneur mérite une adresse professionnelle de qualité, sans se ruiner. C'est pourquoi nous avons créé une plateforme 100% en ligne qui rend la domiciliation accessible, rapide et sans contrainte.</p>
                             <p>Basés à Toulouse, nous avons développé un réseau de partenaires dans 10 grandes villes françaises pour offrir à nos clients une flexibilité maximale dans leur implantation.</p>
@@ -94,7 +94,7 @@ export default function About() {
             <section className="section" style={{ background: 'var(--off-white)' }}>
                 <div className="container">
                     <div className="section-header animate-in">
-                        <div className="section-label">Ce qui nous définit</div>
+                        <div className="section-eyebrow">Ce qui nous définit</div>
                         <h2 className="section-title">Nos <span>valeurs</span></h2>
                     </div>
                     <div className="grid-4">
@@ -113,7 +113,7 @@ export default function About() {
             <section className="section">
                 <div className="container">
                     <div className="section-header animate-in">
-                        <div className="section-label">Notre parcours</div>
+                        <div className="section-eyebrow">Notre parcours</div>
                         <h2 className="section-title">Une croissance <span>constante</span></h2>
                     </div>
                     <div className="timeline animate-in">
@@ -135,7 +135,7 @@ export default function About() {
             <section className="section" style={{ background: 'var(--off-white)' }}>
                 <div className="container">
                     <div className="section-header animate-in">
-                        <div className="section-label">L'équipe</div>
+                        <div className="section-eyebrow">L'équipe</div>
                         <h2 className="section-title">Des personnes <span>passionnées</span></h2>
                     </div>
                     <div className="grid-3">

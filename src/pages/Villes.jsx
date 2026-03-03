@@ -93,12 +93,12 @@ const cityBenefits = [
 
 export default function Villes() {
     return (
-        <main style={{ paddingTop: '80px' }}>
+        <main style={{ paddingTop: '68px' }}>
             {/* Hero */}
-            <section className="villes-hero section-sm">
+            <section className="page-header" style={{ borderBottom: '1px solid var(--border)' }}>
                 <div className="container">
                     <div className="section-header animate-in">
-                        <div className="section-label">Couverture nationale</div>
+                        <div className="section-eyebrow">Couverture nationale</div>
                         <h1 className="section-title">Vos adresses dans<br /><span>10 métropoles françaises</span></h1>
                         <p className="section-subtitle">
                             Basés à Toulouse, nous vous proposons une adresse professionnelle dans les principales métropoles de France, à partir de <strong>23€ HT/mois</strong>.

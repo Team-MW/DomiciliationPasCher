@@ -1,5 +1,5 @@
 .about-hero {
-    background: linear-gradient(180deg, var(--light-blue) 0%, white 100%);
+    background: linear-gradient(160deg, #EEF4FF 0%, #F8FAFF 40%, #EFF6FF 100%);
     padding: 80px 0 60px;
     text-align: center;
     border-bottom: 1px solid var(--border);
@@ -37,7 +37,7 @@
 }
 
 .astat:hover {
-    background: var(--light-blue);
+    background: var(--primary-light);
 }
 
 .astat-value {
@@ -133,7 +133,7 @@
 }
 
 .mcard-3 {
-    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    background: linear-gradient(135deg, var(--gold), #FBBF24);
     color: white;
     margin-left: 40px;
 }
@@ -178,7 +178,7 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: linear-gradient(180deg, var(--light-blue), var(--primary), var(--light-blue));
+    background: linear-gradient(180deg, var(--primary-light), var(--primary), var(--primary-light));
 }
 
 .timeline-item {
@@ -255,7 +255,7 @@
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    background: var(--light-blue);
+    background: var(--primary-light);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -291,6 +291,7 @@
 
 /* shared final cta */
 .final-cta {
+    background: linear-gradient(135deg, var(--primary) 0%, #0F3399 100%);
     text-align: center;
 }
 
