@@ -153,7 +153,7 @@ export default function Tarifs() {
                                     ))}
                                 </ul>
                                 <Link
-                                    to="/tarifs"
+                                    to={`/souscription?plan=${plan.id}`}
                                     className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'}`}
                                     style={{ width: '100%', justifyContent: 'center' }}
                                     id={`cta-${plan.id}`}

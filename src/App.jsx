@@ -10,6 +10,7 @@ import About from './pages/About';
 import ConnexionPage from './pages/Connexion';
 import EspaceClient from './pages/EspaceClient';
 import Admin from './pages/Admin';
+import Souscription from './pages/Souscription';
 import ScrollToTop from './components/ScrollToTop';
 
 /* Route protégée : redirige vers /connexion si non connecté */
@@ -61,6 +62,9 @@ function App() {
 
         {/* ⚠️ Admin — URL directe uniquement, JAMAIS lié dans le site public */}
         <Route path="/admin" element={<Admin />} />
+
+        {/* Souscription — formulaire multi-étapes pleine page */}
+        <Route path="/souscription" element={<Souscription />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,0 +1,1014 @@
+/* ══════════════════════════════════════
+   SOUSCRIPTION — Multi-step form
+   ══════════════════════════════════════ */
+
+* {
+    box-sizing: border-box;
+}
+
+.souscription-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+    background: #F8FAFF;
+}
+
+/* ══════════ SIDEBAR ══════════ */
+.sous-sidebar {
+    background: white;
+    border-right: 1px solid #E2E8F0;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 20px;
+}
+
+.sous-sidebar-top {
+    margin-bottom: 36px;
+}
+
+/* Back button */
+.sous-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #64748B;
+    text-decoration: none;
+    padding: 6px 12px;
+    border: 1px solid #E2E8F0;
+    border-radius: 99px;
+    background: #F8FAFF;
+    transition: all 0.15s;
+    margin-bottom: 20px;
+}
+
+.sous-back:hover {
+    color: var(--primary);
+    border-color: rgba(26, 86, 219, 0.3);
+}
+
+/* Plan badge */
+.sous-plan-badge {
+    background: #EEF4FF;
+    border: 1px solid rgba(26, 86, 219, 0.15);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.spb-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94A3B8;
+}
+
+.spb-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    color: #0F172A;
+}
+
+.spb-price {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Steps nav */
+.sous-steps-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.sous-step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    transition: background 0.15s;
+    position: relative;
+}
+
+.sous-step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 36px;
+    width: 1.5px;
+    height: 18px;
+    background: #E2E8F0;
+}
+
+.sous-step-item.done::after {
+    background: #1A56DB;
+}
+
+.ssi-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #94A3B8;
+    background: white;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    z-index: 1;
+}
+
+.sous-step-item.active .ssi-dot {
+    border-color: #1A56DB;
+    background: #1A56DB;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(26, 86, 219, 0.12);
+}
+
+.sous-step-item.done .ssi-dot {
+    border-color: #1A56DB;
+    background: #1A56DB;
+}
+
+.ssi-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #94A3B8;
+    transition: color 0.15s;
+}
+
+.sous-step-item.active .ssi-label {
+    color: #0F172A;
+    font-weight: 700;
+}
+
+.sous-step-item.done .ssi-label {
+    color: #64748B;
+}
+
+/* Secure badge */
+.sous-sidebar-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #E2E8F0;
+}
+
+.sous-secure {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: #94A3B8;
+    font-weight: 500;
+}
+
+/* ══════════ MAIN ══════════ */
+.sous-main {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Progress bar */
+.sous-progress-bar {
+    height: 3px;
+    background: #E2E8F0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.sous-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1A56DB, #0EA5E9);
+    transition: width 0.4s cubic-bezier(.4, 0, .2, 1);
+    border-radius: 0 99px 99px 0;
+}
+
+/* Content */
+.sous-content {
+    flex: 1;
+    padding: 48px 56px;
+    max-width: 760px;
+}
+
+/* Step */
+.sous-step {
+    animation: stepIn 0.25s ease;
+}
+
+@keyframes stepIn {
+    from {
+        opacity: 0;
+        transform: translateX(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.sous-step-header {
+    margin-bottom: 36px;
+}
+
+.sous-step-num {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+}
+
+.sous-step-header h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.025em;
+    margin-bottom: 8px;
+}
+
+.sous-step-header p {
+    font-size: 15px;
+    color: #64748B;
+}
+
+/* Form grid */
+.sous-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.sous-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sous-field-full {
+    grid-column: span 2;
+}
+
+.sous-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.sous-input {
+    padding: 11px 16px;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 10px;
+    font-size: 14.5px;
+    color: #0F172A;
+    background: white;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    width: 100%;
+}
+
+.sous-input:focus {
+    border-color: #1A56DB;
+    box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.08);
+}
+
+.sous-input.error {
+    border-color: #EF4444;
+}
+
+.sous-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.field-error {
+    font-size: 12px;
+    color: #EF4444;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.field-hint {
+    font-size: 11.5px;
+    color: #94A3B8;
+    margin-top: 3px;
+}
+
+/* Phone */
+.phone-field {
+    display: flex;
+    gap: 0;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: white;
+}
+
+.phone-field:focus-within {
+    border-color: #1A56DB;
+    box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.08);
+}
+
+.phone-flag {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 14px;
+    background: #F8FAFF;
+    border-right: 1px solid #E2E8F0;
+    white-space: nowrap;
+    color: #374151;
+    font-weight: 500;
+}
+
+.phone-input {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    flex: 1;
+}
+
+/* ── Étape 0 — Type projet ── */
+.type-projet-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 8px;
+}
+
+.type-projet-card {
+    background: white;
+    border: 2px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 20px 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-family: 'Inter', sans-serif;
+}
+
+.type-projet-card:hover {
+    border-color: #1A56DB;
+    background: #FAFCFF;
+}
+
+.type-projet-card.selected {
+    border-color: #1A56DB;
+    background: #EEF4FF;
+}
+
+.tpc-icon {
+    font-size: 28px;
+}
+
+.tpc-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0F172A;
+}
+
+.tpc-desc {
+    font-size: 12.5px;
+    color: #64748B;
+    line-height: 1.5;
+}
+
+.tpc-check {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #1A56DB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: all 0.2s;
+}
+
+.type-projet-card.selected .tpc-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Formes juridiques */
+.forme-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.forme-btn {
+    padding: 8px 18px;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 99px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #475569;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+}
+
+.forme-btn:hover {
+    border-color: #1A56DB;
+    color: #1A56DB;
+}
+
+.forme-btn.selected {
+    border-color: #1A56DB;
+    background: #EEF4FF;
+    color: #1A56DB;
+}
+
+/* ── Étape 3 — Villes ── */
+.villes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.ville-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    background: white;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+    text-align: left;
+    position: relative;
+}
+
+.ville-btn:hover {
+    border-color: #1A56DB;
+    background: #FAFCFF;
+}
+
+.ville-btn.selected {
+    border-color: #1A56DB;
+    background: #EEF4FF;
+    color: #1A56DB;
+    font-weight: 700;
+}
+
+.vb-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.vb-check {
+    position: absolute;
+    right: 14px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #1A56DB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s;
+}
+
+.ville-btn.selected .vb-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.domi-info-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: #FFFBEB;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 20px;
+    font-size: 13.5px;
+}
+
+.dic-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.dic-title {
+    font-weight: 700;
+    color: #92400E;
+    margin-bottom: 4px;
+}
+
+.dic-text {
+    color: #78350F;
+    line-height: 1.6;
+}
+
+/* ── Étape 4 — Courrier ── */
+.courrier-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.courrier-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    background: white;
+    border: 2px solid #E2E8F0;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-family: 'Inter', sans-serif;
+    text-align: left;
+}
+
+.courrier-card:hover {
+    border-color: #1A56DB;
+}
+
+.courrier-card.selected {
+    border-color: #1A56DB;
+    background: #EEF4FF;
+}
+
+.cc-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.cc-icon {
+    font-size: 26px;
+    width: 48px;
+    height: 48px;
+    background: #F1F5F9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cc-label {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 3px;
+}
+
+.cc-desc {
+    font-size: 13px;
+    color: #64748B;
+}
+
+.cc-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.cc-price {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.cc-radio,
+.fc-radio {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #CBD5E1;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    position: relative;
+}
+
+.cc-radio.on,
+.fc-radio.on {
+    border-color: #1A56DB;
+    background: #1A56DB;
+}
+
+.cc-radio.on::after,
+.fc-radio.on::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+}
+
+/* ── Étape 5 — Fréquence ── */
+.freq-options {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.freq-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 24px;
+    background: white;
+    border: 2px solid #E2E8F0;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-family: 'Inter', sans-serif;
+    text-align: left;
+    position: relative;
+}
+
+.freq-card:hover {
+    border-color: #1A56DB;
+}
+
+.freq-card.selected {
+    border-color: #1A56DB;
+    background: #EEF4FF;
+}
+
+.fc-badge {
+    position: absolute;
+    top: -10px;
+    left: 20px;
+    background: #10B981;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 99px;
+}
+
+.fc-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 4px;
+}
+
+.fc-sub {
+    font-size: 13px;
+    color: #64748B;
+}
+
+.fc-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.fc-price {
+    font-size: 17px;
+    font-weight: 800;
+    color: #0F172A;
+}
+
+.fc-price small {
+    font-size: 12px;
+    font-weight: 500;
+    color: #94A3B8;
+}
+
+/* ── Étape 6 — Récapitulatif ── */
+.recap-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.recap-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rc-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748B;
+    margin-bottom: 4px;
+}
+
+.rc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13.5px;
+    gap: 12px;
+}
+
+.rc-row span {
+    color: #94A3B8;
+    flex-shrink: 0;
+}
+
+.rc-row strong {
+    color: #0F172A;
+    text-align: right;
+}
+
+.recap-total {
+    background: linear-gradient(135deg, #1A56DB, #0EA5E9);
+    border-radius: 14px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.rt-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.rt-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: white;
+}
+
+.cgv-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    color: #374151;
+    cursor: pointer;
+    line-height: 1.6;
+}
+
+.cgv-field input {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    accent-color: #1A56DB;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.cgv-link {
+    color: #1A56DB;
+    font-weight: 600;
+}
+
+/* ── Étape 7 — Paiement ── */
+.paiement-summary {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 18px 24px;
+    margin-bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ps-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #64748B;
+}
+
+.ps-row strong {
+    color: #0F172A;
+}
+
+.ps-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0F172A;
+    padding-top: 10px;
+    border-top: 1px solid #E2E8F0;
+    margin-top: 4px;
+}
+
+.paiement-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.card-input-wrap {
+    position: relative;
+}
+
+.card-logos {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+}
+
+.stripe-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: #94A3B8;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.sous-pay-btn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #1A56DB, #1240A8);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    box-shadow: 0 4px 16px rgba(26, 86, 219, 0.3);
+}
+
+.sous-pay-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(26, 86, 219, 0.4);
+}
+
+.sous-pay-btn:disabled {
+    background: #CBD5E1;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* ── Navigation buttons ── */
+.sous-nav-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #E2E8F0;
+    gap: 12px;
+}
+
+.sous-btn-prev {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 99px;
+    background: white;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #64748B;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+}
+
+.sous-btn-prev:hover {
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+.sous-btn-next {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: #1A56DB;
+    color: white;
+    border: none;
+    border-radius: 99px;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    box-shadow: 0 2px 12px rgba(26, 86, 219, 0.25);
+    margin-left: auto;
+}
+
+.sous-btn-next:hover {
+    background: #1240A8;
+    box-shadow: 0 4px 16px rgba(26, 86, 219, 0.35);
+    transform: translateY(-1px);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+    .souscription-layout {
+        grid-template-columns: 220px 1fr;
+    }
+
+    .sous-content {
+        padding: 36px 32px;
+    }
+
+    .type-projet-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .souscription-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sous-sidebar {
+        display: none;
+    }
+
+    .sous-content {
+        padding: 24px 20px;
+    }
+
+    .sous-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sous-field-full {
+        grid-column: span 1;
+    }
+
+    .recap-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .villes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .type-projet-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .paiement-form {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .sous-step-header h2 {
+        font-size: 22px;
+    }
+}
