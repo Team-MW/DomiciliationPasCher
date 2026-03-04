@@ -1,218 +1,158 @@
+import { conn } from '../lib/db';
+
 /**
- * ADMIN DATA SERVICE
- * Simule un backend robuste avec persistence via localStorage.
- * Permet au dashboard d'être réellement fonctionnel (CRUD).
+ * ADMIN DATA SERVICE - Version PlanetScale
+ * Connecté en temps réel à la base de données MySQL.
  */
 
-const STORAGE_KEYS = {
-    CLIENTS: 'dpc_admin_clients',
-    MAIL: 'dpc_admin_mail',
-    DEMANDES: 'dpc_admin_demandes',
-    DOCUMENTS: 'dpc_admin_documents',
-    BOOKINGS: 'dpc_admin_bookings'
-};
-
-// Initialisation des données mockées si vides
-const INITIAL_DATA = {
-    clients: [
-        { id: '1', name: 'Marie Lambert', email: 'marie.l@gmail.com', company: 'ML Consulting', city: 'Lyon', plan: 'Scan+', status: 'actif', since: '2024-11-15', renewal: '2025-11-15', stats: { mail: 12, spent: 450 } },
-        { id: '2', name: 'Thomas Bernard', email: 'thomas.b@startup.io', company: 'Bernard Tech', city: 'Paris', plan: 'Essentiel', status: 'actif', since: '2024-10-02', renewal: '2025-10-02', stats: { mail: 5, spent: 230 } },
-    ],
-    mail: [
-        { id: 'm1', clientId: '1', company: 'ML Consulting', type: 'Recommandé', from: 'URSSAF', date: '2025-03-04', status: 'non lu', preview: null },
-        { id: 'm2', clientId: '1', company: 'ML Consulting', type: 'Lettre Simple', from: 'Banque Populaire', date: '2025-03-01', status: 'lu', preview: null },
-        { id: 'm3', clientId: '2', company: 'Bernard Tech', type: 'Pli Administratif', from: 'Impôts Gouv', date: '2025-03-03', status: 'non lu', preview: null },
-    ],
-    demandes: [
-        { id: 'req1', clientName: 'Jean Dupont', email: 'j.dupont@web.fr', company: 'Dupont Web', plan: 'Scan+', amount: '28.00', date: '2025-03-04T10:15:00', status: 'en_attente' },
-        { id: 'req2', clientName: 'Alice Roche', email: 'alice@design.com', company: 'Alice Studio', plan: 'Essentiel', amount: '23.00', date: '2025-03-04T09:20:00', status: 'en_attente' },
-    ],
-    documents: {
-        '1': [
-            { id: 'd1', name: 'KBIS_2024.pdf', size: '250KB', type: 'application/pdf', uploadedAt: '2024-11-16', owner: 'client', url: '#' },
-            { id: 'd2', name: 'IDCard_Recto.jpg', size: '1.2MB', type: 'image/jpeg', uploadedAt: '2024-11-16', owner: 'client', url: '#' },
-            { id: 'd3', name: 'Contrat_Domiciliation.pdf', size: '1.5MB', type: 'application/pdf', uploadedAt: '2024-11-15', owner: 'admin', url: '#' }
-        ],
-        '2': [
-            { id: 'd4', name: 'Contrat_Essentiel.pdf', size: '800KB', type: 'application/pdf', uploadedAt: '2024-10-02', owner: 'admin', url: '#' }
-        ]
-    }
-};
-
-const get = (key) => {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
-};
-
-const set = (key, data) => {
-    localStorage.setItem(key, JSON.stringify(data));
-};
-
 export const adminDataService = {
-    init() {
-        if (!get(STORAGE_KEYS.CLIENTS)) set(STORAGE_KEYS.CLIENTS, INITIAL_DATA.clients);
-        if (!get(STORAGE_KEYS.MAIL)) set(STORAGE_KEYS.MAIL, INITIAL_DATA.mail);
-        if (!get(STORAGE_KEYS.DEMANDES)) set(STORAGE_KEYS.DEMANDES, INITIAL_DATA.demandes);
-        if (!get(STORAGE_KEYS.DOCUMENTS)) set(STORAGE_KEYS.DOCUMENTS, INITIAL_DATA.documents);
-        if (!get(STORAGE_KEYS.BOOKINGS)) set(STORAGE_KEYS.BOOKINGS, []);
-    },
-
     // --- CLIENTS ---
-    getClients() { return get(STORAGE_KEYS.CLIENTS) || []; },
-    getClientById(id) {
-        const clients = this.getClients();
-        return clients.find(c => c.id === id);
+    async getClients() {
+        const res = await conn.execute('SELECT * FROM clients ORDER BY since DESC');
+        return res.rows;
     },
-    updateClient(id, updates) {
-        const clients = this.getClients();
-        const index = clients.findIndex(c => c.id === id);
-        if (index !== -1) {
-            clients[index] = { ...clients[index], ...updates };
-            set(STORAGE_KEYS.CLIENTS, clients);
-        }
+
+    async getClientById(id) {
+        const res = await conn.execute('SELECT * FROM clients WHERE id = ?', [id]);
+        return res.rows[0];
     },
-    getClientByEmail(email) {
-        const clients = this.getClients();
-        return clients.find(c => c.email.toLowerCase() === email.toLowerCase());
+
+    async getClientByEmail(email) {
+        const res = await conn.execute('SELECT * FROM clients WHERE email = ?', [email]);
+        return res.rows[0];
     },
+
     async addClient(clientData) {
-        // Simulation temps de réponse
-        await new Promise(resolve => setTimeout(resolve, 800));
+        const id = Date.now().toString();
+        const since = new Date().toISOString().split('T')[0];
 
-        const newClient = {
-            id: Date.now().toString(),
-            status: 'actif',
-            since: new Date().toISOString().split('T')[0],
-            clerkId: `user_${Math.random().toString(36).substr(2, 9)}`,
-            clerkStatus: 'manual_creation',
-            stats: { mail: 0, spent: 0 },
-            ...clientData
-        };
-
-        const clients = this.getClients();
-        set(STORAGE_KEYS.CLIENTS, [newClient, ...clients]);
-        return newClient;
+        await conn.execute(
+            `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                id, clientData.name, clientData.email, clientData.company,
+                clientData.city || 'À définir', clientData.plan, 'actif',
+                since, clientData.renewal || since, '', 'manual'
+            ]
+        );
+        return { id, ...clientData, status: 'actif', since };
     },
 
-    // --- DEMANDES (Après paiement Stripe) ---
-    getDemandes() { return get(STORAGE_KEYS.DEMANDES) || []; },
-    addDemande(demande) {
-        const demandes = this.getDemandes();
-        const newDemande = {
-            id: 'req_' + Date.now(),
-            date: new Date().toISOString(),
-            status: 'en_attente',
-            ...demande
-        };
-        set(STORAGE_KEYS.DEMANDES, [newDemande, ...demandes]);
-        return newDemande;
+    // --- DEMANDES ---
+    async getDemandes() {
+        const res = await conn.execute("SELECT * FROM demandes WHERE status = 'en_attente' ORDER BY date DESC");
+        return res.rows;
     },
+
+    async addDemande(d) {
+        const id = 'req_' + Date.now();
+        const date = new Date().toISOString();
+        await conn.execute(
+            `INSERT INTO demandes (id, clientName, email, company, plan, amount, date, status) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, d.clientName, d.email, d.company, d.plan, d.amount, date, 'en_attente']
+        );
+        return { id, ...d, date, status: 'en_attente' };
+    },
+
     async traiterDemande(id) {
-        let demandes = this.getDemandes();
-        const d = demandes.find(item => item.id === id);
+        const res = await conn.execute('SELECT * FROM demandes WHERE id = ?', [id]);
+        const d = res.rows[0];
         if (d) {
-            // Simulation temps de réponse API Clerk
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const clientId = Date.now().toString();
+            const since = new Date().toISOString().split('T')[0];
 
-            // Créer le client avec ses accès Clerk simulés
-            const newClient = {
-                id: Date.now().toString(),
-                name: d.clientName,
-                email: d.email,
-                company: d.company,
-                city: 'À définir',
-                plan: d.plan,
-                status: 'actif',
-                clerkId: `user_${Math.random().toString(36).substr(2, 9)}`,
-                clerkStatus: 'invitation_sent',
-                since: new Date().toISOString().split('T')[0],
-                stats: { mail: 0, spent: parseFloat(d.amount) }
-            };
+            // Créer le client
+            await conn.execute(
+                `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [clientId, d.clientName, d.email, d.company, 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent']
+            );
 
-            const clients = this.getClients();
-            set(STORAGE_KEYS.CLIENTS, [newClient, ...clients]);
-
-            // Marquer la demande comme traitée
-            demandes = demandes.filter(item => item.id !== id);
-            set(STORAGE_KEYS.DEMANDES, demandes);
-            return newClient;
+            // Supprimer la demande
+            await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
+            return { id: clientId, ...d };
         }
-    },
-
-    // --- DOCUMENTS (Cloudinary Simulator) ---
-    getDocuments(clientId) {
-        const docs = get(STORAGE_KEYS.DOCUMENTS) || {};
-        return docs[clientId] || [];
-    },
-    addDocument(clientId, fileInfo) {
-        const allDocs = get(STORAGE_KEYS.DOCUMENTS) || {};
-        const clientDocs = allDocs[clientId] || [];
-        const newDoc = {
-            id: 'doc_' + Date.now(),
-            uploadedAt: new Date().toISOString().split('T')[0],
-            folder: fileInfo.folder || 'Documents', // Dossier par défaut plus propre
-            ...fileInfo
-        };
-        allDocs[clientId] = [newDoc, ...clientDocs];
-        set(STORAGE_KEYS.DOCUMENTS, allDocs);
-        return newDoc;
-    },
-    getClientFolders(clientId) {
-        const docs = this.getDocuments(clientId);
-        const folders = Array.from(new Set(docs.map(d => d.folder || 'Documents')));
-        return folders;
-    },
-    createFolder(clientId, folderName) {
-        // Dans cette simulation, on stocke juste le folder dans le doc,
-        // mais pour l'affichage on pourra filtrer.
-        // On pourrait aussi ajouter une entrée spéciale folder.
-        return true;
-    },
-
-    // --- BOOKINGS & RESERVATIONS ---
-    getBookings() { return get(STORAGE_KEYS.BOOKINGS) || []; },
-    getClientBookings(clientId) {
-        return this.getBookings().filter(b => b.clientId === clientId);
-    },
-    addBookingRequest(clientId, bookingData) {
-        const bookings = this.getBookings();
-        const newBooking = {
-            id: 'book_' + Date.now(),
-            clientId,
-            status: 'en_attente',
-            createdAt: new Date().toISOString(),
-            ...bookingData
-        };
-        set(STORAGE_KEYS.BOOKINGS, [newBooking, ...bookings]);
-        return newBooking;
     },
 
     // --- MAIL ---
-    getMail() { return get(STORAGE_KEYS.MAIL) || []; },
-    getClientMail(clientId) {
-        const allMail = this.getMail();
-        return allMail.filter(m => m.clientId === clientId);
+    async getMail() {
+        const res = await conn.execute('SELECT * FROM mail ORDER BY date DESC');
+        return res.rows;
     },
-    markMailAsRead(id) {
-        const allMail = this.getMail();
-        const index = allMail.findIndex(m => m.id === id);
-        if (index !== -1) {
-            allMail[index].status = 'lu';
-            set(STORAGE_KEYS.MAIL, allMail);
-        }
+
+    async getClientMail(clientId) {
+        const res = await conn.execute('SELECT * FROM mail WHERE clientId = ? ORDER BY date DESC', [clientId]);
+        return res.rows;
+    },
+
+    async markMailAsRead(id) {
+        await conn.execute("UPDATE mail SET status = 'lu' WHERE id = ?", [id]);
+    },
+
+    // --- DOCUMENTS ---
+    async getDocuments(clientId) {
+        const res = await conn.execute('SELECT * FROM documents WHERE clientId = ? ORDER BY uploadedAt DESC', [clientId]);
+        return res.rows;
+    },
+
+    async addDocument(clientId, fileInfo) {
+        const id = 'doc_' + Date.now();
+        const uploadedAt = new Date().toISOString().split('T')[0];
+        await conn.execute(
+            `INSERT INTO documents (id, clientId, name, size, type, uploadedAt, owner, folder, url) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, clientId, fileInfo.name, fileInfo.size, fileInfo.type, uploadedAt, fileInfo.owner, fileInfo.folder || 'Documents', fileInfo.url || '#']
+        );
+        return { id, clientId, uploadedAt, ...fileInfo };
+    },
+
+    async getClientFolders(clientId) {
+        const docs = await this.getDocuments(clientId);
+        return Array.from(new Set(docs.map(d => d.folder || 'Documents')));
+    },
+
+    // --- BOOKINGS ---
+    async getBookings() {
+        const res = await conn.execute('SELECT * FROM bookings ORDER BY date DESC');
+        return res.rows;
+    },
+
+    async getClientBookings(clientId) {
+        const res = await conn.execute('SELECT * FROM bookings WHERE clientId = ? ORDER BY date DESC', [clientId]);
+        return res.rows;
+    },
+
+    async addBookingRequest(clientId, b) {
+        const id = 'book_' + Date.now();
+        const createdAt = new Date().toISOString();
+        await conn.execute(
+            `INSERT INTO bookings (id, clientId, type, date, duration, status, createdAt) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [id, clientId, b.type, b.date, b.duration, 'en_attente', createdAt]
+        );
+        return { id, clientId, ...b, status: 'en_attente', createdAt };
     },
 
     // --- STATS ---
-    getGlobalStats() {
-        const clients = this.getClients();
-        const mails = this.getMail();
-        const demandes = this.getDemandes();
+    async getGlobalStats() {
+        const [clients, mails, demandes] = await Promise.all([
+            conn.execute('SELECT COUNT(*) as total FROM clients WHERE status = ?', ['actif']),
+            conn.execute("SELECT COUNT(*) as total FROM mail WHERE status = 'non lu'"),
+            conn.execute("SELECT COUNT(*) as total FROM demandes WHERE status = 'en_attente'")
+        ]);
+
+        const revenueRes = await conn.execute("SELECT plan FROM clients WHERE status = 'actif'");
+        const monthlyRevenue = revenueRes.rows.reduce((acc, c) => acc + (c.plan === 'Scan+' ? 28 : 23), 0);
+
         return {
-            totalClients: clients.length,
-            activeClients: clients.filter(c => c.status === 'actif').length,
-            pendingMails: mails.filter(m => m.status === 'non lu').length,
-            pendingDemandes: demandes.length,
-            monthlyRevenue: clients.filter(c => c.status === 'actif').reduce((acc, c) => acc + (c.plan === 'Scan+' ? 28 : 23), 0)
+            activeClients: parseInt(clients.rows[0].total),
+            pendingMails: parseInt(mails.rows[0].total),
+            pendingDemandes: parseInt(demandes.rows[0].total),
+            monthlyRevenue
         };
-    }
+    },
+
+    // Mock compatibility
+    init() { }
 };

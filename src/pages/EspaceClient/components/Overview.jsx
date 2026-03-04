@@ -1,8 +1,7 @@
 import React from 'react';
 import { Icons } from './Icons';
-import { adminDataService } from '../../../services/adminDataService';
 
-export default function Overview({ mail, documents, clientData }) {
+export default function Overview({ mail, documents, bookings, clientData }) {
     return (
         <div className="ec-tab-animate">
             <div className="ec-stats-row">
@@ -24,7 +23,7 @@ export default function Overview({ mail, documents, clientData }) {
                 <div className="ec-stat-card">
                     <div className="ec-stat-label">Réservations</div>
                     <div className="ec-stat-value" style={{ color: '#6366F1' }}>
-                        {adminDataService.getClientBookings(clientData?.id).length}
+                        {bookings.length}
                     </div>
                     <div className="ec-stat-footer">En attente / Confirmées</div>
                 </div>

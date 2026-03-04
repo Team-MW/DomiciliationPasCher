@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
@@ -28,26 +28,42 @@ export default function Admin() {
     const [clients, setClients] = useState([]);
     const [mail, setMail] = useState([]);
     const [demandes, setDemandes] = useState([]);
+    const [bookings, setBookings] = useState([]);
     const [stats, setStats] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClientId, setSelectedClientId] = useState(null);
     const [isCreatingClient, setIsCreatingClient] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || '0000';
 
+    const refreshData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const [c, m, d, b, s] = await Promise.all([
+                adminDataService.getClients(),
+                adminDataService.getMail(),
+                adminDataService.getDemandes(),
+                adminDataService.getBookings(),
+                adminDataService.getGlobalStats()
+            ]);
+            setClients(c);
+            setMail(m);
+            setDemandes(d);
+            setBookings(b);
+            setStats(s);
+        } catch (err) {
+            console.error("Erreur de chargement des données:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         if (pinOk) {
-            adminDataService.init();
             refreshData();
         }
-    }, [pinOk]);
-
-    const refreshData = () => {
-        setClients(adminDataService.getClients());
-        setMail(adminDataService.getMail());
-        setDemandes(adminDataService.getDemandes());
-        setStats(adminDataService.getGlobalStats());
-    };
+    }, [pinOk, refreshData]);
 
     const handlePinSuccess = () => {
         setPinOk(true);
@@ -91,7 +107,7 @@ export default function Admin() {
         );
     }
 
-    const selectedClient = selectedClientId ? adminDataService.getClientById(selectedClientId) : null;
+    const selectedClient = selectedClientId ? clients.find(c => c.id === selectedClientId) : null;
 
     return (
         <div className="admin-layout">
@@ -154,6 +170,8 @@ export default function Admin() {
                 </header>
 
                 <div className="admin-body">
+                    {isLoading && <div className="loading-overlay">Chargement des données...</div>}
+
                     {selectedClientId ? (
                         <DossierClient
                             client={selectedClient}
@@ -166,7 +184,7 @@ export default function Admin() {
                             {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} />}
                             {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
                             {activeTab === 'mail' && <MailTab mail={mail} clients={clients} onUpdate={refreshData} />}
-                            {activeTab === 'meeting' && <MeetingTab bookings={adminDataService.getBookings()} clients={clients} onUpdate={refreshData} />}
+                            {activeTab === 'meeting' && <MeetingTab bookings={bookings} clients={clients} onUpdate={refreshData} />}
                         </>
                     )}
                 </div>

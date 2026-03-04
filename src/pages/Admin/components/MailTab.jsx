@@ -3,6 +3,11 @@ import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 
 export default function MailTab({ mail, clients, onUpdate }) {
+    const handleMarkAsRead = async (id) => {
+        await adminDataService.markMailAsRead(id);
+        onUpdate();
+    };
+
     return (
         <div className="tab-container">
             <div className="tab-header">
@@ -19,7 +24,7 @@ export default function MailTab({ mail, clients, onUpdate }) {
                             <div className="mail-from">Exp: {m.from}</div>
                             <div className="mail-meta">{m.type} · {m.date}</div>
                             <div className="mail-actions-v2">
-                                <button className="btn-primary-sm" onClick={() => { adminDataService.markMailAsRead(m.id); onUpdate(); }}>
+                                <button className="btn-primary-sm" onClick={() => handleMarkAsRead(m.id)}>
                                     {m.status === 'non lu' ? 'Marquer Lu' : 'Visualiser'}
                                 </button>
                                 <button className="btn-secondary-sm">Transférer</button>

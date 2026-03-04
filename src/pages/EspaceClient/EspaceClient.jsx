@@ -20,45 +20,63 @@ export default function EspaceClient() {
     const [clientData, setClientData] = useState(null);
     const [mail, setMail] = useState([]);
     const [documents, setDocuments] = useState([]);
+    const [bookings, setBookings] = useState([]);
     const [currentFolder, setCurrentFolder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const isPreview = params.get('preview') === 'true';
+        async function fetchData() {
+            const params = new URLSearchParams(window.location.search);
+            const isPreview = params.get('preview') === 'true';
 
-        if (isPreview) {
-            setClientData({
-                id: '1',
-                company: "DEMO PREVIEW INC.",
-                plan: "Scan+",
-                status: "actif",
-                since: "2024-12-01"
-            });
-            setMail(adminDataService.getMail().slice(0, 5));
-            setDocuments(adminDataService.getDocuments('1'));
-            setIsLoading(false);
-            return;
-        }
-
-        if (isLoaded && user) {
-            const email = user.primaryEmailAddress?.emailAddress;
-            const data = adminDataService.getClientByEmail(email);
-
-            if (data) {
-                setClientData(data);
-                setMail(adminDataService.getClientMail(data.id));
-                setDocuments(adminDataService.getDocuments(data.id));
-            } else {
-                setClientData({
-                    company: "Votre Entreprise",
+            if (isPreview) {
+                const previewClient = {
+                    id: '1',
+                    company: "DEMO PREVIEW INC.",
                     plan: "Scan+",
                     status: "actif",
                     since: "2024-12-01"
-                });
+                };
+                setClientData(previewClient);
+                const [m, d, b] = await Promise.all([
+                    adminDataService.getMail(),
+                    adminDataService.getDocuments('1'),
+                    adminDataService.getClientBookings('1')
+                ]);
+                setMail(m.slice(0, 5));
+                setDocuments(d);
+                setBookings(b);
+                setIsLoading(false);
+                return;
             }
-            setIsLoading(false);
+
+            if (isLoaded && user) {
+                const email = user.primaryEmailAddress?.emailAddress;
+                const data = await adminDataService.getClientByEmail(email);
+
+                if (data) {
+                    setClientData(data);
+                    const [m, d, b] = await Promise.all([
+                        adminDataService.getClientMail(data.id),
+                        adminDataService.getDocuments(data.id),
+                        adminDataService.getClientBookings(data.id)
+                    ]);
+                    setMail(m);
+                    setDocuments(d);
+                    setBookings(b);
+                } else {
+                    setClientData({
+                        company: "Votre Entreprise",
+                        plan: "Scan+",
+                        status: "actif",
+                        since: "2024-12-01"
+                    });
+                }
+                setIsLoading(false);
+            }
         }
+
+        fetchData();
     }, [isLoaded, user]);
 
     const handleLogout = async () => {
@@ -94,7 +112,7 @@ export default function EspaceClient() {
                 </header>
 
                 <div className="ec-view-container">
-                    {activeTab === 'overview' && <Overview mail={mail} documents={documents} clientData={clientData} />}
+                    {activeTab === 'overview' && <Overview mail={mail} documents={documents} bookings={bookings} clientData={clientData} />}
                     {activeTab === 'mail' && <Mail mail={mail} />}
                     {activeTab === 'docs' && (
                         <Docs

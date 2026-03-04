@@ -1,8 +1,38 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 
 export default function Meeting({ clientData, setActiveTab }) {
+    const [bookings, setBookings] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (clientData?.id) {
+            const fetchBookings = async () => {
+                const b = await adminDataService.getClientBookings(clientData.id);
+                setBookings(b);
+            };
+            fetchBookings();
+        }
+    }, [clientData]);
+
+    const handleBooking = async () => {
+        const type = document.getElementById('book-type').value;
+        const date = document.getElementById('book-date').value;
+        const duration = document.getElementById('book-duration').value;
+
+        if (!date) return alert('Veuillez choisir une date');
+
+        setIsSubmitting(true);
+        try {
+            await adminDataService.addBookingRequest(clientData.id, { type, date, duration });
+            alert('Votre demande de réservation a été envoyée ! Un administrateur reviendra vers vous.');
+            setActiveTab('overview');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <div className="ec-tab-animate">
             <div className="ec-meeting-layout">
@@ -34,14 +64,14 @@ export default function Meeting({ clientData, setActiveTab }) {
                                     </select>
                                 </div>
                             </div>
-                            <button className="ec-btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => {
-                                const type = document.getElementById('book-type').value;
-                                const date = document.getElementById('book-date').value;
-                                if (!date) return alert('Veuillez choisir une date');
-                                adminDataService.addBookingRequest(clientData.id, { type, date, duration: document.getElementById('book-duration').value });
-                                alert('Votre demande de réservation a été envoyée ! Un administrateur reviendra vers vous.');
-                                setActiveTab('overview');
-                            }}>Confirmer la demande de réservation</button>
+                            <button
+                                className="ec-btn-primary"
+                                style={{ width: '100%', marginTop: '20px' }}
+                                onClick={handleBooking}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? 'Envoi...' : 'Confirmer la demande de réservation'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -49,14 +79,16 @@ export default function Meeting({ clientData, setActiveTab }) {
                 <div className="ec-content-card">
                     <div className="ec-card-header"><h2>Vos réservations</h2></div>
                     <div className="ec-activity-list">
-                        {adminDataService.getClientBookings(clientData.id).map(b => (
+                        {bookings.length === 0 ? (
+                            <div className="ec-empty" style={{ padding: '40px' }}>Vous n'avez pas de réservation en cours.</div>
+                        ) : bookings.map(b => (
                             <div key={b.id} className="ec-activity-item">
                                 <div className="ec-activity-icon"><Icons.Calendar /></div>
                                 <div className="ec-activity-body">
                                     <div className="ec-activity-title">{b.type}</div>
                                     <div className="ec-activity-meta">{b.date} · {b.duration}</div>
                                 </div>
-                                <span className="ec-status-chip unread">{b.status}</span>
+                                <span className={`ec-status-chip ${b.status === 'en_attente' ? 'unread' : ''}`}>{b.status}</span>
                             </div>
                         ))}
                     </div>

@@ -4,19 +4,31 @@ import { adminDataService } from '../../../services/adminDataService';
 
 export default function DossierClient({ client, onBack, onUpdate }) {
     const [documents, setDocuments] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (client) setDocuments(adminDataService.getDocuments(client.id));
+        if (client) {
+            const fetchDocs = async () => {
+                setIsLoading(true);
+                const docs = await adminDataService.getDocuments(client.id);
+                setDocuments(docs);
+                setIsLoading(false);
+            };
+            fetchDocs();
+        }
     }, [client]);
 
-    const handleUploadSim = () => {
+    const handleUploadSim = async () => {
         const name = prompt('Nom du document ?');
         const folder = prompt('Dossier de destination (ex: Factures, Contrats, Juridique) ?', 'Documents');
         if (name) {
-            adminDataService.addDocument(client.id, {
+            setIsLoading(true);
+            await adminDataService.addDocument(client.id, {
                 name: name, size: '250KB', type: 'application/pdf', owner: 'admin', folder, url: '#'
             });
-            setDocuments(adminDataService.getDocuments(client.id));
+            const docs = await adminDataService.getDocuments(client.id);
+            setDocuments(docs);
+            setIsLoading(false);
         }
     };
 
@@ -39,10 +51,14 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                 <div className="content-card">
                     <div className="card-header">
                         <h2>Espace Documentaire</h2>
-                        <button className="btn-primary-sm" onClick={handleUploadSim}>Uploader</button>
+                        <button className="btn-primary-sm" onClick={handleUploadSim} disabled={isLoading}>
+                            {isLoading ? 'Envoi...' : 'Uploader'}
+                        </button>
                     </div>
                     <div className="card-body">
-                        {documents.length === 0 ? (
+                        {isLoading && documents.length === 0 ? (
+                            <div className="empty-state-full"><p>Chargement...</p></div>
+                        ) : documents.length === 0 ? (
                             <div className="empty-state-full">
                                 <Icons.File />
                                 <p>Aucun document dans le dossier.</p>

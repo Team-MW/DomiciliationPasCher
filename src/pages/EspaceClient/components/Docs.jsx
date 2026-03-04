@@ -1,8 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 
 export default function Docs({ documents, setDocuments, currentFolder, setCurrentFolder, clientData }) {
+    const [isUploading, setIsUploading] = useState(false);
+
+    // Dériver les dossiers depuis la liste des documents reçue en prop
+    const folders = Array.from(new Set(documents.map(d => d.folder || 'Documents')));
+
+    const handleUpload = async () => {
+        const name = prompt('Nom du document à déposer ici ?');
+        if (name) {
+            setIsUploading(true);
+            try {
+                await adminDataService.addDocument(clientData.id, {
+                    name, size: '450KB', type: 'application/pdf', owner: 'client',
+                    folder: currentFolder || 'Documents'
+                });
+                const updatedDocs = await adminDataService.getDocuments(clientData.id);
+                setDocuments(updatedDocs);
+            } finally {
+                setIsUploading(false);
+            }
+        }
+    };
+
     return (
         <div className="ec-tab-animate">
             <div className="ec-content-card">
@@ -17,16 +39,9 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
                         )}
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="ec-btn-primary" onClick={() => {
-                            const name = prompt('Nom du document à déposer ici ?');
-                            if (name) {
-                                adminDataService.addDocument(clientData.id, {
-                                    name, size: '450KB', type: 'application/pdf', owner: 'client',
-                                    folder: currentFolder || 'Documents'
-                                });
-                                setDocuments(adminDataService.getDocuments(clientData.id));
-                            }
-                        }}>+ Déposer un fichier</button>
+                        <button className="ec-btn-primary" onClick={handleUpload} disabled={isUploading}>
+                            {isUploading ? 'Transfert...' : '+ Déposer un fichier'}
+                        </button>
                     </div>
                 </div>
 
@@ -34,7 +49,7 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
                     {/* SI VIEW ROOT : AFFICHER LES DOSSIERS */}
                     {!currentFolder && (
                         <>
-                            {adminDataService.getClientFolders(clientData.id).map(folder => (
+                            {folders.map(folder => (
                                 <div key={folder} className="ec-explorer-item folder" onClick={() => setCurrentFolder(folder)}>
                                     <div className="ec-explorer-icon"><Icons.Folder /></div>
                                     <div className="ec-explorer-name">{folder}</div>
@@ -45,7 +60,8 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
                             ))}
                             <div className="ec-explorer-item folder new" onClick={() => {
                                 const name = prompt('Nom du nouveau dossier ?');
-                                if (name) adminDataService.createFolder(clientData.id, name);
+                                // Le dossier sera créé lors du premier ajout de doc dedans
+                                if (name) setCurrentFolder(name);
                             }}>
                                 <div className="ec-explorer-icon add">+</div>
                                 <div className="ec-explorer-name">Nouveau dossier</div>
@@ -67,11 +83,11 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
                                     <div className="ec-explorer-meta">
                                         {doc.size} · {doc.owner === 'admin' ? 'Admin' : 'Moi'}
                                     </div>
-                                    <button className="ec-explorer-dl"><Icons.ArrowRight /></button>
+                                    <button className="ec-explorer-dl" onClick={() => alert('Téléchargement simulé')}><Icons.ArrowRight /></button>
                                 </div>
                             ))}
                             {documents.filter(d => d.folder === currentFolder).length === 0 && (
-                                <div className="ec-empty">Ce dossier est vide.</div>
+                                <div className="ec-empty">Ce dossier est vide. Prêt pour un dépôt.</div>
                             )}
                         </>
                     )}
