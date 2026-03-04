@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import './Home.css';
 
 const stats = [
-    { value: '+3 000', label: 'Entreprises domiciliées' },
-    { value: '+50', label: 'Nouvelles créations / semaine' },
-    { value: '10', label: 'Métropoles françaises' },
-    { value: '23€', label: 'HT / mois seulement' },
+    { prefix: '+', target: 3000, suffix: '', label: 'Entreprises domiciliées' },
+    { prefix: '+', target: 50, suffix: '', label: 'Nouvelles créations / semaine' },
+    { prefix: '', target: 10, suffix: '', label: 'Métropoles françaises' },
+    { prefix: '', target: 23, suffix: '€', label: 'HT / mois seulement' },
 ];
 
 const features = [
@@ -43,10 +43,34 @@ const features = [
 ];
 
 const steps = [
-    { n: '01', title: 'Choisissez votre adresse', desc: 'Sélectionnez la ville et la formule adaptés à votre activité parmi nos 10 métropoles.' },
-    { n: '02', title: 'Complétez votre dossier', desc: 'Renseignez votre formulaire en ligne et téléchargez vos pièces justificatives en quelques minutes.' },
-    { n: '03', title: 'Signez votre contrat', desc: 'Signez électroniquement votre contrat de domiciliation conforme à la loi Dutreil, sans vous déplacer.' },
-    { n: '04', title: 'Recevez votre attestation', desc: 'Votre attestation officielle de domiciliation est émise sous 24h, prête pour votre immatriculation.' },
+    {
+        n: '01',
+        icon: '📍',
+        tag: 'Choix libre',
+        title: 'Choisissez votre adresse',
+        desc: 'Sélectionnez la ville et la formule adaptés à votre activité parmi nos 10 métropoles.'
+    },
+    {
+        n: '02',
+        icon: '📂',
+        tag: '100% Digital',
+        title: 'Complétez votre dossier',
+        desc: 'Renseignez votre formulaire en ligne et téléchargez vos pièces justificatives en quelques secondes.'
+    },
+    {
+        n: '03',
+        icon: '✍️',
+        tag: 'Légal & Sûr',
+        title: 'Signez votre contrat',
+        desc: 'Signez électroniquement votre contrat conforme à la loi Dutreil, sans aucun déplacement.'
+    },
+    {
+        n: '04',
+        icon: '🚀',
+        tag: 'Prêt en 24h',
+        title: 'Recevez votre attestation',
+        desc: 'Votre attestation officielle est émise sous 24h, prête pour votre immatriculation immédiate.'
+    },
 ];
 
 const cities = [
@@ -91,6 +115,116 @@ function useAnimateOnScroll() {
     return ref;
 }
 
+/* ── Hook compteur animé ── */
+function useCountUp(target, duration = 1800) {
+    const [count, setCount] = useState(0);
+    const [started, setStarted] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => { if (entry.isIntersecting && !started) setStarted(true); },
+            { threshold: 0.4 }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [started]);
+
+    useEffect(() => {
+        if (!started) return;
+        let startTime = null;
+        const step = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const progress = Math.min((timestamp - startTime) / duration, 1);
+            // easeOutQuart
+            const ease = 1 - Math.pow(1 - progress, 4);
+            setCount(Math.floor(ease * target));
+            if (progress < 1) requestAnimationFrame(step);
+            else setCount(target);
+        };
+        requestAnimationFrame(step);
+    }, [started, target, duration]);
+
+    return { count, ref };
+}
+
+/* ── Composant stat avec comptage ── */
+function StatItem({ prefix, target, suffix, label, delay = 0 }) {
+    const { count, ref } = useCountUp(target, 1600 + delay * 200);
+    // Formatage : espace pour les milliers
+    const formatted = count >= 1000
+        ? count.toLocaleString('fr-FR').replace(/\u202f/g, '\u00a0')
+        : String(count);
+    return (
+        <div ref={ref} className="stat-item animate-in" style={{ animationDelay: `${delay * 0.08}s` }}>
+            <div className="stat-value">{prefix}{formatted}{suffix}</div>
+            <div className="stat-label">{label}</div>
+        </div>
+    );
+}
+
+/* ── Stepper interactif et auto-animé ── */
+function StepsAnimator({ steps }) {
+    const [activeStep, setActiveStep] = useState(0);
+    const [isVisible, setIsVisible] = useState(false);
+    const ref = useRef(null);
+
+    // Détecte quand la section est visible pour commencer le cycle
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+            { threshold: 0.4 }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
+    // Cycle automatique toutes les 2.8s
+    useEffect(() => {
+        if (!isVisible) return;
+        const interval = setInterval(() => {
+            setActiveStep(prev => (prev + 1) % steps.length);
+        }, 2800);
+        return () => clearInterval(interval);
+    }, [isVisible, steps.length]);
+
+    return (
+        <div ref={ref} className="steps-row animate-in">
+            <div className="steps-progress-bg">
+                <div
+                    className="steps-progress-fill"
+                    style={{ width: `${(activeStep / (steps.length - 1)) * 100}%` }}
+                />
+            </div>
+            {steps.map((s, i) => {
+                const isActive = i <= activeStep;
+                return (
+                    <div
+                        key={i}
+                        className={`step-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setActiveStep(i)}
+                        onMouseEnter={() => setActiveStep(i)}
+                    >
+                        <div className="step-num">
+                            <span className="step-count">{s.n}</span>
+                            <span className="step-icon-float">{s.icon}</span>
+                        </div>
+                        <h3 className="step-title">{s.title}</h3>
+                        <p className="step-desc">{s.desc}</p>
+                        <div className="step-tag-wrapper">
+                            <span className="step-tag">{s.tag}</span>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 function FaqItem({ q, a }) {
     const [open, setOpen] = useState(false);
     return (
@@ -114,7 +248,7 @@ export default function Home() {
     const pageRef = useAnimateOnScroll();
 
     return (
-        <main ref={pageRef} style={{ paddingTop: '68px' }}>
+        <main ref={pageRef} className="page-wrapper">
 
             {/* ══════════ HERO ══════════ */}
             <section className="hero" id="hero">
@@ -239,10 +373,14 @@ export default function Home() {
                 <div className="container">
                     <div className="stats-grid">
                         {stats.map((s, i) => (
-                            <div key={i} className="stat-item animate-in" style={{ animationDelay: `${i * 0.08}s` }}>
-                                <div className="stat-value">{s.value}</div>
-                                <div className="stat-label">{s.label}</div>
-                            </div>
+                            <StatItem
+                                key={i}
+                                prefix={s.prefix}
+                                target={s.target}
+                                suffix={s.suffix}
+                                label={s.label}
+                                delay={i}
+                            />
                         ))}
                     </div>
                 </div>
@@ -278,16 +416,7 @@ export default function Home() {
                         <h2 className="section-title">Domiciliez-vous<br /><span>en 4 étapes</span></h2>
                         <p className="section-subtitle">Un parcours 100 % en ligne, pensé pour vous faire gagner du temps dès le premier jour.</p>
                     </div>
-                    <div className="steps-row">
-                        {steps.map((s, i) => (
-                            <div key={i} className="step-item animate-in" style={{ animationDelay: `${i * 0.09}s` }}>
-                                <div className="step-num">{s.n}</div>
-                                {i < steps.length - 1 && <div className="step-connector" />}
-                                <h3 className="step-title">{s.title}</h3>
-                                <p className="step-desc">{s.desc}</p>
-                            </div>
-                        ))}
-                    </div>
+                    <StepsAnimator steps={steps} />
                 </div>
             </section>
 
@@ -296,7 +425,7 @@ export default function Home() {
                 <div className="container">
                     <div className="pricing-strip-inner">
                         <div className="ps-text animate-in">
-                            <div className="section-eyebrow" style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '16px' }}>Tarification transparente</div>
+                            <div className="section-eyebrow ps-eyebrow">Tarification transparente</div>
                             <h2>La domiciliation<br />la plus compétitive</h2>
                             <p>Pas de frais cachés, pas de mauvaise surprise. <strong>À partir de 23&nbsp;€ HT/mois</strong>, résiliable à tout moment.</p>
                             <Link to="/tarifs" className="btn btn-white btn-lg" id="cta-pricing-btn">
@@ -386,7 +515,7 @@ export default function Home() {
                             </div>
                         ))}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginTop: '40px', flexWrap: 'wrap' }} className="animate-in">
+                    <div className="review-platforms animate-in">
                         <div className="review-platform">
                             <div className="review-stars">★★★★★</div>
                             <div className="review-score">4.8 / 5</div>
@@ -414,13 +543,13 @@ export default function Home() {
                     <div className="faq-layout">
                         <div className="faq-header animate-in">
                             <div className="section-eyebrow">FAQ</div>
-                            <h2 className="section-title" style={{ textAlign: 'left' }}>
+                            <h2 className="section-title faq-title">
                                 Questions<br /><span>fréquentes</span>
                             </h2>
-                            <p style={{ color: 'var(--gray-500)', fontSize: '15px', lineHeight: 1.7, marginTop: '12px' }}>
+                            <p className="faq-intro-text">
                                 Tout ce que vous devez savoir sur la domiciliation d'entreprise en France.
                             </p>
-                            <Link to="/tarifs" className="btn btn-primary" style={{ marginTop: '24px', width: 'fit-content' }}>
+                            <Link to="/tarifs" className="btn btn-primary faq-cta-btn">
                                 Voir nos offres
                             </Link>
                         </div>

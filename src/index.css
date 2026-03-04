@@ -1,5 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
+/* ══════════════════════════════════════════════════════
+   DESIGN SYSTEM — DomiciliationPasCher
+   Toutes les variables, resets et classes globales
+   ══════════════════════════════════════════════════════ */
+
 /* ── Design Tokens ── */
 :root {
   /* Brand */
@@ -8,7 +13,7 @@
   --primary-light: #EEF4FF;
   --accent: #0EA5E9;
 
-  /* Neutrals — Slate scale */
+  /* Neutrals */
   --white: #ffffff;
   --off-white: #F8FAFF;
   --gray-50: #F8FAFC;
@@ -39,7 +44,7 @@
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-sm: 0 1px 4px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 8px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.1), 0 4px 8px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.10), 0 4px 8px rgba(15, 23, 42, 0.04);
   --shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.06);
   --shadow-2xl: 0 32px 64px rgba(15, 23, 42, 0.18);
   --shadow-blue: 0 4px 16px rgba(26, 86, 219, 0.22);
@@ -52,11 +57,21 @@
   --radius-full: 9999px;
 
   /* Motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.30s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Layout — source unique de vérité */
+  --navbar-height: 68px;
+  --container-width: 1200px;
+  --container-pad: clamp(16px, 4vw, 32px);
+  --section-pad-y: clamp(64px, 8vw, 96px);
+  --section-pad-y-sm: clamp(48px, 6vw, 64px);
 }
 
-/* ── Reset ── */
+/* ══════════════════════════════════════════════════════
+   RESET
+   ══════════════════════════════════════════════════════ */
 *,
 *::before,
 *::after {
@@ -83,42 +98,104 @@ body {
 img {
   max-width: 100%;
   height: auto;
+  display: block;
 }
 
 a {
   text-decoration: none;
+  color: inherit;
 }
 
-/* ── Layout ── */
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Compense la navbar fixe sur TOUTES les pages */
+.page-wrapper {
+  padding-top: var(--navbar-height);
+}
+
+/* ══════════════════════════════════════════════════════
+   LAYOUT
+   ══════════════════════════════════════════════════════ */
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--container-width);
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 var(--container-pad);
 }
 
 .section {
-  padding: 96px 0;
+  padding: var(--section-pad-y) 0;
 }
 
 .section-sm {
-  padding: 64px 0;
+  padding: var(--section-pad-y-sm) 0;
 }
 
 .section-xs {
   padding: 40px 0;
 }
 
-/* ── Badges ── */
+/* ══════════════════════════════════════════════════════
+   TYPOGRAPHY — Hiérarchie cohérente
+   ══════════════════════════════════════════════════════ */
+
+/* Titres de section */
+.section-header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+
+.section-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(26px, 3.2vw, 40px);
+  font-weight: 800;
+  color: var(--text-dark);
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+}
+
+.section-title span {
+  color: var(--primary);
+}
+
+.section-subtitle {
+  margin-top: 16px;
+  font-size: 16px;
+  color: var(--text-muted);
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.75;
+}
+
+/* ══════════════════════════════════════════════════════
+   BADGES
+   ══════════════════════════════════════════════════════ */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 14px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 .badge-blue {
@@ -137,7 +214,9 @@ a {
   border: 1px solid rgba(245, 159, 11, 0.2);
 }
 
-/* ── Buttons ── */
+/* ══════════════════════════════════════════════════════
+   BUTTONS — Système cohérent "pill"
+   ══════════════════════════════════════════════════════ */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -146,7 +225,7 @@ a {
   padding: 11px 22px;
   border-radius: var(--radius-full);
   font-family: 'Inter', sans-serif;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -154,8 +233,10 @@ a {
   transition: var(--transition);
   white-space: nowrap;
   line-height: 1;
+  letter-spacing: 0;
 }
 
+/* Variantes */
 .btn-primary {
   background: var(--primary);
   color: white;
@@ -171,7 +252,7 @@ a {
 .btn-outline {
   background: transparent;
   color: var(--primary);
-  border: 1.5px solid rgba(26, 86, 219, 0.35);
+  border: 1.5px solid rgba(26, 86, 219, 0.3);
 }
 
 .btn-outline:hover {
@@ -205,64 +286,25 @@ a {
   background: var(--primary-light);
 }
 
-.btn-lg {
-  padding: 14px 28px;
-  font-size: 15.5px;
-}
-
+/* Tailles */
 .btn-sm {
   padding: 7px 16px;
   font-size: 13px;
 }
 
+.btn-lg {
+  padding: 13px 28px;
+  font-size: 15px;
+}
+
 .btn-xl {
-  padding: 16px 36px;
-  font-size: 16px;
+  padding: 15px 34px;
+  font-size: 15.5px;
 }
 
-/* ── Section Headers ── */
-.section-header {
-  text-align: center;
-  margin-bottom: 52px;
-}
-
-.section-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--primary);
-  margin-bottom: 14px;
-  opacity: 0.85;
-}
-
-.section-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: clamp(24px, 3.2vw, 38px);
-  font-weight: 800;
-  color: var(--text-dark);
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-}
-
-.section-title span {
-  color: var(--primary);
-}
-
-.section-subtitle {
-  margin-top: 14px;
-  font-size: 16.5px;
-  color: var(--text-muted);
-  max-width: 540px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.72;
-}
-
-/* ── Cards ── */
+/* ══════════════════════════════════════════════════════
+   CARDS
+   ══════════════════════════════════════════════════════ */
 .card {
   background: white;
   border-radius: var(--radius-lg);
@@ -277,7 +319,9 @@ a {
   border-color: transparent;
 }
 
-/* ── Grid layouts ── */
+/* ══════════════════════════════════════════════════════
+   GRIDS
+   ══════════════════════════════════════════════════════ */
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -296,12 +340,14 @@ a {
   gap: 20px;
 }
 
-/* ── Check list ── */
+/* ══════════════════════════════════════════════════════
+   CHECK LIST
+   ══════════════════════════════════════════════════════ */
 .check-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
+  font-size: 14.5px;
   color: var(--gray-700);
 }
 
@@ -317,11 +363,13 @@ a {
   color: var(--green);
 }
 
-/* ── Animations ── */
+/* ══════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════ */
 .animate-in {
   opacity: 0;
   transform: translateY(20px);
-  transition: opacity 0.55s ease, transform 0.55s ease;
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
 }
 
 .animate-in.visible {
@@ -329,14 +377,58 @@ a {
   transform: translateY(0);
 }
 
-/* ── Divider ── */
+/* ══════════════════════════════════════════════════════
+   UTILITAIRES
+   ══════════════════════════════════════════════════════ */
 .divider {
   height: 1px;
   background: var(--border);
-  margin: 0;
 }
 
-/* ── Scrollbar ── */
+/* Page header (Tarifs, Villes, Services, About…) */
+.page-header {
+  padding: 64px 0 56px;
+  background: linear-gradient(180deg, var(--off-white) 0%, var(--white) 100%);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header-content {
+  max-width: 640px;
+}
+
+/* Final CTA block */
+.final-cta {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+.final-cta-inner {
+  text-align: center;
+}
+
+.final-cta h2 {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.025em;
+  margin-bottom: 12px;
+}
+
+.final-cta p {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 32px;
+}
+
+.final-cta-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
 }
@@ -350,7 +442,9 @@ a {
   border-radius: 3px;
 }
 
-/* ── Responsive ── */
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
   .grid-3 {
     grid-template-columns: repeat(2, 1fr);
@@ -362,13 +456,6 @@ a {
 }
 
 @media (max-width: 768px) {
-  .section {
-    padding: 64px 0;
-  }
-
-  .section-sm {
-    padding: 48px 0;
-  }
 
   .grid-2,
   .grid-3,
@@ -376,7 +463,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .container {
-    padding: 0 16px;
+  .section-header {
+    margin-bottom: 40px;
   }
 }

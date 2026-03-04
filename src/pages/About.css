@@ -316,6 +316,7 @@
     color: rgba(255, 255, 255, 0.7);
 }
 
+/* ── Tablette ── */
 @media (max-width: 1024px) {
     .mission-grid {
         grid-template-columns: 1fr;
@@ -344,6 +345,7 @@
     }
 }
 
+/* ── Mobile ── */
 @media (max-width: 768px) {
     .astat {
         flex: 0 0 50%;
@@ -362,6 +364,33 @@
     }
 
     .timeline-dot {
+        display: none;
+    }
+
+    /* Grilles équipe et valeurs */
+    .team-grid,
+    .values-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Stats about */
+    .about-stats-row {
+        gap: 0;
+    }
+
+    .astat {
+        flex: 0 0 50%;
+        padding: 20px 16px;
+    }
+}
+
+/* ── Mobile strict ── */
+@media (max-width: 480px) {
+    .astat {
+        flex: 0 0 100%;
+    }
+
+    .mission-visual {
         display: none;
     }
 }

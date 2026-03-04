@@ -191,12 +191,12 @@
 
 @media (max-width: 768px) {
     .footer-top {
-        padding: 48px 0 36px;
+        padding: 44px 0 32px;
     }
 
     .footer-grid {
         grid-template-columns: 1fr;
-        gap: 32px;
+        gap: 28px;
     }
 
     .footer-bottom-inner {
@@ -207,10 +207,32 @@
 
     .footer-legal {
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 10px;
     }
 
     .footer-cities {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .footer-logo-wordmark {
+        font-size: 15px;
+    }
+
+    .footer-tagline {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-cities {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .footer-bottom-inner {
+        gap: 8px;
+    }
+
+    .footer-legal {
+        font-size: 12px;
     }
 }

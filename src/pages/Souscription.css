@@ -956,14 +956,14 @@
     transform: translateY(-1px);
 }
 
-/* ── Responsive ── */
+/* ── Tablette ── */
 @media (max-width: 1024px) {
     .souscription-layout {
         grid-template-columns: 220px 1fr;
     }
 
     .sous-content {
-        padding: 36px 32px;
+        padding: 32px 28px;
     }
 
     .type-projet-grid {
@@ -971,19 +971,30 @@
     }
 }
 
+/* ── Mobile ── */
 @media (max-width: 768px) {
+
+    /* Layout : sidebar cachée, tout en colonne */
     .souscription-layout {
         grid-template-columns: 1fr;
+        min-height: 100vh;
     }
 
     .sous-sidebar {
         display: none;
     }
 
-    .sous-content {
-        padding: 24px 20px;
+    .sous-main {
+        min-height: 100vh;
     }
 
+    /* Contenu plein écran */
+    .sous-content {
+        padding: 20px 16px 40px;
+        max-width: 100%;
+    }
+
+    /* Formulaire */
     .sous-form-grid {
         grid-template-columns: 1fr;
     }
@@ -992,23 +1003,138 @@
         grid-column: span 1;
     }
 
+    /* Récapitulatif */
     .recap-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* Villes grid */
+    .villes-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .ville-btn {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    /* Type projet */
+    .type-projet-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .type-projet-card {
+        padding: 16px;
+        flex-direction: row;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .tpc-icon {
+        font-size: 22px;
+    }
+
+    .tpc-label {
+        font-size: 13.5px;
+    }
+
+    .tpc-desc {
+        font-size: 12px;
+    }
+
+    /* Formes juridiques */
+    .forme-grid {
+        gap: 8px;
+    }
+
+    .forme-btn {
+        padding: 7px 14px;
+        font-size: 13px;
+    }
+
+    /* Courrier */
+    .courrier-card {
+        padding: 14px 16px;
+    }
+
+    .cc-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+
+    .cc-label {
+        font-size: 14px;
+    }
+
+    /* Fréquence */
+    .freq-card {
+        padding: 16px 18px;
+    }
+
+    .fc-price {
+        font-size: 15px;
+    }
+
+    /* Paiement */
+    .paiement-form {
+        grid-template-columns: 1fr;
+    }
+
+    /* Step header */
+    .sous-step-header h2 {
+        font-size: 22px;
+    }
+
+    .sous-step-header {
+        margin-bottom: 24px;
+    }
+
+    /* Boutons */
+    .sous-nav-btns {
+        flex-direction: row;
+    }
+
+    .sous-btn-next {
+        flex: 1;
+    }
+
+    .sous-btn-prev {
+        flex: 1;
+    }
+
+    /* Récap total */
+    .recap-total {
+        padding: 14px 18px;
+    }
+
+    .rt-value {
+        font-size: 20px;
+    }
+}
+
+/* ── Mobile strict ── */
+@media (max-width: 480px) {
+    .sous-content {
+        padding: 16px 12px 32px;
     }
 
     .villes-grid {
         grid-template-columns: 1fr;
     }
 
-    .type-projet-grid {
-        grid-template-columns: 1fr;
+    .ville-btn {
+        padding: 12px 14px;
     }
 
-    .paiement-form {
-        grid-template-columns: 1fr 1fr;
+    .type-projet-card {
+        flex-direction: column;
+        text-align: center;
     }
 
     .sous-step-header h2 {
-        font-size: 22px;
+        font-size: 20px;
     }
 }

@@ -23,7 +23,7 @@ const milestones = [
 
 export default function About() {
     return (
-        <main style={{ paddingTop: '68px' }}>
+        <main className="page-wrapper">
             {/* Hero */}
             <section className="about-hero">
                 <div className="container">

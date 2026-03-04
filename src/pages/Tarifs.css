@@ -395,10 +395,11 @@
     justify-content: center;
 }
 
+/* ── Tablette ── */
 @media (max-width: 1024px) {
     .pricing-grid {
         grid-template-columns: 1fr;
-        max-width: 440px;
+        max-width: 480px;
         margin: 0 auto;
     }
 
@@ -411,12 +412,64 @@
     }
 }
 
+/* ── Mobile ── */
 @media (max-width: 768px) {
+
+    /* Page header */
+    .page-header {
+        padding: 48px 0 40px;
+    }
+
+    /* Pricing — pleine largeur */
+    .pricing-grid {
+        max-width: 100%;
+    }
+
+    .pricing-card {
+        padding: 24px 20px;
+        gap: 20px;
+    }
+
+    .pricing-value {
+        font-size: 44px;
+    }
+
+    /* Options */
     .option-card {
         flex-wrap: wrap;
+        gap: 12px;
     }
 
     .option-price {
         align-items: flex-start;
+    }
+
+    /* Spaces grid */
+    .spaces-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* FAQ section */
+    .tarifs-faq-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Mobile strict ── */
+@media (max-width: 480px) {
+    .pricing-card {
+        padding: 20px 16px;
+    }
+
+    .pricing-value {
+        font-size: 38px;
+    }
+
+    .pricing-name {
+        font-size: 17px;
+    }
+
+    .option-card {
+        padding: 14px;
     }
 }

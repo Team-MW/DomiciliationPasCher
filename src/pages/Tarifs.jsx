@@ -109,7 +109,7 @@ const CrossIcon = () => (
 
 export default function Tarifs() {
     return (
-        <main style={{ paddingTop: '68px' }}>
+        <main className="page-wrapper">
 
             {/* Header */}
             <section className="page-header">

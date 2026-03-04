@@ -270,10 +270,29 @@
 
 @media (max-width: 768px) {
     .city-detail-card {
-        padding: 28px 24px;
+        padding: 24px 20px;
     }
 
     .cdc-header {
         gap: 12px;
+    }
+
+    .city-detail-card .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .cdc-price {
+        font-size: 22px;
+    }
+}
+
+@media (max-width: 480px) {
+    .city-detail-card {
+        padding: 20px 16px;
+    }
+
+    .cdc-name {
+        font-size: 20px;
     }
 }

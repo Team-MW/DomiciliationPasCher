@@ -93,7 +93,7 @@ const cityBenefits = [
 
 export default function Villes() {
     return (
-        <main style={{ paddingTop: '68px' }}>
+        <main className="page-wrapper">
             {/* Hero */}
             <section className="page-header" style={{ borderBottom: '1px solid var(--border)' }}>
                 <div className="container">
