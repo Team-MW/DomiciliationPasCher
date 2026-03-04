@@ -81,11 +81,35 @@ export default function Footer() {
 
             <div className="footer-bottom">
                 <div className="container footer-bottom-inner">
-                    <p>© {new Date().getFullYear()} DomiciliationPasCher.fr — Tous droits réservés</p>
-                    <div className="footer-legal">
-                        <Link to="/mentions-legales">Mentions légales</Link>
-                        <Link to="#">CGV</Link>
-                        <Link to="#">Politique de confidentialité</Link>
+                    <div className="footer-copyright-legal">
+                        <p>© {new Date().getFullYear()} DomiciliationPasCher.fr — Tous droits réservés</p>
+                        <div className="footer-legal">
+                            <Link to="/mentions-legales">Mentions légales</Link>
+                            <Link to="#">CGV</Link>
+                            <Link to="#">Politique de confidentialité</Link>
+                        </div>
+                    </div>
+
+                    {/* Payment Methods */}
+                    <div className="footer-payments">
+                        <div className="payment-badge" title="Visa">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" />
+                        </div>
+                        <div className="payment-badge" title="Mastercard">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" />
+                        </div>
+                        <div className="payment-badge" title="American Express">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" />
+                        </div>
+                        <div className="payment-badge" title="Apple Pay">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" />
+                        </div>
+                        <div className="payment-badge" title="Google Pay">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" />
+                        </div>
+                        <div className="payment-badge" title="UnionPay">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/UnionPay_logo.svg" alt="UnionPay" />
+                        </div>
                     </div>
                 </div>
             </div>

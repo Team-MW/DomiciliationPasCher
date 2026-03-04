@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { handleCheckout } from '../utils/stripe';
 import './Souscription.css';
 
 /* ─── Config des étapes ─── */
@@ -40,6 +41,7 @@ export default function Souscription() {
 
     const [step, setStep] = useState(0);
     const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
 
     const [data, setData] = useState({
         typeProjet: '',
@@ -509,10 +511,17 @@ export default function Souscription() {
 
                             <button
                                 className="sous-pay-btn"
-                                disabled={!data.cgv}
-                                onClick={() => alert('🎉 Commande validée ! Vous allez recevoir un email de confirmation.')}
+                                disabled={!data.cgv || loading}
+                                onClick={async () => {
+                                    setLoading(true);
+                                    try {
+                                        await handleCheckout(planId, parseFloat(prixTotal().split('€')[0]));
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
                             >
-                                {!data.cgv ? 'Acceptez les CGV (étape précédente)' : `Payer ${prixTotal()} HT →`}
+                                {loading ? 'Traitement en cours...' : (!data.cgv ? 'Acceptez les CGV (étape précédente)' : `Payer ${prixTotal()} HT →`)}
                             </button>
                         </div>
                     )}

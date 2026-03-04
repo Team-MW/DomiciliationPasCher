@@ -1,298 +1,422 @@
+/* ─── VILLES HERO ─── */
 .villes-hero {
-    background: linear-gradient(180deg, var(--off-white) 0%, white 100%);
-    padding-bottom: 0 !important;
-}
-
-/* City benefits */
-.city-benefit {
-    text-align: center;
-    padding: 28px 20px;
-    border-radius: var(--radius-lg);
-    transition: var(--transition);
-}
-
-.city-benefit:hover {
-    background: var(--primary-light);
-}
-
-.city-benefit-icon {
-    font-size: 36px;
-    display: block;
-    margin-bottom: 12px;
-}
-
-.city-benefit-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-dark);
-    margin-bottom: 8px;
-}
-
-.city-benefit-desc {
-    font-size: 14px;
-    color: var(--text-muted);
-    line-height: 1.65;
-}
-
-/* Cities list */
-.cities-list {
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-}
-
-.city-detail-card {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 48px;
-    align-items: center;
-    background: white;
-    border-radius: var(--radius-xl);
-    border: 1px solid var(--border);
-    padding: 40px;
-    transition: var(--transition);
-}
-
-.city-detail-card:hover {
-    box-shadow: var(--shadow-xl);
-    border-color: transparent;
-}
-
-.city-detail-card.reverse {
-    grid-template-columns: 380px 1fr;
-}
-
-.city-detail-card.reverse .cdc-content {
-    order: 2;
-}
-
-.city-detail-card.reverse .cdc-map {
-    order: 1;
-}
-
-.cdc-header {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-.cdc-emoji {
-    font-size: 40px;
-    flex-shrink: 0;
-}
-
-.cdc-name {
-    font-family: 'Outfit', sans-serif;
-    font-size: 28px;
-    font-weight: 900;
-    color: var(--text-dark);
-    letter-spacing: -0.02em;
-}
-
-.cdc-region {
-    display: block;
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-top: 2px;
-}
-
-.cdc-price {
-    margin-left: auto;
-    font-size: 14px;
-    color: var(--text-muted);
-    flex-shrink: 0;
-}
-
-.cdc-price strong {
-    font-family: 'Outfit', sans-serif;
-    font-size: 24px;
-    font-weight: 900;
-    color: var(--primary);
-}
-
-.cdc-price span {
-    font-size: 13px;
-}
-
-.cdc-desc {
-    font-size: 15px;
-    color: var(--gray-600);
-    line-height: 1.75;
-    margin-bottom: 20px;
-}
-
-.cdc-avantages {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 24px;
-}
-
-.cdc-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 14px;
-    background: var(--primary-light);
-    border-radius: var(--radius-full);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--primary);
-    border: 1px solid rgba(0, 45, 88, 0.1);
-}
-
-/* Map placeholder */
-.cdc-map {
-    flex-shrink: 0;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-}
-
-.map-placeholder {
-    height: 240px;
-    background: linear-gradient(135deg, var(--primary) 0%, #0F3399 100%);
-    border-radius: var(--radius-lg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    padding-top: 100px;
+    padding-bottom: 60px;
+    background: radial-gradient(circle at 50% -20%, #eff6ff 0%, #fafbff 100%);
     position: relative;
     overflow: hidden;
 }
 
-.map-placeholder::before {
-    content: '';
+.villes-hero-inner {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 48px;
+}
+
+.hero-main-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+    margin-top: 12px;
+}
+
+.hero-main-title span {
+    color: var(--primary);
+    background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero-desc {
+    font-size: 18px;
+    color: #475569;
+    margin-top: 24px;
+    line-height: 1.6;
+}
+
+/* ─── QUICK NAV ─── */
+.city-quick-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+.quick-city-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 99px;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.quick-city-pill:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary);
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.1);
+}
+
+.pill-emoji {
+    font-size: 20px;
+}
+
+.pill-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* ─── BENEFITS BAR ─── */
+.city-benefits-bar {
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 40px 0;
+}
+
+.benefits-bar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 40px;
+}
+
+.benefit-bar-item {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.benefit-bar-icon {
+    font-size: 28px;
+    background: #f1f5f9;
+    width: 54px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    flex-shrink: 0;
+}
+
+.benefit-bar-content h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.benefit-bar-content p {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* ─── CITIES LIST ─── */
+.cities-full-list {
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+    padding: 40px 0;
+}
+
+.city-wide-card {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    background: white;
+    border-radius: 32px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.4s ease;
+}
+
+.city-wide-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.city-wide-card.is-reversed {
+    grid-template-columns: 1.2fr 1fr;
+}
+
+.city-wide-card.is-reversed .cwc-image-side {
+    order: 2;
+}
+
+/* IMAGE SIDE */
+.cwc-image-side {
+    position: relative;
+    background: #1e293b;
+    overflow: hidden;
+    min-height: 400px;
+}
+
+.cwc-city-bg {
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+    background: linear-gradient(rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.2)),
+        url('https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop');
+    /* Placeholder Paris */
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.6s ease;
 }
 
-.map-emoji {
-    font-size: 48px;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-    z-index: 1;
+.city-wide-card:hover .cwc-city-bg {
+    transform: scale(1.05);
 }
 
-.map-city {
+.cwc-map-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.map-glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 24px 32px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+.map-glass-emoji {
+    font-size: 40px;
+}
+
+.mgi-city {
     font-family: 'Outfit', sans-serif;
     font-size: 22px;
     font-weight: 800;
-    color: white;
-    z-index: 1;
 }
 
-.map-region {
+.mgi-zip {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.6);
-    z-index: 1;
+    opacity: 0.7;
+    margin-top: 2px;
 }
 
-.map-pin-pulse {
-    position: absolute;
-    bottom: 24px;
-    right: 24px;
-    width: 16px;
-    height: 16px;
+.map-glass-pulse {
+    width: 12px;
+    height: 12px;
+    background: #10b981;
     border-radius: 50%;
-    background: var(--gold-light);
-    animation: pulse 2s infinite;
-    z-index: 1;
+    margin-left: 10px;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    animation: pulse-green 2s infinite;
 }
 
-@keyframes pulse {
+@keyframes pulse-green {
     0% {
-        box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.6);
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
     }
 
     70% {
-        box-shadow: 0 0 0 16px rgba(255, 184, 0, 0);
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
     }
 
     100% {
-        box-shadow: 0 0 0 0 rgba(255, 184, 0, 0);
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
     }
 }
 
-/* shared final cta */
-.final-cta {
-    background: linear-gradient(135deg, var(--primary) 0%, #0F3399 100%);
-    text-align: center;
+/* CONTENT SIDE */
+.cwc-content-side {
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
 }
 
-.final-cta-inner {
+.cwc-badge-city {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+}
+
+.cwc-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 16px;
+}
+
+.cwc-description {
+    font-size: 16px;
+    color: #334155;
+    line-height: 1.7;
+    margin-bottom: 32px;
+}
+
+.cwc-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 40px;
+}
+
+.cwc-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.cwc-check {
+    color: var(--primary);
+}
+
+.cwc-footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 32px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.cwc-price-label {
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.cwc-price-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.cwc-price-value span {
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.cwc-btn {
+    padding: 14px 28px !important;
+}
+
+/* ─── HELP SECTION ─── */
+.city-help-section {
+    padding-bottom: 100px;
+}
+
+.city-help-card {
+    background: #0f172a;
+    border-radius: 40px;
+    padding: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 60px;
+    color: white;
+}
+
+.ch-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 16px;
+}
+
+.ch-desc {
+    font-size: 18px;
+    color: #94a3b8;
+    max-width: 500px;
+}
+
+.ch-actions {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
-    padding: 32px 0;
+    gap: 16px;
 }
 
-.final-cta-inner h2 {
-    font-family: 'Outfit', sans-serif;
-    font-size: clamp(28px, 4vw, 44px);
-    font-weight: 900;
-    color: white;
-    line-height: 1.15;
+.ch-trust {
+    font-size: 14px;
+    color: #64748b;
 }
 
-.final-cta-inner p {
-    font-size: 17px;
-    color: rgba(255, 255, 255, 0.7);
-}
-
+/* ─── RESPONSIVE ─── */
 @media (max-width: 1024px) {
 
-    .city-detail-card,
-    .city-detail-card.reverse {
+    .city-wide-card,
+    .city-wide-card.is-reversed {
         grid-template-columns: 1fr;
     }
 
-    .city-detail-card.reverse .cdc-content {
+    .city-wide-card.is-reversed .cwc-image-side {
         order: 1;
     }
 
-    .city-detail-card.reverse .cdc-map {
-        order: 2;
+    .cwc-content-side {
+        padding: 40px 32px;
     }
 
-    .cdc-map {
-        display: none;
-    }
-
-    .cdc-price {
-        margin-left: 0;
+    .city-help-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 40px 24px;
+        gap: 32px;
     }
 }
 
 @media (max-width: 768px) {
-    .city-detail-card {
-        padding: 24px 20px;
+    .villes-hero {
+        padding-top: 60px;
     }
 
-    .cdc-header {
-        gap: 12px;
+    .hero-main-title {
+        font-size: 32px;
     }
 
-    .city-detail-card .btn {
+    .cwc-title {
+        font-size: 28px;
+    }
+
+    .cwc-footer {
+        flex-direction: column;
+        gap: 24px;
+        align-items: flex-start;
+    }
+
+    .cwc-btn {
         width: 100%;
         justify-content: center;
-    }
-
-    .cdc-price {
-        font-size: 22px;
-    }
-}
-
-@media (max-width: 480px) {
-    .city-detail-card {
-        padding: 20px 16px;
-    }
-
-    .cdc-name {
-        font-size: 20px;
     }
 }

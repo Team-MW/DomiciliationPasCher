@@ -93,77 +93,105 @@ const cityBenefits = [
 
 export default function Villes() {
     return (
-        <main className="page-wrapper">
-            {/* Hero */}
-            <section className="page-header" style={{ borderBottom: '1px solid var(--border)' }}>
+        <main className="page-wrapper" style={{ background: '#FAFBFF' }}>
+            {/* Hero Section */}
+            <section className="villes-hero section">
                 <div className="container">
-                    <div className="section-header animate-in">
-                        <div className="section-eyebrow">Couverture nationale</div>
-                        <h1 className="section-title">Vos adresses dans<br /><span>10 métropoles françaises</span></h1>
-                        <p className="section-subtitle">
-                            Basés à Toulouse, nous vous proposons une adresse professionnelle dans les principales métropoles de France, à partir de <strong>23€ HT/mois</strong>.
+                    <div className="villes-hero-inner animate-in">
+                        <div className="section-eyebrow">Domination Nationale</div>
+                        <h1 className="hero-main-title">
+                            Nos adresses dans les plus<br /><span>grandes métropoles</span>
+                        </h1>
+                        <p className="hero-desc">
+                            Une présence stratégique pour votre siège social. Choisissez parmi nos <strong>10 villes clés</strong> et bénéficiez d'une adresse de prestige activée en 24h.
                         </p>
+                    </div>
+
+                    {/* Quick Jump Grid */}
+                    <div className="city-quick-nav animate-in" style={{ animationDelay: '0.15s' }}>
+                        {cities.map(city => (
+                            <a
+                                key={city.name}
+                                href={`#ville-${city.name.toLowerCase().replace('-', '')}`}
+                                className="quick-city-pill"
+                            >
+                                <span className="pill-emoji">{city.emoji}</span>
+                                <span className="pill-name">{city.name}</span>
+                            </a>
+                        ))}
                     </div>
                 </div>
             </section>
 
-            {/* Benefits */}
-            <section className="section-sm" style={{ borderBottom: '1px solid var(--border)' }}>
+            {/* Benefits Banner */}
+            <section className="city-benefits-bar">
                 <div className="container">
-                    <div className="grid-4">
+                    <div className="benefits-bar-grid">
                         {cityBenefits.map((b, i) => (
-                            <div key={i} className="city-benefit animate-in" style={{ animationDelay: `${i * 0.08}s` }}>
-                                <span className="city-benefit-icon">{b.icon}</span>
-                                <h3 className="city-benefit-title">{b.title}</h3>
-                                <p className="city-benefit-desc">{b.desc}</p>
+                            <div key={i} className="benefit-bar-item animate-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                                <div className="benefit-bar-icon">{b.icon}</div>
+                                <div className="benefit-bar-content">
+                                    <h4>{b.title}</h4>
+                                    <p>{b.desc}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* Cities List */}
-            <section className="section">
+            {/* Cities Detailed List */}
+            <section className="section cities-detailed-section">
                 <div className="container">
-                    <div className="cities-list">
+                    <div className="cities-full-list">
                         {cities.map((city, i) => (
                             <div
                                 key={city.name}
-                                className={`city-detail-card animate-in ${i % 2 === 1 ? 'reverse' : ''}`}
+                                className={`city-wide-card animate-in ${i % 2 === 1 ? 'is-reversed' : ''}`}
                                 id={`ville-${city.name.toLowerCase().replace('-', '')}`}
                                 style={{ animationDelay: `${i * 0.05}s` }}
                             >
-                                <div className="cdc-content">
-                                    <div className="cdc-header">
-                                        <span className="cdc-emoji">{city.emoji}</span>
-                                        <div>
-                                            <h2 className="cdc-name">{city.name}</h2>
-                                            <span className="cdc-region">{city.region} · {city.zip}xxx</span>
-                                        </div>
-                                        <div className="cdc-price">
-                                            dès <strong>23€</strong><span> HT/mois</span>
+                                <div className="cwc-image-side">
+                                    <div className="cwc-map-overlay">
+                                        <div className="map-glass">
+                                            <span className="map-glass-emoji">{city.emoji}</span>
+                                            <div className="map-glass-info">
+                                                <div className="mgi-city">{city.name}</div>
+                                                <div className="mgi-zip">{city.zip}000</div>
+                                            </div>
+                                            <div className="map-glass-pulse" />
                                         </div>
                                     </div>
-                                    <p className="cdc-desc">{city.desc}</p>
-                                    <div className="cdc-avantages">
+                                    {/* Image de fond pour chaque ville (placeholder stylisé) */}
+                                    <div className="cwc-city-bg" />
+                                </div>
+
+                                <div className="cwc-content-side">
+                                    <div className="cwc-header">
+                                        <div className="cwc-badge-city">{city.region}</div>
+                                        <h2 className="cwc-title">{city.name}</h2>
+                                    </div>
+
+                                    <p className="cwc-description">{city.desc}</p>
+
+                                    <div className="cwc-features">
                                         {city.avantages.map(a => (
-                                            <span key={a} className="cdc-tag">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                            <div key={a} className="cwc-feature-item">
+                                                <svg className="cwc-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
                                                 {a}
-                                            </span>
+                                            </div>
                                         ))}
                                     </div>
-                                    <Link to="/tarifs" className="btn btn-primary" id={`cta-${city.name.toLowerCase()}`}>
-                                        Domicilier à {city.name}
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                                    </Link>
-                                </div>
-                                <div className="cdc-map">
-                                    <div className="map-placeholder">
-                                        <span className="map-emoji">{city.emoji}</span>
-                                        <div className="map-city">{city.name}</div>
-                                        <div className="map-region">{city.region}</div>
-                                        <div className="map-pin-pulse" />
+
+                                    <div className="cwc-footer">
+                                        <div className="cwc-price-block">
+                                            <div className="cwc-price-label">À partir de</div>
+                                            <div className="cwc-price-value">23€<span> HT/mois</span></div>
+                                        </div>
+                                        <Link to="/tarifs" className="btn btn-primary cwc-btn" id={`cta-${city.name.toLowerCase()}`}>
+                                            Choisir {city.name}
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
@@ -172,16 +200,17 @@ export default function Villes() {
                 </div>
             </section>
 
-            {/* Final CTA */}
-            <section className="final-cta section-sm" style={{ background: 'var(--primary)' }}>
+            {/* Help CTA */}
+            <section className="city-help-section section">
                 <div className="container">
-                    <div className="final-cta-inner animate-in">
-                        <h2>Votre ville n'est<br />pas dans la liste ?</h2>
-                        <p>Contactez-nous, nous élargissons régulièrement notre réseau de villes partenaires.</p>
-                        <div className="final-cta-actions">
-                            <Link to="/tarifs" className="btn btn-white btn-lg" id="villes-final-cta">
-                                Voir nos tarifs →
-                            </Link>
+                    <div className="city-help-card animate-in">
+                        <div className="ch-content">
+                            <h2 className="ch-title">Votre ville ne figure pas dans la liste ?</h2>
+                            <p className="ch-desc">Nous étendons notre réseau chaque mois. Contactez nos conseillers pour discuter de vos besoins spécifiques.</p>
+                        </div>
+                        <div className="ch-actions">
+                            <Link to="/tarifs" className="btn btn-white btn-lg">Parler à un conseiller</Link>
+                            <div className="ch-trust">Réponse en moins de 2h</div>
                         </div>
                     </div>
                 </div>

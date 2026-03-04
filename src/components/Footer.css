@@ -158,6 +158,13 @@
     align-items: center;
     justify-content: space-between;
     gap: 20px;
+    flex-wrap: wrap;
+}
+
+.footer-copyright-legal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .footer-bottom p {
@@ -179,6 +186,38 @@
 
 .footer-legal a:hover {
     color: rgba(255, 255, 255, 0.75);
+}
+
+/* Payment Methods */
+.footer-payments {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.payment-badge {
+    background: white;
+    padding: 6px 10px;
+    border-radius: 8px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
+}
+
+.payment-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.payment-badge img {
+    height: 20px;
+    width: auto;
+    max-width: 48px;
+    object-fit: contain;
 }
 
 /* Responsive */

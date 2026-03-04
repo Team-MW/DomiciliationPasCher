@@ -179,6 +179,18 @@ export default function Tarifs() {
                             </div>
                         ))}
                     </div>
+
+                    {/* Stripe Trust Badges */}
+                    <div className="pricing-payment-trust">
+                        <span>Paiements sécurisés par <strong>Stripe</strong></span>
+                        <div className="pricing-payment-logos">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" />
+                        </div>
+                    </div>
                 </div>
             </section>
 

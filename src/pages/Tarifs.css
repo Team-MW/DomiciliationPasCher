@@ -140,6 +140,46 @@
     color: var(--text-muted);
 }
 
+/* Payment Trust */
+.pricing-payment-trust {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.pricing-payment-trust span {
+    font-size: 13px;
+    color: var(--gray-600);
+}
+
+.pricing-payment-trust strong {
+    color: #635bff;
+    /* Stripe Purple */
+}
+
+.pricing-payment-logos {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    filter: grayscale(1);
+    opacity: 0.6;
+    transition: var(--transition);
+}
+
+.pricing-payment-logos:hover {
+    filter: grayscale(0);
+    opacity: 1;
+}
+
+.pricing-payment-logos img {
+    height: 18px;
+    width: auto;
+}
+
 /* ── Options ── */
 .options-grid {
     display: flex;
