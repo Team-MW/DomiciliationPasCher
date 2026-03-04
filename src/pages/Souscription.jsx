@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { handleCheckout } from '../utils/stripe';
+import { adminDataService } from '../services/adminDataService';
 import './Souscription.css';
 
 /* ─── Config des étapes ─── */
@@ -515,6 +516,15 @@ export default function Souscription() {
                                 onClick={async () => {
                                     setLoading(true);
                                     try {
+                                        // Enregistrer la demande dans le service admin
+                                        adminDataService.addDemande({
+                                            clientName: `${data.prenom} ${data.nom}`,
+                                            email: data.email,
+                                            company: data.nomSociete || 'En cours de création',
+                                            plan: plan.name,
+                                            amount: parseFloat(prixTotal().split('€')[0]).toFixed(2)
+                                        });
+
                                         await handleCheckout(planId, parseFloat(prixTotal().split('€')[0]));
                                     } finally {
                                         setLoading(false);

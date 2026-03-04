@@ -1,509 +1,493 @@
 import { useState, useEffect } from 'react';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
+import { adminDataService } from '../services/adminDataService';
 import './Admin.css';
 
-/* ─── Mock data (à remplacer par API) ─────────────────── */
-const mockClients = [
-    { id: 1, name: 'Marie Lambert', email: 'marie.l@gmail.com', company: 'ML Consulting', city: 'Lyon', plan: 'Scan+', status: 'actif', since: '2024-11-15', renewal: '2025-11-15', courrier: 3 },
-    { id: 2, name: 'Thomas Bernard', email: 'thomas.b@startup.io', company: 'Bernard Tech', city: 'Paris', plan: 'Essentiel', status: 'actif', since: '2024-10-02', renewal: '2025-10-02', courrier: 1 },
-    { id: 3, name: 'Sophie Martin', email: 'sophie.m@autoent.fr', company: 'Sophie M.', city: 'Marseille', plan: 'Scan+', status: 'actif', since: '2025-01-20', renewal: '2026-01-20', courrier: 0 },
-    { id: 4, name: 'Karim Aziz', email: 'k.aziz@pro.com', company: 'Aziz & Associés', city: 'Bordeaux', plan: 'Essentiel', status: 'suspendu', since: '2024-07-08', renewal: '2025-07-08', courrier: 7 },
-    { id: 5, name: 'Lucie Petit', email: 'lucie.p@freelance.fr', company: 'Lucie Design', city: 'Nantes', plan: 'Scan+', status: 'actif', since: '2025-02-01', renewal: '2026-02-01', courrier: 2 },
-    { id: 6, name: 'Antoine Roux', email: 'a.roux@consulting.fr', company: 'Roux Conseil', city: 'Toulouse', plan: 'Essentiel', status: 'en attente', since: '2025-03-01', renewal: '2026-03-01', courrier: 0 },
-    { id: 7, name: 'Emma Dubois', email: 'emma.d@studio.com', company: 'Studio Dubois', city: 'Nice', plan: 'Scan+', status: 'actif', since: '2024-12-10', renewal: '2025-12-10', courrier: 5 },
-    { id: 8, name: 'Nicolas Blanc', email: 'n.blanc@pme.fr', company: 'Blanc Industries', city: 'Lille', plan: 'Essentiel', status: 'actif', since: '2025-01-05', renewal: '2026-01-05', courrier: 12 },
-];
-
-const mockCourriers = [
-    { id: 1, client: 'Marie Lambert', company: 'ML Consulting', type: 'Recommandé', expediteur: 'URSSAF', date: '2025-03-03', status: 'non lu' },
-    { id: 2, client: 'Nicolas Blanc', company: 'Blanc Industries', type: 'Lettre simple', expediteur: 'Impôts', date: '2025-03-03', status: 'non lu' },
-    { id: 3, client: 'Emma Dubois', company: 'Studio Dubois', type: 'Recommandé', expediteur: 'SFR', date: '2025-03-02', status: 'scanné' },
-    { id: 4, client: 'Thomas Bernard', company: 'Bernard Tech', type: 'Lettre simple', expediteur: 'Banque', date: '2025-03-02', status: 'lu' },
-    { id: 5, client: 'Karim Aziz', company: 'Aziz & Associés', type: 'Colis', expediteur: 'Amazon', date: '2025-03-01', status: 'en attente' },
-];
-
-const mockReservations = [
-    { id: 1, client: 'Thomas Bernard', type: 'Salle de réunion', date: '2025-03-05', heure: '14h00–17h00', status: 'confirmée' },
-    { id: 2, client: 'Marie Lambert', type: 'Bureau privatif', date: '2025-03-06', heure: '09h00–12h00', status: 'en attente' },
-    { id: 3, client: 'Emma Dubois', type: 'Salle de réunion', date: '2025-03-10', heure: '10h00–12h00', status: 'confirmée' },
-];
-
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@domiciliationpascher.fr';
-
-/* ─── Component ────────────────────────────────────────── */
+/* ── ICONS ─────────────────────────────────────────────── */
+const Icons = {
+    Overview: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+    Demandes: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+    Clients: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+    Mail: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>,
+    Billing: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>,
+    Logout: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
+    Search: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+    TrendUp: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12 }}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>,
+    File: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>,
+    Image: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+};
 
 export default function Admin() {
-    const { user, isLoaded } = useUser();
+    const { user } = useUser();
     const { signOut } = useClerk();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('dashboard');
-    const [searchClients, setSearchClients] = useState('');
-    const [filterStatus, setFilterStatus] = useState('tous');
+
+    // Auth State
+    const [pinOk, setPinOk] = useState(() => sessionStorage.getItem('admin_auth') === 'true');
     const [pinInput, setPinInput] = useState('');
-    const [pinOk, setPinOk] = useState(false);
-    const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || '2025admin';
 
-    /* Sécurité : vérifier email admin ou PIN */
-    const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
-    const isAdminEmail = userEmail === ADMIN_EMAIL;
-    const isAuthorized = isAdminEmail || pinOk;
+    // Data State
+    const [activeTab, setActiveTab] = useState('overview');
+    const [clients, setClients] = useState([]);
+    const [mail, setMail] = useState([]);
+    const [demandes, setDemandes] = useState([]);
+    const [stats, setStats] = useState({});
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedClientId, setSelectedClientId] = useState(null);
 
-    /* Stats */
-    const totalClients = mockClients.length;
-    const activeClients = mockClients.filter(c => c.status === 'actif').length;
-    const suspendedClients = mockClients.filter(c => c.status === 'suspendu').length;
-    const pendingClients = mockClients.filter(c => c.status === 'en attente').length;
-    const monthlyRevenue = mockClients.filter(c => c.status === 'actif').reduce((acc, c) => acc + (c.plan === 'Scan+' ? 28 : 23), 0);
-    const unreadCourrier = mockCourriers.filter(c => c.status === 'non lu').length;
+    const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || '0000';
 
-    /* Filtrage clients */
-    const filteredClients = mockClients.filter(c => {
-        const matchSearch = !searchClients
-            || c.name.toLowerCase().includes(searchClients.toLowerCase())
-            || c.company.toLowerCase().includes(searchClients.toLowerCase())
-            || c.email.toLowerCase().includes(searchClients.toLowerCase());
-        const matchStatus = filterStatus === 'tous' || c.status === filterStatus;
-        return matchSearch && matchStatus;
-    });
+    useEffect(() => {
+        if (pinOk) {
+            adminDataService.init();
+            refreshData();
+        }
+    }, [pinOk]);
 
-    const handleSignOut = async () => {
+    const refreshData = () => {
+        setClients(adminDataService.getClients());
+        setMail(adminDataService.getMail());
+        setDemandes(adminDataService.getDemandes());
+        setStats(adminDataService.getGlobalStats());
+    };
+
+    const handlePinSuccess = () => {
+        setPinOk(true);
+        sessionStorage.setItem('admin_auth', 'true');
+    };
+
+    const handleLogout = async () => {
+        sessionStorage.removeItem('admin_auth');
         await signOut();
         navigate('/');
     };
 
-    /* ── PIN screen ── */
-    if (!isAuthorized) {
+    if (!pinOk) {
         return (
             <div className="admin-pin-screen">
                 <div className="admin-pin-card">
-                    <div className="admin-pin-icon">🔐</div>
-                    <h1>Accès administrateur</h1>
-                    <p>Saisissez le code d'accès administrateur pour continuer.</p>
-                    <input
-                        type="password"
-                        className="admin-pin-input"
-                        placeholder="Code d'accès"
-                        value={pinInput}
-                        onChange={e => setPinInput(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                                if (pinInput === ADMIN_PIN) setPinOk(true);
-                                else { setPinInput(''); alert('Code incorrect'); }
-                            }
-                        }}
-                    />
-                    <button
-                        className="admin-pin-btn"
-                        onClick={() => {
-                            if (pinInput === ADMIN_PIN) setPinOk(true);
-                            else { setPinInput(''); alert('Code incorrect'); }
-                        }}
-                    >
-                        Accéder →
-                    </button>
-                    <div className="admin-pin-hint">
-                        Accès réservé à l'administrateur
+                    <div className="admin-pin-header">
+                        <h1>Terminal Admin</h1>
+                        <p>Code d'accès requis pour déverrouiller la console</p>
                     </div>
+                    <div className="admin-pin-form">
+                        <input
+                            type="password"
+                            className="admin-pin-input"
+                            placeholder="••••"
+                            maxLength={4}
+                            value={pinInput}
+                            autoFocus
+                            onChange={e => setPinInput(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && pinInput.trim() === ADMIN_PIN) handlePinSuccess();
+                            }}
+                        />
+                        <button className="admin-pin-btn" onClick={() => pinInput.trim() === ADMIN_PIN && handlePinSuccess()}>
+                            DÉVERROUILLER
+                        </button>
+                    </div>
+                    <button className="pin-cancel-link" onClick={() => navigate('/')}>Quitter la console</button>
                 </div>
             </div>
         );
     }
 
+    const selectedClient = selectedClientId ? adminDataService.getClientById(selectedClientId) : null;
+
     return (
         <div className="admin-layout">
-
-            {/* ── Sidebar ── */}
             <aside className="admin-sidebar">
-                <div className="admin-sidebar-header">
-                    <div className="admin-sidebar-brand">
-                        <div className="admin-brand-icon">⚙️</div>
-                        <div>
-                            <div className="admin-brand-name">Admin Panel</div>
-                            <div className="admin-brand-sub">DomiciliationPasCher</div>
-                        </div>
+                <div className="admin-logo">
+                    <div className="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px' }}>
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                        </svg>
                     </div>
+                    <div className="logo-text">CONSOLE ADMIN</div>
                 </div>
 
-                <nav className="admin-nav">
-                    {[
-                        { id: 'dashboard', icon: '📊', label: 'Tableau de bord' },
-                        { id: 'clients', icon: '👥', label: 'Clients', badge: totalClients },
-                        { id: 'courrier', icon: '📬', label: 'Courrier', badge: unreadCourrier || null },
-                        { id: 'reservations', icon: '📅', label: 'Réservations', badge: mockReservations.filter(r => r.status === 'en attente').length || null },
-                        { id: 'documents', icon: '📄', label: 'Documents' },
-                        { id: 'facturation', icon: '💳', label: 'Facturation' },
-                    ].map(item => (
-                        <button
-                            key={item.id}
-                            className={`admin-nav-item ${activeTab === item.id ? 'active' : ''}`}
-                            onClick={() => setActiveTab(item.id)}
-                        >
-                            <span className="admin-nav-icon">{item.icon}</span>
-                            <span>{item.label}</span>
-                            {item.badge ? <span className="admin-nav-badge">{item.badge}</span> : null}
-                        </button>
-                    ))}
+                <nav className="admin-menu">
+                    <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setSelectedClientId(null); }}>
+                        <span className="menu-icon"><Icons.Overview /></span> Vue d'ensemble
+                    </button>
+                    <button className={`menu-item ${activeTab === 'demandes' ? 'active' : ''}`} onClick={() => { setActiveTab('demandes'); setSelectedClientId(null); }}>
+                        <span className="menu-icon"><Icons.Demandes /></span> Demandes {stats.pendingDemandes > 0 && <span className="menu-badge">{stats.pendingDemandes}</span>}
+                    </button>
+                    <button className={`menu-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }}>
+                        <span className="menu-icon"><Icons.Clients /></span> Gestion Clients
+                    </button>
+                    <button className={`menu-item ${activeTab === 'mail' ? 'active' : ''}`} onClick={() => { setActiveTab('mail'); setSelectedClientId(null); }}>
+                        <span className="menu-icon"><Icons.Mail /></span> Centre Courrier
+                    </button>
+                    <button className={`menu-item ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => { setActiveTab('billing'); setSelectedClientId(null); }}>
+                        <span className="menu-icon"><Icons.Billing /></span> Facturation
+                    </button>
                 </nav>
 
-                <div className="admin-sidebar-footer">
-                    <div className="admin-admin-info">
-                        <div className="admin-admin-dot" />
-                        <div>
-                            <div className="admin-admin-label">Administrateur</div>
-                            <div className="admin-admin-email">{userEmail || 'Mode PIN'}</div>
-                        </div>
-                    </div>
-                    <button className="admin-back-btn" onClick={() => navigate('/')}>← Site public</button>
+                <div style={{ marginTop: 'auto', padding: '12px' }}>
+                    <button className="menu-item logout-item" onClick={handleLogout}>
+                        <span className="menu-icon"><Icons.Logout /></span> Déconnexion
+                    </button>
                 </div>
             </aside>
 
-            {/* ── Main ── */}
-            <main className="admin-main">
-
-                {/* ══ Dashboard ══ */}
-                {activeTab === 'dashboard' && (
-                    <div className="admin-page">
-                        <div className="admin-page-header">
-                            <h1>Tableau de bord</h1>
-                            <span className="admin-date">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                        </div>
-
-                        {/* KPIs */}
-                        <div className="admin-kpis">
-                            <div className="kpi-card blue">
-                                <div className="kpi-icon">👥</div>
-                                <div className="kpi-value">{totalClients}</div>
-                                <div className="kpi-label">Total clients</div>
-                            </div>
-                            <div className="kpi-card green">
-                                <div className="kpi-icon">✅</div>
-                                <div className="kpi-value">{activeClients}</div>
-                                <div className="kpi-label">Actifs</div>
-                            </div>
-                            <div className="kpi-card orange">
-                                <div className="kpi-icon">⏳</div>
-                                <div className="kpi-value">{pendingClients}</div>
-                                <div className="kpi-label">En attente</div>
-                            </div>
-                            <div className="kpi-card red">
-                                <div className="kpi-icon">⚠️</div>
-                                <div className="kpi-value">{suspendedClients}</div>
-                                <div className="kpi-label">Suspendus</div>
-                            </div>
-                            <div className="kpi-card purple">
-                                <div className="kpi-icon">💰</div>
-                                <div className="kpi-value">{monthlyRevenue}€</div>
-                                <div className="kpi-label">CA mensuel HT</div>
-                            </div>
-                            <div className="kpi-card yellow">
-                                <div className="kpi-icon">📬</div>
-                                <div className="kpi-value">{unreadCourrier}</div>
-                                <div className="kpi-label">Courrier non lu</div>
-                            </div>
-                        </div>
-
-                        {/* Recent clients + courrier */}
-                        <div className="admin-dashboard-grid">
-                            <div className="admin-widget">
-                                <div className="admin-widget-header">
-                                    <h3>Derniers clients</h3>
-                                    <button onClick={() => setActiveTab('clients')} className="admin-widget-link">Voir tout →</button>
-                                </div>
-                                <table className="admin-mini-table">
-                                    <thead>
-                                        <tr><th>Client</th><th>Ville</th><th>Plan</th><th>Statut</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        {mockClients.slice(0, 5).map(c => (
-                                            <tr key={c.id}>
-                                                <td>
-                                                    <div className="atd-name">{c.name}</div>
-                                                    <div className="atd-sub">{c.company}</div>
-                                                </td>
-                                                <td>{c.city}</td>
-                                                <td><span className="plan-badge">{c.plan}</span></td>
-                                                <td><span className={`status-badge status-${c.status.replace(' ', '-')}`}>{c.status}</span></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="admin-widget">
-                                <div className="admin-widget-header">
-                                    <h3>Courrier récent</h3>
-                                    <button onClick={() => setActiveTab('courrier')} className="admin-widget-link">Voir tout →</button>
-                                </div>
-                                <div className="admin-courrier-list">
-                                    {mockCourriers.slice(0, 4).map(c => (
-                                        <div key={c.id} className="admin-courrier-item">
-                                            <div className="aci-icon">📬</div>
-                                            <div className="aci-content">
-                                                <div className="aci-client">{c.client} — {c.expediteur}</div>
-                                                <div className="aci-type">{c.type} · {c.date}</div>
-                                            </div>
-                                            <span className={`courier-status cs-${c.status.replace(' ', '-')}`}>{c.status}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Réservations à venir */}
-                        <div className="admin-widget" style={{ marginTop: '20px' }}>
-                            <div className="admin-widget-header">
-                                <h3>Réservations à venir</h3>
-                                <button onClick={() => setActiveTab('reservations')} className="admin-widget-link">Voir tout →</button>
-                            </div>
-                            <table className="admin-mini-table">
-                                <thead>
-                                    <tr><th>Client</th><th>Type</th><th>Date</th><th>Horaire</th><th>Statut</th></tr>
-                                </thead>
-                                <tbody>
-                                    {mockReservations.map(r => (
-                                        <tr key={r.id}>
-                                            <td>{r.client}</td>
-                                            <td>{r.type}</td>
-                                            <td>{r.date}</td>
-                                            <td>{r.heure}</td>
-                                            <td><span className={`status-badge status-${r.status.replace(' ', '-')}`}>{r.status}</span></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+            <main className="admin-content">
+                <header className="admin-header">
+                    <div className="header-search">
+                        <span className="search-icon"><Icons.Search /></span>
+                        <input
+                            type="text"
+                            placeholder="Rechercher un dossier, une entreprise..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
-                )}
-
-                {/* ══ Clients ══ */}
-                {activeTab === 'clients' && (
-                    <div className="admin-page">
-                        <div className="admin-page-header">
-                            <h1>Clients ({filteredClients.length})</h1>
-                            <button className="admin-action-btn">+ Ajouter un client</button>
+                    <div className="header-profile">
+                        <div className="profile-info">
+                            <span className="profile-name">Admin DPC</span>
+                            <span className="profile-email">{user?.primaryEmailAddress?.emailAddress}</span>
                         </div>
-
-                        {/* Filters */}
-                        <div className="admin-filters">
-                            <input
-                                type="text"
-                                className="admin-search"
-                                placeholder="Rechercher par nom, email, entreprise…"
-                                value={searchClients}
-                                onChange={e => setSearchClients(e.target.value)}
-                            />
-                            <select
-                                className="admin-select"
-                                value={filterStatus}
-                                onChange={e => setFilterStatus(e.target.value)}
-                            >
-                                <option value="tous">Tous les statuts</option>
-                                <option value="actif">Actif</option>
-                                <option value="en attente">En attente</option>
-                                <option value="suspendu">Suspendu</option>
-                            </select>
-                        </div>
-
-                        {/* Table */}
-                        <div className="admin-table-wrap">
-                            <table className="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Client</th>
-                                        <th>Email</th>
-                                        <th>Ville</th>
-                                        <th>Plan</th>
-                                        <th>Statut</th>
-                                        <th>Courrier</th>
-                                        <th>Renouvellement</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredClients.map(c => (
-                                        <tr key={c.id}>
-                                            <td className="td-id">#{c.id}</td>
-                                            <td>
-                                                <div className="atd-cell">
-                                                    <div className="atd-avatar">{c.name.charAt(0)}</div>
-                                                    <div>
-                                                        <div className="atd-name">{c.name}</div>
-                                                        <div className="atd-sub">{c.company}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="td-email">{c.email}</td>
-                                            <td>{c.city}</td>
-                                            <td><span className="plan-badge">{c.plan}</span></td>
-                                            <td>
-                                                <span className={`status-badge status-${c.status.replace(' ', '-')}`}>
-                                                    {c.status}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {c.courrier > 0
-                                                    ? <span className="courrier-count">{c.courrier} 📬</span>
-                                                    : <span className="courrier-none">—</span>
-                                                }
-                                            </td>
-                                            <td className="td-date">{c.renewal}</td>
-                                            <td>
-                                                <div className="admin-row-actions">
-                                                    <button className="ara-btn ara-view">👁</button>
-                                                    <button className="ara-btn ara-edit">✏️</button>
-                                                    <button className="ara-btn ara-delete">🗑</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <div className="profile-avatar">AD</div>
                     </div>
-                )}
+                </header>
 
-                {/* ══ Courrier ══ */}
-                {activeTab === 'courrier' && (
-                    <div className="admin-page">
-                        <div className="admin-page-header">
-                            <h1>Courriers ({mockCourriers.length})</h1>
-                            <button className="admin-action-btn">+ Nouveau courrier</button>
-                        </div>
-                        <div className="admin-table-wrap">
-                            <table className="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Client</th>
-                                        <th>Type</th>
-                                        <th>Expéditeur</th>
-                                        <th>Date</th>
-                                        <th>Statut</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {mockCourriers.map(c => (
-                                        <tr key={c.id}>
-                                            <td className="td-id">#{c.id}</td>
-                                            <td>
-                                                <div className="atd-name">{c.client}</div>
-                                                <div className="atd-sub">{c.company}</div>
-                                            </td>
-                                            <td>{c.type}</td>
-                                            <td>{c.expediteur}</td>
-                                            <td className="td-date">{c.date}</td>
-                                            <td>
-                                                <span className={`courier-status cs-${c.status.replace(' ', '-')}`}>{c.status}</span>
-                                            </td>
-                                            <td>
-                                                <div className="admin-row-actions">
-                                                    <button className="ara-btn ara-view">👁</button>
-                                                    <button className="ara-btn ara-edit">✏️</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-
-                {/* ══ Réservations ══ */}
-                {activeTab === 'reservations' && (
-                    <div className="admin-page">
-                        <div className="admin-page-header">
-                            <h1>Réservations ({mockReservations.length})</h1>
-                            <button className="admin-action-btn">+ Nouvelle réservation</button>
-                        </div>
-                        <div className="admin-table-wrap">
-                            <table className="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Client</th>
-                                        <th>Type d'espace</th>
-                                        <th>Date</th>
-                                        <th>Horaire</th>
-                                        <th>Statut</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {mockReservations.map(r => (
-                                        <tr key={r.id}>
-                                            <td className="td-id">#{r.id}</td>
-                                            <td>{r.client}</td>
-                                            <td>{r.type}</td>
-                                            <td className="td-date">{r.date}</td>
-                                            <td>{r.heure}</td>
-                                            <td>
-                                                <span className={`status-badge status-${r.status.replace(' ', '-')}`}>{r.status}</span>
-                                            </td>
-                                            <td>
-                                                <div className="admin-row-actions">
-                                                    <button className="ara-btn ara-view">✅</button>
-                                                    <button className="ara-btn ara-delete">❌</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-
-                {/* ══ Documents ══ */}
-                {activeTab === 'documents' && (
-                    <div className="admin-page">
-                        <div className="admin-page-header">
-                            <h1>Documents</h1>
-                            <button className="admin-action-btn">+ Ajouter un document</button>
-                        </div>
-                        <div className="admin-empty-state">
-                            <div className="admin-empty-icon">📄</div>
-                            <h3>Gestion des documents</h3>
-                            <p>Cette section permettra de gérer les attestations, contrats et documents clients. Fonctionnalité à venir.</p>
-                        </div>
-                    </div>
-                )}
-
-                {/* ══ Facturation ══ */}
-                {activeTab === 'facturation' && (
-                    <div className="admin-page">
-                        <div className="admin-page-header">
-                            <h1>Facturation</h1>
-                        </div>
-                        <div className="admin-kpis" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                            <div className="kpi-card green">
-                                <div className="kpi-icon">💰</div>
-                                <div className="kpi-value">{monthlyRevenue}€</div>
-                                <div className="kpi-label">CA mensuel HT (actifs)</div>
-                            </div>
-                            <div className="kpi-card blue">
-                                <div className="kpi-icon">📈</div>
-                                <div className="kpi-value">{monthlyRevenue * 12}€</div>
-                                <div className="kpi-label">CA annuel HT estimé</div>
-                            </div>
-                            <div className="kpi-card purple">
-                                <div className="kpi-icon">👤</div>
-                                <div className="kpi-value">{activeClients}</div>
-                                <div className="kpi-label">Abonnés actifs</div>
-                            </div>
-                        </div>
-                        <div className="admin-empty-state" style={{ marginTop: '24px' }}>
-                            <div className="admin-empty-icon">💳</div>
-                            <h3>Facturation détaillée</h3>
-                            <p>L'intégration Stripe et la gestion des factures PDF seront disponibles prochainement.</p>
-                        </div>
-                    </div>
-                )}
-
+                <div className="admin-body">
+                    {selectedClientId ? (
+                        <DossierClient
+                            client={selectedClient}
+                            onBack={() => setSelectedClientId(null)}
+                            onUpdate={refreshData}
+                        />
+                    ) : (
+                        <>
+                            {activeTab === 'overview' && <OverviewTab stats={stats} clients={clients} mail={mail} />}
+                            {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} />}
+                            {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} />}
+                            {activeTab === 'mail' && <MailTab mail={mail} clients={clients} onUpdate={refreshData} />}
+                        </>
+                    )}
+                </div>
             </main>
+        </div>
+    );
+}
+
+/* ─── TABS COMPONENTS ──────────────────────────────────── */
+
+function OverviewTab({ stats, clients, mail }) {
+    return (
+        <div className="tab-container">
+            <div className="stats-row">
+                <div className="stat-card">
+                    <span className="stat-card-label">Clients Actifs</span>
+                    <div className="stat-card-value">{stats.activeClients}</div>
+                    <div className="stat-card-trend trend-up">
+                        <Icons.TrendUp /> <span>12.5%</span>
+                    </div>
+                </div>
+                <div className="stat-card">
+                    <span className="stat-card-label">Demandes en attente</span>
+                    <div className="stat-card-value">{stats.pendingDemandes}</div>
+                    <div className="stat-card-trend" style={{ color: '#1A56DB' }}>Action requise</div>
+                </div>
+                <div className="stat-card">
+                    <span className="stat-card-label">Revenu Mensuel</span>
+                    <div className="stat-card-value">{stats.monthlyRevenue}€</div>
+                    <div className="stat-card-trend trend-up">
+                        <Icons.TrendUp /> <span>8.2%</span>
+                    </div>
+                </div>
+                <div className="stat-card">
+                    <span className="stat-card-label">Santé Système</span>
+                    <div className="stat-card-value" style={{ fontSize: '18px' }}>Opérationnel</div>
+                    <div className="stat-card-trend trend-up">Stable</div>
+                </div>
+            </div>
+
+            <div className="dashboard-grid">
+                <div className="content-card">
+                    <div className="card-header">
+                        <h2>Inscriptions Récentes</h2>
+                        <button className="btn-text">Tout voir</button>
+                    </div>
+                    <div className="card-body-table">
+                        <table className="admin-table">
+                            <thead>
+                                <tr><th>Client</th><th>Offre</th><th>Statut</th></tr>
+                            </thead>
+                            <tbody>
+                                {clients.slice(0, 5).map(c => (
+                                    <tr key={c.id}>
+                                        <td>
+                                            <div className="table-primary">{c.company}</div>
+                                            <div className="table-secondary">{c.name}</div>
+                                        </td>
+                                        <td><span className="badge-outline">{c.plan}</span></td>
+                                        <td><span className={`status-dot ${c.status === 'actif' ? 'status-active' : 'status-danger'}`}></span> {c.status}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="content-card">
+                    <div className="card-header">
+                        <h2>Flux Courrier</h2>
+                        <button className="btn-text">Marquer tout lu</button>
+                    </div>
+                    <div className="card-list">
+                        {mail.filter(m => m.status === 'non lu').length === 0 ? (
+                            <div className="empty-state">Aucun courrier urgent</div>
+                        ) : (
+                            mail.filter(m => m.status === 'non lu').map(m => (
+                                <div key={m.id} className="list-item">
+                                    <div className="item-icon"><Icons.Mail /></div>
+                                    <div className="item-content">
+                                        <div className="item-title">{m.company}</div>
+                                        <div className="item-meta">{m.from} · {m.type}</div>
+                                    </div>
+                                    <div className="item-date">{m.date}</div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function DemandesTab({ demandes, onUpdate }) {
+    const [loadingId, setLoadingId] = useState(null);
+
+    const handleAccepter = async (id) => {
+        const d = demandes.find(item => item.id === id);
+        setLoadingId(id);
+        try {
+            await adminDataService.traiterDemande(id);
+            onUpdate();
+            alert(`Accès créé avec succès pour ${d.email} ! Un email d'invitation a été simulé.`);
+        } finally {
+            setLoadingId(null);
+        }
+    };
+
+    return (
+        <div className="content-card">
+            <div className="card-header">
+                <h2>Nouvelles souscriptions ({demandes.length})</h2>
+            </div>
+            {demandes.length === 0 ? (
+                <div className="empty-state-full">
+                    <Icons.Demandes />
+                    <p>Aucune demande en attente de traitement.</p>
+                </div>
+            ) : (
+                <div className="card-body-table">
+                    <table className="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Postulant / Société</th>
+                                <th>Formule</th>
+                                <th>Transaction</th>
+                                <th>Date</th>
+                                <th style={{ textAlign: 'right' }}>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {demandes.map(d => (
+                                <tr key={d.id}>
+                                    <td>
+                                        <div className="table-primary">{d.company}</div>
+                                        <div className="table-secondary">{d.clientName} · {d.email}</div>
+                                    </td>
+                                    <td><span className="badge-outline">{d.plan}</span></td>
+                                    <td><strong>{d.amount}€</strong></td>
+                                    <td>{new Date(d.date).toLocaleDateString()}</td>
+                                    <td style={{ textAlign: 'right' }}>
+                                        <button
+                                            className="btn-primary-sm"
+                                            onClick={() => handleAccepter(d.id)}
+                                            disabled={loadingId === d.id}
+                                            style={{ minWidth: '140px' }}
+                                        >
+                                            {loadingId === d.id ? 'Création accès...' : 'Approuver'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ClientsTab({ clients, searchQuery, onSelect, onUpdate }) {
+    const filtered = clients.filter(c =>
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.company.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return (
+        <div className="content-card">
+            <div className="card-header">
+                <h2>Répertoire Clients ({filtered.length})</h2>
+                <div className="header-actions">
+                    <button className="btn-secondary-sm">Export CSV</button>
+                    <button className="btn-primary-sm">+ Nouveau Client</button>
+                </div>
+            </div>
+            <div className="card-body-table">
+                <table className="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Entreprise</th>
+                            <th>Offre</th>
+                            <th>Accès Clerk</th>
+                            <th>Statut</th>
+                            <th style={{ textAlign: 'right' }}>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filtered.map(c => (
+                            <tr key={c.id}>
+                                <td>
+                                    <div className="table-primary">{c.company}</div>
+                                    <div className="table-secondary">{c.name}</div>
+                                </td>
+                                <td><span className="badge-outline">{c.plan}</span></td>
+                                <td>
+                                    <div className="clerk-id-badge">
+                                        <div className="clerk-dot"></div>
+                                        {c.clerkId ? c.clerkId : 'Clerk Non Lié'}
+                                    </div>
+                                </td>
+                                <td><span className={`status-dot ${c.status === 'actif' ? 'status-active' : 'status-danger'}`}></span> {c.status}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                    <button className="btn-text" onClick={() => onSelect(c.id)}>Détails</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function DossierClient({ client, onBack, onUpdate }) {
+    const [documents, setDocuments] = useState([]);
+
+    useEffect(() => {
+        if (client) setDocuments(adminDataService.getDocuments(client.id));
+    }, [client]);
+
+    const handleUploadSim = () => {
+        const name = prompt('Nom du document ?');
+        if (name) {
+            adminDataService.addDocument(client.id, {
+                name: name, size: '250KB', type: 'application/pdf', owner: 'admin', url: '#'
+            });
+            setDocuments(adminDataService.getDocuments(client.id));
+        }
+    };
+
+    if (!client) return null;
+
+    return (
+        <div className="dossier-animate">
+            <div className="dossier-header">
+                <button onClick={onBack} className="btn-back">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14 }}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Retour
+                </button>
+                <div className="dossier-title">
+                    <h1>{client.company}</h1>
+                    <span className="badge-status">Compte {client.status}</span>
+                </div>
+            </div>
+
+            <div className="dossier-grid">
+                <div className="content-card">
+                    <div className="card-header">
+                        <h2>Espace Documentaire</h2>
+                        <button className="btn-primary-sm" onClick={handleUploadSim}>Uploader</button>
+                    </div>
+                    <div className="card-body">
+                        {documents.length === 0 ? (
+                            <div className="empty-state-full">
+                                <Icons.File />
+                                <p>Aucun document dans le dossier.</p>
+                            </div>
+                        ) : (
+                            <div className="docs-grid">
+                                {documents.map(doc => (
+                                    <div key={doc.id} className="doc-card">
+                                        <div className="doc-icon">
+                                            {doc.type.includes('image') ? <Icons.Image /> : <Icons.File />}
+                                        </div>
+                                        <div className="doc-info">
+                                            <span className="doc-name">{doc.name}</span>
+                                            <span className="doc-meta">{doc.size} · {doc.owner}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="dossier-sidebar">
+                    <div className="content-card">
+                        <div className="card-header"><h2>Informations</h2></div>
+                        <div className="card-body info-list">
+                            <div className="info-group"><label>Clerk User ID</label><code style={{ fontSize: '10px' }}>{client.clerkId || 'N/A'}</code></div>
+                            <div className="info-group"><label>Gérant</label><span>{client.name}</span></div>
+                            <div className="info-group"><label>Email</label><span>{client.email}</span></div>
+                            <div className="info-group"><label>Formule</label><span>{client.plan}</span></div>
+                            <div className="info-group"><label>Date d'entrée</label><span>{client.since}</span></div>
+                            <div className="info-actions">
+                                <button className="btn-danger-outline">Suspendre l'accès</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function MailTab({ mail, clients, onUpdate }) {
+    return (
+        <div className="tab-container">
+            <div className="tab-header">
+                <h1>Centre de Courrier</h1>
+                <button className="btn-primary-sm">Nouveau Scan</button>
+            </div>
+
+            <div className="mail-grid">
+                {mail.map(m => (
+                    <div key={m.id} className={`mail-card-v2 ${m.status === 'non lu' ? 'is-unread' : ''}`}>
+                        <div className="mail-icon-v2"><Icons.Mail /></div>
+                        <div className="mail-body-v2">
+                            <div className="mail-company">{m.company}</div>
+                            <div className="mail-from">Exp: {m.from}</div>
+                            <div className="mail-meta">{m.type} · {m.date}</div>
+                            <div className="mail-actions-v2">
+                                <button className="btn-primary-sm" onClick={() => { adminDataService.markMailAsRead(m.id); onUpdate(); }}>
+                                    {m.status === 'non lu' ? 'Marquer Lu' : 'Visualiser'}
+                                </button>
+                                <button className="btn-secondary-sm">Transférer</button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
