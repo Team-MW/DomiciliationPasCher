@@ -83,9 +83,9 @@ export default function Footer() {
                 <div className="container footer-bottom-inner">
                     <p>© {new Date().getFullYear()} DomiciliationPasCher.fr — Tous droits réservés</p>
                     <div className="footer-legal">
-                        <a href="#">Mentions légales</a>
-                        <a href="#">CGV</a>
-                        <a href="#">Politique de confidentialité</a>
+                        <Link to="/mentions-legales">Mentions légales</Link>
+                        <Link to="#">CGV</Link>
+                        <Link to="#">Politique de confidentialité</Link>
                     </div>
                 </div>
             </div>

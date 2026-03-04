@@ -114,6 +114,160 @@
     padding: 8px 18px;
 }
 
+/* ── Mega Menu ── */
+.nav-item-wrapper {
+    position: relative;
+    height: 68px;
+    display: flex;
+    align-items: center;
+}
+
+.nav-chevron {
+    margin-left: 6px;
+    transition: transform 0.2s ease;
+    opacity: 0.7;
+}
+
+.nav-link.active .nav-chevron {
+    transform: rotate(180deg);
+}
+
+.mega-menu {
+    position: fixed;
+    top: 68px;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #F1F5F9;
+    border-bottom: 1px solid #E2E8F0;
+    box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+}
+
+.mega-menu::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 45.4%;
+    /* Alignement approximatif avec "Fiches Pratiques" */
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-top: 1px solid #F1F5F9;
+    border-left: 1px solid #F1F5F9;
+    transform: rotate(45deg);
+    z-index: 1;
+}
+
+.mega-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.mega-menu-inner {
+    display: flex;
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 0;
+}
+
+.mega-menu-main {
+    flex: 1;
+    padding: 40px 60px 50px 20px;
+}
+
+.mega-menu-top {
+    margin-bottom: 32px;
+}
+
+.mega-menu-all {
+    color: var(--primary);
+    font-size: 14.5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.mega-menu-all:hover {
+    text-decoration: underline;
+}
+
+.mega-menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 60px;
+}
+
+.mega-menu-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #94A3B8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 18px;
+}
+
+.mega-menu-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+}
+
+.mega-menu-list a {
+    font-size: 14.5px;
+    font-weight: 500;
+    color: #334155;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: block;
+}
+
+.mega-menu-list a:hover {
+    color: var(--primary);
+    transform: translateX(4px);
+}
+
+.mega-menu-sidebar {
+    width: 320px;
+    background: #f1f5f990;
+    border-left: 1px solid #F1F5F9;
+    padding: 40px 32px;
+}
+
+.sidebar-title {
+    color: var(--primary);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 24px;
+}
+
+.sidebar-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.sidebar-list a {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1e293b;
+    text-decoration: none;
+    line-height: 1.5;
+    transition: color 0.15s;
+    display: block;
+}
+
+.sidebar-list a:hover {
+    color: var(--primary);
+}
+
 /* ── Hamburger ── */
 .hamburger {
     display: none;

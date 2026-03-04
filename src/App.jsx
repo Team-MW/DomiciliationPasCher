@@ -11,6 +11,9 @@ import ConnexionPage from './pages/Connexion';
 import EspaceClient from './pages/EspaceClient';
 import Admin from './pages/Admin';
 import Souscription from './pages/Souscription';
+import MentionsLegales from './pages/MentionsLegales';
+import FichesPratiques from './pages/FichesPratiques';
+import FicheDetail from './pages/fiches/FicheDetail';
 import ScrollToTop from './components/ScrollToTop';
 
 /* Route protégée : redirige vers /connexion si non connecté */
@@ -65,6 +68,13 @@ function App() {
 
         {/* Souscription — formulaire multi-étapes pleine page */}
         <Route path="/souscription" element={<Souscription />} />
+
+        {/* Mentions Légales */}
+        <Route path="/mentions-legales" element={<PublicLayout><MentionsLegales /></PublicLayout>} />
+
+        {/* Fiches Pratiques */}
+        <Route path="/fiches-pratiques" element={<PublicLayout><FichesPratiques /></PublicLayout>} />
+        <Route path="/fiches-pratiques/:slug" element={<PublicLayout><FicheDetail /></PublicLayout>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

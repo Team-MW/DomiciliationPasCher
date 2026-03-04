@@ -42,6 +42,13 @@ const features = [
     },
 ];
 
+const extraServices = [
+    { label: 'Assistance juridique', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 7l3 3m0 0l-3 3m3-3H6m15-3v14c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h8l8 5z" /></svg>) },
+    { label: 'Salles de réunion', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2zM7 14v-4M17 14v-4M12 12h.01" /></svg>) },
+    { label: 'Standard téléphonique', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.69 13a19.79 19.79 0 01-3.07-8.67A2 2 0 013.6 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>) },
+    { label: 'Accès offres partenaires', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m11-10a4 4 0 11-8 0 4 4 0 018 0zM23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75" /></svg>) },
+];
+
 const steps = [
     {
         n: '01',
@@ -405,6 +412,19 @@ export default function Home() {
                             </div>
                         ))}
                     </div>
+
+                    {/* BARRE SERVICES COMPLÉMENTAIRES */}
+                    <div className="extra-services-wrapper animate-in" style={{ animationDelay: '0.4s' }}>
+                        <h4 className="extra-services-title">Nos services complémentaires</h4>
+                        <div className="extra-services-bar">
+                            {extraServices.map((s, i) => (
+                                <div key={i} className="extra-service-pill">
+                                    <span className="extra-pill-icon">{s.icon}</span>
+                                    <span className="extra-pill-label">{s.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -421,39 +441,80 @@ export default function Home() {
             </section>
 
             {/* ══════════ PRICING STRIP ══════════ */}
-            <section className="pricing-strip section-sm" id="cta-pricing">
+            <section className="pricing-strip section" id="cta-pricing">
+                {/* Éléments décoratifs d'arrière-plan */}
+                <div className="ps-decor-1"></div>
+                <div className="ps-decor-2"></div>
+
                 <div className="container">
                     <div className="pricing-strip-inner">
                         <div className="ps-text animate-in">
-                            <div className="section-eyebrow ps-eyebrow">Tarification transparente</div>
-                            <h2>La domiciliation<br />la plus compétitive</h2>
-                            <p>Pas de frais cachés, pas de mauvaise surprise. <strong>À partir de 23&nbsp;€ HT/mois</strong>, résiliable à tout moment.</p>
-                            <Link to="/tarifs" className="btn btn-white btn-lg" id="cta-pricing-btn">
-                                Voir tous les tarifs
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                            </Link>
+                            <div className="ps-eyebrow-white">Tarification transparente</div>
+                            <h2 className="ps-main-title">La domiciliation<br /><span>la plus compétitive</span></h2>
+                            <p className="ps-main-desc">Pas de frais cachés, pas de mauvaise surprise. <br /><strong>À partir de 23&nbsp;€ HT/mois</strong>, résiliable à tout moment.</p>
+
+                            <div className="ps-cta-wrapper">
+                                <Link to="/tarifs" className="btn-ps-cta" id="cta-pricing-btn">
+                                    Découvrir toutes nos offres
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                </Link>
+                                <div className="ps-cta-trust">Sans engagement • Activation 24h</div>
+                            </div>
                         </div>
+
                         <div className="ps-cards animate-in" style={{ animationDelay: '0.15s' }}>
+                            {/* Carte Essentiel */}
                             <div className="ps-card">
-                                <div className="psc-label">Essentiel</div>
-                                <div className="psc-price">23 <span>€ HT/mois</span></div>
+                                <div className="psc-header">
+                                    <div className="psc-label">Essentiel</div>
+                                    <div className="psc-price">23 <span>€ HT/mois</span></div>
+                                </div>
                                 <ul className="psc-list">
-                                    <li>Adresse juridique officielle</li>
-                                    <li>Réception du courrier</li>
-                                    <li>Attestation de domiciliation</li>
-                                    <li>Espace client sécurisé</li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        Adresse juridique officielle
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        Réception du courrier
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        Attestation de domiciliation
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        Espace client sécurisé
+                                    </li>
                                 </ul>
                             </div>
+
+                            {/* Carte Recommandée */}
                             <div className="ps-card ps-card-featured">
-                                <div className="psc-badge">Recommandé</div>
-                                <div className="psc-label">Scan+</div>
-                                <div className="psc-price">28 <span>€ HT/mois</span></div>
+                                <div className="psc-badge">Le plus populaire</div>
+                                <div className="psc-header">
+                                    <div className="psc-label">Scan+</div>
+                                    <div className="psc-price">28 <span>€ HT/mois</span></div>
+                                </div>
                                 <ul className="psc-list">
-                                    <li>Tout l'offre Essentiel</li>
-                                    <li>Scan numérique du courrier</li>
-                                    <li>Accès immédiat en ligne</li>
-                                    <li>Archivage électronique</li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        Tout l'offre Essentiel
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        <strong>Scan numérique</strong> du courrier
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        Accès immédiat en ligne
+                                    </li>
+                                    <li>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                        Archivage électronique
+                                    </li>
                                 </ul>
+                                <Link to="/souscription" className="psc-btn-featured">Commencer ici</Link>
                             </div>
                         </div>
                     </div>
