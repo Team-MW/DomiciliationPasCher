@@ -382,4 +382,8 @@
     .mobile-menu {
         display: flex;
     }
+
+    .logo-wordmark {
+        font-size: 15px;
+    }
 }

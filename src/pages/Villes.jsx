@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './Villes.css';
 
@@ -9,6 +10,7 @@ const cities = [
         desc: 'La capitale française vous offre une adresse de prestige au cœur des affaires. Idéale pour rayonner à l\'international.',
         avantages: ['Adresse capitale', 'Rayonnement national', 'Réseau d\'affaires unique'],
         zip: '75',
+        image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop',
     },
     {
         name: 'Lyon',
@@ -17,6 +19,7 @@ const cities = [
         desc: 'Deuxième métropole économique de France, Lyon est le hub idéal pour les entreprises du secteur industriel et technologique.',
         avantages: ['2e hub économique', 'Vitalité startup', 'Position géographique centrale'],
         zip: '69',
+        image: 'https://images.unsplash.com/photo-1509030464152-c44034d15026?q=80&w=2070&auto=format&fit=crop',
     },
     {
         name: 'Marseille',
@@ -25,6 +28,7 @@ const cities = [
         desc: 'Premier port méditerranéen d\'Europe. Marseille est incontournable pour les activités liées au commerce et à la logistique.',
         avantages: ['Premier port EU', 'Commerce méditerranéen', 'Rayonnement Sud'],
         zip: '13',
+        image: 'https://images.unsplash.com/photo-1563297122-fdf5f43da719?q=80&w=2070&auto=format&fit=crop',
     },
     {
         name: 'Nice',
@@ -33,6 +37,7 @@ const cities = [
         desc: 'Ville du tourisme et de l\'innovation, Nice attire de nombreuses entreprises dans les secteurs du luxe et du numérique.',
         avantages: ['Pôle innovation', 'Tourisme & luxe', 'Proximité Monaco'],
         zip: '06',
+        image: 'https://images.unsplash.com/photo-1543884842-83679872e482?q=80&w=2071&auto=format&fit=crop',
     },
     {
         name: 'Bordeaux',
@@ -41,6 +46,7 @@ const cities = [
         desc: 'Métropole en plein essor, Bordeaux conjugue qualité de vie et dynamisme économique. Parfaite pour les entreprises du vin et du digital.',
         avantages: ['Qualité de vie N°1', 'Secteur vin & luxe', 'Croissance rapide'],
         zip: '33',
+        image: 'https://images.unsplash.com/photo-1590487050311-be078b548b11?q=80&w=2070&auto=format&fit=crop',
     },
     {
         name: 'Nantes',
@@ -49,6 +55,7 @@ const cities = [
         desc: 'Élue plusieurs fois ville la plus agréable de France, Nantes est un vivier de talents pour les startups et PME innovantes.',
         avantages: ['Capitale des startups', 'Talents numériques', 'Attractivité forte'],
         zip: '44',
+        image: 'https://images.unsplash.com/photo-1623838382710-f1c586cc2ae2?q=80&w=1974&auto=format&fit=crop',
     },
     {
         name: 'Lille',
@@ -57,6 +64,7 @@ const cities = [
         desc: 'Porte d\'entrée du nord de l\'Europe, Lille est stratégique pour les entreprises ayant des activités avec la Belgique et le Royaume-Uni.',
         avantages: ['Carrefour Nord-Europe', 'Accès Belgique & UK', 'Hub logistique'],
         zip: '59',
+        image: 'https://images.unsplash.com/photo-1582294101138-028a38ae1841?q=80&w=2070&auto=format&fit=crop',
     },
     {
         name: 'Rennes',
@@ -65,6 +73,7 @@ const cities = [
         desc: 'Capitale de la Bretagne, Rennes est l\'une des villes les plus dynamiques de France avec un fort tissu numérique et technologique.',
         avantages: ['Pôle numérique', 'Ville étudiante', 'Innovation tech'],
         zip: '35',
+        image: 'https://images.unsplash.com/photo-1605335805541-b3b3a7263303?q=80&w=1964&auto=format&fit=crop',
     },
     {
         name: 'Strasbourg',
@@ -73,6 +82,7 @@ const cities = [
         desc: 'Siège des institutions européennes, Strasbourg offre une adresse à dimension internationale, idéale pour tout dossier européen.',
         avantages: ['Siège institutions EU', 'Rayonnement international', 'Proximité Allemagne'],
         zip: '67',
+        image: 'https://images.unsplash.com/photo-1549429440-1e52857463f8?q=80&w=2070&auto=format&fit=crop',
     },
     {
         name: 'Clermont-Ferrand',
@@ -81,6 +91,7 @@ const cities = [
         desc: 'Berceau des grandes entreprises industrielles françaises, Clermont-Ferrand est la référence pour l\'industrie et l\'innovation locale.',
         avantages: ['Hub industriel', 'Coût immobilier bas', 'Réseau PME fort'],
         zip: '63',
+        image: 'https://images.unsplash.com/photo-1629813583568-da7ec5c78663?q=80&w=2070&auto=format&fit=crop',
     },
 ];
 
@@ -91,9 +102,25 @@ const cityBenefits = [
     { icon: '🌐', title: 'Multi-villes', desc: 'Besoin de plusieurs adresses ? Tarifs dégressifs disponibles.' },
 ];
 
+function useAnimateOnScroll() {
+    const ref = useRef(null);
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+            { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+        );
+        const els = ref.current?.querySelectorAll('.animate-in') || [];
+        els.forEach(el => observer.observe(el));
+        return () => observer.disconnect();
+    }, []);
+    return ref;
+}
+
 export default function Villes() {
+    const pageRef = useAnimateOnScroll();
+
     return (
-        <main className="page-wrapper" style={{ background: '#FAFBFF' }}>
+        <main ref={pageRef} className="page-wrapper" style={{ background: '#FAFBFF' }}>
             {/* Hero Section */}
             <section className="villes-hero section">
                 <div className="container">
@@ -162,8 +189,11 @@ export default function Villes() {
                                             <div className="map-glass-pulse" />
                                         </div>
                                     </div>
-                                    {/* Image de fond pour chaque ville (placeholder stylisé) */}
-                                    <div className="cwc-city-bg" />
+                                    {/* Image de fond pour chaque ville */}
+                                    <div
+                                        className="cwc-city-bg"
+                                        style={{ backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.2)), url(${city.image})` }}
+                                    />
                                 </div>
 
                                 <div className="cwc-content-side">
