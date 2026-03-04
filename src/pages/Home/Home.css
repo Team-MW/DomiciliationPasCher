@@ -1616,9 +1616,10 @@
     }
 
     .guarantee-item {
-        font-size: 12.5px;
-        justify-content: flex-start;
+        font-size: 12px;
+        justify-content: center;
         color: #475569;
+        text-align: center;
     }
 
     .trust-bar {
@@ -1629,8 +1630,9 @@
     .trust-logos {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 24px;
+        gap: 16px;
         text-align: center;
+        justify-items: center;
     }
 
     .trust-logo-item {
@@ -1804,7 +1806,7 @@
     }
 
     .hero-title {
-        font-size: 28px;
+        font-size: 26px;
         line-height: 1.2;
         letter-spacing: -0.02em;
     }
@@ -1813,9 +1815,25 @@
         font-size: 14.5px;
         line-height: 1.6;
         color: #64748B;
+        margin-bottom: 24px;
+        text-align: center;
     }
 
-    /* Cities 2 col compact */
+    /* Masquer les badges flottants sur très petit écran pour éviter le clutter */
+    .hero-float {
+        display: none;
+    }
+
+    .hero-card-main {
+        padding: 20px;
+    }
+
+    .hcm-city-pill {
+        padding: 4px 10px;
+        font-size: 12px;
+    }
+
+    /* Cities 1 col compact */
     .cities-grid {
         grid-template-columns: 1fr;
         gap: 10px;
@@ -1826,20 +1844,30 @@
         gap: 12px;
     }
 
-    .city-arrow {
-        display: block;
-        opacity: 0.3;
-        transform: none;
-    }
-
-    /* Stats pleine colonne */
+    /* Stats 2x2 compact */
     .stats-grid {
         grid-template-columns: 1fr 1fr;
     }
 
+    .stat-value {
+        font-size: 28px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+    }
+
+    /* Trust Bar */
+    .trust-logos {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
     /* Badges final cta */
     .final-cta-badges {
-        gap: 10px;
+        gap: 8px;
+        flex-direction: column;
+        align-items: center;
     }
 
     .final-cta-badge {
@@ -1849,6 +1877,14 @@
     /* Pricing strip */
     .psc-price {
         font-size: 28px;
+    }
+
+    .ps-main-title {
+        font-size: 28px;
+    }
+
+    .ps-card {
+        padding: 24px 20px;
     }
 }
 

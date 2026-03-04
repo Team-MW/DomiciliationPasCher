@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
     CLIENTS: 'dpc_admin_clients',
     MAIL: 'dpc_admin_mail',
     DEMANDES: 'dpc_admin_demandes',
-    DOCUMENTS: 'dpc_admin_documents'
+    DOCUMENTS: 'dpc_admin_documents',
+    BOOKINGS: 'dpc_admin_bookings'
 };
 
 // Initialisation des données mockées si vides
@@ -53,6 +54,7 @@ export const adminDataService = {
         if (!get(STORAGE_KEYS.MAIL)) set(STORAGE_KEYS.MAIL, INITIAL_DATA.mail);
         if (!get(STORAGE_KEYS.DEMANDES)) set(STORAGE_KEYS.DEMANDES, INITIAL_DATA.demandes);
         if (!get(STORAGE_KEYS.DOCUMENTS)) set(STORAGE_KEYS.DOCUMENTS, INITIAL_DATA.documents);
+        if (!get(STORAGE_KEYS.BOOKINGS)) set(STORAGE_KEYS.BOOKINGS, []);
     },
 
     // --- CLIENTS ---
@@ -148,11 +150,41 @@ export const adminDataService = {
         const newDoc = {
             id: 'doc_' + Date.now(),
             uploadedAt: new Date().toISOString().split('T')[0],
+            folder: fileInfo.folder || 'Documents', // Dossier par défaut plus propre
             ...fileInfo
         };
         allDocs[clientId] = [newDoc, ...clientDocs];
         set(STORAGE_KEYS.DOCUMENTS, allDocs);
         return newDoc;
+    },
+    getClientFolders(clientId) {
+        const docs = this.getDocuments(clientId);
+        const folders = Array.from(new Set(docs.map(d => d.folder || 'Documents')));
+        return folders;
+    },
+    createFolder(clientId, folderName) {
+        // Dans cette simulation, on stocke juste le folder dans le doc,
+        // mais pour l'affichage on pourra filtrer.
+        // On pourrait aussi ajouter une entrée spéciale folder.
+        return true;
+    },
+
+    // --- BOOKINGS & RESERVATIONS ---
+    getBookings() { return get(STORAGE_KEYS.BOOKINGS) || []; },
+    getClientBookings(clientId) {
+        return this.getBookings().filter(b => b.clientId === clientId);
+    },
+    addBookingRequest(clientId, bookingData) {
+        const bookings = this.getBookings();
+        const newBooking = {
+            id: 'book_' + Date.now(),
+            clientId,
+            status: 'en_attente',
+            createdAt: new Date().toISOString(),
+            ...bookingData
+        };
+        set(STORAGE_KEYS.BOOKINGS, [newBooking, ...bookings]);
+        return newBooking;
     },
 
     // --- MAIL ---

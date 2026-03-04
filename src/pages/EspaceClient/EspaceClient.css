@@ -550,3 +550,130 @@
 .ec-tab-animate {
     animation: ecFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+/* ── EXPLORER / FINDER SYSTEM ── */
+.ec-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ec-crumb {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ec-text-sub);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ec-crumb.active {
+    color: var(--ec-text-main);
+}
+
+.ec-divider {
+    color: var(--ec-border);
+    font-size: 14px;
+}
+
+.ec-explorer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+    min-height: 400px;
+}
+
+.ec-explorer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    animation: ecFadeIn 0.3s ease-out;
+}
+
+.ec-explorer-item:hover {
+    background: #F8FAFC;
+    border-color: var(--ec-border);
+}
+
+.ec-explorer-icon {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.ec-explorer-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.ec-explorer-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ec-text-main);
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ec-explorer-count, 
+.ec-explorer-meta {
+    font-size: 11px;
+    color: var(--ec-text-sub);
+    margin-top: 4px;
+}
+
+.ec-explorer-item.folder .ec-explorer-icon {
+    filter: drop-shadow(0 4px 6px rgba(99, 102, 241, 0.2));
+}
+
+.ec-explorer-item.new {
+    border: 1px dashed var(--ec-border);
+}
+
+.ec-explorer-icon.add {
+    font-size: 32px;
+    color: var(--ec-border);
+    font-weight: 300;
+}
+
+.ec-explorer-dl {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--ec-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ec-text-sub);
+    opacity: 0;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.ec-explorer-item:hover .ec-explorer-dl {
+    opacity: 1;
+}
+
+.ec-owner-badge {
+    position: absolute;
+    top: 0;
+    left: 0;
+}

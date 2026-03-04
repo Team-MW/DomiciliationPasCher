@@ -796,3 +796,51 @@
     opacity: 0.7;
     cursor: not-allowed;
 }
+
+/* ── DOCUMENTS ENHANCEMENTS ── */
+.doc-card-v2 {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: white;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+}
+
+.owner-tag {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+.owner-tag.admin { background: #EFF6FF; color: #2563EB; }
+.owner-tag.client { background: #F0FDF4; color: #10B981; }
+
+/* ── BOOKING STYLES ── */
+.booking-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 24px;
+}
+
+.booking-card {
+    background: white;
+    border: 1px solid var(--admin-border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.booking-card:hover {
+    border-color: var(--admin-accent);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.booking-type { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+.booking-client { color: var(--admin-text-sub); font-size: 13px; margin-bottom: 12px; }
+.booking-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #F1F5F9; }
+.booking-status { font-size: 11px; font-weight: 700; text-transform: uppercase; }

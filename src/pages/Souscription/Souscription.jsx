@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { handleCheckout } from '../utils/stripe';
-import { adminDataService } from '../services/adminDataService';
+import { handleCheckout } from '../../utils/stripe';
+import { adminDataService } from '../../services/adminDataService';
 import './Souscription.css';
 
 /* ─── Config des étapes ─── */

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { fichesData } from '../data/fichesData';
+import { fichesData } from '../../data/fichesData';
 
 const FichesPratiques = () => {
     // Grouper par catégorie

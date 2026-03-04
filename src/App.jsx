@@ -1,23 +1,27 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import Home from './pages/Home';
-import Tarifs from './pages/Tarifs';
-import Villes from './pages/Villes';
-import Services from './pages/Services';
-import About from './pages/About';
-import ConnexionPage from './pages/Connexion';
-import EspaceClient from './pages/EspaceClient';
-import Admin from './pages/Admin';
-import Souscription from './pages/Souscription';
-import MentionsLegales from './pages/MentionsLegales';
-import FichesPratiques from './pages/FichesPratiques';
-import FicheDetail from './pages/fiches/FicheDetail';
-import ScrollToTop from './components/ScrollToTop';
+import Navbar from './components/Navbar/Navbar';
+import Footer from './components/Footer/Footer';
+import Home from './pages/Home/Home';
+import Tarifs from './pages/Tarifs/Tarifs';
+import Villes from './pages/Villes/Villes';
+import Services from './pages/Services/Services';
+import About from './pages/About/About';
+import ConnexionPage from './pages/Connexion/Connexion';
+import EspaceClient from './pages/EspaceClient/EspaceClient';
+import Admin from './pages/Admin/Admin';
+import Souscription from './pages/Souscription/Souscription';
+import MentionsLegales from './pages/MentionsLegales/MentionsLegales';
+import FichesPratiques from './pages/FichesPratiques/FichesPratiques';
+import FicheDetail from './pages/FicheDetail/FicheDetail';
+import ScrollToTop from './components/ScrollToTop/ScrollToTop';
 
-/* Route protégée : redirige vers /connexion si non connecté */
+/* Route protégée : redirige vers /connexion si non connecté (sauf si mode preview) */
 function ProtectedRoute({ children }) {
+  const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
+
+  if (isPreview) return children;
+
   return (
     <>
       <SignedIn>{children}</SignedIn>
