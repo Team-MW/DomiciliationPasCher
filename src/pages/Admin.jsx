@@ -35,6 +35,7 @@ export default function Admin() {
     const [stats, setStats] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClientId, setSelectedClientId] = useState(null);
+    const [isCreatingClient, setIsCreatingClient] = useState(false);
 
     const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || '0000';
 
@@ -164,11 +165,21 @@ export default function Admin() {
                         <>
                             {activeTab === 'overview' && <OverviewTab stats={stats} clients={clients} mail={mail} />}
                             {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} />}
-                            {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} />}
+                            {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
                             {activeTab === 'mail' && <MailTab mail={mail} clients={clients} onUpdate={refreshData} />}
                         </>
                     )}
                 </div>
+
+                {isCreatingClient && (
+                    <CreateClientModal
+                        onClose={() => setIsCreatingClient(false)}
+                        onCreated={() => {
+                            refreshData();
+                            setIsCreatingClient(false);
+                        }}
+                    />
+                )}
             </main>
         </div>
     );
@@ -327,7 +338,7 @@ function DemandesTab({ demandes, onUpdate }) {
     );
 }
 
-function ClientsTab({ clients, searchQuery, onSelect, onUpdate }) {
+function ClientsTab({ clients, searchQuery, onSelect, onUpdate, onCreateClick }) {
     const filtered = clients.filter(c =>
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.company.toLowerCase().includes(searchQuery.toLowerCase())
@@ -339,7 +350,7 @@ function ClientsTab({ clients, searchQuery, onSelect, onUpdate }) {
                 <h2>Répertoire Clients ({filtered.length})</h2>
                 <div className="header-actions">
                     <button className="btn-secondary-sm">Export CSV</button>
-                    <button className="btn-primary-sm">+ Nouveau Client</button>
+                    <button className="btn-primary-sm" onClick={onCreateClick}>+ Nouveau Client</button>
                 </div>
             </div>
             <div className="card-body-table">
@@ -487,6 +498,100 @@ function MailTab({ mail, clients, onUpdate }) {
                         </div>
                     </div>
                 ))}
+            </div>
+        </div>
+    );
+}
+function CreateClientModal({ onClose, onCreated }) {
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        company: '',
+        city: 'Paris',
+        plan: 'Essentiel'
+    });
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await adminDataService.addClient(formData);
+            onCreated();
+        } catch (err) {
+            alert('Erreur lors de la création');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="admin-modal-overlay">
+            <div className="admin-modal">
+                <div className="modal-header">
+                    <h2>Créer un nouveau profil client</h2>
+                    <button className="btn-close" onClick={onClose}>×</button>
+                </div>
+                <form onSubmit={handleSubmit} className="modal-form">
+                    <div className="form-grid">
+                        <div className="form-group">
+                            <label>Nom du gérant</label>
+                            <input
+                                type="text" required
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="ex: Jean Dupont"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Email personnel / Pro</label>
+                            <input
+                                type="email" required
+                                value={formData.email}
+                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                placeholder="client@email.com"
+                            />
+                        </div>
+                        <div className="form-group full">
+                            <label>Nom de la société</label>
+                            <input
+                                type="text" required
+                                value={formData.company}
+                                onChange={e => setFormData({ ...formData, company: e.target.value })}
+                                placeholder="DPC SARL"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Ville de domiciliation</label>
+                            <select
+                                value={formData.city}
+                                onChange={e => setFormData({ ...formData, city: e.target.value })}
+                            >
+                                <option value="Paris">Paris</option>
+                                <option value="Lyon">Lyon</option>
+                                <option value="Marseille">Marseille</option>
+                                <option value="Lille">Lille</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Formule choisie</label>
+                            <select
+                                value={formData.plan}
+                                onChange={e => setFormData({ ...formData, plan: e.target.value })}
+                            >
+                                <option value="Essentiel">Essentiel (23€)</option>
+                                <option value="Scan+">Scan+ (28€)</option>
+                                <option value="Physique+">Physique+ (53€)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn-secondary" onClick={onClose}>Annuler</button>
+                        <button type="submit" className="btn-primary" disabled={loading}>
+                            {loading ? 'Création...' : 'Créer le profil & Accès Clerk'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

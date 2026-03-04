@@ -73,6 +73,24 @@ export const adminDataService = {
         const clients = this.getClients();
         return clients.find(c => c.email.toLowerCase() === email.toLowerCase());
     },
+    async addClient(clientData) {
+        // Simulation temps de réponse
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        const newClient = {
+            id: Date.now().toString(),
+            status: 'actif',
+            since: new Date().toISOString().split('T')[0],
+            clerkId: `user_${Math.random().toString(36).substr(2, 9)}`,
+            clerkStatus: 'manual_creation',
+            stats: { mail: 0, spent: 0 },
+            ...clientData
+        };
+
+        const clients = this.getClients();
+        set(STORAGE_KEYS.CLIENTS, [newClient, ...clients]);
+        return newClient;
+    },
 
     // --- DEMANDES (Après paiement Stripe) ---
     getDemandes() { return get(STORAGE_KEYS.DEMANDES) || []; },
