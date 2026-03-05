@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
+import { openUploadWidget } from '../../../utils/cloudinary';
 
 export default function DossierClient({ client, onBack, onUpdate }) {
     const [documents, setDocuments] = useState([]);
@@ -18,18 +19,30 @@ export default function DossierClient({ client, onBack, onUpdate }) {
         }
     }, [client]);
 
-    const handleUploadSim = async () => {
-        const name = prompt('Nom du document ?');
-        const folder = prompt('Dossier de destination (ex: Factures, Contrats, Juridique) ?', 'Documents');
-        if (name) {
+    const handleUpload = () => {
+        openUploadWidget({
+            folder: `clients/${client.id}`,
+            uploadPreset: 'ml_default' // L'utilisateur doit s'assurer que ce preset existe et est "unsigned"
+        }, async (info) => {
             setIsLoading(true);
-            await adminDataService.addDocument(client.id, {
-                name: name, size: '250KB', type: 'application/pdf', owner: 'admin', folder, url: '#'
-            });
-            const docs = await adminDataService.getDocuments(client.id);
-            setDocuments(docs);
-            setIsLoading(false);
-        }
+            try {
+                await adminDataService.addDocument(client.id, {
+                    name: info.original_filename || 'Sans nom',
+                    size: (info.bytes / 1024).toFixed(0) + ' KB',
+                    type: info.resource_type + '/' + info.format,
+                    owner: 'admin',
+                    folder: 'Documents',
+                    url: info.secure_url
+                });
+                const docs = await adminDataService.getDocuments(client.id);
+                setDocuments(docs);
+            } catch (err) {
+                console.error("Error saving document to DB:", err);
+                alert("Erreur lors de l'enregistrement du document.");
+            } finally {
+                setIsLoading(false);
+            }
+        });
     };
 
     if (!client) return null;
@@ -51,7 +64,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                 <div className="content-card">
                     <div className="card-header">
                         <h2>Espace Documentaire</h2>
-                        <button className="btn-primary-sm" onClick={handleUploadSim} disabled={isLoading}>
+                        <button className="btn-primary-sm" onClick={handleUpload} disabled={isLoading}>
                             {isLoading ? 'Envoi...' : 'Uploader'}
                         </button>
                     </div>
@@ -66,7 +79,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                         ) : (
                             <div className="docs-grid">
                                 {documents.map(doc => (
-                                    <div key={doc.id} className="doc-card">
+                                    <div key={doc.id} className="doc-card" onClick={() => doc.url && window.open(doc.url, '_blank')} style={{ cursor: 'pointer' }}>
                                         <div className="doc-icon">
                                             {doc.type.includes('image') ? <Icons.Image /> : <Icons.File />}
                                         </div>

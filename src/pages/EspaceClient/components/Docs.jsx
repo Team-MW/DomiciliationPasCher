@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
+import { openUploadWidget } from '../../../utils/cloudinary';
 
 export default function Docs({ documents, setDocuments, currentFolder, setCurrentFolder, clientData }) {
     const [isUploading, setIsUploading] = useState(false);
@@ -8,21 +9,30 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
     // Dériver les dossiers depuis la liste des documents reçue en prop
     const folders = Array.from(new Set(documents.map(d => d.folder || 'Documents')));
 
-    const handleUpload = async () => {
-        const name = prompt('Nom du document à déposer ici ?');
-        if (name) {
+    const handleUpload = () => {
+        openUploadWidget({
+            folder: `clients/${clientData.id}/${currentFolder || 'Documents'}`,
+            uploadPreset: 'ml_default'
+        }, async (info) => {
             setIsUploading(true);
             try {
                 await adminDataService.addDocument(clientData.id, {
-                    name, size: '450KB', type: 'application/pdf', owner: 'client',
-                    folder: currentFolder || 'Documents'
+                    name: info.original_filename || 'Sans nom',
+                    size: (info.bytes / 1024).toFixed(0) + ' KB',
+                    type: info.resource_type + '/' + info.format,
+                    owner: 'client',
+                    folder: currentFolder || 'Documents',
+                    url: info.secure_url
                 });
                 const updatedDocs = await adminDataService.getDocuments(clientData.id);
                 setDocuments(updatedDocs);
+            } catch (err) {
+                console.error("Error saving document:", err);
+                alert("Erreur lors de l'enregistrement du document.");
             } finally {
                 setIsUploading(false);
             }
-        }
+        });
     };
 
     return (
@@ -83,7 +93,7 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
                                     <div className="ec-explorer-meta">
                                         {doc.size} · {doc.owner === 'admin' ? 'Admin' : 'Moi'}
                                     </div>
-                                    <button className="ec-explorer-dl" onClick={() => alert('Téléchargement simulé')}><Icons.ArrowRight /></button>
+                                    <button className="ec-explorer-dl" onClick={() => window.open(doc.url, '_blank')}><Icons.ArrowRight /></button>
                                 </div>
                             ))}
                             {documents.filter(d => d.folder === currentFolder).length === 0 && (
