@@ -1,5 +1,5 @@
 /**
- * CLOUDINARY UTILS
+ * CLOUDINAtgtgRY UTILS
  * Gestionnaire d'upload via le Widget Cloudinary
  */
 
