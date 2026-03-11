@@ -172,6 +172,30 @@
     color: rgba(255, 255, 255, 0.35);
 }
 
+.footer-copy-credits {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.footer-credits {
+    font-size: 12px !important;
+    opacity: 0.8;
+}
+
+.footer-credits a {
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.footer-credits a:hover {
+    color: white;
+    opacity: 1;
+}
+
 .footer-legal {
     display: flex;
     gap: 20px;

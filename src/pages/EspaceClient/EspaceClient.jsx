@@ -27,6 +27,11 @@ export default function EspaceClient() {
     const [unreadMsgsCount, setUnreadMsgsCount] = useState(0);
 
     useEffect(() => {
+        const body = document.querySelector('.ec-main');
+        if (body) body.scrollTop = 0;
+    }, [activeTab, currentFolder]);
+
+    useEffect(() => {
         async function fetchData() {
             const params = new URLSearchParams(window.location.search);
             const isPreview = params.get('preview') === 'true';

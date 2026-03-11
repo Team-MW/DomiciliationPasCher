@@ -28,6 +28,11 @@ export default function DossierClient({ client, onBack, onUpdate }) {
     }, [client]);
 
     useEffect(() => {
+        const body = document.querySelector('.admin-body');
+        if (body) body.scrollTop = 0;
+    }, [activeDossierTab, currentFolder]);
+
+    useEffect(() => {
         if (client && activeDossierTab === 'messages') {
             const fetchMessages = async () => {
                 const msgs = await adminDataService.getMessages(client.id);

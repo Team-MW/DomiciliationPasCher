@@ -82,7 +82,10 @@ export default function Footer() {
             <div className="footer-bottom">
                 <div className="container footer-bottom-inner">
                     <div className="footer-copyright-legal">
-                        <p>© {new Date().getFullYear()} DomiciliationPasCher.fr — Tous droits réservés</p>
+                        <div className="footer-copy-credits">
+                            <p>© {new Date().getFullYear()} DomiciliationPasCher.fr — Tous droits réservés</p>
+                            <p className="footer-credits">Réalisé par <a href="https://microdidact.com/" target="_blank" rel="noopener noreferrer">microdidact</a></p>
+                        </div>
                         <div className="footer-legal">
                             <Link to="/mentions-legales">Mentions légales</Link>
                             <Link to="#">CGV</Link>

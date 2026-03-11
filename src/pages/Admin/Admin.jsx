@@ -60,6 +60,11 @@ export default function Admin() {
     }, []);
 
     useEffect(() => {
+        const body = document.querySelector('.admin-body');
+        if (body) body.scrollTop = 0;
+    }, [activeTab, selectedClientId]);
+
+    useEffect(() => {
         if (pinOk) {
             adminDataService.init();
             refreshData();
