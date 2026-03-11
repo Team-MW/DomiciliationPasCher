@@ -32,6 +32,8 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             const fetchMessages = async () => {
                 const msgs = await adminDataService.getMessages(client.id);
                 setMessages(msgs);
+                // Marquer comme lu
+                await adminDataService.markMessagesAsRead(client.id, 'admin');
             };
             fetchMessages();
         }

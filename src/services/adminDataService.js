@@ -8,7 +8,12 @@ import { conn } from '../lib/db';
 export const adminDataService = {
     // --- CLIENTS ---
     async getClients() {
-        const res = await conn.execute('SELECT * FROM clients ORDER BY since DESC');
+        const res = await conn.execute(`
+            SELECT c.*, 
+            (SELECT COUNT(*) FROM messages m WHERE m.clientId = c.id AND m.status = 'sent' AND m.sender = 'client') as unreadCount
+            FROM clients c 
+            ORDER BY since DESC
+        `);
         return res.rows;
     },
 
@@ -149,10 +154,11 @@ export const adminDataService = {
 
     // --- STATS ---
     async getGlobalStats() {
-        const [clients, mails, demandes] = await Promise.all([
+        const [clients, mails, demandes, unreadMsgs] = await Promise.all([
             conn.execute('SELECT COUNT(*) as total FROM clients WHERE status = ?', ['actif']),
             conn.execute("SELECT COUNT(*) as total FROM mail WHERE status = 'non lu'"),
-            conn.execute("SELECT COUNT(*) as total FROM demandes WHERE status = 'en_attente'")
+            conn.execute("SELECT COUNT(*) as total FROM demandes WHERE status = 'en_attente'"),
+            conn.execute("SELECT COUNT(*) as total FROM messages WHERE status = 'sent' AND sender = 'client'")
         ]);
 
         const revenueRes = await conn.execute("SELECT plan FROM clients WHERE status = 'actif'");
@@ -162,6 +168,7 @@ export const adminDataService = {
             activeClients: parseInt(clients.rows[0].total),
             pendingMails: parseInt(mails.rows[0].total),
             pendingDemandes: parseInt(demandes.rows[0].total),
+            pendingMessages: parseInt(unreadMsgs.rows[0].total),
             monthlyRevenue
         };
     },
@@ -194,6 +201,20 @@ export const adminDataService = {
         );
 
         return { id, clientId, createdAt, ...msg, status: 'sent' };
+    },
+
+    async markMessagesAsRead(clientId, readerRole) {
+        // Si l'admin lit, il marque les messages envoyés par le 'client' comme 'read'
+        // Si le client lit, il marque les messages envoyés par l' 'admin' comme 'read'
+        const senderToMark = readerRole === 'admin' ? 'client' : 'admin';
+        try {
+            await conn.execute(
+                "UPDATE messages SET status = 'read' WHERE clientId = ? AND sender = ? AND status = 'sent'",
+                [clientId, senderToMark]
+            );
+        } catch (err) {
+            console.error("MARK_READ_ERROR:", err);
+        }
     },
 
     async initMessaging() {

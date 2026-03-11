@@ -24,6 +24,7 @@ export default function EspaceClient() {
     const [bookings, setBookings] = useState([]);
     const [currentFolder, setCurrentFolder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [unreadMsgsCount, setUnreadMsgsCount] = useState(0);
 
     useEffect(() => {
         async function fetchData() {
@@ -67,14 +68,16 @@ export default function EspaceClient() {
                     }
 
                     setClientData(data);
-                    const [m, d, b] = await Promise.all([
+                    const [m, d, b, msgs] = await Promise.all([
                         adminDataService.getClientMail(data.id),
                         adminDataService.getDocuments(data.id),
-                        adminDataService.getClientBookings(data.id)
+                        adminDataService.getClientBookings(data.id),
+                        adminDataService.getMessages(data.id)
                     ]);
                     setMail(m);
                     setDocuments(d);
                     setBookings(b);
+                    setUnreadMsgsCount(msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length);
                 } else {
                     setClientData(null);
                 }
@@ -112,8 +115,12 @@ export default function EspaceClient() {
         <div className="ec-layout">
             <Sidebar
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={(tab) => {
+                    setActiveTab(tab);
+                    if (tab === 'messages') setUnreadMsgsCount(0);
+                }}
                 mailCount={mail.filter(m => m.status === 'non lu').length}
+                unreadMsgsCount={unreadMsgsCount}
                 user={user}
                 clientData={clientData}
                 onLogout={handleLogout}

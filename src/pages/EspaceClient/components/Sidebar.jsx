@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icons } from './Icons';
 
-export default function Sidebar({ activeTab, setActiveTab, mailCount, user, clientData, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgsCount, user, clientData, onLogout }) {
     return (
         <aside className="ec-sidebar">
             <div className="ec-sidebar-brand">
@@ -25,6 +25,7 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, user, clie
                 </button>
                 <button className={`ec-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
                     <span className="ec-nav-icon"><Icons.Chat /></span> Messagerie
+                    {unreadMsgsCount > 0 && <span className="ec-nav-badge" style={{ background: '#6366F1' }}>{unreadMsgsCount}</span>}
                 </button>
                 <button className={`ec-nav-item ${activeTab === 'meeting' ? 'active' : ''}`} onClick={() => setActiveTab('meeting')}>
                     <span className="ec-nav-icon"><Icons.Calendar /></span> Salles & Bureaux

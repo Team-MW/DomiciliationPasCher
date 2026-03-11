@@ -24,6 +24,8 @@ export default function Messages({ clientData }) {
     const fetchMessages = async () => {
         const msgs = await adminDataService.getMessages(clientData.id);
         setMessages(msgs);
+        // Marquer comme lu
+        await adminDataService.markMessagesAsRead(clientData.id, 'client');
     };
 
     const handleSend = async (e) => {

@@ -130,7 +130,7 @@ export default function Admin() {
                         <span className="menu-icon"><Icons.Demandes /></span> Demandes {stats.pendingDemandes > 0 && <span className="menu-badge">{stats.pendingDemandes}</span>}
                     </button>
                     <button className={`menu-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }}>
-                        <span className="menu-icon"><Icons.Clients /></span> Gestion Clients
+                        <span className="menu-icon"><Icons.Clients /></span> Gestion Clients {stats.pendingMessages > 0 && <span className="menu-badge" style={{ background: '#6366F1' }}>{stats.pendingMessages}</span>}
                     </button>
                     <button className={`menu-item ${activeTab === 'mail' ? 'active' : ''}`} onClick={() => { setActiveTab('mail'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Mail /></span> Centre Courrier
