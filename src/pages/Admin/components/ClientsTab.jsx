@@ -37,7 +37,7 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, o
                                 <td>
                                     <div className="clerk-id-badge">
                                         <div className="clerk-dot"></div>
-                                        {c.clerkId ? c.clerkId : 'Clerk Non Lié'}
+                                        {c.clerkId ? c.clerkId : "En attente d'inscription"}
                                     </div>
                                 </td>
                                 <td><span className={`status-dot ${c.status === 'actif' ? 'status-active' : 'status-danger'}`}></span> {c.status}</td>

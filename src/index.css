@@ -394,6 +394,8 @@ button {
 
 .page-header-content {
   max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
 }
 
 /* Final CTA block */

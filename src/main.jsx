@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/clerk-react'
+import { frFR } from '@clerk/localizations'
 import './index.css'
 import App from './App.jsx'
 
@@ -32,9 +33,8 @@ if (!clerkPublishableKey) {
   createRoot(rootElement).render(
     <StrictMode>
       <ClerkProvider
+        localization={frFR}
         publishableKey={clerkPublishableKey}
-        signInUrl="/connexion"
-        signUpUrl="/connexion"
         afterSignInUrl="/espace-client"
         afterSignUpUrl="/espace-client"
       >

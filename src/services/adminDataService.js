@@ -38,6 +38,17 @@ export const adminDataService = {
         return { id, ...clientData, status: 'actif', since };
     },
 
+    async updateClientClerkId(clientId, clerkId) {
+        await conn.execute(
+            'UPDATE clients SET clerkId = ?, clerkStatus = ? WHERE id = ?',
+            [clerkId, 'linked', clientId]
+        );
+    },
+
+    async deleteClient(id) {
+        await conn.execute('DELETE FROM clients WHERE id = ?', [id]);
+    },
+
     // --- DEMANDES ---
     async getDemandes() {
         const res = await conn.execute("SELECT * FROM demandes WHERE status = 'en_attente' ORDER BY date DESC");

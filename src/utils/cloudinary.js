@@ -5,7 +5,6 @@
 
 export const openUploadWidget = (options, callback) => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
 
     if (!window.cloudinary) {
         console.error("Cloudinary widget script is not loaded.");
@@ -16,8 +15,7 @@ export const openUploadWidget = (options, callback) => {
     const myWidget = window.cloudinary.createUploadWidget(
         {
             cloudName: cloudName,
-            apiKey: apiKey,
-            uploadPreset: options.uploadPreset || 'ml_default',
+            uploadPreset: options.uploadPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'ml_default',
             sources: ['local', 'url', 'camera'],
             folder: options.folder || 'documents',
             clientAllowedFormats: ['pdf', 'png', 'jpg', 'jpeg', 'docx'],
@@ -34,4 +32,31 @@ export const openUploadWidget = (options, callback) => {
     );
 
     myWidget.open();
+};
+
+/**
+ * Upload direct sans widget (natif)
+ */
+export const uploadFile = async (file, options = {}) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = options.uploadPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'ml_default';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', uploadPreset);
+    if (options.folder) {
+        formData.append('folder', options.folder);
+    }
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de l\'envoi vers Cloudinary');
+    }
+
+    return await response.json();
 };

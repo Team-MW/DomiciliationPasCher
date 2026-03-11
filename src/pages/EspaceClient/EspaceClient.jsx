@@ -55,6 +55,16 @@ export default function EspaceClient() {
                 const data = await adminDataService.getClientByEmail(email);
 
                 if (data) {
+                    // Si le compte Clerk n'était pas encore lié en DB, on le lie au premier login
+                    if (!data.clerkId || data.clerkId === '') {
+                        try {
+                            await adminDataService.updateClientClerkId(data.id, user.id);
+                            data.clerkId = user.id;
+                        } catch (err) {
+                            console.error("Impossible de lier le Clerk ID:", err);
+                        }
+                    }
+
                     setClientData(data);
                     const [m, d, b] = await Promise.all([
                         adminDataService.getClientMail(data.id),
@@ -65,12 +75,7 @@ export default function EspaceClient() {
                     setDocuments(d);
                     setBookings(b);
                 } else {
-                    setClientData({
-                        company: "Votre Entreprise",
-                        plan: "Scan+",
-                        status: "actif",
-                        since: "2024-12-01"
-                    });
+                    setClientData(null);
                 }
                 setIsLoading(false);
             }
@@ -85,6 +90,22 @@ export default function EspaceClient() {
     };
 
     if (isLoading) return <div className="ec-loading">Initialisation de votre espace sécurisé...</div>;
+
+    if (!isLoading && !clientData) {
+        return (
+            <div className="ec-pending-screen">
+                <div className="ec-pending-card">
+                    <div className="pending-icon">⏳</div>
+                    <h2>Dossier en attente</h2>
+                    <p>Votre profil "<strong>{user?.primaryEmailAddress?.emailAddress}</strong>" est actuellement en attente de création ou de validation par un membre de notre équipe.</p>
+                    <p>Vous recevrez un e-mail dès que votre espace client sera activé.</p>
+                    <button className="btn-primary" onClick={handleLogout} style={{ marginTop: '24px' }}>
+                        Se déconnecter
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="ec-layout">

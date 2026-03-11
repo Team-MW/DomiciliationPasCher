@@ -84,10 +84,13 @@ export default function CreateClientModal({ onClose, onCreated }) {
                             </select>
                         </div>
                     </div>
+                    <div style={{ padding: '0 24px 16px', fontSize: '13px', color: '#64748B' }}>
+                        *Le client recevra son accès et devra se créer un compte avec cet e-mail sur la page /espace-client pour lier son compte Clerk.
+                    </div>
                     <div className="modal-footer">
                         <button type="button" className="btn-secondary" onClick={onClose}>Annuler</button>
                         <button type="submit" className="btn-primary" disabled={loading}>
-                            {loading ? 'Création...' : 'Créer le profil & Accès Clerk'}
+                            {loading ? 'Création...' : 'Créer le profil'}
                         </button>
                     </div>
                 </form>

@@ -32,6 +32,45 @@
     color: var(--ec-text-sub);
 }
 
+/* ── Écran d'attente / refusé ── */
+.ec-pending-screen {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #F8FAFF;
+    padding: 24px;
+}
+
+.ec-pending-card {
+    background: white;
+    max-width: 500px;
+    width: 100%;
+    border-radius: 20px;
+    padding: 48px 32px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    border: 1px solid #E5E9F2;
+}
+
+.pending-icon {
+    font-size: 48px;
+    margin-bottom: 24px;
+}
+
+.ec-pending-card h2 {
+    font-size: 24px;
+    color: #0F172A;
+    margin-bottom: 16px;
+}
+
+.ec-pending-card p {
+    font-size: 15px;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
 /* ── Sidebar ── */
 .ec-sidebar {
     background: var(--ec-sidebar);
@@ -550,6 +589,7 @@
 .ec-tab-animate {
     animation: ecFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
 /* ── EXPLORER / FINDER SYSTEM ── */
 .ec-breadcrumb {
     display: flex;
@@ -629,7 +669,7 @@
     text-overflow: ellipsis;
 }
 
-.ec-explorer-count, 
+.ec-explorer-count,
 .ec-explorer-meta {
     font-size: 11px;
     color: var(--ec-text-sub);
@@ -676,4 +716,20 @@
     position: absolute;
     top: 0;
     left: 0;
+}
+
+.ec-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--ec-text-sub);
+    font-size: 14px;
+    background: #FAFBFF;
+    border: 2px dashed #E2E8F0;
+    border-radius: 12px;
+}
+
+.ec-explorer-grid[onDragOver] {
+    background: #F0F7FF;
+    border-color: var(--ec-accent);
 }

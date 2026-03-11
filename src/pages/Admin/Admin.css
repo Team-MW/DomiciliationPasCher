@@ -634,6 +634,7 @@
     font-weight: 800;
     cursor: pointer;
 }
+
 /* ── Clerk & Access Styles ── */
 .clerk-id-badge {
     display: inline-flex;
@@ -747,7 +748,7 @@
     color: var(--admin-text-main);
 }
 
-.form-group input, 
+.form-group input,
 .form-group select {
     width: 100%;
     padding: 12px;
@@ -815,8 +816,16 @@
     border-radius: 4px;
     text-transform: uppercase;
 }
-.owner-tag.admin { background: #EFF6FF; color: #2563EB; }
-.owner-tag.client { background: #F0FDF4; color: #10B981; }
+
+.owner-tag.admin {
+    background: #EFF6FF;
+    color: #2563EB;
+}
+
+.owner-tag.client {
+    background: #F0FDF4;
+    color: #10B981;
+}
 
 /* ── BOOKING STYLES ── */
 .booking-grid {
@@ -837,10 +846,163 @@
 
 .booking-card:hover {
     border-color: var(--admin-accent);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-.booking-type { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
-.booking-client { color: var(--admin-text-sub); font-size: 13px; margin-bottom: 12px; }
-.booking-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #F1F5F9; }
-.booking-status { font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.booking-type {
+    font-weight: 800;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.booking-client {
+    color: var(--admin-text-sub);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.booking-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #F1F5F9;
+}
+
+.booking-status {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* ── EXPLORER / FINDER SYSTEM (SHARED) ── */
+.ec-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ec-crumb {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-text-sub);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ec-crumb.active {
+    color: var(--admin-text-main);
+}
+
+.ec-divider {
+    color: var(--admin-border);
+    font-size: 14px;
+}
+
+.ec-explorer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+    padding: 24px;
+}
+
+.ec-explorer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+}
+
+.ec-explorer-item:hover {
+    background: #F8FAFC;
+    border-color: var(--admin-border);
+}
+
+.ec-explorer-icon {
+    width: 54px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.ec-explorer-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.ec-explorer-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--admin-text-main);
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ec-explorer-count,
+.ec-explorer-meta {
+    font-size: 11px;
+    color: var(--admin-text-sub);
+    margin-top: 4px;
+}
+
+.ec-explorer-item.folder .ec-explorer-icon {
+    filter: drop-shadow(0 4px 6px rgba(99, 102, 241, 0.2));
+}
+
+.ec-explorer-item.new {
+    border: 1px dashed var(--admin-border);
+}
+
+.ec-explorer-icon.add {
+    font-size: 32px;
+    color: var(--admin-border);
+    font-weight: 300;
+}
+
+.ec-explorer-dl {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--admin-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--admin-text-sub);
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.ec-explorer-item:hover .ec-explorer-dl {
+    opacity: 1;
+}
+
+.ec-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--admin-text-sub);
+    font-size: 14px;
+    background: #FAFBFF;
+    border: 2px dashed #E2E8F0;
+    border-radius: 12px;
+}

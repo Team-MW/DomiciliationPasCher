@@ -37,10 +37,8 @@ export default function ConnexionPage() {
 
             <div className="auth-right">
                 <SignIn
-                    routing="path"
-                    path="/connexion"
                     afterSignInUrl="/espace-client"
-                    signUpUrl="/connexion"
+                    afterSignUpUrl="/espace-client"
                     appearance={{
                         elements: {
                             rootBox: 'clerk-root',

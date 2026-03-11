@@ -148,7 +148,7 @@ const formes = [
     },
     {
         id: 'ei',
-        label: 'Entreprise individuelle',
+        label: 'Auto-entrepreneur / EI',
         color: '#F59E0B',
         sections: [
             {
@@ -170,6 +170,87 @@ const formes = [
             {
                 title: 'Le capital',
                 text: 'Aucun capital requis. L\'entrepreneur engage ses apports personnels dans l\'activité, mais son patrimoine personnel est désormais protégé grâce à la réforme de 2022.',
+            },
+        ],
+    },
+    {
+        id: 'sas',
+        label: 'SAS',
+        color: '#8B5CF6',
+        sections: [
+            {
+                title: 'Définition',
+                text: 'La SAS (société par actions simplifiée) est une société commerciale qui offre une grande souplesse aux associés. Elle doit être constituée d\'au moins deux associés.',
+            },
+            {
+                title: 'Imposition',
+                text: 'La SAS est soumise par défaut à l\'IS (impôt sur les sociétés). Elle peut opter pour l\'IR sous certaines conditions (pour une durée de 5 ans maximum).',
+            },
+            {
+                title: 'Pour qui ?',
+                text: 'Elle est idéale pour les projets ambitieux, les startups ou les entreprises prévoyant d\'accueillir des investisseurs, grâce à la flexibilité de ses statuts.',
+            },
+            {
+                title: 'Avantages',
+                text: 'Une très grande liberté statutaire qui permet d\'organiser la gouvernance sur mesure. Le dirigeant (Président) bénéficie du statut d\'assimilé salarié, offrant une meilleure protection sociale.',
+            },
+            {
+                title: 'Le capital',
+                text: 'Aucun capital social minimum n\'est exigé, 1€ symbolique suffit pour la constituer. Le capital peut être variable et composé d\'apports en numéraire ou en nature.',
+            },
+        ],
+    },
+    {
+        id: 'sci',
+        label: 'SCI',
+        color: '#EC4899',
+        sections: [
+            {
+                title: 'Définition',
+                text: 'La SCI (société civile immobilière) est une société civile permettant à plusieurs personnes de détenir, gérer et transmettre un patrimoine immobilier commun.',
+            },
+            {
+                title: 'Imposition',
+                text: 'Par défaut, la SCI est transparente fiscalement et soumise à l\'IR au niveau des associés. Elle peut opter pour l\'IS selon la stratégie fiscale souhaitée.',
+            },
+            {
+                title: 'Pour qui ?',
+                text: 'Parfaite pour les familles souhaitant gérer un patrimoine immobilier ensemble ou pour les entrepreneurs séparant leur immobilier d\'entreprise de leur activité commerciale.',
+            },
+            {
+                title: 'Avantages',
+                text: 'Facilite la gestion et la transmission d\'un patrimoine immobilier (abattements successifs). Permet d\'éviter la situation d\'indivision et ses blocages.',
+            },
+            {
+                title: 'Le capital',
+                text: 'Capital libre, constitué d\'apports en numéraire ou en nature (biens immobiliers). Aucun montant minimum n\'est imposé par la loi.',
+            },
+        ],
+    },
+    {
+        id: 'association',
+        label: 'Association',
+        color: '#F97316',
+        sections: [
+            {
+                title: 'Définition',
+                text: 'Une association loi 1901 est le groupement d\'au moins deux personnes qui mettent en commun leurs connaissances ou leur activité dans un but autre que de partager des bénéfices.',
+            },
+            {
+                title: 'Imposition',
+                text: 'En principe, l\'association n\'est pas soumise aux impôts commerciaux (IS, TVA, CET) si sa gestion est désintéressée et qu\'elle ne concurrence pas le secteur privé.',
+            },
+            {
+                title: 'Pour qui ?',
+                text: 'Pour les projets à but non lucratif : clubs sportifs, activités culturelles, actions caritatives, syndicats ou rassemblements de professionnels.',
+            },
+            {
+                title: 'Avantages',
+                text: 'Simplicité de création et de fonctionnement. Possibilité de recevoir des dons, des cotisations et des subventions publiques. Cadre très souple.',
+            },
+            {
+                title: 'Le capital',
+                text: 'Pas de capital social. L\'association fonctionne avec les cotisations de ses membres, des dons, des subventions et les revenus de ses éventuelles activités.',
             },
         ],
     },
@@ -429,7 +510,7 @@ export default function Services() {
                     </div>
 
                     {/* Tabs */}
-                    <div className="statuts-tabs animate-in">
+                    <div className="statuts-tabs">
                         {formes.map(f => (
                             <button
                                 key={f.id}
@@ -444,7 +525,7 @@ export default function Services() {
 
                     {/* Content */}
                     {currentForme && (
-                        <div className="statut-content animate-in" key={activeStatut}>
+                        <div className="statut-content">
                             <div className="statut-header" style={{ borderLeft: `4px solid ${currentForme.color}` }}>
                                 <span className="statut-badge" style={{ background: `${currentForme.color}15`, color: currentForme.color }}>
                                     {currentForme.label}
