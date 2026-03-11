@@ -61,6 +61,7 @@ export default function Admin() {
 
     useEffect(() => {
         if (pinOk) {
+            adminDataService.init();
             refreshData();
         }
     }, [pinOk, refreshData]);

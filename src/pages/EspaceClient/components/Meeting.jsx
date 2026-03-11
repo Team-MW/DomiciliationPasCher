@@ -25,8 +25,13 @@ export default function Meeting({ clientData, setActiveTab }) {
 
         setIsSubmitting(true);
         try {
-            await adminDataService.addBookingRequest(clientData.id, { type, date, duration });
-            alert('Votre demande de réservation a été envoyée ! Un administrateur reviendra vers vous.');
+            await adminDataService.addBookingRequest(clientData.id, {
+                type,
+                date,
+                duration,
+                city: clientData.city
+            });
+            alert(`Votre demande de réservation à ${clientData.city} a été envoyée ! Un administrateur reviendra vers vous.`);
             setActiveTab('overview');
         } finally {
             setIsSubmitting(false);
@@ -38,9 +43,18 @@ export default function Meeting({ clientData, setActiveTab }) {
             <div className="ec-meeting-layout">
                 <div className="ec-content-card">
                     <div className="ec-card-header">
-                        <h2>Réserver une Salle ou un Bureau</h2>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <h2>Réserver une Salle ou un Bureau</h2>
+                            <span className="ec-status-tag" style={{ background: '#EEF2FF', color: '#4F46E5', fontWeight: 600 }}>
+                                📍 Centre {clientData.city}
+                            </span>
+                        </div>
                     </div>
                     <div className="ec-card-body" style={{ padding: '24px' }}>
+                        <p style={{ color: '#64748B', fontSize: '14px', marginBottom: '20px' }}>
+                            Besoin d'un espace pour vos rendez-vous clients ou pour travailler au calme ?
+                            Réservez dès maintenant un créneau dans nos locaux de {clientData.city}.
+                        </p>
                         <div className="ec-booking-form">
                             <div className="form-group">
                                 <label>Type de location</label>

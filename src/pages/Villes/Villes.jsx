@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { CityIcons } from '../../utils/cityIcons';
 import './Villes.css';
 
 const cities = [
     {
         name: 'Paris',
-        emoji: '🗼',
+        icon: CityIcons.Paris,
         region: 'Île-de-France',
         desc: 'La capitale française vous offre une adresse de prestige au cœur des affaires. Idéale pour rayonner à l\'international.',
         avantages: ['Adresse capitale', 'Rayonnement national', 'Réseau d\'affaires unique'],
@@ -14,7 +15,7 @@ const cities = [
     },
     {
         name: 'Lyon',
-        emoji: '🦁',
+        icon: CityIcons.Lyon,
         region: 'Auvergne-Rhône-Alpes',
         desc: 'Deuxième métropole économique de France, Lyon est le hub idéal pour les entreprises du secteur industriel et technologique.',
         avantages: ['2e hub économique', 'Vitalité startup', 'Position géographique centrale'],
@@ -23,7 +24,7 @@ const cities = [
     },
     {
         name: 'Marseille',
-        emoji: '⚓',
+        icon: CityIcons.Marseille,
         region: 'Provence-Alpes-Côte d\'Azur',
         desc: 'Premier port méditerranéen d\'Europe. Marseille est incontournable pour les activités liées au commerce et à la logistique.',
         avantages: ['Premier port EU', 'Commerce méditerranéen', 'Rayonnement Sud'],
@@ -32,7 +33,7 @@ const cities = [
     },
     {
         name: 'Nice',
-        emoji: '🌊',
+        icon: CityIcons.Nice,
         region: 'Côte d\'Azur',
         desc: 'Ville du tourisme et de l\'innovation, Nice attire de nombreuses entreprises dans les secteurs du luxe et du numérique.',
         avantages: ['Pôle innovation', 'Tourisme & luxe', 'Proximité Monaco'],
@@ -41,7 +42,7 @@ const cities = [
     },
     {
         name: 'Bordeaux',
-        emoji: '🍷',
+        icon: CityIcons.Bordeaux,
         region: 'Nouvelle-Aquitaine',
         desc: 'Métropole en plein essor, Bordeaux conjugue qualité de vie et dynamisme économique. Parfaite pour les entreprises du vin et du digital.',
         avantages: ['Qualité de vie N°1', 'Secteur vin & luxe', 'Croissance rapide'],
@@ -50,7 +51,7 @@ const cities = [
     },
     {
         name: 'Nantes',
-        emoji: '🎡',
+        icon: CityIcons.Nantes,
         region: 'Pays de la Loire',
         desc: 'Élue plusieurs fois ville la plus agréable de France, Nantes est un vivier de talents pour les startups et PME innovantes.',
         avantages: ['Capitale des startups', 'Talents numériques', 'Attractivité forte'],
@@ -59,7 +60,7 @@ const cities = [
     },
     {
         name: 'Lille',
-        emoji: '🧇',
+        icon: CityIcons.Lille,
         region: 'Hauts-de-France',
         desc: 'Porte d\'entrée du nord de l\'Europe, Lille est stratégique pour les entreprises ayant des activités avec la Belgique et le Royaume-Uni.',
         avantages: ['Carrefour Nord-Europe', 'Accès Belgique & UK', 'Hub logistique'],
@@ -68,7 +69,7 @@ const cities = [
     },
     {
         name: 'Rennes',
-        emoji: '🏰',
+        icon: CityIcons.Rennes,
         region: 'Bretagne',
         desc: 'Capitale de la Bretagne, Rennes est l\'une des villes les plus dynamiques de France avec un fort tissu numérique et technologique.',
         avantages: ['Pôle numérique', 'Ville étudiante', 'Innovation tech'],
@@ -77,7 +78,7 @@ const cities = [
     },
     {
         name: 'Strasbourg',
-        emoji: '🥨',
+        icon: CityIcons.Strasbourg,
         region: 'Grand Est',
         desc: 'Siège des institutions européennes, Strasbourg offre une adresse à dimension internationale, idéale pour tout dossier européen.',
         avantages: ['Siège institutions EU', 'Rayonnement international', 'Proximité Allemagne'],
@@ -86,7 +87,7 @@ const cities = [
     },
     {
         name: 'Clermont-Ferrand',
-        emoji: '🌋',
+        icon: CityIcons["Clermont-Ferrand"],
         region: 'Auvergne-Rhône-Alpes',
         desc: 'Berceau des grandes entreprises industrielles françaises, Clermont-Ferrand est la référence pour l\'industrie et l\'innovation locale.',
         avantages: ['Hub industriel', 'Coût immobilier bas', 'Réseau PME fort'],
@@ -96,10 +97,42 @@ const cities = [
 ];
 
 const cityBenefits = [
-    { icon: '📍', title: 'Adresse Officielle', desc: 'Adresse légalement valide pour votre immatriculation Kbis.' },
-    { icon: '⚡', title: 'Activation rapide', desc: 'Votre adresse est activée sous 24h, sans déplacement.' },
-    { icon: '🔄', title: 'Changement possible', desc: 'Changez de ville facilement si vos besoins évoluent.' },
-    { icon: '🌐', title: 'Multi-villes', desc: 'Besoin de plusieurs adresses ? Tarifs dégressifs disponibles.' },
+    {
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+            </svg>
+        ),
+        title: 'Adresse Officielle',
+        desc: 'Adresse légalement valide pour votre immatriculation Kbis.'
+    },
+    {
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+        ),
+        title: 'Activation rapide',
+        desc: 'Votre adresse est activée sous 24h, sans déplacement.'
+    },
+    {
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+            </svg>
+        ),
+        title: 'Changement possible',
+        desc: 'Changez de ville facilement si vos besoins évoluent.'
+    },
+    {
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+        ),
+        title: 'Multi-villes',
+        desc: 'Besoin de plusieurs adresses ? Tarifs dégressifs disponibles.'
+    },
 ];
 
 function useAnimateOnScroll() {
@@ -142,7 +175,7 @@ export default function Villes() {
                                 href={`#ville-${city.name.toLowerCase().replace('-', '')}`}
                                 className="quick-city-pill"
                             >
-                                <span className="pill-emoji">{city.emoji}</span>
+                                <span className="pill-icon">{city.icon}</span>
                                 <span className="pill-name">{city.name}</span>
                             </a>
                         ))}
@@ -181,7 +214,7 @@ export default function Villes() {
                                 <div className="cwc-image-side">
                                     <div className="cwc-map-overlay">
                                         <div className="map-glass">
-                                            <span className="map-glass-emoji">{city.emoji}</span>
+                                            <span className="map-glass-icon">{city.icon}</span>
                                             <div className="map-glass-info">
                                                 <div className="mgi-city">{city.name}</div>
                                                 <div className="mgi-zip">{city.zip}000</div>

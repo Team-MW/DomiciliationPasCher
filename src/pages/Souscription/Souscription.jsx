@@ -521,6 +521,7 @@ export default function Souscription() {
                                             clientName: `${data.prenom} ${data.nom}`,
                                             email: data.email,
                                             company: data.nomSociete || 'En cours de création',
+                                            city: data.ville,
                                             plan: plan.name,
                                             amount: parseFloat(prixTotal().split('€')[0]).toFixed(2)
                                         });

@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS messages (id VARCHAR(50) PRIMARY KEY, clientId VARCHAR(50), content TEXT, sender VARCHAR(20), createdAt VARCHAR(30), status VARCHAR(20));

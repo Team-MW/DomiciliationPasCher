@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CityIcons } from '../../utils/cityIcons';
 import './Home.css';
 
 const stats = [
@@ -52,28 +53,48 @@ const extraServices = [
 const steps = [
     {
         n: '01',
-        icon: '📍',
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+            </svg>
+        ),
         tag: 'Choix libre',
         title: 'Choisissez votre adresse',
         desc: 'Sélectionnez la ville et la formule adaptés à votre activité parmi nos 10 métropoles.'
     },
     {
         n: '02',
-        icon: '📂',
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+        ),
         tag: '100% Digital',
         title: 'Complétez votre dossier',
         desc: 'Renseignez votre formulaire en ligne et téléchargez vos pièces justificatives en quelques secondes.'
     },
     {
         n: '03',
-        icon: '✍️',
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34" />
+                <polygon points="18 2 22 6 12 16 8 16 8 12 18 2" />
+            </svg>
+        ),
         tag: 'Légal & Sûr',
         title: 'Signez votre contrat',
         desc: 'Signez électroniquement votre contrat conforme à la loi Dutreil, sans aucun déplacement.'
     },
     {
         n: '04',
-        icon: '🚀',
+        icon: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+                <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+                <path d="M9 12H4s.5-1 1-4c2 1 3 3 4 4z" />
+                <path d="M15 15v5c-1 2-3 3-4 4s1-3 1-4z" />
+            </svg>
+        ),
         tag: 'Prêt en 24h',
         title: 'Recevez votre attestation',
         desc: 'Votre attestation officielle est émise sous 24h, prête pour votre immatriculation immédiate.'
@@ -81,16 +102,16 @@ const steps = [
 ];
 
 const cities = [
-    { name: 'Paris', icon: '🗼', desc: 'Île-de-France' },
-    { name: 'Lyon', icon: '🦁', desc: 'Auvergne-Rhône-Alpes' },
-    { name: 'Marseille', icon: '⚓', desc: 'Provence-Alpes-Côte d\'Azur' },
-    { name: 'Nice', icon: '🌊', desc: 'Côte d\'Azur' },
-    { name: 'Bordeaux', icon: '🍷', desc: 'Nouvelle-Aquitaine' },
-    { name: 'Nantes', icon: '🎡', desc: 'Pays de la Loire' },
-    { name: 'Lille', icon: '🏙️', desc: 'Hauts-de-France' },
-    { name: 'Rennes', icon: '🏰', desc: 'Bretagne' },
-    { name: 'Strasbourg', icon: '🥨', desc: 'Grand Est' },
-    { name: 'Toulouse', icon: '🌸', desc: 'Occitanie' },
+    { name: 'Paris', icon: CityIcons.Paris, desc: 'Île-de-France' },
+    { name: 'Lyon', icon: CityIcons.Lyon, desc: 'Auvergne-Rhône-Alpes' },
+    { name: 'Marseille', icon: CityIcons.Marseille, desc: 'Provence-Alpes-Côte d\'Azur' },
+    { name: 'Nice', icon: CityIcons.Nice, desc: 'Côte d\'Azur' },
+    { name: 'Bordeaux', icon: CityIcons.Bordeaux, desc: 'Nouvelle-Aquitaine' },
+    { name: 'Nantes', icon: CityIcons.Nantes, desc: 'Pays de la Loire' },
+    { name: 'Lille', icon: CityIcons.Lille, desc: 'Hauts-de-France' },
+    { name: 'Rennes', icon: CityIcons.Rennes, desc: 'Bretagne' },
+    { name: 'Strasbourg', icon: CityIcons.Strasbourg, desc: 'Grand Est' },
+    { name: 'Toulouse', icon: CityIcons.Toulouse, desc: 'Occitanie' },
 ];
 
 const testimonials = [
@@ -532,7 +553,7 @@ export default function Home() {
                     <div className="cities-grid">
                         {cities.map((city, i) => (
                             <div key={city.name} className="city-card animate-in" style={{ animationDelay: `${i * 0.04}s` }}>
-                                <span className="city-emoji">{city.icon}</span>
+                                <span className="city-icon-wrap">{city.icon}</span>
                                 <div className="city-info">
                                     <span className="city-name">{city.name}</span>
                                     <span className="city-region">{city.desc}</span>

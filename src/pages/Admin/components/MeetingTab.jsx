@@ -19,7 +19,12 @@ export default function MeetingTab({ bookings, clients, onUpdate }) {
                     const client = clients.find(c => c.id === b.clientId);
                     return (
                         <div key={b.id} className="booking-card">
-                            <div className="booking-type">{b.type}</div>
+                            <div className="booking-type" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                {b.type}
+                                <span style={{ fontSize: '11px', background: '#E0F2FE', color: '#0369A1', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                                    {b.city || '—'}
+                                </span>
+                            </div>
                             <div className="booking-client">{client?.company || 'Client Inconnu'} · {client?.name}</div>
                             <div className="booking-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--admin-text-sub)', marginTop: '8px' }}>
                                 <div style={{ width: '14px' }}><Icons.Calendar /></div>

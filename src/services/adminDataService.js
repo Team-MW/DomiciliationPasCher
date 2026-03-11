@@ -58,12 +58,13 @@ export const adminDataService = {
     async addDemande(d) {
         const id = 'req_' + Date.now();
         const date = new Date().toISOString();
+        const city = d.city || 'À définir';
         await conn.execute(
-            `INSERT INTO demandes (id, clientName, email, company, plan, amount, date, status) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, d.clientName, d.email, d.company, d.plan, d.amount, date, 'en_attente']
+            `INSERT INTO demandes (id, clientName, email, company, city, plan, amount, date, status) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, d.clientName, d.email, d.company, city, d.plan, d.amount, date, 'en_attente']
         );
-        return { id, ...d, date, status: 'en_attente' };
+        return { id, ...d, city, date, status: 'en_attente' };
     },
 
     async traiterDemande(id) {
@@ -77,7 +78,7 @@ export const adminDataService = {
             await conn.execute(
                 `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [clientId, d.clientName, d.email, d.company, 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent']
+                [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent']
             );
 
             // Supprimer la demande
@@ -137,12 +138,13 @@ export const adminDataService = {
     async addBookingRequest(clientId, b) {
         const id = 'book_' + Date.now();
         const createdAt = new Date().toISOString();
+        const city = b.city || 'À définir';
         await conn.execute(
-            `INSERT INTO bookings (id, clientId, type, date, duration, status, createdAt) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [id, clientId, b.type, b.date, b.duration, 'en_attente', createdAt]
+            `INSERT INTO bookings (id, clientId, city, type, date, duration, status, createdAt) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, clientId, city, b.type, b.date, b.duration, 'en_attente', createdAt]
         );
-        return { id, clientId, ...b, status: 'en_attente', createdAt };
+        return { id, clientId, city, ...b, status: 'en_attente', createdAt };
     },
 
     // --- STATS ---
@@ -164,6 +166,56 @@ export const adminDataService = {
         };
     },
 
+    // --- MESSAGES ---
+    async getMessages(clientId) {
+        try {
+            const res = await conn.execute(
+                'SELECT * FROM messages WHERE clientId = ? ORDER BY createdAt ASC',
+                [clientId]
+            );
+            return res.rows;
+        } catch (err) {
+            console.error("MESSAGES_FETCH_ERROR:", err);
+            // On retourne un tableau vide si la table n'existe pas encore ou erreur
+            return [];
+        }
+    },
+
+    async addMessage(clientId, msg) {
+        const id = 'msg_' + Date.now();
+        const createdAt = new Date().toISOString();
+        const sender = msg.sender || 'admin'; // 'admin' ou 'client'
+
+        // Tentative d'insertion
+        await conn.execute(
+            `INSERT INTO messages (id, clientId, content, sender, createdAt, status) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [id, clientId, msg.content, sender, createdAt, 'sent']
+        );
+
+        return { id, clientId, createdAt, ...msg, status: 'sent' };
+    },
+
+    async initMessaging() {
+        try {
+            await conn.execute(`
+                CREATE TABLE IF NOT EXISTS messages (
+                    id VARCHAR(50) PRIMARY KEY,
+                    clientId VARCHAR(50),
+                    content TEXT,
+                    sender VARCHAR(20),
+                    createdAt VARCHAR(30),
+                    status VARCHAR(20)
+                )
+            `);
+            console.log("Messaging table verified.");
+        } catch (err) {
+            console.error("MESSAGING_INIT_ERROR:", err);
+        }
+    },
+
     // Mock compatibility
-    init() { }
+    init() {
+        this.initMessaging();
+    }
 };
