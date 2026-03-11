@@ -22,7 +22,7 @@ export default function Overview({ mail, documents, bookings, clientData }) {
                 </div>
                 <div className="ec-stat-card">
                     <div className="ec-stat-label">Réservations</div>
-                    <div className="ec-stat-value" style={{ color: '#6366F1' }}>
+                    <div className="ec-stat-value">
                         {bookings.length}
                     </div>
                     <div className="ec-stat-footer">En attente / Confirmées</div>

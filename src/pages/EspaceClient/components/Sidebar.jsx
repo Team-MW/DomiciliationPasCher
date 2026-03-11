@@ -7,8 +7,8 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
         <aside className="ec-sidebar">
             <div className="ec-sidebar-brand">
                 <Link to="/" className="ec-brand-logo">
-                    <div className="ec-logo-icon">DPC</div>
-                    <span className="ec-logo-text">ESPACE CLIENT</span>
+                    <div className="ec-logo-icon">DP</div>
+                    <span className="ec-logo-text">CLIENT HUB</span>
                 </Link>
             </div>
 
@@ -25,7 +25,7 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
                 </button>
                 <button className={`ec-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
                     <span className="ec-nav-icon"><Icons.Chat /></span> Messagerie
-                    {unreadMsgsCount > 0 && <span className="ec-nav-badge" style={{ background: '#6366F1' }}>{unreadMsgsCount}</span>}
+                    {unreadMsgsCount > 0 && <span className="ec-nav-badge">{unreadMsgsCount}</span>}
                 </button>
                 <button className={`ec-nav-item ${activeTab === 'meeting' ? 'active' : ''}`} onClick={() => setActiveTab('meeting')}>
                     <span className="ec-nav-icon"><Icons.Calendar /></span> Salles & Bureaux
