@@ -24,7 +24,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 68px;
+    height: 84px;
     gap: 40px;
 }
 
@@ -41,19 +41,21 @@
     opacity: 0.8;
 }
 
-.logo-wordmark {
-    font-family: 'Outfit', sans-serif;
-    font-size: 17px;
-    font-weight: 400;
-    color: #0F172A;
-    letter-spacing: -0.03em;
-    white-space: nowrap;
-    line-height: 1;
+.logo-img {
+    height: 140px;
+    width: auto;
+    display: block;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
 }
 
-.logo-wordmark strong {
-    font-weight: 900;
-    color: var(--primary);
+.navbar-logo {
+    position: relative;
+    width: 280px;
+    /* Give space for the overlapping logo */
+    height: 84px;
 }
 
 /* ── Nav links ── */
@@ -117,7 +119,7 @@
 /* ── Mega Menu ── */
 .nav-item-wrapper {
     position: relative;
-    height: 68px;
+    height: 84px;
     display: flex;
     align-items: center;
 }
@@ -134,7 +136,7 @@
 
 .mega-menu {
     position: fixed;
-    top: 68px;
+    top: 84px;
     left: 0;
     right: 0;
     background: white;
@@ -388,7 +390,7 @@
         display: flex;
     }
 
-    .logo-wordmark {
-        font-size: 16px;
+    .logo-img {
+        height: 80px;
     }
 }

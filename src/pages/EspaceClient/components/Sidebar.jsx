@@ -1,13 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icons } from './Icons';
+import logoSvg from '../../../assets/DomiciliationPasCher-Logo-11.svg';
 
 export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgsCount, user, clientData, onLogout }) {
     return (
         <aside className="ec-sidebar">
             <div className="ec-sidebar-brand">
                 <Link to="/" className="ec-brand-logo">
-                    <div className="ec-logo-icon">DP</div>
+                    <img src={logoSvg} alt="DPC" className="ec-logo-img" />
                     <span className="ec-logo-text">CLIENT HUB</span>
                 </Link>
             </div>

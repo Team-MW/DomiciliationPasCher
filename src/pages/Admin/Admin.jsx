@@ -3,6 +3,7 @@ import { useUser, useClerk } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
 import './Admin.css';
+import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
 // Components
 import { Icons } from './components/Icons';
@@ -119,11 +120,7 @@ export default function Admin() {
         <div className="admin-layout">
             <aside className="admin-sidebar">
                 <div className="admin-logo">
-                    <div className="logo-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px' }}>
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                        </svg>
-                    </div>
+                    <img src={logoSvg} alt="DPC" className="admin-logo-img" />
                     <div className="logo-text">CONSOLE ADMIN</div>
                 </div>
 

@@ -104,18 +104,13 @@
     text-decoration: none;
 }
 
-.ec-logo-icon {
-    width: 40px;
-    height: 40px;
-    background: var(--ec-accent-gradient);
-    color: white;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    font-size: 14px;
-    box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
+.ec-logo-img {
+    height: 140px;
+    width: auto;
+    display: block;
+    filter: brightness(0) invert(1);
+    margin-bottom: -10px;
+    margin-left: -20px;
 }
 
 .ec-logo-text {

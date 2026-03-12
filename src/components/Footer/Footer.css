@@ -22,24 +22,11 @@
     margin-bottom: 16px;
 }
 
-.footer-logo-name {
-    font-family: 'Outfit', sans-serif;
-    font-size: 18px;
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.8);
-    letter-spacing: -0.03em;
-    line-height: 1;
-}
-
-.footer-logo-name strong {
-    font-weight: 900;
-    color: white;
-}
-
-.footer-logo-tag {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.35);
-    margin-top: 0;
+.footer-logo-img {
+    height: 180px;
+    width: auto;
+    display: block;
+    filter: brightness(0) invert(1);
 }
 
 .footer-desc {

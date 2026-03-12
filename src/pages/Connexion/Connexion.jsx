@@ -1,12 +1,13 @@
 import { SignIn } from '@clerk/clerk-react';
 import './Auth.css';
+import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
 export default function ConnexionPage() {
     return (
         <main className="auth-page">
             <div className="auth-left">
                 <div className="auth-brand">
-                    <span className="auth-logo-wordmark">Domiciliation<strong>PasCher</strong></span>
+                    <img src={logoSvg} alt="DomiciliationPasCher" className="auth-logo-img" />
                 </div>
 
                 <div className="auth-left-content">

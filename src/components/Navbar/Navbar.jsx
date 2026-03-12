@@ -3,6 +3,8 @@ import { Link, NavLink } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import './Navbar.css';
 
+import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
+
 const navLinks = [
     { to: '/', label: 'Accueil' },
     { to: '/services', label: 'Services' },
@@ -40,7 +42,7 @@ export default function Navbar() {
 
                 {/* Logo */}
                 <Link to="/" className="navbar-logo" id="nav-logo">
-                    <span className="logo-wordmark">Domiciliation<strong>PasCher</strong></span>
+                    <img src={logoSvg} alt="DomiciliationPasCher" className="logo-img" />
                 </Link>
 
                 {/* Desktop Nav */}
