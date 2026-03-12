@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.domiciliation-pas-cher.com/sitemap.xml

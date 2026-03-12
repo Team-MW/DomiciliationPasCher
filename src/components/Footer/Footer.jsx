@@ -65,7 +65,7 @@ export default function Footer() {
                             </li>
                             <li>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
-                                <span>contact@domiciliation-pas-cher.fr</span>
+                                <span>contact@domiciliation-pas-cher.com</span>
                             </li>
                         </ul>
 
@@ -83,7 +83,7 @@ export default function Footer() {
                 <div className="container footer-bottom-inner">
                     <div className="footer-copyright-legal">
                         <div className="footer-copy-credits">
-                            <p>© {new Date().getFullYear()} DomiciliationPasCher.fr — Tous droits réservés</p>
+                            <p>© {new Date().getFullYear()} Domiciliation-Pas-Cher.com — Tous droits réservés</p>
                             <p className="footer-credits">Réalisé par <a href="https://microdidact.com/" target="_blank" rel="noopener noreferrer">microdidact</a></p>
                         </div>
                         <div className="footer-legal">
@@ -96,22 +96,22 @@ export default function Footer() {
                     {/* Payment Methods */}
                     <div className="footer-payments">
                         <div className="payment-badge" title="Visa">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="Mastercard">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="American Express">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="Apple Pay">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="Google Pay">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="UnionPay">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/UnionPay_logo.svg" alt="UnionPay" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/UnionPay_logo.svg" alt="UnionPay" loading="lazy" />
                         </div>
                     </div>
                 </div>

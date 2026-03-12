@@ -150,6 +150,10 @@ function useAnimateOnScroll() {
 }
 
 export default function Villes() {
+    useEffect(() => {
+        document.title = "Nos Villes : 10 adresses de prestige en France — DomiciliationPasCher";
+    }, []);
+
     const pageRef = useAnimateOnScroll();
 
     return (

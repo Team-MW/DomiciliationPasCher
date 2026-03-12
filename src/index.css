@@ -128,14 +128,20 @@ button {
 
 .section {
   padding: var(--section-pad-y) 0;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 1000px;
 }
 
 .section-sm {
   padding: var(--section-pad-y-sm) 0;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 800px;
 }
 
 .section-xs {
   padding: 40px 0;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 400px;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -369,6 +375,7 @@ button {
 .animate-in {
   opacity: 0;
   transform: translateY(20px);
+  will-change: opacity, transform;
   transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
 }
 

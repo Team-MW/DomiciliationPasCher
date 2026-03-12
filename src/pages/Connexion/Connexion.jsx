@@ -6,6 +6,7 @@ export default function ConnexionPage() {
     return (
         <main className="auth-page">
             <div className="auth-left">
+                <div className="auth-grid-pattern"></div>
                 <div className="auth-brand">
                     <img src={logoSvg} alt="DomiciliationPasCher" className="auth-logo-img" />
                 </div>

@@ -277,6 +277,10 @@ export default function Home() {
     const [showScrollTop, setShowScrollTop] = useState(false);
 
     useEffect(() => {
+        document.title = "Domiciliation d'entreprise pas chère — Dès 23€ HT/mois — Domiciliation-Pas-Cher.com";
+    }, []);
+
+    useEffect(() => {
         const handleScroll = () => setShowScrollTop(window.scrollY > 600);
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
@@ -592,7 +596,7 @@ export default function Home() {
                     <div className="section-header animate-in">
                         <div className="section-eyebrow">Avis clients</div>
                         <h2 className="section-title">Ils nous font <span>confiance</span></h2>
-                        <p className="section-subtitle">Plus de 3 000 entrepreneurs ont choisi DomiciliationPasCher.fr pour leur adresse professionnelle.</p>
+                        <p className="section-subtitle">Plus de 3 000 entrepreneurs ont choisi Domiciliation-Pas-Cher.com pour leur adresse professionnelle.</p>
                     </div>
                     <div className="testimonials-grid">
                         {testimonials.map((t, i) => (

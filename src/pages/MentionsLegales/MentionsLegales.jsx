@@ -27,7 +27,7 @@ const MentionsLegales = () => {
                     }}>
                         <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '0', marginBottom: '16px' }}>1. Édition du site</h2>
                         <p>
-                            Le présent site, accessible à l’URL <strong>domiciliation-pas-cher.fr</strong>, est édité par :<br />
+                            Le présent site, accessible à l’URL <strong>domiciliation-pas-cher.com</strong>, est édité par :<br />
                             L'entreprise <strong>DomiciliationPasCher</strong>, société au capital de xxxx €, dont le siège social est situé à Toulouse, 31000.
                         </p>
 
@@ -53,7 +53,7 @@ const MentionsLegales = () => {
 
                         <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>6. Contact</h2>
                         <p>
-                            Par mail : contact@domiciliation-pas-cher.fr<br />
+                            Par mail : contact@domiciliation-pas-cher.com<br />
                             Par téléphone : 05 xx xx xx xx
                         </p>
                     </div>

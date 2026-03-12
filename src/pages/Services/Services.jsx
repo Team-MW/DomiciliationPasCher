@@ -334,6 +334,10 @@ function useAnimateOnScroll() {
 /* ─── Page ──────────────────────────────────────────── */
 
 export default function Services() {
+    useEffect(() => {
+        document.title = "Nos Services : Domiciliation & Création d'Entreprise — DomiciliationPasCher";
+    }, []);
+
     const pageRef = useAnimateOnScroll();
     const [activeStatut, setActiveStatut] = useState('sasu');
     const currentForme = formes.find(f => f.id === activeStatut);

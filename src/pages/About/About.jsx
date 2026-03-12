@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './About.css';
 
@@ -22,6 +23,9 @@ const milestones = [
 ];
 
 export default function About() {
+    useEffect(() => {
+        document.title = "À Propos de DomiciliationPasCher : Notre Histoire et Nos Valeurs";
+    }, []);
     return (
         <main className="page-wrapper">
             {/* Hero */}
@@ -31,7 +35,7 @@ export default function About() {
                         <div className="section-eyebrow">Notre histoire</div>
                         <h1 className="section-title">Votre partenaire de confiance<br /><span>depuis Toulouse</span></h1>
                         <p className="section-subtitle">
-                            Fondée à Toulouse, DomiciliationPasCher.fr est née d'une conviction simple : créer une entreprise ne doit pas coûter une fortune. Nous proposons les meilleures adresses de France au meilleur prix.
+                            Fondée à Toulouse, Domiciliation-Pas-Cher.com est née d'une conviction simple : créer une entreprise ne doit pas coûter une fortune. Nous proposons les meilleures adresses de France au meilleur prix.
                         </p>
                     </div>
                     <div className="about-stats-row animate-in">
