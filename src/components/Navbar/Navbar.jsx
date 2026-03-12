@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import './Navbar.css';
 
@@ -18,6 +18,7 @@ export default function Navbar() {
     const [scrolled, setScrolled] = useState(false);
     const [isMegaOpen, setIsMegaOpen] = useState(false);
     const megaTimeout = useRef(null);
+    const location = useLocation();
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 16);
@@ -36,12 +37,19 @@ export default function Navbar() {
         }, 300);
     };
 
+    const handleLogoClick = (e) => {
+        if (location.pathname === '/') {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
     return (
         <header className={`navbar ${scrolled ? 'scrolled' : ''}`} id="navbar">
             <div className="container navbar-inner">
 
                 {/* Logo */}
-                <Link to="/" className="navbar-logo" id="nav-logo">
+                <Link to="/" className="navbar-logo" id="nav-logo" onClick={handleLogoClick}>
                     <img src={logoSvg} alt="DomiciliationPasCher" className="logo-img" />
                 </Link>
 

@@ -8,16 +8,18 @@
     left: 0;
     right: 0;
     z-index: 9999;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
-    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .navbar.scrolled {
-    box-shadow: 0 1px 20px rgba(15, 23, 42, 0.08);
-    border-bottom-color: rgba(226, 232, 240, 0.9);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    padding: 2px 0;
 }
 
 .navbar-inner {

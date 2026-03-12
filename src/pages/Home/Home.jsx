@@ -274,6 +274,13 @@ function FaqItem({ q, a }) {
 
 export default function Home() {
     const pageRef = useAnimateOnScroll();
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => setShowScrollTop(window.scrollY > 600);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     return (
         <main ref={pageRef} className="page-wrapper">
@@ -466,6 +473,7 @@ export default function Home() {
                 {/* Éléments décoratifs d'arrière-plan */}
                 <div className="ps-decor-1"></div>
                 <div className="ps-decor-2"></div>
+                <div className="ps-grid-pattern"></div>
 
                 <div className="container">
                     <div className="pricing-strip-inner">
@@ -479,7 +487,13 @@ export default function Home() {
                                     Découvrir toutes nos offres
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                                 </Link>
-                                <div className="ps-cta-trust">Sans engagement • Activation 24h</div>
+                                <div className="ps-cta-trust">
+                                    <span>Sans engagement</span>
+                                    <span className="ps-trust-sep"></span>
+                                    <span>Activation sous 24h</span>
+                                    <span className="ps-trust-sep"></span>
+                                    <span>Satisfait ou remboursé</span>
+                                </div>
                             </div>
                         </div>
 
@@ -488,24 +502,25 @@ export default function Home() {
                             <div className="ps-card">
                                 <div className="psc-header">
                                     <div className="psc-label">Essentiel</div>
-                                    <div className="psc-price">23 <span>€ HT/mois</span></div>
+                                    <div className="psc-price">23 <span>€ HT / mois</span></div>
+                                    <p className="psc-desc">Idéal pour le lancement de votre activité.</p>
                                 </div>
                                 <ul className="psc-list">
                                     <li>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        Adresse juridique officielle
+                                        <span>Adresse juridique <strong>officielle</strong></span>
                                     </li>
                                     <li>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        Réception du courrier
+                                        Réception du courrier simple
                                     </li>
                                     <li>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        Attestation de domiciliation
+                                        Attestation de domiciliation immédiate
                                     </li>
                                     <li>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        Espace client sécurisé
+                                        Espace client 100% sécurisé
                                     </li>
                                 </ul>
                             </div>
@@ -515,7 +530,8 @@ export default function Home() {
                                 <div className="psc-badge">Le plus populaire</div>
                                 <div className="psc-header">
                                     <div className="psc-label">Scan+</div>
-                                    <div className="psc-price">28 <span>€ HT/mois</span></div>
+                                    <div className="psc-price">28 <span>€ HT / mois</span></div>
+                                    <p className="psc-desc">Gérez tout en ligne, où que vous soyez.</p>
                                 </div>
                                 <ul className="psc-list">
                                     <li>
@@ -524,15 +540,15 @@ export default function Home() {
                                     </li>
                                     <li>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        <strong>Scan numérique</strong> du courrier
+                                        <strong>Scan numérique</strong> quotidien
                                     </li>
                                     <li>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        Accès immédiat en ligne
+                                        Notification en temps réel
                                     </li>
                                     <li>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        Archivage électronique
+                                        Archivage à vie des scans
                                     </li>
                                 </ul>
                                 <Link to="/souscription" className="psc-btn-featured">Commencer ici</Link>
@@ -666,6 +682,17 @@ export default function Home() {
                     </div>
                 </div>
             </section>
+
+            {/* Back to top button */}
+            <button
+                className={`back-to-top ${showScrollTop ? 'visible' : ''}`}
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                aria-label="Retour en haut"
+            >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+            </button>
         </main>
     );
 }
