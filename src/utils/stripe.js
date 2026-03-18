@@ -14,25 +14,53 @@ export const getStripe = () => {
 };
 
 /**
- * Redirige vers un Stripe Checkout (Simulé si pas de clé réelle)
+ * Redirige vers un Stripe Checkout asynchrone sécurisé par backend
  * @param {string} planId - Identifiant du plan choisi
  * @param {number} amount - Montant en euros
+ * @param {string} productName - Nom descriptif du forfait
+ * @param {string} interval - 'month' ou 'year'
  */
-export const handleCheckout = async (planId, amount) => {
-    const stripe = await getStripe();
+export const handleCheckout = async (planId, amount, productName = '', interval = 'month') => {
+    try {
+        const stripe = await getStripe();
 
-    // Pour un projet réel, il faudrait appeler une API backend
-    // qui crée une session Stripe Checkout et renvoie le sessionId.
-    // Ici, on simule l'intention d'achat pour la démonstration.
+        console.log(`Initialisation paiement Stripe pour le plan ${planId} : ${amount}€ (${interval})`);
 
-    console.log(`Initialisation paiement Stripe pour le plan ${planId} : ${amount}€`);
+        const response = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                planId,
+                amount,
+                productName: productName || `Forfait Domiciliation`,
+                interval: interval === 'annuel' ? 'year' : 'month',
+                successUrl: `${window.location.origin}/?success=true`,
+                cancelUrl: `${window.location.origin}/souscription?plan=${planId}`,
+            }),
+        });
 
-    // Simuler une petite attente de chargement
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            alert(`Redirection vers Stripe Checkout...\nPlan : ${planId}\nMontant : ${amount}€\n\n(Note : Nécessite un backend pour finaliser le paiement réel)`);
-            window.location.href = `/souscription?plan=${planId}`;
-            resolve();
-        }, 800);
-    });
+        // Tente de lire l'erreur éventuelle du serveur
+        let session;
+        try {
+            session = await response.json();
+        } catch (err) {
+            throw new Error("L'API a retourné une réponse invalide (vérifiez que le serveur ou Vercel tourne).");
+        }
+
+        if (session.error) {
+            throw new Error(session.error);
+        }
+
+        // Redirige directement le client vers l'URL officielle de paiement Stripe
+        if (session.url) {
+            window.location.href = session.url;
+        } else {
+            throw new Error("L'API n'a pas retourné l'URL de paiement.");
+        }
+    } catch (err) {
+        console.error("Erreur Checkout Stripe:", err);
+        alert(`Erreur de paiement : ${err.message}`);
+    }
 };

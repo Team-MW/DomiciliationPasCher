@@ -12,8 +12,7 @@ const STEPS = [
     { id: 'domiciliation', label: 'Domiciliation' },
     { id: 'courrier', label: 'Offre courrier' },
     { id: 'frequence', label: 'Fréquence' },
-    { id: 'recapitulatif', label: 'Récapitulatif' },
-    { id: 'paiement', label: 'Paiement' },
+    { id: 'recapitulatif', label: 'Récapitulatif & Paiement' },
 ];
 
 const VILLES = ['Paris (75)', 'Lyon (69)', 'Marseille (13)', 'Toulouse (31)', 'Bordeaux (33)', 'Nantes (44)', 'Nice (06)', 'Lille (59)', 'Strasbourg (67)', 'Montpellier (34)'];
@@ -462,78 +461,42 @@ export default function Souscription() {
                                 <input type="checkbox" checked={data.cgv} onChange={e => set('cgv', e.target.checked)} />
                                 <span>J'accepte les <a href="#" className="cgv-link">Conditions Générales de Vente</a> et la politique de confidentialité</span>
                             </label>
-                        </div>
-                    )}
 
-                    {/* ══ ÉTAPE 7 — Paiement ══ */}
-                    {step === 7 && (
-                        <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 8 sur {STEPS.length}</div>
-                                <h2>Paiement sécurisé</h2>
-                                <p>Vos données bancaires sont chiffrées et sécurisées par Stripe</p>
-                            </div>
+                            <div style={{ marginTop: '2.5rem' }}>
+                                <button
+                                    className="sous-pay-btn"
+                                    disabled={!data.cgv || loading}
+                                    onClick={async () => {
+                                        setLoading(true);
+                                        try {
+                                            // Enregistrer la demande dans le service admin
+                                            adminDataService.addDemande({
+                                                clientName: `${data.prenom} ${data.nom}`,
+                                                email: data.email,
+                                                company: data.nomSociete || 'En cours de création',
+                                                city: data.ville,
+                                                plan: plan.name,
+                                                amount: parseFloat(prixTotal().split('€')[0]).toFixed(2)
+                                            });
 
-                            <div className="paiement-summary">
-                                <div className="ps-row"><span>Forfait {plan.name}</span><strong>{plan.price}€ HT/mois</strong></div>
-                                {data.offre === 'scan' && <div className="ps-row"><span>Option Scan</span><strong>+5€ HT/mois</strong></div>}
-                                {data.offre === 'reexpedition' && <div className="ps-row"><span>Réexpédition</span><strong>+30€ HT/mois</strong></div>}
-                                <div className="ps-total"><span>Total</span><strong>{prixTotal()} HT</strong></div>
-                            </div>
+                                            const totalAmount = parseFloat(prixTotal().split('€')[0]);
+                                            let productName = `Forfait ${plan.name} - ${data.ville} (${data.frequence})`;
+                                            if (data.offre === 'scan') productName += ' + Scan';
+                                            if (data.offre === 'reexpedition') productName += ' + Réexpédition';
 
-                            <div className="paiement-form">
-                                <div className="sous-field sous-field-full">
-                                    <label className="sous-label">Titulaire de la carte</label>
-                                    <input className="sous-input" placeholder="Prénom Nom" />
-                                </div>
-                                <div className="sous-field sous-field-full">
-                                    <label className="sous-label">Numéro de carte</label>
-                                    <div className="card-input-wrap">
-                                        <input className="sous-input card-input" placeholder="1234 5678 9012 3456" maxLength={19} />
-                                        <div className="card-logos">
-                                            <span>💳</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="sous-field" style={{ gridColumn: 'span 1' }}>
-                                    <label className="sous-label">Date d'expiration</label>
-                                    <input className="sous-input" placeholder="MM/AA" maxLength={5} />
-                                </div>
-                                <div className="sous-field" style={{ gridColumn: 'span 1' }}>
-                                    <label className="sous-label">CVV</label>
-                                    <input className="sous-input" placeholder="123" maxLength={4} type="password" />
+                                            await handleCheckout(planId, totalAmount, productName, data.frequence);
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                >
+                                    {loading ? 'Redirection vers Stripe en cours...' : (!data.cgv ? 'Acceptez les CGV pour payer' : `Payer ${prixTotal()} HT de façon sécurisée ->`)}
+                                </button>
+                                <div className="stripe-badge" style={{ justifyContent: 'center', marginTop: '1rem', borderTop: 'none' }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                                    <span>Paiement sécurisé via Stripe · SSL 256-bit</span>
                                 </div>
                             </div>
-
-                            <div className="stripe-badge">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-                                <span>Paiement sécurisé via Stripe · SSL 256-bit</span>
-                            </div>
-
-                            <button
-                                className="sous-pay-btn"
-                                disabled={!data.cgv || loading}
-                                onClick={async () => {
-                                    setLoading(true);
-                                    try {
-                                        // Enregistrer la demande dans le service admin
-                                        adminDataService.addDemande({
-                                            clientName: `${data.prenom} ${data.nom}`,
-                                            email: data.email,
-                                            company: data.nomSociete || 'En cours de création',
-                                            city: data.ville,
-                                            plan: plan.name,
-                                            amount: parseFloat(prixTotal().split('€')[0]).toFixed(2)
-                                        });
-
-                                        await handleCheckout(planId, parseFloat(prixTotal().split('€')[0]));
-                                    } finally {
-                                        setLoading(false);
-                                    }
-                                }}
-                            >
-                                {loading ? 'Traitement en cours...' : (!data.cgv ? 'Acceptez les CGV (étape précédente)' : `Payer ${prixTotal()} HT →`)}
-                            </button>
                         </div>
                     )}
 
