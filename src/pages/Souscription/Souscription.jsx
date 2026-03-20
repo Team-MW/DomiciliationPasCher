@@ -470,8 +470,9 @@ export default function Souscription() {
                                         setLoading(true);
                                         try {
                                             // Enregistrer la demande dans le service admin
+                                            // On ajoute le numéro de téléphone pour que l'admin y ait accès dans son pannel
                                             adminDataService.addDemande({
-                                                clientName: `${data.prenom} ${data.nom}`,
+                                                clientName: `${data.prenom} ${data.nom} - 📞 ${data.telephone}`,
                                                 email: data.email,
                                                 company: data.nomSociete || 'En cours de création',
                                                 city: data.ville,
@@ -483,6 +484,10 @@ export default function Souscription() {
                                             let productName = `Forfait ${plan.name} - ${data.ville} (${data.frequence})`;
                                             if (data.offre === 'scan') productName += ' + Scan';
                                             if (data.offre === 'reexpedition') productName += ' + Réexpédition';
+
+                                            // Stocker les infos pour EmailJS sur la page de succès
+                                            localStorage.setItem('pending_emailjs', data.email);
+                                            localStorage.setItem('pending_namejs', `${data.prenom} ${data.nom}`);
 
                                             await handleCheckout(planId, totalAmount, productName, data.frequence);
                                         } finally {

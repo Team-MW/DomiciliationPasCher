@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CityIcons } from '../../utils/cityIcons';
+import { sendWelcomeEmail } from '../../utils/emailService';
 import './Home.css';
 
 const stats = [
@@ -283,6 +284,19 @@ export default function Home() {
     useEffect(() => {
         const handleScroll = () => setShowScrollTop(window.scrollY > 600);
         window.addEventListener('scroll', handleScroll, { passive: true });
+        
+        // --- EMAIL JS ON PAYMENT SUCCESS ---
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('success') === 'true') {
+            const pendingEmail = localStorage.getItem('pending_emailjs');
+            const pendingName = localStorage.getItem('pending_namejs');
+            if (pendingEmail) {
+                sendWelcomeEmail(pendingEmail, pendingName);
+                localStorage.removeItem('pending_emailjs');
+                localStorage.removeItem('pending_namejs');
+            }
+        }
+
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
