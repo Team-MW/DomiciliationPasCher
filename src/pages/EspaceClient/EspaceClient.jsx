@@ -11,6 +11,7 @@ import Mail from './components/Mail';
 import Docs from './components/Docs';
 import Meeting from './components/Meeting';
 import Messages from './components/Messages';
+import Factures from './components/Factures';
 
 export default function EspaceClient() {
     const { user, isLoaded } = useUser();
@@ -165,6 +166,9 @@ export default function EspaceClient() {
                     )}
                     {activeTab === 'messages' && (
                         <Messages clientData={clientData} />
+                    )}
+                    {activeTab === 'factures' && (
+                        <Factures clientData={clientData} />
                     )}
                     {activeTab === 'settings' && (
                         <div className="ec-tab-animate">

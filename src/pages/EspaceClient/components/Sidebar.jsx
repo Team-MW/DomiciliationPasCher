@@ -31,6 +31,9 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
                 <button className={`ec-nav-item ${activeTab === 'meeting' ? 'active' : ''}`} onClick={() => setActiveTab('meeting')}>
                     <span className="ec-nav-icon"><Icons.Calendar /></span> Salles & Bureaux
                 </button>
+                <button className={`ec-nav-item ${activeTab === 'factures' ? 'active' : ''}`} onClick={() => setActiveTab('factures')}>
+                    <span className="ec-nav-icon"><Icons.Invoice /></span> Factures
+                </button>
                 <button className={`ec-nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
                     <span className="ec-nav-icon"><Icons.Settings /></span> Paramètres
                 </button>
