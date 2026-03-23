@@ -12,6 +12,7 @@ import Docs from './components/Docs';
 import Meeting from './components/Meeting';
 import Messages from './components/Messages';
 import Factures from './components/Factures';
+import Settings from './components/Settings';
 
 export default function EspaceClient() {
     const { user, isLoaded } = useUser();
@@ -171,14 +172,7 @@ export default function EspaceClient() {
                         <Factures clientData={clientData} />
                     )}
                     {activeTab === 'settings' && (
-                        <div className="ec-tab-animate">
-                            <div className="ec-content-card">
-                                <div className="ec-card-header"><h2>Paramètres du compte</h2></div>
-                                <div className="ec-card-body" style={{ padding: '24px' }}>
-                                    <p>La gestion du profil et de la facturation sera disponible prochainement.</p>
-                                </div>
-                            </div>
-                        </div>
+                        <Settings clientData={clientData} setClientData={setClientData} />
                     )}
                 </div>
             </main>

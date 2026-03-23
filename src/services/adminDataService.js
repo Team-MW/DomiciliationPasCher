@@ -50,9 +50,23 @@ export const adminDataService = {
         );
     },
 
+    async updateClientProfile(id, data) {
+        await conn.execute(
+            'UPDATE clients SET name = ?, email = ?, address = ?, phone = ? WHERE id = ?',
+            [data.name, data.email, data.address || '', data.phone || '', id]
+        );
+        return { id, ...data };
+    },
+
+    async updateClientStatus(id, newStatus) {
+        await conn.execute('UPDATE clients SET status = ? WHERE id = ?', [newStatus, id]);
+        return { id, status: newStatus };
+    },
+
     async deleteClient(id) {
         await conn.execute('DELETE FROM clients WHERE id = ?', [id]);
     },
+
 
     // --- DEMANDES ---
     async getDemandes() {
@@ -235,8 +249,21 @@ export const adminDataService = {
         }
     },
 
+    async initProfileFields() {
+        try {
+            await conn.execute('ALTER TABLE clients ADD COLUMN address VARCHAR(255) DEFAULT ""');
+        } catch (err) {
+            // Check if error is something other than duplicate column, but usually we just ignore it for idempotency
+        }
+        try {
+            await conn.execute('ALTER TABLE clients ADD COLUMN phone VARCHAR(50) DEFAULT ""');
+        } catch (err) {
+        }
+    },
+
     // Mock compatibility
     init() {
         this.initMessaging();
+        this.initProfileFields();
     }
 };

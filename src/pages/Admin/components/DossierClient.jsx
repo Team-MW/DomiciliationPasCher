@@ -288,7 +288,25 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                             <div className="info-group"><label>Email</label><span>{client.email}</span></div>
                             <div className="info-group"><label>Formule</label><span>{client.plan}</span></div>
                             <div className="info-group"><label>Date d'entrée</label><span>{client.since}</span></div>
-                            <div className="info-actions">
+                            <div className="info-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <button 
+                                    className="btn-danger-outline" 
+                                    onClick={async () => {
+                                        if (window.confirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé'.")) {
+                                            try {
+                                                await adminDataService.updateClientStatus(client.id, 'impayé');
+                                                onUpdate();
+                                                onBack();
+                                            } catch (e) {
+                                                alert("Erreur de mise à jour");
+                                            }
+                                        }
+                                    }} 
+                                    disabled={isLoading}
+                                    style={{ background: '#fff1f2', color: '#9f1239', borderColor: '#fda4af', borderStyle: 'solid', borderWidth: '1px' }}
+                                >
+                                    Le client a un impayé
+                                </button>
                                 <button className="btn-danger-outline" onClick={handleDelete} disabled={isLoading}>
                                     {isLoading ? 'Suppression...' : 'Supprimer le profil'}
                                 </button>

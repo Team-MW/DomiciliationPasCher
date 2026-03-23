@@ -9,7 +9,6 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
             <div className="ec-sidebar-brand">
                 <Link to="/" className="ec-brand-logo">
                     <img src={logoSvg} alt="DPC" className="ec-logo-img" />
-                    <span className="ec-logo-text">CLIENT HUB</span>
                 </Link>
             </div>
 

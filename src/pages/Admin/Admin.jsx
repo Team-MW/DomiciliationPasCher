@@ -10,7 +10,7 @@ import { Icons } from './components/Icons';
 import OverviewTab from './components/OverviewTab';
 import DemandesTab from './components/DemandesTab';
 import ClientsTab from './components/ClientsTab';
-import MailTab from './components/MailTab';
+import FailedPaymentsTab from './components/FailedPaymentsTab';
 import MeetingTab from './components/MeetingTab';
 import DossierClient from './components/DossierClient';
 import CreateClientModal from './components/CreateClientModal';
@@ -121,7 +121,6 @@ export default function Admin() {
             <aside className="admin-sidebar">
                 <div className="admin-logo">
                     <img src={logoSvg} alt="DPC" className="admin-logo-img" />
-                    <div className="logo-text">CONSOLE ADMIN</div>
                 </div>
 
                 <nav className="admin-menu">
@@ -133,9 +132,6 @@ export default function Admin() {
                     </button>
                     <button className={`menu-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Clients /></span> Gestion Clients {stats.pendingMessages > 0 && <span className="menu-badge" style={{ background: '#6366F1' }}>{stats.pendingMessages}</span>}
-                    </button>
-                    <button className={`menu-item ${activeTab === 'mail' ? 'active' : ''}`} onClick={() => { setActiveTab('mail'); setSelectedClientId(null); }}>
-                        <span className="menu-icon"><Icons.Mail /></span> Centre Courrier
                     </button>
                     <button className={`menu-item ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => { setActiveTab('billing'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Billing /></span> Facturation
@@ -186,7 +182,7 @@ export default function Admin() {
                             {activeTab === 'overview' && <OverviewTab stats={stats} clients={clients} mail={mail} />}
                             {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} />}
                             {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
-                            {activeTab === 'mail' && <MailTab mail={mail} clients={clients} onUpdate={refreshData} />}
+                            {activeTab === 'billing' && <FailedPaymentsTab clients={clients} onSelect={setSelectedClientId} onUpdate={refreshData} />}
                             {activeTab === 'meeting' && <MeetingTab bookings={bookings} clients={clients} onUpdate={refreshData} />}
                         </>
                     )}
