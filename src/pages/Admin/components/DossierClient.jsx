@@ -151,11 +151,18 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                 >
                     Messagerie
                 </button>
+                <button
+                    className={`d-tab ${activeDossierTab === 'facturation' ? 'active' : ''}`}
+                    onClick={() => setActiveDossierTab('facturation')}
+                    style={{ padding: '12px 24px', borderBottom: activeDossierTab === 'facturation' ? '2px solid var(--primary)' : 'none', fontWeight: 600, color: activeDossierTab === 'facturation' ? 'var(--primary)' : '#64748B' }}
+                >
+                    Facturation
+                </button>
             </div>
 
             <div className="dossier-grid">
                 <div className="content-card">
-                    {activeDossierTab === 'docs' ? (
+                    {activeDossierTab === 'docs' && (
                         <>
                             <div className="card-header">
                                 <div className="ec-breadcrumb">
@@ -233,7 +240,8 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                 )}
                             </div>
                         </>
-                    ) : (
+                    )}
+                    {activeDossierTab === 'messages' && (
                         <>
                             <div className="card-header">
                                 <h2>Chat avec {client.name}</h2>
@@ -274,6 +282,79 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                     />
                                     <button type="submit" className="btn-primary" style={{ padding: '0 24px' }}>Envoyer</button>
                                 </form>
+                            </div>
+                        </>
+                    )}
+                    
+                    {activeDossierTab === 'facturation' && (
+                        <>
+                            <div className="card-header">
+                                <h2>Historique de facturation ({client.name})</h2>
+                            </div>
+                            <div className="card-body" style={{ minHeight: '500px', padding: '24px', background: '#FAFBFF' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                    <div>
+                                        <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A', marginBottom: '8px' }}>Paiements Abonnements</h3>
+                                        <p style={{ color: '#64748B', fontSize: '14px' }}>Historique des derniers prélèvements.</p>
+                                    </div>
+                                    <button className="btn-primary-sm" style={{ background: '#10b981' }}>+ Ajouter une facture</button>
+                                </div>
+                                
+                                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+                                    <table className="admin-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Facture ID</th>
+                                                <th>Date</th>
+                                                <th>Montant</th>
+                                                <th>Méthode</th>
+                                                <th>Statut</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {/* Dummy Data for demonstration until backend hooks are added */}
+                                            <tr className="row-hover">
+                                                <td className="table-primary">FAC-2026-003</td>
+                                                <td>01 Mar 2026</td>
+                                                <td style={{ fontWeight: 800 }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
+                                                <td className="table-secondary">Carte (Stripe)</td>
+                                                <td>
+                                                    <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>✓ Payé</span>
+                                                </td>
+                                                <td>
+                                                    <button className="btn-text">Télécharger</button>
+                                                </td>
+                                            </tr>
+                                            <tr className="row-hover">
+                                                <td className="table-primary">FAC-2026-002</td>
+                                                <td>01 Fév 2026</td>
+                                                <td style={{ fontWeight: 800 }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
+                                                <td className="table-secondary">Carte (Stripe)</td>
+                                                <td>
+                                                    <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>✓ Payé</span>
+                                                </td>
+                                                <td>
+                                                    <button className="btn-text">Télécharger</button>
+                                                </td>
+                                            </tr>
+                                            {client.status === 'impayé' && (
+                                                <tr className="row-hover" style={{ background: '#FFF1F2' }}>
+                                                    <td className="table-primary" style={{ color: '#9F1239' }}>FAC-2026-004</td>
+                                                    <td style={{ color: '#9F1239' }}>01 Avr 2026</td>
+                                                    <td style={{ fontWeight: 800, color: '#9F1239' }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
+                                                    <td className="table-secondary" style={{ color: '#9F1239' }}>Carte refusée</td>
+                                                    <td>
+                                                        <span style={{ background: '#9F1239', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>Échec</span>
+                                                    </td>
+                                                    <td>
+                                                        <button className="btn-text" style={{ color: '#9F1239' }}>Relancer</button>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </>
                     )}
