@@ -136,8 +136,8 @@ export default function EspaceClient() {
             <main className="ec-main">
                 <header className="ec-header">
                     <div className="ec-header-left">
-                        <h1 className="ec-welcome-title">Bonjour, {user?.firstName || 'Propriétaire'}</h1>
-                        <p className="ec-welcome-sub">Bienvenue sur votre console de gestion {clientData?.company}</p>
+                        <h1 className="ec-welcome-title">Bienvenue, {user?.firstName || 'Propriétaire'}</h1>
+                        <p className="ec-welcome-sub">Gérez votre domiciliation et vos courriers pour <strong>{clientData?.company}</strong></p>
                     </div>
                     <div className="ec-header-right">
                         <div className="ec-status-tag">

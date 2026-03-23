@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icons } from './Icons';
-import logoSvg from '../../../assets/DomiciliationPasCher-Logo-11.svg';
+import logoSvg from '../../../assets/DomiciliationPasCher-Logo.png';
 
 export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgsCount, user, clientData, onLogout }) {
     return (
@@ -48,10 +48,6 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
                         <div className="ec-user-company">{clientData?.company}</div>
                     </div>
                 </div>
-                <button className="ec-nav-item ec-logout" onClick={onLogout}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16 }}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                    Déconnexion
-                </button>
             </div>
         </aside>
     );

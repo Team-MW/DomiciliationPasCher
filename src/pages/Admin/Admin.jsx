@@ -142,9 +142,6 @@ export default function Admin() {
                 </nav>
 
                 <div style={{ marginTop: 'auto', padding: '12px' }}>
-                    <button className="menu-item logout-item" onClick={handleLogout}>
-                        <span className="menu-icon"><Icons.Logout /></span> Déconnexion
-                    </button>
                 </div>
             </aside>
 
