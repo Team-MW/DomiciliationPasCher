@@ -289,6 +289,11 @@ export const adminDataService = {
                     \`createdAt\` VARCHAR(30)
                 )
             `);
+            // Migration: Ajouter 'city' si la table existait DÉJÀ avant notre mise à jour !
+            try {
+                await conn.execute('ALTER TABLE bookings ADD COLUMN `city` VARCHAR(50) DEFAULT ""');
+            } catch (err) { }
+            
             console.log("Bookings table verified.");
         } catch (err) {
             console.error("BOOKINGS_INIT_ERROR:", err);

@@ -5,6 +5,8 @@ import { adminDataService } from '../../../services/adminDataService';
 export default function Meeting({ clientData, setActiveTab }) {
     const [bookings, setBookings] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     useEffect(() => {
         if (clientData?.id) {
@@ -21,7 +23,10 @@ export default function Meeting({ clientData, setActiveTab }) {
         const date = document.getElementById('book-date').value;
         const duration = document.getElementById('book-duration').value;
 
-        if (!date) return alert('Veuillez choisir une date');
+        setShowSuccess(false);
+        setErrorMsg('');
+
+        if (!date) return setErrorMsg('Veuillez choisir une date de réservation.');
 
         setIsSubmitting(true);
         try {
@@ -33,11 +38,12 @@ export default function Meeting({ clientData, setActiveTab }) {
             });
             const b = await adminDataService.getClientBookings(clientData.id);
             setBookings(b);
-            alert(`Votre demande de réservation à ${clientData.city || 'À définir'} a été envoyée ! Un administrateur reviendra vers vous.`);
+            setShowSuccess(true);
             document.getElementById('book-date').value = '';
+            setTimeout(() => setShowSuccess(false), 6000);
         } catch (error) {
             console.error("Booking error:", error);
-            alert("Une erreur est survenue lors de la demande. Si la base de données vient d'être mise à jour, merci d'actualiser la page (F5). Détail: " + error.message);
+            setErrorMsg("Erreur lors de la demande. Veuillez actualiser la page et réessayer.");
         } finally {
             setIsSubmitting(false);
         }
@@ -60,6 +66,22 @@ export default function Meeting({ clientData, setActiveTab }) {
                             Besoin d'un espace pour vos rendez-vous clients ou pour travailler au calme ?
                             Réservez dès maintenant un créneau dans nos locaux de {clientData.city}.
                         </p>
+                        
+                        {showSuccess && (
+                            <div style={{ background: '#ECFDF5', border: '1px solid #10B981', color: '#047857', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ background: '#10B981', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>
+                                <div>
+                                    <strong style={{ display: 'block', fontSize: '14px', marginBottom: '4px' }}>Demande envoyée !</strong>
+                                    <span style={{ fontSize: '13px' }}>Votre réservation a bien été transmise à notre équipe. Vous recevrez une notification dès sa validation !</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {errorMsg && (
+                            <div style={{ background: '#FEF2F2', border: '1px solid #EF4444', color: '#B91C1C', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px', fontWeight: 500 }}>
+                                ⚠️ {errorMsg}
+                            </div>
+                        )}
                         <div className="ec-booking-form">
                             <div className="form-group">
                                 <label>Type de location</label>
