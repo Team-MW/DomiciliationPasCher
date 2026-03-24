@@ -113,7 +113,7 @@ export default function Meeting({ clientData, setActiveTab }) {
                         <div className="ec-booking-form">
                             <div className="form-group">
                                 <label>Type de location</label>
-                                <select id="book-type">
+                                <select id="book-type" className="ec-input">
                                     <option>Salle de réunion (6-8 pers)</option>
                                     <option>Bureau privé (1-2 pers)</option>
                                     <option>Espace Coworking</option>
@@ -122,11 +122,11 @@ export default function Meeting({ clientData, setActiveTab }) {
                             <div className="form-grid">
                                 <div className="form-group">
                                     <label>Date souhaitée</label>
-                                    <input type="date" id="book-date" />
+                                    <input type="date" id="book-date" className="ec-input" />
                                 </div>
                                 <div className="form-group">
                                     <label>Durée</label>
-                                    <select id="book-duration">
+                                    <select id="book-duration" className="ec-input">
                                         <option>Matinée (9h-12h)</option>
                                         <option>Après-midi (14h-18h)</option>
                                         <option>Journée complète</option>
