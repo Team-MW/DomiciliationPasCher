@@ -338,7 +338,8 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                                     <button className="btn-text">Télécharger</button>
                                                 </td>
                                             </tr>
-                                            {client.status === 'impayé' && (
+                                            {/* Paiement du mois en cours (dynamique selon status) */}
+                                            {client.status === 'impayé' ? (
                                                 <tr className="row-hover" style={{ background: '#FFF1F2' }}>
                                                     <td className="table-primary" style={{ color: '#9F1239' }}>FAC-2026-004</td>
                                                     <td style={{ color: '#9F1239' }}>01 Avr 2026</td>
@@ -349,6 +350,19 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                                     </td>
                                                     <td>
                                                         <button className="btn-text" style={{ color: '#9F1239' }}>Relancer</button>
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                <tr className="row-hover">
+                                                    <td className="table-primary">FAC-2026-004</td>
+                                                    <td>01 Avr 2026</td>
+                                                    <td style={{ fontWeight: 800 }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
+                                                    <td className="table-secondary">Carte (Stripe)</td>
+                                                    <td>
+                                                        <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>✓ Payé</span>
+                                                    </td>
+                                                    <td>
+                                                        <button className="btn-text">Télécharger</button>
                                                     </td>
                                                 </tr>
                                             )}
