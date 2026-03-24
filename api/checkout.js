@@ -30,24 +30,31 @@ export default async function handler(req, res) {
 
         const { planId, amount, productName, interval, successUrl, cancelUrl } = req.body;
 
+        const isOneTime = interval === 'one_time';
+
+        const priceData = {
+            currency: 'eur',
+            product_data: {
+                name: productName || `Forfait ${planId}`,
+            },
+            unit_amount: Math.round(amount * 100), // En centimes
+        };
+
+        if (!isOneTime) {
+            priceData.recurring = {
+                interval: interval || 'month',
+            };
+        }
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price_data: {
-                        currency: 'eur',
-                        product_data: {
-                            name: productName || `Forfait ${planId}`,
-                        },
-                        unit_amount: Math.round(amount * 100), // En centimes
-                        recurring: {
-                            interval: interval || 'month',
-                        },
-                    },
+                    price_data: priceData,
                     quantity: 1,
                 },
             ],
-            mode: 'subscription',
+            mode: isOneTime ? 'payment' : 'subscription',
             success_url: successUrl || `${req.headers.origin}?success=true&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: cancelUrl || `${req.headers.origin}/souscription`,
         });

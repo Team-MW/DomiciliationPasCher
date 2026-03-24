@@ -20,11 +20,15 @@ export const getStripe = () => {
  * @param {string} productName - Nom descriptif du forfait
  * @param {string} interval - 'month' ou 'year'
  */
-export const handleCheckout = async (planId, amount, productName = '', interval = 'month') => {
+export const handleCheckout = async (planId, amount, productName = '', interval = 'month', customSuccessUrl = null, customCancelUrl = null) => {
     try {
         const stripe = await getStripe();
 
         console.log(`Initialisation paiement Stripe pour le plan ${planId} : ${amount}€ (${interval})`);
+
+        let finalInterval = interval;
+        if (interval === 'annuel') finalInterval = 'year';
+        else if (interval === 'mensuel') finalInterval = 'month';
 
         const response = await fetch('/api/checkout', {
             method: 'POST',
@@ -35,9 +39,9 @@ export const handleCheckout = async (planId, amount, productName = '', interval 
                 planId,
                 amount,
                 productName: productName || `Forfait Domiciliation`,
-                interval: interval === 'annuel' ? 'year' : 'month',
-                successUrl: `${window.location.origin}/?success=true`,
-                cancelUrl: `${window.location.origin}/souscription?plan=${planId}`,
+                interval: finalInterval,
+                successUrl: customSuccessUrl || `${window.location.origin}/?success=true`,
+                cancelUrl: customCancelUrl || `${window.location.origin}/souscription?plan=${planId}`,
             }),
         });
 
@@ -61,6 +65,6 @@ export const handleCheckout = async (planId, amount, productName = '', interval 
         }
     } catch (err) {
         console.error("Erreur Checkout Stripe:", err);
-        alert(`Erreur de paiement : ${err.message}`);
+        throw new Error(err.message || "Impossible de contacter la banque.");
     }
 };

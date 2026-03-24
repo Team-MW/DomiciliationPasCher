@@ -32,20 +32,28 @@ const localStripePlugin = {
 
             const stripe = new Stripe(secretKey);
 
+            const isOneTime = body.interval === 'one_time';
+            
+            const priceData = {
+              currency: 'eur',
+              product_data: { name: body.productName || 'Forfait' },
+              unit_amount: Math.round(body.amount * 100),
+            };
+
+            if (!isOneTime) {
+                // Seulement pour mensuel / annuel
+                priceData.recurring = { interval: body.interval || 'month' };
+            }
+
             const session = await stripe.checkout.sessions.create({
               payment_method_types: ['card'],
               line_items: [
                 {
-                  price_data: {
-                    currency: 'eur',
-                    product_data: { name: body.productName || 'Forfait' },
-                    unit_amount: Math.round(body.amount * 100),
-                    recurring: { interval: body.interval || 'month' },
-                  },
+                  price_data: priceData,
                   quantity: 1,
                 },
               ],
-              mode: 'subscription',
+              mode: isOneTime ? 'payment' : 'subscription',
               success_url: body.successUrl || `http://localhost:5173/?success=true`,
               cancel_url: body.cancelUrl || `http://localhost:5173/souscription`,
             });

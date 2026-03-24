@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
+import { handleCheckout } from '../../../utils/stripe';
 
 export default function Meeting({ clientData, setActiveTab }) {
     const [bookings, setBookings] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    const [bookingCache, setBookingCache] = useState(null);
 
+    // Au chargement, on vérifie si l'utilisateur revient d'un paiement Stripe réussi
     useEffect(() => {
         if (clientData?.id) {
             const fetchBookings = async () => {
@@ -15,6 +18,31 @@ export default function Meeting({ clientData, setActiveTab }) {
                 setBookings(b);
             };
             fetchBookings();
+
+            // Interception du webhook/redirection Stripe
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('booking_success') === 'true') {
+                const storedBooking = sessionStorage.getItem('pendingBooking');
+                if (storedBooking) {
+                    try {
+                        const parsedBooking = JSON.parse(storedBooking);
+                        adminDataService.addBookingRequest(clientData.id, parsedBooking).then(async () => {
+                            const b = await adminDataService.getClientBookings(clientData.id);
+                            setBookings(b);
+                            setShowSuccess(true);
+                        });
+                        sessionStorage.removeItem('pendingBooking');
+                        window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
+                    } catch (e) {
+                        console.error('Erreur restauration réservation', e);
+                    }
+                }
+            } else if (urlParams.get('booking_cancel') === 'true') {
+                setErrorMsg('Le paiement a été annulé ou refusé. Votre réservation n\'a pas pu aboutir.');
+                sessionStorage.removeItem('pendingBooking');
+                window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
+            }
         }
     }, [clientData]);
 
@@ -28,26 +56,26 @@ export default function Meeting({ clientData, setActiveTab }) {
 
         if (!date) return setErrorMsg('Veuillez choisir une date de réservation.');
 
+        // On redirige IMMÉDIATEMENT vers Stripe (cash)
+        const cache = { type, date, duration, city: clientData.city };
+        setBookingCache(cache);
+        
         setIsSubmitting(true);
         try {
-            await adminDataService.addBookingRequest(clientData.id, {
-                type,
-                date,
-                duration,
-                city: clientData.city
-            });
-            const b = await adminDataService.getClientBookings(clientData.id);
-            setBookings(b);
-            setShowSuccess(true);
-            document.getElementById('book-date').value = '';
-            setTimeout(() => setShowSuccess(false), 6000);
+            sessionStorage.setItem('pendingBooking', JSON.stringify(cache));
+            const successUrl = `${window.location.origin}/espace-client?tab=meeting&booking_success=true`;
+            const cancelUrl = `${window.location.origin}/espace-client?tab=meeting&booking_cancel=true`;
+            
+            await handleCheckout('salle', 40, `Réservation ${type}`, 'one_time', successUrl, cancelUrl);
+            // La page va être redirigée vers Stripe ici.
         } catch (error) {
-            console.error("Booking error:", error);
-            setErrorMsg("Erreur lors de la demande. Veuillez actualiser la page et réessayer.");
-        } finally {
+            console.error("Booking payment error:", error);
+            setErrorMsg(error.message || "Erreur de connexion au système de paiement.");
             setIsSubmitting(false);
         }
     };
+
+
 
     return (
         <div className="ec-tab-animate">
@@ -111,7 +139,7 @@ export default function Meeting({ clientData, setActiveTab }) {
                                 onClick={handleBooking}
                                 disabled={isSubmitting}
                             >
-                                {isSubmitting ? 'Envoi...' : 'Confirmer la demande de réservation'}
+                                {isSubmitting ? 'Connexion à Stripe...' : 'Payer (40,00 €) et Réserver'}
                             </button>
                         </div>
                     </div>
@@ -135,6 +163,7 @@ export default function Meeting({ clientData, setActiveTab }) {
                     </div>
                 </div>
             </div>
+
         </div>
     );
 }
