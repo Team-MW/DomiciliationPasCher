@@ -31,8 +31,13 @@ export default function Meeting({ clientData, setActiveTab }) {
                 duration,
                 city: clientData.city
             });
-            alert(`Votre demande de réservation à ${clientData.city} a été envoyée ! Un administrateur reviendra vers vous.`);
-            setActiveTab('overview');
+            const b = await adminDataService.getClientBookings(clientData.id);
+            setBookings(b);
+            alert(`Votre demande de réservation à ${clientData.city || 'À définir'} a été envoyée ! Un administrateur reviendra vers vous.`);
+            document.getElementById('book-date').value = '';
+        } catch (error) {
+            console.error("Booking error:", error);
+            alert("Une erreur est survenue lors de la demande. Si la base de données vient d'être mise à jour, merci d'actualiser la page (F5). Détail: " + error.message);
         } finally {
             setIsSubmitting(false);
         }

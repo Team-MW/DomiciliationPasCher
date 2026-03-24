@@ -60,6 +60,7 @@ export default function EspaceClient() {
             }
 
             if (isLoaded && user) {
+                await adminDataService.init(); // Garantie que les tables (comme bookings) existent tjs
                 const email = user.primaryEmailAddress?.emailAddress;
                 const data = await adminDataService.getClientByEmail(email);
 

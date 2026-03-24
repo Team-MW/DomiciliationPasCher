@@ -535,6 +535,19 @@
     cursor: pointer;
 }
 
+.ec-btn-text {
+    background: transparent;
+    border: none;
+    color: var(--ec-accent);
+    cursor: pointer;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.ec-btn-text:hover {
+    color: var(--ec-text-main);
+}
+
 /* ── Documents ── */
 .ec-grid-docs {
     display: grid;

@@ -67,8 +67,11 @@ export default function Admin() {
 
     useEffect(() => {
         if (pinOk) {
-            adminDataService.init();
-            refreshData();
+            const setup = async () => {
+                await adminDataService.init();
+                refreshData();
+            };
+            setup();
         }
     }, [pinOk, refreshData]);
 

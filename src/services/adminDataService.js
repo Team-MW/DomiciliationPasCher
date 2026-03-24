@@ -150,8 +150,23 @@ export const adminDataService = {
     },
 
     async getClientBookings(clientId) {
-        const res = await conn.execute('SELECT * FROM bookings WHERE clientId = ? ORDER BY date DESC', [clientId]);
+        const res = await conn.execute('SELECT * FROM bookings WHERE clientId = ? ORDER BY `date` DESC', [clientId]);
         return res.rows;
+    },
+
+    async getBookings() {
+        const res = await conn.execute(`
+            SELECT b.*, c.company as clientName 
+            FROM bookings b 
+            LEFT JOIN clients c ON b.clientId = c.id 
+            ORDER BY b.createdAt DESC
+        `);
+        return res.rows;
+    },
+
+    async updateBookingStatus(bookingId, status) {
+        await conn.execute('UPDATE bookings SET status = ? WHERE id = ?', [status, bookingId]);
+        return { id: bookingId, status };
     },
 
     async addBookingRequest(clientId, b) {
@@ -159,7 +174,7 @@ export const adminDataService = {
         const createdAt = new Date().toISOString();
         const city = b.city || 'À définir';
         await conn.execute(
-            `INSERT INTO bookings (id, clientId, city, type, date, duration, status, createdAt) 
+            `INSERT INTO bookings (\`id\`, \`clientId\`, \`city\`, \`type\`, \`date\`, \`duration\`, \`status\`, \`createdAt\`) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [id, clientId, city, b.type, b.date, b.duration, 'en_attente', createdAt]
         );
@@ -253,7 +268,6 @@ export const adminDataService = {
         try {
             await conn.execute('ALTER TABLE clients ADD COLUMN address VARCHAR(255) DEFAULT ""');
         } catch (err) {
-            // Check if error is something other than duplicate column, but usually we just ignore it for idempotency
         }
         try {
             await conn.execute('ALTER TABLE clients ADD COLUMN phone VARCHAR(50) DEFAULT ""');
@@ -261,9 +275,30 @@ export const adminDataService = {
         }
     },
 
-    // Mock compatibility
-    init() {
-        this.initMessaging();
-        this.initProfileFields();
+    async initBookings() {
+        try {
+            await conn.execute(`
+                CREATE TABLE IF NOT EXISTS bookings (
+                    \`id\` VARCHAR(50) PRIMARY KEY,
+                    \`clientId\` VARCHAR(50),
+                    \`city\` VARCHAR(50),
+                    \`type\` VARCHAR(50),
+                    \`date\` VARCHAR(30),
+                    \`duration\` VARCHAR(30),
+                    \`status\` VARCHAR(20),
+                    \`createdAt\` VARCHAR(30)
+                )
+            `);
+            console.log("Bookings table verified.");
+        } catch (err) {
+            console.error("BOOKINGS_INIT_ERROR:", err);
+        }
+    },
+
+    // Initialisation DB Wait
+    async init() {
+        await this.initMessaging();
+        await this.initProfileFields();
+        await this.initBookings();
     }
 };
