@@ -53,12 +53,37 @@ export default function Admin() {
             setDemandes(d);
             setBookings(b);
             setStats(s);
+
+            // Gérer les notifications persistantes (Admin)
+            const lastDemandesCount = parseInt(localStorage.getItem('admin_seen_demandes') || '0');
+            if (d.length > lastDemandesCount && activeTab !== 'demandes') {
+                setHasNewDemande(true);
+            }
+            const lastBookingsCount = parseInt(localStorage.getItem('admin_seen_bookings') || '0');
+            if (b.length > lastBookingsCount && activeTab !== 'meeting') {
+                setHasNewBooking(true);
+            }
+
         } catch (err) {
             console.error("Erreur de chargement des données:", err);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [activeTab]);
+
+    const [hasNewDemande, setHasNewDemande] = useState(false);
+    const [hasNewBooking, setHasNewBooking] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === 'demandes') {
+            setHasNewDemande(false);
+            localStorage.setItem('admin_seen_demandes', demandes.length.toString());
+        }
+        if (activeTab === 'meeting') {
+            setHasNewBooking(false);
+            localStorage.setItem('admin_seen_bookings', bookings.length.toString());
+        }
+    }, [activeTab, demandes.length, bookings.length]);
 
     useEffect(() => {
         const body = document.querySelector('.admin-body');
@@ -131,16 +156,21 @@ export default function Admin() {
                         <span className="menu-icon"><Icons.Overview /></span> Vue d'ensemble
                     </button>
                     <button className={`menu-item ${activeTab === 'demandes' ? 'active' : ''}`} onClick={() => { setActiveTab('demandes'); setSelectedClientId(null); }}>
-                        <span className="menu-icon"><Icons.Demandes /></span> Demandes {stats.pendingDemandes > 0 && <span className="menu-badge">{stats.pendingDemandes}</span>}
+                        <span className="menu-icon"><Icons.Demandes /></span> Demandes 
+                        {stats.pendingDemandes > 0 && <span className="menu-badge" style={{ background: '#EF4444' }}>{stats.pendingDemandes}</span>}
+                        {hasNewDemande && <span className="red-dot"></span>}
                     </button>
                     <button className={`menu-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }}>
-                        <span className="menu-icon"><Icons.Clients /></span> Gestion Clients {stats.pendingMessages > 0 && <span className="menu-badge" style={{ background: '#6366F1' }}>{stats.pendingMessages}</span>}
+                        <span className="menu-icon"><Icons.Clients /></span> Gestion Clients 
+                        {stats.pendingMessages > 0 && <span className="menu-badge" style={{ background: '#6366F1' }}>{stats.pendingMessages}</span>}
+                        {stats.pendingMessages > 0 && activeTab !== 'clients' && <span className="red-dot"></span>}
                     </button>
                     <button className={`menu-item ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => { setActiveTab('billing'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Billing /></span> Facturation
                     </button>
                     <button className={`menu-item ${activeTab === 'meeting' ? 'active' : ''}`} onClick={() => { setActiveTab('meeting'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Calendar /></span> Salles & Bureaux
+                        {hasNewBooking && <span className="red-dot"></span>}
                     </button>
                 </nav>
 

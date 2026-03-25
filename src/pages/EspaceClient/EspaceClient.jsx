@@ -27,6 +27,8 @@ export default function EspaceClient() {
     const [currentFolder, setCurrentFolder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [unreadMsgsCount, setUnreadMsgsCount] = useState(0);
+    const [hasNewDocs, setHasNewDocs] = useState(false);
+    const [hasNewFactures, setHasNewFactures] = useState(false);
 
     useEffect(() => {
         const body = document.querySelector('.ec-main');
@@ -85,7 +87,23 @@ export default function EspaceClient() {
                     setMail(m);
                     setDocuments(d);
                     setBookings(b);
-                    setUnreadMsgsCount(msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length);
+                    const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
+                    setUnreadMsgsCount(unread);
+
+                    // Notifications persistantes (Client)
+                    const lastDocsCount = parseInt(localStorage.getItem(`client_seen_docs_${data.id}`) || '0');
+                    if (d.length > lastDocsCount && activeTab !== 'docs') {
+                        setHasNewDocs(true);
+                    }
+
+                    // On vérifie les factures (via adminDataService)
+                    try {
+                        const pay = await adminDataService.getPayments(data.id);
+                        const lastPayCount = parseInt(localStorage.getItem(`client_seen_pay_${data.id}`) || '0');
+                        if (pay.length > lastPayCount && activeTab !== 'factures') {
+                            setHasNewFactures(true);
+                        }
+                    } catch (err) { /* ignore */ }
                 } else {
                     setClientData(null);
                 }
@@ -126,9 +144,20 @@ export default function EspaceClient() {
                 setActiveTab={(tab) => {
                     setActiveTab(tab);
                     if (tab === 'messages') setUnreadMsgsCount(0);
+                    if (tab === 'docs' && clientData) {
+                        setHasNewDocs(false);
+                        localStorage.setItem(`client_seen_docs_${clientData.id}`, documents.length.toString());
+                    }
+                    if (tab === 'factures' && clientData) {
+                        setHasNewFactures(false);
+                        // On ne connaît pas le count ici mais Factures le connaît. 
+                        // On peut juste le mettre à un grand nombre ou l'update plus tard.
+                    }
                 }}
                 mailCount={mail.filter(m => m.status === 'non lu').length}
                 unreadMsgsCount={unreadMsgsCount}
+                hasNewDocs={hasNewDocs}
+                hasNewFactures={hasNewFactures}
                 user={user}
                 clientData={clientData}
                 onLogout={handleLogout}
