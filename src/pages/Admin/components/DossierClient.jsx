@@ -14,16 +14,21 @@ export default function DossierClient({ client, onBack, onUpdate }) {
     const [activeDossierTab, setActiveDossierTab] = useState('docs');
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
+    const [payments, setPayments] = useState([]);
 
     useEffect(() => {
         if (client) {
-            const fetchDocs = async () => {
+            const fetchData = async () => {
                 setIsLoading(true);
-                const docs = await adminDataService.getDocuments(client.id);
+                const [docs, pay] = await Promise.all([
+                    adminDataService.getDocuments(client.id),
+                    adminDataService.getPayments(client.id)
+                ]);
                 setDocuments(docs);
+                setPayments(pay);
                 setIsLoading(false);
             };
-            fetchDocs();
+            fetchData();
         }
     }, [client]);
 
@@ -102,6 +107,98 @@ export default function DossierClient({ client, onBack, onUpdate }) {
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
             performUpload(files[0]);
+        }
+    };
+
+    const handleAddInvoice = async () => {
+        const amount = prompt("Montant de la facture (ex: 23.00) ?", client.plan === 'Scan+' ? '28.00' : '23.00');
+        if (!amount) return;
+        
+        const date = prompt("Date de la facture (AAAA-MM-JJ) ?", new Date().toISOString().split('T')[0]);
+        if (!date) return;
+
+        try {
+            setIsLoading(true);
+            await adminDataService.addPayment(client.id, {
+                amount: parseFloat(amount),
+                date
+            });
+            const pay = await adminDataService.getPayments(client.id);
+            setPayments(pay);
+        } catch (err) {
+            alert("Erreur lors de l'ajout de la facture");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGenerateMockHistory = async () => {
+        if (!window.confirm("Générer l'historique complet des paiements pour ce client depuis son inscription ?")) return;
+        
+        try {
+            setIsLoading(true);
+            const startDate = new Date(client.since);
+            const currentDate = new Date();
+            let iter = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+            
+            while (iter <= currentDate) {
+                const dateStr = iter.toISOString().split('T')[0];
+                await adminDataService.addPayment(client.id, {
+                    amount: client.plan === 'Scan+' ? 28 : 23,
+                    date: dateStr,
+                    status: 'payé'
+                });
+                iter.setMonth(iter.getMonth() + 1);
+            }
+            
+            const pay = await adminDataService.getPayments(client.id);
+            setPayments(pay);
+            alert("Historique généré avec succès !");
+        } catch (err) {
+            alert("Erreur lors de la génération de l'historique");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSyncStripe = async () => {
+        if (!window.confirm(`Vérifier les paiements réels sur Stripe pour ${client.email} ?`)) return;
+
+        try {
+            setIsLoading(true);
+            const stripePayments = await adminDataService.syncStripePayments(client.email);
+            
+            if (stripePayments.length === 0) {
+                alert("Aucun paiement trouvé sur Stripe pour ce client.");
+                return;
+            }
+
+            // Sync : on ajoute ceux qui ne sont pas là
+            let addedCount = 0;
+            const currentPayments = await adminDataService.getPayments(client.id);
+            for (const sp of stripePayments) {
+                const alreadyExists = currentPayments.some(p => p.amount == sp.amount && p.date == sp.date);
+                if (!alreadyExists) {
+                    await adminDataService.addPayment(client.id, {
+                        ...sp,
+                        invoice_ref: `STRIPE-${sp.id.substring(3, 10)}`
+                    });
+                    addedCount++;
+                }
+            }
+
+            if (addedCount > 0) {
+                alert(`${addedCount} nouveau(x) paiement(s) récupéré(s) de Stripe !`);
+                const pay = await adminDataService.getPayments(client.id);
+                setPayments(pay);
+            } else {
+                alert("Historique déjà à jour avec Stripe.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Erreur lors de la synchronisation Stripe.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -297,7 +394,12 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                         <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A', marginBottom: '8px' }}>Paiements Abonnements</h3>
                                         <p style={{ color: '#64748B', fontSize: '14px' }}>Historique des derniers prélèvements.</p>
                                     </div>
-                                    <button className="btn-primary-sm" style={{ background: '#10b981' }}>+ Ajouter une facture</button>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button className="btn-secondary-sm" onClick={handleSyncStripe} style={{ border: '1px solid #6366F1', color: '#6366F1' }}>
+                                            🔄 Sync Stripe
+                                        </button>
+                                        <button className="btn-primary-sm" style={{ background: '#10b981' }} onClick={handleAddInvoice}>+ Ajouter une facture</button>
+                                    </div>
                                 </div>
                                 
                                 <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
@@ -313,58 +415,54 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {/* Dummy Data for demonstration until backend hooks are added */}
-                                            <tr className="row-hover">
-                                                <td className="table-primary">FAC-2026-003</td>
-                                                <td>01 Mar 2026</td>
-                                                <td style={{ fontWeight: 800 }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
-                                                <td className="table-secondary">Carte (Stripe)</td>
-                                                <td>
-                                                    <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>✓ Payé</span>
-                                                </td>
-                                                <td>
-                                                    <button className="btn-text">Télécharger</button>
-                                                </td>
-                                            </tr>
-                                            <tr className="row-hover">
-                                                <td className="table-primary">FAC-2026-002</td>
-                                                <td>01 Fév 2026</td>
-                                                <td style={{ fontWeight: 800 }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
-                                                <td className="table-secondary">Carte (Stripe)</td>
-                                                <td>
-                                                    <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>✓ Payé</span>
-                                                </td>
-                                                <td>
-                                                    <button className="btn-text">Télécharger</button>
-                                                </td>
-                                            </tr>
-                                            {/* Paiement du mois en cours (dynamique selon status) */}
-                                            {client.status === 'impayé' ? (
-                                                <tr className="row-hover" style={{ background: '#FFF1F2' }}>
-                                                    <td className="table-primary" style={{ color: '#9F1239' }}>FAC-2026-004</td>
-                                                    <td style={{ color: '#9F1239' }}>01 Avr 2026</td>
-                                                    <td style={{ fontWeight: 800, color: '#9F1239' }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
-                                                    <td className="table-secondary" style={{ color: '#9F1239' }}>Carte refusée</td>
-                                                    <td>
-                                                        <span style={{ background: '#9F1239', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>Échec</span>
-                                                    </td>
-                                                    <td>
-                                                        <button className="btn-text" style={{ color: '#9F1239' }}>Relancer</button>
+                                            {payments.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                                                        Aucune facture enregistrée pour ce client.
+                                                        <br /><br />
+                                                        <button className="btn-secondary-sm" onClick={handleGenerateMockHistory}>
+                                                            Générer l'historique auto
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                <tr className="row-hover">
-                                                    <td className="table-primary">FAC-2026-004</td>
-                                                    <td>01 Avr 2026</td>
-                                                    <td style={{ fontWeight: 800 }}>{client.plan === 'Essentiel' ? '12.00 €' : '49.00 €'}</td>
-                                                    <td className="table-secondary">Carte (Stripe)</td>
-                                                    <td>
-                                                        <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>✓ Payé</span>
-                                                    </td>
-                                                    <td>
-                                                        <button className="btn-text">Télécharger</button>
-                                                    </td>
-                                                </tr>
+                                                payments.map(p => (
+                                                    <tr key={p.id} className="row-hover">
+                                                        <td className="table-primary">{p.invoice_ref}</td>
+                                                        <td>{new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                                        <td style={{ fontWeight: 800 }}>{p.amount} €</td>
+                                                        <td className="table-secondary">{p.method}</td>
+                                                        <td>
+                                                            <span style={{ 
+                                                                background: p.status === 'payé' ? 'rgba(16, 185, 129, 0.1)' : '#FFF1F2', 
+                                                                color: p.status === 'payé' ? '#10b981' : '#9F1239', 
+                                                                padding: '4px 8px', 
+                                                                borderRadius: '6px', 
+                                                                fontSize: '12px', 
+                                                                fontWeight: '700' 
+                                                            }}>
+                                                                {p.status === 'payé' ? '✓ Payé' : '✘ Échec'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                                <button className="btn-text">Télécharger</button>
+                                                                <button 
+                                                                    onClick={async () => {
+                                                                        if (window.confirm("Supprimer cette facture ?")) {
+                                                                            await adminDataService.deletePayment(p.id);
+                                                                            setPayments(prev => prev.filter(x => x.id !== p.id));
+                                                                        }
+                                                                    }}
+                                                                    className="btn-text" 
+                                                                    style={{ color: '#EF4444' }}
+                                                                >
+                                                                    Supprimer
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))
                                             )}
                                         </tbody>
                                     </table>

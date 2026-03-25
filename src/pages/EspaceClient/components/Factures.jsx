@@ -1,8 +1,28 @@
-import React from 'react';
-import jsPDF from 'jspdf';
+import { adminDataService } from '../../../services/adminDataService';
 import logoUrl from '../../../assets/DomiciliationPasCher-Logo.png';
+import jsPDF from 'jspdf';
+import { useState, useEffect } from 'react';
 
 export default function Factures({ clientData }) {
+    const [realPayments, setRealPayments] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (clientData?.id) {
+            const fetchPayments = async () => {
+                try {
+                    const pay = await adminDataService.getPayments(clientData.id);
+                    setRealPayments(pay);
+                } catch (err) {
+                    console.error("Erreur chargement factures:", err);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchPayments();
+        }
+    }, [clientData]);
+
     if (!clientData || !clientData.since) {
         return (
             <div className="ec-tab-animate">
@@ -16,40 +36,43 @@ export default function Factures({ clientData }) {
         );
     }
 
-    // Calculer les mois écoulés depuis la date d'inscription
-    const factures = [];
-    const startDate = new Date(clientData.since);
-    const currentDate = new Date();
-    
-    // Pour chaque mois, de startDate jusqu'à aujourd'hui
-    let iterationDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    const endLimit = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    // Calculer les factures à afficher
+    let factures = [];
 
-    while (iterationDate <= endLimit) {
-        const month = iterationDate.getMonth() + 1;
-        const year = iterationDate.getFullYear();
+    if (realPayments.length > 0) {
+        // Utiliser les vrais paiements de la base de données
+        factures = realPayments.map(p => ({
+            id: p.id,
+            ref: p.invoice_ref,
+            dateStr: new Date(p.date).toLocaleDateString('fr-FR'),
+            amount: parseFloat(p.amount)
+        }));
+    } else {
+        // Fallback: Calculer les mois écoulés depuis la date d'inscription (virtuel)
+        const startDate = new Date(clientData.since);
+        const currentDate = new Date();
         
-        // On prend le même jour que la date de souscription, max 28 pour éviter les débordements de mois
-        const day = startDate.getDate() > 28 ? 28 : startDate.getDate(); 
-        
-        const dateStr = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
-        const ref = `FAC-${year}${month.toString().padStart(2, '0')}-${clientData.id.toString().substring(0, 4)}`;
-        
-        const amount = clientData.plan === 'Scan+' ? 28 : 23;
+        let iterationDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        const endLimit = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 
-        factures.push({
-            id: ref,
-            ref,
-            dateStr,
-            amount
-        });
+        while (iterationDate <= endLimit) {
+            const month = iterationDate.getMonth() + 1;
+            const year = iterationDate.getFullYear();
+            const day = startDate.getDate() > 28 ? 28 : startDate.getDate(); 
+            const dateStr = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+            const ref = `FAC-${year}${month.toString().padStart(2, '0')}-${clientData.id.toString().substring(0, 4)}`;
+            const amount = clientData.plan === 'Scan+' ? 28 : 23;
 
-        // Mois suivant
-        iterationDate.setMonth(iterationDate.getMonth() + 1);
+            factures.push({
+                id: ref,
+                ref,
+                dateStr,
+                amount
+            });
+            iterationDate.setMonth(iterationDate.getMonth() + 1);
+        }
+        factures.reverse();
     }
-
-    // Trier les factures par date décroissante
-    factures.reverse();
 
     const generatePdf = (facture) => {
         const doc = new jsPDF();

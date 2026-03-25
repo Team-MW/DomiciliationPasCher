@@ -100,6 +100,14 @@ export const adminDataService = {
                 [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent']
             );
 
+            // Créer le paiement initial
+            await this.addPayment(clientId, {
+                amount: d.amount,
+                status: 'payé',
+                date: since,
+                method: 'Carte (Stripe)'
+            });
+
             // Supprimer la demande
             await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
             return { id: clientId, ...d };
@@ -179,6 +187,47 @@ export const adminDataService = {
             [id, clientId, city, b.type, b.date, b.duration, 'en_attente', createdAt]
         );
         return { id, clientId, city, ...b, status: 'en_attente', createdAt };
+    },
+
+    // --- PAYMENTS ---
+    async getPayments(clientId) {
+        const res = await conn.execute('SELECT * FROM payments WHERE clientId = ? ORDER BY date DESC', [clientId]);
+        return res.rows;
+    },
+
+    async addPayment(clientId, p) {
+        const id = 'pay_' + Date.now();
+        const date = p.date || new Date().toISOString().split('T')[0];
+        const status = p.status || 'payé';
+        const method = p.method || 'Carte (Stripe)';
+        const amount = p.amount || 0;
+        const invoice_ref = p.invoice_ref || `FAC-${date.replace(/-/g, '').substring(0, 6)}-${clientId.substring(0, 4)}`;
+
+        await conn.execute(
+            `INSERT INTO payments (id, clientId, amount, status, method, date, invoice_ref) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [id, clientId, amount, status, method, date, invoice_ref]
+        );
+        return { id, clientId, amount, status, method, date, invoice_ref };
+    },
+
+    async updatePaymentStatus(paymentId, status) {
+        await conn.execute('UPDATE payments SET status = ? WHERE id = ?', [status, paymentId]);
+    },
+
+    async deletePayment(paymentId) {
+        await conn.execute('DELETE FROM payments WHERE id = ?', [paymentId]);
+    },
+
+    async syncStripePayments(email) {
+        try {
+            const res = await fetch(`/api/list-payments?email=${email}`);
+            const data = await res.json();
+            return data.payments || [];
+        } catch (err) {
+            console.error("Erreur sync Stripe:", err);
+            return [];
+        }
     },
 
     // --- STATS ---
@@ -300,10 +349,30 @@ export const adminDataService = {
         }
     },
 
+    async initPayments() {
+        try {
+            await conn.execute(`
+                CREATE TABLE IF NOT EXISTS payments (
+                    id VARCHAR(50) PRIMARY KEY,
+                    clientId VARCHAR(50),
+                    amount DECIMAL(10, 2),
+                    status VARCHAR(20),
+                    method VARCHAR(50),
+                    date VARCHAR(30),
+                    invoice_ref VARCHAR(50)
+                )
+            `);
+            console.log("Payments table verified.");
+        } catch (err) {
+            console.error("PAYMENTS_INIT_ERROR:", err);
+        }
+    },
+
     // Initialisation DB Wait
     async init() {
         await this.initMessaging();
         await this.initProfileFields();
         await this.initBookings();
+        await this.initPayments();
     }
 };
