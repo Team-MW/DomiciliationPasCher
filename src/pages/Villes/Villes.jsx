@@ -86,13 +86,13 @@ const cities = [
         image: 'https://images.unsplash.com/photo-1549429440-1e52857463f8?q=80&w=2070&auto=format&fit=crop',
     },
     {
-        name: 'Clermont-Ferrand',
-        icon: CityIcons["Clermont-Ferrand"],
-        region: 'Auvergne-Rhône-Alpes',
-        desc: 'Berceau des grandes entreprises industrielles françaises, Clermont-Ferrand est la référence pour l\'industrie et l\'innovation locale.',
-        avantages: ['Hub industriel', 'Coût immobilier bas', 'Réseau PME fort'],
-        zip: '63',
-        image: 'https://images.unsplash.com/photo-1629813583568-da7ec5c78663?q=80&w=2070&auto=format&fit=crop',
+        name: 'Toulouse',
+        icon: CityIcons.Toulouse,
+        region: 'Occitanie',
+        desc: 'Surnommée la "Ville Rose", Toulouse est le fleuron de l\'industrie aéronautique européenne. Une adresse dynamique et stratégique.',
+        avantages: ['Capitale aéronautique', 'Bassin d\'emploi tech', 'Dynamisme insolent'],
+        zip: '31',
+        image: 'https://images.unsplash.com/photo-1596431760416-ed40d89f5bc5?q=80&w=2070&auto=format&fit=crop',
     },
 ];
 

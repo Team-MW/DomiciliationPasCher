@@ -28,7 +28,7 @@ const MentionsLegales = () => {
                         <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '0', marginBottom: '16px' }}>1. Édition du site</h2>
                         <p>
                             Le présent site, accessible à l’URL <strong>domiciliation-pas-cher.com</strong>, est édité par :<br />
-                            L'entreprise <strong>DomiciliationPasCher</strong>, société au capital de xxxx €, dont le siège social est situé à Toulouse, 31000.
+                            L'entreprise <strong>DomiciliationPasCher</strong>, société au capital de xxxx €, dont le siège social est situé au 150 Rue Nicolas Louis Vauquelin, 3ème étage, Lot 308, 31100 Toulouse.
                         </p>
 
                         <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>2. Hébergement</h2>
@@ -54,7 +54,7 @@ const MentionsLegales = () => {
                         <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>6. Contact</h2>
                         <p>
                             Par mail : contact@domiciliation-pas-cher.com<br />
-                            Par téléphone : 05 xx xx xx xx
+                            Par téléphone : +33 7 45 04 00 26
                         </p>
                     </div>
                 </div>

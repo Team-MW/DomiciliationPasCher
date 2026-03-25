@@ -10,6 +10,7 @@ import Services from './pages/Services/Services';
 import About from './pages/About/About';
 import ConnexionPage from './pages/Connexion/Connexion';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
+import WhatsAppButton from './components/WhatsAppButton/WhatsAppButton';
 
 /* Lazy loading pour les grosses pages */
 const EspaceClient = lazy(() => import('./pages/EspaceClient/EspaceClient'));
@@ -55,6 +56,7 @@ function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <WhatsAppButton />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Pages publiques avec Navbar + Footer */}
