@@ -6,7 +6,7 @@ export default function CreateClientModal({ onClose, onCreated }) {
         name: '',
         email: '',
         company: '',
-        city: 'Paris',
+        city: 'Toulouse',
         plan: 'Essentiel'
     });
     const [loading, setLoading] = useState(false);
@@ -66,16 +66,7 @@ export default function CreateClientModal({ onClose, onCreated }) {
                                 value={formData.city}
                                 onChange={e => setFormData({ ...formData, city: e.target.value })}
                             >
-                                <option value="Paris">Paris (75)</option>
-                                <option value="Lyon">Lyon (69)</option>
-                                <option value="Marseille">Marseille (13)</option>
                                 <option value="Toulouse">Toulouse (31)</option>
-                                <option value="Bordeaux">Bordeaux (33)</option>
-                                <option value="Nantes">Nantes (44)</option>
-                                <option value="Nice">Nice (06)</option>
-                                <option value="Lille">Lille (59)</option>
-                                <option value="Strasbourg">Strasbourg (67)</option>
-                                <option value="Montpellier">Montpellier (34)</option>
                             </select>
                         </div>
                         <div className="form-group">
@@ -84,9 +75,9 @@ export default function CreateClientModal({ onClose, onCreated }) {
                                 value={formData.plan}
                                 onChange={e => setFormData({ ...formData, plan: e.target.value })}
                             >
-                                <option value="Essentiel">Essentiel (23€)</option>
-                                <option value="Scan+">Scan+ (28€)</option>
-                                <option value="Physique+">Physique+ (53€)</option>
+                                <option value="Essentiel">Essentiel (20€)</option>
+                                <option value="Scan+">Scan+ (24€)</option>
+                                <option value="Physique+">Physique+ (38€)</option>
                             </select>
                         </div>
                     </div>

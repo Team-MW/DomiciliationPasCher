@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useUser, useClerk } from '@clerk/clerk-react';
+import { useUser, useClerk, SignIn } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
 import './Admin.css';
@@ -16,13 +16,9 @@ import DossierClient from './components/DossierClient';
 import CreateClientModal from './components/CreateClientModal';
 
 export default function Admin() {
-    const { user } = useUser();
+    const { user, isLoaded } = useUser();
     const { signOut } = useClerk();
     const navigate = useNavigate();
-
-    // Auth State
-    const [pinOk, setPinOk] = useState(() => sessionStorage.getItem('admin_auth') === 'true');
-    const [pinInput, setPinInput] = useState('');
 
     // Data State
     const [activeTab, setActiveTab] = useState('overview');
@@ -36,7 +32,7 @@ export default function Admin() {
     const [isCreatingClient, setIsCreatingClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || '0000';
+    const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'mwcrea.agency@gmail.com';
 
     const refreshData = useCallback(async () => {
         setIsLoading(true);
@@ -54,7 +50,6 @@ export default function Admin() {
             setBookings(b);
             setStats(s);
 
-            // Gérer les notifications persistantes (Admin)
             const lastDemandesCount = parseInt(localStorage.getItem('admin_seen_demandes') || '0');
             if (d.length > lastDemandesCount && activeTab !== 'demandes') {
                 setHasNewDemande(true);
@@ -90,53 +85,72 @@ export default function Admin() {
         if (body) body.scrollTop = 0;
     }, [activeTab, selectedClientId]);
 
+    const handleLogout = async () => {
+        await signOut();
+        navigate('/');
+    };
+
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
+    const isAdmin = userEmail === ADMIN_EMAIL;
+
     useEffect(() => {
-        if (pinOk) {
+        if (isLoaded && isAdmin) {
             const setup = async () => {
                 await adminDataService.init();
                 refreshData();
             };
             setup();
         }
-    }, [pinOk, refreshData]);
+    }, [isLoaded, isAdmin, refreshData]);
 
-    const handlePinSuccess = () => {
-        setPinOk(true);
-        sessionStorage.setItem('admin_auth', 'true');
-    };
-
-    const handleLogout = async () => {
-        sessionStorage.removeItem('admin_auth');
-        await signOut();
-        navigate('/');
-    };
-
-    if (!pinOk) {
+    if (!isLoaded) {
         return (
-            <div className="admin-pin-screen">
-                <div className="admin-pin-card">
-                    <div className="admin-pin-header">
-                        <h1>Terminal Admin</h1>
-                        <p>Code d'accès requis pour déverrouiller la console</p>
+            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFF', color: '#0f172a', fontWeight: 700 }}>
+                Vérification des accès...
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="admin-auth-screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc', padding: '20px' }}>
+                <div style={{ maxWidth: '400px', width: '100%' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                        <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', fontFamily: 'Outfit, sans-serif' }}>Console Administration</h1>
+                        <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>Veuillez vous connecter avec votre compte administrateur.</p>
                     </div>
-                    <div className="admin-pin-form">
-                        <input
-                            type="password"
-                            className="admin-pin-input"
-                            placeholder="••••"
-                            maxLength={4}
-                            value={pinInput}
-                            autoFocus
-                            onChange={e => setPinInput(e.target.value)}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && pinInput.trim() === ADMIN_PIN) handlePinSuccess();
-                            }}
-                        />
-                        <button className="admin-pin-btn" onClick={() => pinInput.trim() === ADMIN_PIN && handlePinSuccess()}>
-                            DÉVERROUILLER
-                        </button>
-                    </div>
-                    <button className="pin-cancel-link" onClick={() => navigate('/')}>Quitter la console</button>
+                    <SignIn 
+                        fallbackRedirectUrl="/admin"
+                        forceRedirectUrl="/admin"
+                        appearance={{
+                            variables: {
+                                colorPrimary: '#0f172a',
+                            }
+                        }}
+                    />
+                    <button onClick={() => navigate('/')} style={{ marginTop: '24px', width: '100%', padding: '12px', background: 'transparent', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', color: '#64748b', fontWeight: '600' }}>
+                        Retour au site
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAdmin) {
+        return (
+            <div className="admin-denied-screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc', padding: '20px', textAlign: 'center' }}>
+                <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#ef4444', fontFamily: 'Outfit, sans-serif' }}>Accès Refusé</h1>
+                <p style={{ color: '#64748b', fontSize: '16px', marginTop: '8px', maxWidth: '400px' }}>
+                    Vous n'avez pas les droits d'administrateur pour accéder à cette console.
+                </p>
+                <p style={{ color: '#0f172a', fontWeight: '600', marginTop: '16px' }}>Connecté en tant que: {userEmail}</p>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                    <button onClick={handleLogout} style={{ padding: '12px 24px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                        Déconnexion
+                    </button>
+                    <button onClick={() => navigate('/')} style={{ padding: '12px 24px', background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                        Retour au site
+                    </button>
                 </div>
             </div>
         );
@@ -153,7 +167,7 @@ export default function Admin() {
 
                 <nav className="admin-menu">
                     <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setSelectedClientId(null); }}>
-                        <span className="menu-icon"><Icons.Overview /></span> Vue d'ensemble
+                        <span className="menu-icon"><Icons.Overview /></span> Dashboard
                     </button>
                     <button className={`menu-item ${activeTab === 'demandes' ? 'active' : ''}`} onClick={() => { setActiveTab('demandes'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Demandes /></span> Demandes 

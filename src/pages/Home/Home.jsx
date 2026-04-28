@@ -7,8 +7,8 @@ import './Home.css';
 const stats = [
     { prefix: '+', target: 3000, suffix: '', label: 'Entreprises domiciliées' },
     { prefix: '+', target: 50, suffix: '', label: 'Nouvelles créations / semaine' },
-    { prefix: '', target: 10, suffix: '', label: 'Métropoles françaises' },
-    { prefix: '', target: 23, suffix: '€', label: 'HT / mois seulement' },
+    { prefix: '', target: 1, suffix: '', label: 'Métropole française' },
+    { prefix: '', target: 20, suffix: '€', label: 'HT / mois seulement' },
 ];
 
 const features = [
@@ -103,15 +103,6 @@ const steps = [
 ];
 
 const cities = [
-    { name: 'Paris', icon: CityIcons.Paris, desc: 'Île-de-France' },
-    { name: 'Lyon', icon: CityIcons.Lyon, desc: 'Auvergne-Rhône-Alpes' },
-    { name: 'Marseille', icon: CityIcons.Marseille, desc: 'Provence-Alpes-Côte d\'Azur' },
-    { name: 'Nice', icon: CityIcons.Nice, desc: 'Côte d\'Azur' },
-    { name: 'Bordeaux', icon: CityIcons.Bordeaux, desc: 'Nouvelle-Aquitaine' },
-    { name: 'Nantes', icon: CityIcons.Nantes, desc: 'Pays de la Loire' },
-    { name: 'Lille', icon: CityIcons.Lille, desc: 'Hauts-de-France' },
-    { name: 'Rennes', icon: CityIcons.Rennes, desc: 'Bretagne' },
-    { name: 'Strasbourg', icon: CityIcons.Strasbourg, desc: 'Grand Est' },
     { name: 'Toulouse', icon: CityIcons.Toulouse, desc: 'Occitanie' },
 ];
 
@@ -278,7 +269,7 @@ export default function Home() {
     const [showScrollTop, setShowScrollTop] = useState(false);
 
     useEffect(() => {
-        document.title = "Domiciliation d'entreprise pas chère — Dès 23€ HT/mois — Domiciliation-Pas-Cher.com";
+        document.title = "Domiciliation d'entreprise pas chère — Dès 20€ HT/mois — Domiciliation-Pas-Cher.com";
     }, []);
 
     useEffect(() => {
@@ -313,11 +304,11 @@ export default function Home() {
 
                             <h1 className="hero-title">
                                 Domiciliez votre entreprise<br />
-                                <span>en France dès <em>23€ HT/mois</em></span>
+                                <span>à Toulouse dès <em>20€ HT/mois</em></span>
                             </h1>
 
                             <p className="hero-subtitle">
-                                Obtenez une adresse juridique officielle dans 10 grandes villes françaises. Inscription 100&nbsp;% en ligne, attestation émise sous 24&nbsp;h.
+                                Obtenez une adresse juridique officielle à Toulouse. Inscription 100&nbsp;% en ligne, attestation émise sous 24&nbsp;h.
                             </p>
 
                             <div className="hero-ctas">
@@ -361,15 +352,14 @@ export default function Home() {
                                 </div>
                                 <div className="hcm-divider" />
                                 <div className="hcm-cities">
-                                    {['Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Toulouse', 'Nantes'].map(c => (
+                                    {['Toulouse'].map(c => (
                                         <span key={c} className="hcm-city-pill">{c}</span>
                                     ))}
-                                    <span className="hcm-city-pill hcm-city-more">+4</span>
                                 </div>
                                 <div className="hcm-divider" />
                                 <div className="hcm-price-row">
                                     <span className="hcm-price-label">À partir de</span>
-                                    <span className="hcm-price-val">23 <small>€ HT/mois</small></span>
+                                    <span className="hcm-price-val">20 <small>€ HT/mois</small></span>
                                 </div>
                             </div>
 
@@ -498,7 +488,7 @@ export default function Home() {
                         <div className="ps-text animate-in">
                             <div className="ps-eyebrow-white">Tarification transparente</div>
                             <h2 className="ps-main-title">La domiciliation<br /><span>la plus compétitive</span></h2>
-                            <p className="ps-main-desc">Pas de frais cachés, pas de mauvaise surprise. <br /><strong>À partir de 23&nbsp;€ HT/mois</strong>, résiliable à tout moment.</p>
+                            <p className="ps-main-desc">Pas de frais cachés, pas de mauvaise surprise. <br /><strong>À partir de 20&nbsp;€ HT/mois</strong>, résiliable à tout moment.</p>
 
                             <div className="ps-cta-wrapper">
                                 <Link to="/tarifs" className="btn-ps-cta" id="cta-pricing-btn">
@@ -520,7 +510,7 @@ export default function Home() {
                             <div className="ps-card">
                                 <div className="psc-header">
                                     <div className="psc-label">Essentiel</div>
-                                    <div className="psc-price">23 <span>€ HT / mois</span></div>
+                                    <div className="psc-price">20 <span>€ HT / mois</span></div>
                                     <p className="psc-desc">Idéal pour le lancement de votre activité.</p>
                                 </div>
                                 <ul className="psc-list">
@@ -548,7 +538,7 @@ export default function Home() {
                                 <div className="psc-badge">Le plus populaire</div>
                                 <div className="psc-header">
                                     <div className="psc-label">Scan+</div>
-                                    <div className="psc-price">28 <span>€ HT / mois</span></div>
+                                    <div className="psc-price">24 <span>€ HT / mois</span></div>
                                     <p className="psc-desc">Gérez tout en ligne, où que vous soyez.</p>
                                 </div>
                                 <ul className="psc-list">
@@ -580,9 +570,9 @@ export default function Home() {
             <section className="section cities-section" id="cities">
                 <div className="container">
                     <div className="section-header animate-in">
-                        <div className="section-eyebrow">Présence nationale</div>
-                        <h2 className="section-title">Une adresse dans<br /><span>10 grandes villes</span></h2>
-                        <p className="section-subtitle">Basés à Toulouse, nous couvrons les principales métropoles économiques françaises.</p>
+                        <div className="section-eyebrow">Présence locale</div>
+                        <h2 className="section-title">Une adresse à<br /><span>Toulouse</span></h2>
+                        <p className="section-subtitle">Bénéficiez d'une adresse de prestige à Toulouse.</p>
                     </div>
                     <div className="cities-grid">
                         {cities.map((city, i) => (
@@ -598,7 +588,7 @@ export default function Home() {
                     </div>
                     <div className="cities-cta animate-in">
                         <Link to="/villes" className="btn btn-outline" id="all-cities-btn">
-                            Explorer toutes nos villes
+                            En savoir plus sur notre adresse
                         </Link>
                     </div>
                 </div>
@@ -681,7 +671,7 @@ export default function Home() {
                 <div className="container">
                     <div className="final-cta-inner animate-in">
                         <h2>Prêt à franchir le pas ?</h2>
-                        <p>Rejoignez plus de 3 000 entrepreneurs. Démarrez en 5 minutes, dès 23 € HT/mois.</p>
+                        <p>Rejoignez plus de 3 000 entrepreneurs. Démarrez en 5 minutes, dès 20 € HT/mois.</p>
                         <div className="final-cta-actions">
                             <Link to="/tarifs" className="btn btn-white btn-xl" id="final-cta-btn">
                                 Commencer maintenant

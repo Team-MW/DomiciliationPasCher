@@ -7,62 +7,59 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, o
     );
 
     return (
-        <div className="content-card">
-            <div className="card-header">
-                <h2>Répertoire Clients ({filtered.length})</h2>
-                <div className="header-actions">
-                    <button className="btn-secondary-sm">Export CSV</button>
-                    <button className="btn-primary-sm" onClick={onCreateClick}>+ Nouveau Client</button>
+        <div className="clients-container">
+            <div className="tab-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--admin-text-main)' }}>Suivi des Clients</h2>
+                    <p style={{ color: 'var(--admin-text-sub)', fontSize: '14px', marginTop: '4px' }}>Gérez et suivez vos dossiers clients en temps réel.</p>
+                </div>
+                <div className="header-actions" style={{ display: 'flex', gap: '12px' }}>
+                    <button className="btn-primary-sm" onClick={onCreateClick} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 16, height: 16 }}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Nouveau Client
+                    </button>
                 </div>
             </div>
-            <div className="card-body-table">
-                <table className="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Entreprise</th>
-                            <th>Offre</th>
-                            <th>Accès Clerk</th>
-                            <th>Statut</th>
-                            <th style={{ textAlign: 'right' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filtered.map(c => (
-                            <tr key={c.id} onClick={() => onSelect(c.id)} style={{ cursor: 'pointer' }} className="row-hover">
-                                <td>
-                                    <div className="table-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {c.company}
-                                        {parseInt(c.unreadCount) > 0 && (
-                                            <span style={{
-                                                background: '#EF4444',
-                                                color: 'white',
-                                                fontSize: '10px',
-                                                padding: '2px 6px',
-                                                borderRadius: '10px',
-                                                fontWeight: 800,
-                                                animation: 'pulse 2s infinite'
-                                            }}>
-                                                {c.unreadCount}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="table-secondary">{c.name}</div>
-                                </td>
-                                <td><span className="badge-outline">{c.plan}</span></td>
-                                <td>
-                                    <div className="clerk-id-badge">
-                                        <div className="clerk-dot"></div>
-                                        {c.clerkId ? c.clerkId : "En attente d'inscription"}
-                                    </div>
-                                </td>
-                                <td><span className={`status-dot ${c.status === 'actif' ? 'status-active' : 'status-danger'}`}></span> {c.status}</td>
-                                <td style={{ textAlign: 'right' }}>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, color: '#94A3B8' }}><polyline points="9 18 15 12 9 6"></polyline></svg>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+
+            <div className="cards-grid">
+                {filtered.map(c => (
+                    <div key={c.id} className="case-card" onClick={() => onSelect(c.id)}>
+                        <div className="case-card-header">
+                            <span className={`case-badge ${c.status === 'actif' ? 'badge-success' : 'badge-danger'}`}>
+                                {c.status === 'actif' ? 'Actif' : 'Inactif'}
+                            </span>
+                            <span className="case-date">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                {c.since || 'Non définie'}
+                            </span>
+                        </div>
+                        
+                        <div className="case-card-body">
+                            <h3 className="case-title">{c.company}</h3>
+                            <p className="case-client-name">{c.name}</p>
+                            <div className="case-plan">Offre: <strong>{c.plan}</strong></div>
+                            
+                            <div className="case-progress-container">
+                                <div className="case-progress-label">
+                                    <span>Dossier</span>
+                                    <span>{c.clerkId ? '100%' : '50%'}</span>
+                                </div>
+                                <div className="case-progress-bar">
+                                    <div className="case-progress-fill" style={{ width: c.clerkId ? '100%' : '50%' }}></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="case-card-footer">
+                            <span className="case-footer-label">STATUT COMPTE</span>
+                            <div className="case-status-actions">
+                                <span className={`status-pill ${c.clerkId ? 'active' : 'pending'}`}>
+                                    {c.clerkId ? 'Clerk Lié' : 'En attente'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

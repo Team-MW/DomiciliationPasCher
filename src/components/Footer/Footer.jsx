@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import './Footer.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
-const cities = ['Paris', 'Lyon', 'Marseille', 'Nice', 'Bordeaux', 'Nantes', 'Lille', 'Rennes', 'Strasbourg', 'Clermont-Ferrand'];
+const cities = ['Toulouse'];
 
 export default function Footer() {
     return (
@@ -15,7 +15,7 @@ export default function Footer() {
                             <img src={logoSvg} alt="DomiciliationPasCher" className="footer-logo-img" />
                         </Link>
                         <p className="footer-desc">
-                            La solution de domiciliation la plus compétitive de France. Basés à Toulouse, nous accompagnons les entrepreneurs dans plus de 10 grandes villes françaises.
+                            La solution de domiciliation la plus compétitive de France. Basés à Toulouse, nous accompagnons les entrepreneurs avec une adresse prestigieuse.
                         </p>
                         <div className="footer-stats">
                             <div className="footer-stat">

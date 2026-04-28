@@ -3,18 +3,18 @@
    ══════════════════════════════════════ */
 
 :root {
-    --ec-bg: #F8FAFC;
-    --ec-sidebar: #09090b; /* Deep pure black/slate */
-    --ec-accent: #0f172a;  /* Stark professional slate */
-    --ec-accent-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    --ec-text-main: #0f172a;
-    --ec-text-sub: #64748b;
-    --ec-border: #e2e8f0;
+    --ec-bg: #fafafa;
+    --ec-sidebar: #ffffff;
+    --ec-accent: #18181b;
+    --ec-accent-gradient: none;
+    --ec-text-main: #09090b;
+    --ec-text-sub: #71717a;
+    --ec-border: #e4e4e7;
     --ec-card-bg: #ffffff;
     --ec-success: #10b981;
     --ec-warning: #f59e0b;
     --ec-danger: #ef4444;
-    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03); /* Softer, crisper shadow */
+    --card-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --glass-bg: rgba(255, 255, 255, 0.95);
 }
 
@@ -52,17 +52,17 @@
     background: white;
     max-width: 520px;
     width: 100%;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 60px 40px;
     text-align: center;
     box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.15);
-    border: 1px solid white;
+    border: 1px solid var(--ec-border);
 }
 
 .pending-icon {
     font-size: 64px;
     margin-bottom: 32px;
-    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.05));
 }
 
 .ec-pending-card h2 {
@@ -90,7 +90,8 @@
     position: sticky;
     top: 0;
     height: 100vh;
-    color: white;
+    color: var(--ec-text-main);
+    border-right: 1px solid var(--ec-border);
 }
 
 .ec-sidebar-brand {
@@ -108,7 +109,6 @@
     height: 140px;
     width: auto;
     display: block;
-    filter: brightness(0) invert(1);
     margin-bottom: -10px;
     margin-left: -20px;
 }
@@ -117,31 +117,26 @@
     font-weight: 950;
     font-size: 18px;
     letter-spacing: -0.01em;
-    color: white;
-    background: linear-gradient(to right, #fff, #94a3b8);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--ec-text-main);
 }
 
 .ec-nav {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
 
 .ec-nav-item {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 14px 18px;
+    padding: 12px 16px;
     border-radius: 8px;
-    color: #94a3b8;
+    color: var(--ec-text-sub);
     text-decoration: none;
     font-size: 14px;
     font-weight: 600;
-    will-change: transform, color, background-color;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
     background: transparent;
     border: 1px solid transparent;
     width: 100%;
@@ -150,30 +145,19 @@
 }
 
 .ec-nav-item:hover {
-    color: white;
-    background: rgba(255, 255, 255, 0.05);
-    transform: translateX(4px);
+    color: var(--ec-text-main);
+    background: #f1f5f9;
 }
 
 .ec-nav-item.active {
-    background: rgba(255, 255, 255, 0.08);
-    color: white;
+    background: #0f172a;
+    color: #ffffff;
     border-color: transparent;
-    position: relative;
     font-weight: 700;
 }
 
 .ec-nav-item.active::before {
-    content: '';
-    position: absolute;
-    left: -20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 6px;
-    height: 18px;
-    background: #ffffff;
-    border-radius: 0 4px 4px 0;
-    box-shadow: 0 0 10px rgba(255,255,255,0.2);
+    display: none;
 }
 
 .ec-nav-icon {
@@ -182,12 +166,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.6;
-    transition: all 0.3s;
+    opacity: 0.8;
+    transition: all 0.2s;
 }
 
 .ec-nav-item.active .ec-nav-icon {
-    color: var(--ec-accent);
+    color: #ffffff;
     opacity: 1;
 }
 
@@ -213,9 +197,20 @@
 }
 
 @keyframes dot-pulse {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-    70% { transform: scale(1.4); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+
+    70% {
+        transform: scale(1.4);
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
 }
 
 .ec-sidebar-footer {
@@ -224,7 +219,7 @@
     flex-direction: column;
     gap: 16px;
     padding-top: 24px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--ec-border);
 }
 
 .ec-user-card {
@@ -232,8 +227,9 @@
     align-items: center;
     gap: 14px;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: #f8fafc;
     border-radius: 8px;
+    border: 1px solid var(--ec-border);
 }
 
 .ec-user-avatar {
@@ -247,7 +243,7 @@
     justify-content: center;
     font-weight: 800;
     color: white;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .ec-user-info {
@@ -258,7 +254,7 @@
 .ec-user-name {
     font-size: 14px;
     font-weight: 700;
-    color: white;
+    color: var(--ec-text-main);
 }
 
 .ec-user-company {
@@ -523,16 +519,16 @@
 }
 
 .ec-btn-primary {
-    background: var(--ec-accent-gradient);
+    background: var(--ec-accent);
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 700;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.15);
     transition: all 0.2s;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
 .ec-btn-primary:hover {
@@ -904,4 +900,146 @@ select.ec-input {
     background-position: right 1rem center;
     background-size: 1em;
     cursor: pointer;
+}
+
+/* ── CASE CARDS GRID (SHADCN LOOK) ── */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    padding: 24px 0;
+}
+
+.case-card {
+    background: white;
+    border: 1px solid var(--ec-border);
+    border-radius: 8px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow: var(--card-shadow);
+}
+
+.case-card:hover {
+    border-color: #a1a1aa;
+}
+
+.case-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.case-badge {
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.badge-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.case-date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ec-text-sub);
+}
+
+.case-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ec-text-main);
+    margin: 0;
+}
+
+.case-client-name {
+    font-size: 14px;
+    color: var(--ec-text-sub);
+    margin: 4px 0 12px;
+}
+
+.case-plan {
+    font-size: 13px;
+    color: var(--ec-text-main);
+    margin-bottom: 16px;
+}
+
+.case-progress-container {
+    margin-top: 12px;
+}
+
+.case-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ec-text-sub);
+    margin-bottom: 6px;
+}
+
+.case-progress-bar {
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.case-progress-fill {
+    height: 100%;
+    background: var(--ec-accent);
+    border-radius: 9999px;
+}
+
+.case-card-footer {
+    border-top: 1px solid var(--ec-border);
+    padding-top: 16px;
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.case-footer-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ec-text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.case-status-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.status-pill {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--ec-border);
+}
+
+.status-pill.active {
+    background: #f1f5f9;
+    color: var(--ec-text-main);
+}
+
+.status-pill.pending {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
 }

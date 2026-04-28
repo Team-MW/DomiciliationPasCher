@@ -5,87 +5,6 @@ import './Villes.css';
 
 const cities = [
     {
-        name: 'Paris',
-        icon: CityIcons.Paris,
-        region: 'Île-de-France',
-        desc: 'La capitale française vous offre une adresse de prestige au cœur des affaires. Idéale pour rayonner à l\'international.',
-        avantages: ['Adresse capitale', 'Rayonnement national', 'Réseau d\'affaires unique'],
-        zip: '75',
-        image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop',
-    },
-    {
-        name: 'Lyon',
-        icon: CityIcons.Lyon,
-        region: 'Auvergne-Rhône-Alpes',
-        desc: 'Deuxième métropole économique de France, Lyon est le hub idéal pour les entreprises du secteur industriel et technologique.',
-        avantages: ['2e hub économique', 'Vitalité startup', 'Position géographique centrale'],
-        zip: '69',
-        image: 'https://images.unsplash.com/photo-1509030464152-c44034d15026?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        name: 'Marseille',
-        icon: CityIcons.Marseille,
-        region: 'Provence-Alpes-Côte d\'Azur',
-        desc: 'Premier port méditerranéen d\'Europe. Marseille est incontournable pour les activités liées au commerce et à la logistique.',
-        avantages: ['Premier port EU', 'Commerce méditerranéen', 'Rayonnement Sud'],
-        zip: '13',
-        image: 'https://images.unsplash.com/photo-1563297122-fdf5f43da719?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        name: 'Nice',
-        icon: CityIcons.Nice,
-        region: 'Côte d\'Azur',
-        desc: 'Ville du tourisme et de l\'innovation, Nice attire de nombreuses entreprises dans les secteurs du luxe et du numérique.',
-        avantages: ['Pôle innovation', 'Tourisme & luxe', 'Proximité Monaco'],
-        zip: '06',
-        image: 'https://images.unsplash.com/photo-1543884842-83679872e482?q=80&w=2071&auto=format&fit=crop',
-    },
-    {
-        name: 'Bordeaux',
-        icon: CityIcons.Bordeaux,
-        region: 'Nouvelle-Aquitaine',
-        desc: 'Métropole en plein essor, Bordeaux conjugue qualité de vie et dynamisme économique. Parfaite pour les entreprises du vin et du digital.',
-        avantages: ['Qualité de vie N°1', 'Secteur vin & luxe', 'Croissance rapide'],
-        zip: '33',
-        image: 'https://images.unsplash.com/photo-1590487050311-be078b548b11?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        name: 'Nantes',
-        icon: CityIcons.Nantes,
-        region: 'Pays de la Loire',
-        desc: 'Élue plusieurs fois ville la plus agréable de France, Nantes est un vivier de talents pour les startups et PME innovantes.',
-        avantages: ['Capitale des startups', 'Talents numériques', 'Attractivité forte'],
-        zip: '44',
-        image: 'https://images.unsplash.com/photo-1623838382710-f1c586cc2ae2?q=80&w=1974&auto=format&fit=crop',
-    },
-    {
-        name: 'Lille',
-        icon: CityIcons.Lille,
-        region: 'Hauts-de-France',
-        desc: 'Porte d\'entrée du nord de l\'Europe, Lille est stratégique pour les entreprises ayant des activités avec la Belgique et le Royaume-Uni.',
-        avantages: ['Carrefour Nord-Europe', 'Accès Belgique & UK', 'Hub logistique'],
-        zip: '59',
-        image: 'https://images.unsplash.com/photo-1582294101138-028a38ae1841?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
-        name: 'Rennes',
-        icon: CityIcons.Rennes,
-        region: 'Bretagne',
-        desc: 'Capitale de la Bretagne, Rennes est l\'une des villes les plus dynamiques de France avec un fort tissu numérique et technologique.',
-        avantages: ['Pôle numérique', 'Ville étudiante', 'Innovation tech'],
-        zip: '35',
-        image: 'https://images.unsplash.com/photo-1605335805541-b3b3a7263303?q=80&w=1964&auto=format&fit=crop',
-    },
-    {
-        name: 'Strasbourg',
-        icon: CityIcons.Strasbourg,
-        region: 'Grand Est',
-        desc: 'Siège des institutions européennes, Strasbourg offre une adresse à dimension internationale, idéale pour tout dossier européen.',
-        avantages: ['Siège institutions EU', 'Rayonnement international', 'Proximité Allemagne'],
-        zip: '67',
-        image: 'https://images.unsplash.com/photo-1549429440-1e52857463f8?q=80&w=2070&auto=format&fit=crop',
-    },
-    {
         name: 'Toulouse',
         icon: CityIcons.Toulouse,
         region: 'Occitanie',
@@ -151,7 +70,7 @@ function useAnimateOnScroll() {
 
 export default function Villes() {
     useEffect(() => {
-        document.title = "Nos Villes : 10 adresses de prestige en France — DomiciliationPasCher";
+        document.title = "Notre Ville : Adresse de prestige à Toulouse — DomiciliationPasCher";
     }, []);
 
     const pageRef = useAnimateOnScroll();
@@ -162,12 +81,12 @@ export default function Villes() {
             <section className="villes-hero section">
                 <div className="container">
                     <div className="villes-hero-inner animate-in">
-                        <div className="section-eyebrow">Domination Nationale</div>
+                        <div className="section-eyebrow">Présence Locale</div>
                         <h1 className="hero-main-title">
-                            Nos adresses dans les plus<br /><span>grandes métropoles</span>
+                            Notre adresse à<br /><span>Toulouse</span>
                         </h1>
                         <p className="hero-desc">
-                            Une présence stratégique pour votre siège social. Choisissez parmi nos <strong>10 villes clés</strong> et bénéficiez d'une adresse de prestige activée en 24h.
+                            Une présence stratégique pour votre siège social. Bénéficiez d'une adresse de prestige activée en 24h.
                         </p>
                     </div>
 
@@ -253,7 +172,7 @@ export default function Villes() {
                                     <div className="cwc-footer">
                                         <div className="cwc-price-block">
                                             <div className="cwc-price-label">À partir de</div>
-                                            <div className="cwc-price-value">23€<span> HT/mois</span></div>
+                                            <div className="cwc-price-value">20€<span> HT/mois</span></div>
                                         </div>
                                         <Link to="/tarifs" className="btn btn-primary cwc-btn" id={`cta-${city.name.toLowerCase()}`}>
                                             Choisir {city.name}

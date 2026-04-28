@@ -40,7 +40,6 @@ export default function Factures({ clientData }) {
     let factures = [];
 
     if (realPayments.length > 0) {
-        // Utiliser les vrais paiements de la base de données
         factures = realPayments.map(p => ({
             id: p.id,
             ref: p.invoice_ref,
@@ -48,7 +47,6 @@ export default function Factures({ clientData }) {
             amount: parseFloat(p.amount)
         }));
     } else {
-        // Fallback: Calculer les mois écoulés depuis la date d'inscription (virtuel)
         const startDate = new Date(clientData.since);
         const currentDate = new Date();
         
@@ -61,7 +59,9 @@ export default function Factures({ clientData }) {
             const day = startDate.getDate() > 28 ? 28 : startDate.getDate(); 
             const dateStr = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
             const ref = `FAC-${year}${month.toString().padStart(2, '0')}-${clientData.id.toString().substring(0, 4)}`;
-            const amount = clientData.plan === 'Scan+' ? 28 : 23;
+            let amount = 20;
+            if (clientData.plan === 'Scan+') amount = 24;
+            else if (clientData.plan === 'Physique+') amount = 38;
 
             factures.push({
                 id: ref,
@@ -82,7 +82,6 @@ export default function Factures({ clientData }) {
                 doc.addImage(imgData, 'PNG', 15, 15, 45, 15);
             }
 
-            // 2. Textes Header
             doc.setFontSize(22);
             doc.setTextColor(30, 41, 59);
             doc.text('FACTURE', 140, 25);
@@ -92,7 +91,6 @@ export default function Factures({ clientData }) {
             doc.text(`Réf : ${facture.ref}`, 140, 32);
             doc.text(`Date : ${facture.dateStr}`, 140, 38);
 
-            // 3. Infos entreprise Domiciliation
             doc.setFontSize(12);
             doc.setTextColor(30, 41, 59);
             doc.text('Domiciliation Pas Cher', 15, 48);
@@ -101,7 +99,6 @@ export default function Factures({ clientData }) {
             doc.text('contact@domiciliationpascher.com', 15, 54);
             doc.text('https://domiciliation-pas-cher.fr', 15, 60);
 
-            // 4. Infos Client
             doc.setFontSize(12);
             doc.setTextColor(30, 41, 59);
             doc.text('Facturé à :', 120, 48);
@@ -113,7 +110,6 @@ export default function Factures({ clientData }) {
             }
             doc.text(clientData.email || '', 120, 66);
 
-            // 5. Tableau Lignes de facture
             doc.setDrawColor(226, 232, 240);
             doc.line(15, 80, 195, 80);
             
@@ -138,7 +134,6 @@ export default function Factures({ clientData }) {
 
             doc.line(15, 110, 195, 110);
 
-            // 6. Totaux
             doc.setFontSize(10);
             doc.setTextColor(30, 41, 59);
             doc.text('Total HT :', 130, 120);
@@ -152,7 +147,6 @@ export default function Factures({ clientData }) {
             doc.text('Total TTC :', 130, 138);
             doc.text(`${ttc.toFixed(2)} €`, 170, 138);
             
-            // Footer
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
             doc.setTextColor(150, 160, 170);
@@ -174,50 +168,51 @@ export default function Factures({ clientData }) {
 
     return (
         <div className="ec-tab-animate">
-            <div className="ec-content-card">
-                <div className="ec-card-header">
-                    <h2>Factures</h2>
-                </div>
-                {factures.length > 0 ? (
-                    <table className="ec-table" style={{ width: '100%' }}>
-                        <thead>
-                            <tr>
-                                <th>Référence</th>
-                                <th>Date</th>
-                                <th>Montant</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {factures.map((fac) => (
-                                <tr key={fac.id}>
-                                    <td style={{ fontWeight: '600' }}>{fac.ref}</td>
-                                    <td>{fac.dateStr}</td>
-                                    <td style={{ fontWeight: '700' }}>{fac.amount} €</td>
-                                    <td>
-                                        <button 
-                                            className="ec-btn-secondary" 
-                                            onClick={() => generatePdf(fac)}
-                                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                                        >
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                                <polyline points="7 10 12 15 17 10"></polyline>
-                                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                                            </svg>
-                                            Télécharger
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                ) : (
-                    <div className="ec-card-body" style={{ padding: '40px', textAlign: 'center' }}>
-                        <p style={{ color: '#64748b' }}>Aucune facture disponible pour le moment.</p>
-                    </div>
-                )}
+            <div className="tab-header" style={{ marginBottom: '24px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--ec-text-main)' }}>Vos Factures</h2>
+                <p style={{ color: 'var(--ec-text-sub)', fontSize: '14px', marginTop: '4px' }}>Téléchargez vos justificatifs de paiement.</p>
             </div>
+
+            {factures.length > 0 ? (
+                <div className="cards-grid">
+                    {factures.map((fac) => (
+                        <div key={fac.id} className="case-card">
+                            <div className="case-card-header">
+                                <span className="case-badge badge-success">Payée</span>
+                                <span className="case-date">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    {fac.dateStr}
+                                </span>
+                            </div>
+                            
+                            <div className="case-card-body">
+                                <h3 className="case-title">{fac.ref}</h3>
+                                <p className="case-client-name" style={{ marginTop: '8px', fontSize: '18px', fontWeight: '800', color: 'var(--ec-text-main)' }}>{fac.amount} €</p>
+                            </div>
+                            
+                            <div className="case-card-footer">
+                                <button 
+                                    className="ec-btn-primary" 
+                                    onClick={() => generatePdf(fac)}
+                                    style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                >
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Télécharger
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="empty-state-full" style={{ background: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', border: '1px solid var(--ec-border)' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--ec-text-sub)', opacity: 0.5, marginBottom: '16px' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <p style={{ color: 'var(--ec-text-sub)', fontSize: '16px', fontWeight: '600' }}>Aucune facture disponible pour le moment.</p>
+                </div>
+            )}
         </div>
     );
 }

@@ -43,8 +43,8 @@ export default function About() {
                             { v: '2019', l: 'Année de création' },
                             { v: '+3 000', l: 'Entreprises domiciliées' },
                             { v: '+50/sem', l: 'Nouvelles créations' },
-                            { v: '10', l: 'Villes partenaires' },
-                            { v: '23€', l: 'À partir de HT/mois' },
+                            { v: '1', l: 'Ville partenaire' },
+                            { v: '20€', l: 'À partir de HT/mois' },
                         ].map(s => (
                             <div key={s.l} className="astat">
                                 <div className="astat-value">{s.v}</div>
@@ -63,7 +63,7 @@ export default function About() {
                             <div className="section-eyebrow" style={{ justifyContent: 'flex-start' }}>Notre mission</div>
                             <h2 className="section-title" style={{ textAlign: 'left' }}>Simplifier la création<br /><span>d'entreprise en France</span></h2>
                             <p>Nous croyons que chaque entrepreneur mérite une adresse professionnelle de qualité, sans se ruiner. C'est pourquoi nous avons créé une plateforme 100% en ligne qui rend la domiciliation accessible, rapide et sans contrainte.</p>
-                            <p>Basés à Toulouse, nous avons développé un réseau de partenaires dans 10 grandes villes françaises pour offrir à nos clients une flexibilité maximale dans leur implantation.</p>
+                            <p>Basés à Toulouse, nous proposons une adresse prestigieuse pour offrir à nos clients une flexibilité maximale dans leur implantation.</p>
                             <div className="mission-numbers">
                                 <div className="mn-item">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
@@ -86,7 +86,7 @@ export default function About() {
                         <div className="mission-visual">
                             <div className="mission-card-stack">
                                 <div className="mcard mcard-1">📍 Toulouse, siège historique</div>
-                                <div className="mcard mcard-2">🇫🇷 10 villes à travers la France</div>
+                                <div className="mcard mcard-2">🇫🇷 Adresse prestigieuse</div>
                                 <div className="mcard mcard-3">⚡ +50 créations / semaine</div>
                             </div>
                         </div>

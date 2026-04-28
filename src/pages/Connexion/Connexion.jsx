@@ -39,8 +39,8 @@ export default function ConnexionPage() {
 
             <div className="auth-right">
                 <SignIn
-                    afterSignInUrl="/espace-client"
-                    afterSignUpUrl="/espace-client"
+                    fallbackRedirectUrl="/app/espace-client"
+                    forceRedirectUrl="/app/espace-client"
                     appearance={{
                         elements: {
                             rootBox: 'clerk-root',

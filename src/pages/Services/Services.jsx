@@ -33,7 +33,7 @@ const courrierSteps = [
     { n: '2', title: 'Identification', desc: 'Chaque courrier est identifié et enregistré dans notre système sous 24h ouvrées.' },
     { n: '3', title: 'Notification', desc: 'Vous recevez immédiatement une notification par email à l\'arrivée de chaque courrier.' },
     { n: '4', title: 'Numérisation', desc: 'Avec l\'option Scan+, votre courrier est numérisé et disponible depuis votre espace client.' },
-    { n: '5', title: 'Réexpédition', desc: 'Sur demande, votre courrier physique est réexpédié à l\'adresse de votre choix (option +30€/mois).' },
+    { n: '5', title: 'Réexpédition', desc: 'Sur demande, votre courrier physique est réexpédié à l\'adresse de votre choix (option +18€/mois).' },
 ];
 
 const creationSteps = [
@@ -395,7 +395,7 @@ export default function Services() {
                                 <div className="svc-vc-sub">Adresse juridique valide pour votre Kbis</div>
                                 <div className="svc-vc-divider" />
                                 <div className="svc-vc-items">
-                                    {['Inscription 100% en ligne', 'Attestation sous 24h', 'Centre agréé loi Dutreil', 'Sans engagement', 'Dès 23€ HT/mois'].map(t => (
+                                    {['Inscription 100% en ligne', 'Attestation sous 24h', 'Centre agréé loi Dutreil', 'Sans engagement', 'Dès 20€ HT/mois'].map(t => (
                                         <div key={t} className="svc-vc-item">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                                             {t}
@@ -442,7 +442,7 @@ export default function Services() {
                                 <div className="co-name">Option Scan</div>
                                 <div className="co-desc">Numérisez et consultez votre courrier à distance</div>
                             </div>
-                            <div className="co-price">+5€ <span>HT/mois</span></div>
+                            <div className="co-price">+4€ <span>HT/mois</span></div>
                         </div>
                         <div className="co-card">
                             <div className="co-icon">📦</div>
@@ -450,7 +450,7 @@ export default function Services() {
                                 <div className="co-name">Réexpédition physique</div>
                                 <div className="co-desc">Courrier envoyé à l'adresse de votre choix</div>
                             </div>
-                            <div className="co-price">+30€ <span>HT/mois</span></div>
+                            <div className="co-price">+18€ <span>HT/mois</span></div>
                         </div>
                     </div>
                 </div>
@@ -556,7 +556,7 @@ export default function Services() {
                                     Domicilier ma {currentForme.label} →
                                 </Link>
                                 <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-                                    Attestation officielle sous 24h · Dès 23€ HT/mois
+                                    Attestation officielle sous 24h · Dès 20€ HT/mois
                                 </span>
                             </div>
                         </div>
@@ -586,7 +586,7 @@ export default function Services() {
                 <div className="container">
                     <div className="final-cta-inner animate-in">
                         <h2>Démarrez votre domiciliation dès aujourd'hui</h2>
-                        <p>Inscription en ligne · Attestation sous 24h · Dès 23€ HT/mois</p>
+                        <p>Inscription en ligne · Attestation sous 24h · Dès 20€ HT/mois</p>
                         <div className="final-cta-actions">
                             <Link to="/tarifs" className="btn btn-white btn-lg" id="services-final-cta">
                                 Voir les tarifs →

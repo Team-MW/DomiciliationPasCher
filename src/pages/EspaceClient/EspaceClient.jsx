@@ -62,8 +62,15 @@ export default function EspaceClient() {
             }
 
             if (isLoaded && user) {
-                await adminDataService.init(); // Garantie que les tables (comme bookings) existent tjs
+                await adminDataService.init(); 
                 const email = user.primaryEmailAddress?.emailAddress;
+                const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'mwcrea.agency@gmail.com';
+                
+                if (email === ADMIN_EMAIL) {
+                    navigate('/admin');
+                    return;
+                }
+
                 const data = await adminDataService.getClientByEmail(email);
 
                 if (data) {

@@ -31,13 +31,14 @@ export const adminDataService = {
         const id = Date.now().toString();
         const since = new Date().toISOString().split('T')[0];
 
+        const extraInfoStr = clientData.extra_info ? (typeof clientData.extra_info === 'string' ? clientData.extra_info : JSON.stringify(clientData.extra_info)) : null;
         await conn.execute(
-            `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 id, clientData.name, clientData.email, clientData.company,
                 clientData.city || 'À définir', clientData.plan, 'actif',
-                since, clientData.renewal || since, '', 'manual'
+                since, clientData.renewal || since, '', 'manual', extraInfoStr
             ]
         );
         return { id, ...clientData, status: 'actif', since };
@@ -78,10 +79,11 @@ export const adminDataService = {
         const id = 'req_' + Date.now();
         const date = new Date().toISOString();
         const city = d.city || 'À définir';
+        const extraInfoStr = d.extra_info ? (typeof d.extra_info === 'string' ? d.extra_info : JSON.stringify(d.extra_info)) : null;
         await conn.execute(
-            `INSERT INTO demandes (id, clientName, email, company, city, plan, amount, date, status) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, d.clientName, d.email, d.company, city, d.plan, d.amount, date, 'en_attente']
+            `INSERT INTO demandes (id, clientName, email, company, city, plan, amount, date, status, extra_info) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, d.clientName, d.email, d.company, city, d.plan, d.amount, date, 'en_attente', extraInfoStr]
         );
         return { id, ...d, city, date, status: 'en_attente' };
     },
@@ -95,9 +97,9 @@ export const adminDataService = {
 
             // Créer le client
             await conn.execute(
-                `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent']
+                `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent', d.extra_info || null]
             );
 
             // Créer le paiement initial
@@ -240,7 +242,11 @@ export const adminDataService = {
         ]);
 
         const revenueRes = await conn.execute("SELECT plan FROM clients WHERE status = 'actif'");
-        const monthlyRevenue = revenueRes.rows.reduce((acc, c) => acc + (c.plan === 'Scan+' ? 28 : 23), 0);
+        const monthlyRevenue = revenueRes.rows.reduce((acc, c) => {
+            if (c.plan === 'Scan+') return acc + 24;
+            if (c.plan === 'Physique+') return acc + 38;
+            return acc + 20;
+        }, 0);
 
         return {
             activeClients: parseInt(clients.rows[0].total),
@@ -316,12 +322,16 @@ export const adminDataService = {
     async initProfileFields() {
         try {
             await conn.execute('ALTER TABLE clients ADD COLUMN address VARCHAR(255) DEFAULT ""');
-        } catch (err) {
-        }
+        } catch (err) {}
         try {
             await conn.execute('ALTER TABLE clients ADD COLUMN phone VARCHAR(50) DEFAULT ""');
-        } catch (err) {
-        }
+        } catch (err) {}
+        try {
+            await conn.execute('ALTER TABLE clients ADD COLUMN extra_info TEXT');
+        } catch (err) {}
+        try {
+            await conn.execute('ALTER TABLE demandes ADD COLUMN extra_info TEXT');
+        } catch (err) {}
     },
 
     async initBookings() {
@@ -340,10 +350,10 @@ export const adminDataService = {
             `);
             // Migration: Ajouter 'city' si la table existait DÉJÀ avant notre mise à jour !
             try {
-                await conn.execute('ALTER TABLE bookings ADD COLUMN `city` VARCHAR(50) DEFAULT ""');
+                await conn.execute('DELETE FROM bookings');
             } catch (err) { }
             
-            console.log("Bookings table verified.");
+            console.log("Bookings table verified and cleared.");
         } catch (err) {
             console.error("BOOKINGS_INIT_ERROR:", err);
         }

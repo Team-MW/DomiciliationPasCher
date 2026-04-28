@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import Navbar from './components/Navbar/Navbar';
 import Footer from './components/Footer/Footer';
 import Home from './pages/Home/Home';
@@ -26,7 +26,7 @@ const PageLoader = () => (
   </div>
 );
 
-/* Route protégée : redirige vers /connexion si non connecté (sauf si mode preview) */
+/* Route protégée : redirige vers /connexion si non connecté */
 function ProtectedRoute({ children }) {
   const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
 
@@ -40,14 +40,29 @@ function ProtectedRoute({ children }) {
   );
 }
 
+/* Route publique uniquement : redirige vers l'app si déjà connecté */
+function PublicOnlyRoute({ children }) {
+  const { user, isLoaded } = useUser();
+  
+  if (isLoaded && user) {
+    const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'mwcrea.agency@gmail.com';
+    if (user.primaryEmailAddress?.emailAddress === ADMIN_EMAIL) {
+      return <Navigate to="/app/admin" replace />;
+    }
+    return <Navigate to="/app/espace-client" replace />;
+  }
+
+  return children;
+}
+
 /* Layout public (avec Navbar + Footer) */
 function PublicLayout({ children }) {
   return (
-    <>
+    <PublicOnlyRoute>
       <Navbar />
       {children}
       <Footer />
-    </>
+    </PublicOnlyRoute>
   );
 }
 
@@ -57,7 +72,7 @@ function App() {
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Pages publiques avec Navbar + Footer */}
+          {/* Pages publiques (Vitrine) */}
           <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
           <Route path="/tarifs" element={<PublicLayout><Tarifs /></PublicLayout>} />
           <Route path="/villes" element={<PublicLayout><Villes /></PublicLayout>} />
@@ -65,12 +80,12 @@ function App() {
           <Route path="/a-propos" element={<PublicLayout><About /></PublicLayout>} />
           <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
 
-          {/* Page de connexion — pleine page, sans Navbar/Footer */}
-          <Route path="/connexion" element={<ConnexionPage />} />
+          {/* Connexion — publique uniquement */}
+          <Route path="/connexion" element={<PublicOnlyRoute><ConnexionPage /></PublicOnlyRoute>} />
 
-          {/* Espace client — protégé, sans Navbar/Footer (layout propre) */}
+          {/* Espace client — protégé, préfixe /app/ */}
           <Route
-            path="/espace-client"
+            path="/app/espace-client"
             element={
               <ProtectedRoute>
                 <EspaceClient />
@@ -78,11 +93,11 @@ function App() {
             }
           />
 
-          {/* ⚠️ Admin — URL directe uniquement, JAMAIS lié dans le site public */}
-          <Route path="/admin" element={<Admin />} />
+          {/* Admin — protégé par email dans le composant, préfixe /app/ */}
+          <Route path="/app/admin" element={<Admin />} />
 
-          {/* Souscription — formulaire multi-étapes pleine page */}
-          <Route path="/souscription" element={<Souscription />} />
+          {/* Souscription — publique uniquement */}
+          <Route path="/souscription" element={<PublicOnlyRoute><Souscription /></PublicOnlyRoute>} />
 
           {/* Mentions Légales */}
           <Route path="/mentions-legales" element={<PublicLayout><MentionsLegales /></PublicLayout>} />
@@ -90,6 +105,10 @@ function App() {
           {/* Fiches Pratiques */}
           <Route path="/fiches-pratiques" element={<PublicLayout><FichesPratiques /></PublicLayout>} />
           <Route path="/fiches-pratiques/:slug" element={<PublicLayout><FicheDetail /></PublicLayout>} />
+
+          {/* Redirections legacy */}
+          <Route path="/espace-client" element={<Navigate to="/app/espace-client" replace />} />
+          <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -100,3 +119,4 @@ function App() {
 }
 
 export default App;
+

@@ -7,7 +7,7 @@ const plans = [
         id: 'essentiel',
         popular: false,
         name: 'Essentiel',
-        price: '23',
+        price: '20',
         period: 'HT/mois',
         subtitle: 'La domiciliation simple et efficace',
         cta: 'Choisir Essentiel',
@@ -26,7 +26,7 @@ const plans = [
         id: 'scan-plus',
         popular: true,
         name: 'Scan+',
-        price: '28',
+        price: '24',
         period: 'HT/mois',
         subtitle: 'Gérez votre courrier de n\'importe où',
         cta: 'Choisir Scan+',
@@ -45,7 +45,7 @@ const plans = [
         id: 'physique',
         popular: false,
         name: 'Physique+',
-        price: '53',
+        price: '38',
         period: 'HT/mois',
         subtitle: 'Courrier transféré directement chez vous',
         cta: 'Choisir Physique+',
@@ -63,8 +63,8 @@ const plans = [
 ];
 
 const options = [
-    { icon: '📬', name: 'Option Scan', price: '+5€', period: 'HT/mois', desc: 'Scannez et consultez vos courriers depuis votre espace client, où que vous soyez dans le monde.' },
-    { icon: '📦', name: 'Transfert Physique', price: '+30€', period: 'HT/mois', desc: 'Votre courrier vous est renvoyé à l\'adresse de votre choix, sous enveloppe, une fois par mois.' },
+    { icon: '📬', name: 'Option Scan', price: '+4€', period: 'HT/mois', desc: 'Scannez et consultez vos courriers depuis votre espace client, où que vous soyez dans le monde.' },
+    { icon: '📦', name: 'Transfert Physique', price: '+18€', period: 'HT/mois', desc: 'Votre courrier vous est renvoyé à l\'adresse de votre choix, sous enveloppe, une fois par mois.' },
 ];
 
 const spaces = [
@@ -91,7 +91,7 @@ const spaces = [
 const faqs = [
     { q: 'Qu\'est-ce que la domiciliation d\'entreprise ?', a: 'La domiciliation consiste à fixer le siège social ou l\'adresse administrative de votre entreprise à une adresse qui n\'est pas nécessairement votre lieu de résidence ou de travail.' },
     { q: 'La domiciliation est-elle légale ?', a: 'Oui, parfaitement légale en vertu de la loi Dutreil de 2003. Nous sommes un centre de domiciliation agréé, et vous pouvez utiliser notre adresse pour l\'immatriculation de votre société.' },
-    { q: 'Puis-je choisir n\'importe quelle ville ?', a: 'Oui, vous pouvez choisir une adresse dans n\'importe laquelle de nos 10 villes partenaires, quelle que soit votre lieu de résidence.' },
+    { q: 'Où est située l\'adresse ?', a: 'Notre adresse prestigieuse est située à Toulouse, le fleuron de l\'industrie aéronautique européenne.' },
     { q: 'Combien de temps pour recevoir mon attestation ?', a: 'Votre attestation de domiciliation est envoyée sous 24h après la signature de votre contrat en ligne.' },
     { q: 'Y a-t-il un engagement de durée ?', a: 'Non. Vous pouvez résilier à tout moment avec un préavis d\'un mois, sans frais de résiliation.' },
 ];
@@ -110,7 +110,7 @@ const CrossIcon = () => (
 
 export default function Tarifs() {
     useEffect(() => {
-        document.title = "Tarifs Domiciliation — À partir de 23€ HT/mois — DomiciliationPasCher";
+        document.title = "Tarifs Domiciliation — À partir de 20€ HT/mois — DomiciliationPasCher";
     }, []);
 
     return (

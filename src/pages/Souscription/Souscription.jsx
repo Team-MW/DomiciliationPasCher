@@ -15,7 +15,7 @@ const STEPS = [
     { id: 'recapitulatif', label: 'Récapitulatif & Paiement' },
 ];
 
-const VILLES = ['Paris (75)', 'Lyon (69)', 'Marseille (13)', 'Toulouse (31)', 'Bordeaux (33)', 'Nantes (44)', 'Nice (06)', 'Lille (59)', 'Strasbourg (67)', 'Montpellier (34)'];
+const VILLES = ['Toulouse (31)'];
 const FORMES_JURIDIQUES = ['SASU', 'SAS', 'SARL', 'EURL', 'SCI', 'Auto-entrepreneur / EI', 'Association', 'Autre'];
 const TYPES_PROJET = [
     { id: 'creation', icon: '🚀', label: "Création d'entreprise", desc: "Je crée ma société et je cherche une adresse de siège social" },
@@ -24,13 +24,13 @@ const TYPES_PROJET = [
 ];
 const OFFRES_COURRIER = [
     { id: 'notification', icon: '🔔', label: 'Notification email', price: 'Inclus', desc: "Recevez un email dès qu'un courrier arrive" },
-    { id: 'scan', icon: '📄', label: 'Scan numérique', price: '+5€ HT/mois', desc: 'Vos courriers scannés et disponibles en ligne' },
-    { id: 'reexpedition', icon: '📦', label: 'Réexpédition physique', price: '+30€ HT/mois', desc: 'Votre courrier vous est envoyé chaque mois' },
+    { id: 'scan', icon: '📄', label: 'Scan numérique', price: '+4€ HT/mois', desc: 'Vos courriers scannés et disponibles en ligne' },
+    { id: 'reexpedition', icon: '📦', label: 'Réexpédition physique', price: '+18€ HT/mois', desc: 'Votre courrier vous est envoyé chaque mois' },
 ];
 const PLANS = {
-    essentiel: { name: 'Essentiel', price: '23' },
-    'scan-plus': { name: 'Scan+', price: '28' },
-    physique: { name: 'Physique+', price: '53' },
+    essentiel: { name: 'Essentiel', price: '20' },
+    'scan-plus': { name: 'Scan+', price: '24' },
+    physique: { name: 'Physique+', price: '38' },
 };
 
 export default function Souscription() {
@@ -54,7 +54,7 @@ export default function Souscription() {
         // Domiciliation
         ville: '',
         // Courrier
-        offre: 'notification',
+        offre: planId === 'scan-plus' ? 'scan' : (planId === 'physique' ? 'reexpedition' : 'notification'),
         // Fréquence
         frequence: 'mensuel',
         // CGV
@@ -90,10 +90,11 @@ export default function Souscription() {
     const next = () => { if (validate()) setStep(s => Math.min(s + 1, STEPS.length - 1)); };
     const prev = () => { setErrors({}); setStep(s => Math.max(s - 1, 0)); };
 
+    const currentPlanName = data.offre === 'scan' ? 'Scan+' : (data.offre === 'reexpedition' ? 'Physique+' : 'Essentiel');
+    const currentPlanPrice = data.offre === 'scan' ? '24' : (data.offre === 'reexpedition' ? '38' : '20');
+
     const prixTotal = () => {
-        let base = parseInt(plan.price);
-        if (data.offre === 'scan') base += 5;
-        if (data.offre === 'reexpedition') base += 30;
+        let base = parseInt(currentPlanPrice);
         return data.frequence === 'annuel' ? (base * 10).toFixed(0) + '€/an' : base + '€/mois';
     };
 
@@ -112,8 +113,8 @@ export default function Souscription() {
 
                     <div className="sous-plan-badge">
                         <span className="spb-label">Forfait choisi</span>
-                        <span className="spb-name">{plan.name}</span>
-                        <span className="spb-price">{plan.price}€ HT/mois</span>
+                        <span className="spb-name">{currentPlanName}</span>
+                        <span className="spb-price">{currentPlanPrice}€ HT/mois</span>
                     </div>
                 </div>
 
@@ -390,11 +391,11 @@ export default function Souscription() {
                                         <div className="fc-sub">Résiliable à tout moment</div>
                                     </div>
                                     <div className="fc-right">
-                                        <div className="fc-price">{plan.price}€ <small>HT/mois</small></div>
+                                        <div className="fc-price">{currentPlanPrice}€ <small>HT/mois</small></div>
                                         <div className={`fc-radio ${data.frequence === 'mensuel' ? 'on' : ''}`} />
                                     </div>
                                 </button>
-
+                                
                                 <button
                                     className={`freq-card ${data.frequence === 'annuel' ? 'selected' : ''}`}
                                     onClick={() => set('frequence', 'annuel')}
@@ -402,10 +403,10 @@ export default function Souscription() {
                                     <div className="fc-badge">🎁 2 mois offerts</div>
                                     <div className="fc-left">
                                         <div className="fc-title">Annuel</div>
-                                        <div className="fc-sub">Soit {(parseInt(plan.price) * 10).toFixed(0)}€ HT/an — {plan.price}€ HT/mois × 10</div>
+                                        <div className="fc-sub">Soit {(parseInt(currentPlanPrice) * 10).toFixed(0)}€ HT/an — {currentPlanPrice}€ HT/mois × 10</div>
                                     </div>
                                     <div className="fc-right">
-                                        <div className="fc-price">{(parseInt(plan.price) * 10).toFixed(0)}€ <small>HT/an</small></div>
+                                        <div className="fc-price">{(parseInt(currentPlanPrice) * 10).toFixed(0)}€ <small>HT/an</small></div>
                                         <div className={`fc-radio ${data.frequence === 'annuel' ? 'on' : ''}`} />
                                     </div>
                                 </button>
@@ -446,7 +447,7 @@ export default function Souscription() {
                                 <div className="recap-card">
                                     <div className="rc-title">📍 Domiciliation</div>
                                     <div className="rc-row"><span>Ville</span><strong>{data.ville}</strong></div>
-                                    <div className="rc-row"><span>Forfait</span><strong>{plan.name}</strong></div>
+                                    <div className="rc-row"><span>Forfait</span><strong>{currentPlanName}</strong></div>
                                     <div className="rc-row"><span>Courrier</span><strong>{OFFRES_COURRIER.find(o => o.id === data.offre)?.label}</strong></div>
                                     <div className="rc-row"><span>Fréquence</span><strong>{data.frequence === 'annuel' ? 'Annuel (2 mois offerts)' : 'Mensuel'}</strong></div>
                                 </div>
@@ -476,20 +477,20 @@ export default function Souscription() {
                                                 email: data.email,
                                                 company: data.nomSociete || 'En cours de création',
                                                 city: data.ville,
-                                                plan: plan.name,
-                                                amount: parseFloat(prixTotal().split('€')[0]).toFixed(2)
+                                                plan: currentPlanName,
+                                                amount: parseFloat(prixTotal().split('€')[0]).toFixed(2),
+                                                extra_info: data
                                             });
 
                                             const totalAmount = parseFloat(prixTotal().split('€')[0]);
-                                            let productName = `Forfait ${plan.name} - ${data.ville} (${data.frequence})`;
-                                            if (data.offre === 'scan') productName += ' + Scan';
-                                            if (data.offre === 'reexpedition') productName += ' + Réexpédition';
+                                            let productName = `Forfait ${currentPlanName} - ${data.ville} (${data.frequence})`;
 
                                             // Stocker les infos pour EmailJS sur la page de succès
                                             localStorage.setItem('pending_emailjs', data.email);
                                             localStorage.setItem('pending_namejs', `${data.prenom} ${data.nom}`);
 
-                                            await handleCheckout(planId, totalAmount, productName, data.frequence);
+                                            const actualPlanId = data.offre === 'scan' ? 'scan-plus' : (data.offre === 'reexpedition' ? 'physique' : 'essentiel');
+                                            await handleCheckout(actualPlanId, totalAmount, productName, data.frequence);
                                         } finally {
                                             setLoading(false);
                                         }
