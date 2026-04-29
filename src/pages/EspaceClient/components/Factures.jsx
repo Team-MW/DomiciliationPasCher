@@ -1,6 +1,6 @@
 import { adminDataService } from '../../../services/adminDataService';
 import logoUrl from '../../../assets/DomiciliationPasCher-Logo.png';
-import jsPDF from 'jspdf';
+// import jsPDF from 'jspdf';
 import { useState, useEffect } from 'react';
 
 export default function Factures({ clientData }) {
@@ -75,6 +75,9 @@ export default function Factures({ clientData }) {
     }
 
     const generatePdf = (facture) => {
+        alert("Téléchargement PDF en cours de maintenance.");
+        /*
+        const { default: jsPDF } = await import('jspdf');
         const doc = new jsPDF();
 
         const buildPdfContent = (imgData = null) => {
@@ -164,6 +167,7 @@ export default function Factures({ clientData }) {
             console.error("Erreur de chargement de l'image du logo");
             buildPdfContent(null);
         };
+        */
     };
 
     return (

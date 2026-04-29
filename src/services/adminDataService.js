@@ -332,6 +332,9 @@ export const adminDataService = {
         try {
             await conn.execute('ALTER TABLE demandes ADD COLUMN extra_info TEXT');
         } catch (err) {}
+        try {
+            await conn.execute('ALTER TABLE demandes ADD COLUMN city VARCHAR(100) DEFAULT "À définir"');
+        } catch (err) {}
     },
 
     async initBookings() {

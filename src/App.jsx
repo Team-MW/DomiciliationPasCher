@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
@@ -9,6 +10,7 @@ import Villes from './pages/Villes/Villes';
 import Services from './pages/Services/Services';
 import About from './pages/About/About';
 import ConnexionPage from './pages/Connexion/Connexion';
+import InscriptionPage from './pages/Connexion/Inscription';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
 
 /* Lazy loading pour les grosses pages */
@@ -58,11 +60,11 @@ function PublicOnlyRoute({ children }) {
 /* Layout public (avec Navbar + Footer) */
 function PublicLayout({ children }) {
   return (
-    <PublicOnlyRoute>
+    <>
       <Navbar />
       {children}
       <Footer />
-    </PublicOnlyRoute>
+    </>
   );
 }
 
@@ -82,6 +84,7 @@ function App() {
 
           {/* Connexion — publique uniquement */}
           <Route path="/connexion" element={<PublicOnlyRoute><ConnexionPage /></PublicOnlyRoute>} />
+          <Route path="/inscription" element={<PublicOnlyRoute><InscriptionPage /></PublicOnlyRoute>} />
 
           {/* Espace client — protégé, préfixe /app/ */}
           <Route

@@ -10,17 +10,16 @@ export default async function handler(req, res) {
     }
 
     try {
-        let secretKey = process.env.STRIPE_SECRET_KEY;
-        // Fallback local pour Vite
-        if (!secretKey) {
-            try {
-                if (fs.existsSync('.env.local')) {
-                    const content = fs.readFileSync('.env.local', 'utf-8');
-                    const match = content.match(/STRIPE_SECRET_KEY=(.*)/);
-                    if (match) secretKey = match[1].trim();
-                }
-            } catch (e) { }
-        }
+        let secretKey = null;
+        try {
+            if (fs.existsSync('.env.local')) {
+                const content = fs.readFileSync('.env.local', 'utf-8');
+                const match = content.match(/STRIPE_SECRET_KEY=(.*)/);
+                if (match) secretKey = match[1].trim();
+            }
+        } catch (e) { }
+        
+        if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
 
         if (!secretKey || secretKey === 'sk_live_remplace_moi') {
             throw new Error("La Clé Secrète Stripe (STRIPE_SECRET_KEY) est manquante ou invalide.");

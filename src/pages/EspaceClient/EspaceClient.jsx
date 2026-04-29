@@ -128,16 +128,38 @@ export default function EspaceClient() {
 
     if (isLoading) return <div className="ec-loading">Initialisation de votre espace sécurisé...</div>;
 
+    const handleAccessSpace = async () => {
+        setIsLoading(true);
+        try {
+            const email = user?.primaryEmailAddress?.emailAddress;
+            const newClient = await adminDataService.addClient({
+                name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Client',
+                email: email,
+                company: 'Société en cours de création',
+                city: 'À définir',
+                plan: 'Essentiel'
+            });
+            await adminDataService.updateClientClerkId(newClient.id, user.id);
+            newClient.clerkId = user.id;
+            setClientData(newClient);
+        } catch (err) {
+            console.error("Erreur accès espace client:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     if (!isLoading && !clientData) {
         return (
             <div className="ec-pending-screen">
                 <div className="ec-pending-card">
-                    <div className="pending-icon">⏳</div>
-                    <h2>Dossier en attente</h2>
-                    <p>Votre profil "<strong>{user?.primaryEmailAddress?.emailAddress}</strong>" est actuellement en attente de création ou de validation par un membre de notre équipe.</p>
-                    <p>Vous recevrez un e-mail dès que votre espace client sera activé.</p>
-                    <button className="btn-primary" onClick={handleLogout} style={{ marginTop: '24px' }}>
-                        Se déconnecter
+                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
+                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>Compte créé avec succès !</h2>
+                    <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '24px' }}>
+                        Parfait, vous avez créé votre compte ! Vous pouvez envoyer ou recevoir vos pièces justificatives dès maintenant.
+                    </p>
+                    <button className="btn-primary" onClick={handleAccessSpace} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
+                        Accès à l'espace
                     </button>
                 </div>
             </div>

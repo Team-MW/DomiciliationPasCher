@@ -8,6 +8,9 @@ import App from './App.jsx'
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 const rootElement = document.getElementById('root');
+if (rootElement) {
+  rootElement.innerHTML = '<h1 style="color: green; text-align: center; padding: 100px;">React se charge...</h1>';
+}
 
 if (!clerkPublishableKey) {
   // Au lieu de throw, on affiche un message clair dans le DOM
@@ -33,10 +36,9 @@ if (!clerkPublishableKey) {
   createRoot(rootElement).render(
     <StrictMode>
       <ClerkProvider
-        localization={frFR}
         publishableKey={clerkPublishableKey}
-        afterSignInUrl="/espace-client"
-        afterSignUpUrl="/espace-client"
+        signInFallbackRedirectUrl="/app/espace-client"
+        signUpFallbackRedirectUrl="/app/espace-client"
       >
         <App />
       </ClerkProvider>

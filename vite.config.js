@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react-swc'
 import fs from 'fs'
 import Stripe from 'stripe'
 
@@ -8,6 +8,22 @@ const localStripePlugin = {
   name: 'local-stripe-api',
   configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
+      if (req.url === '/api/log-error' && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString() });
+        req.on('end', () => {
+          try {
+            fs.appendFileSync('client_errors.log', bodyStr + '\n');
+            res.statusCode = 200;
+            res.end('Logged');
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(e.message);
+          }
+        });
+        return;
+      }
+
       if (req.url === '/api/checkout' && req.method === 'POST') {
         let bodyStr = '';
         req.on('data', chunk => { bodyStr += chunk.toString() });
@@ -16,12 +32,14 @@ const localStripePlugin = {
             const body = JSON.parse(bodyStr || '{}');
 
             // Récupérer la clé directement
-            let secretKey = process.env.STRIPE_SECRET_KEY;
-            if (!secretKey && fs.existsSync('.env.local')) {
+            // Récupérer la clé directement depuis .env.local en priorité
+            let secretKey = null;
+            if (fs.existsSync('.env.local')) {
               const envContent = fs.readFileSync('.env.local', 'utf-8');
               const match = envContent.match(/STRIPE_SECRET_KEY=(.*)/);
               if (match) secretKey = match[1].trim();
             }
+            if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
 
             if (!secretKey || secretKey === 'sk_live_remplace_moi' || secretKey.startsWith('pk_')) {
               res.statusCode = 400;
@@ -77,6 +95,9 @@ const localStripePlugin = {
 
 export default defineConfig({
   plugins: [react(), localStripePlugin],
+  optimizeDeps: {
+    exclude: ['fast-png', 'raf', 'iobuffer', 'performance-now', 'jspdf', 'fflate', 'set-cookie-parser']
+  },
   build: {
     rollupOptions: {
       output: {
@@ -89,3 +110,4 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
   }
 })
+

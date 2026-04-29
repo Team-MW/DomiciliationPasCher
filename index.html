@@ -39,6 +39,32 @@
     media="print" onload="this.media='all'" />
 
   <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript" defer></script>
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'error',
+          message: message,
+          source: source,
+          lineno: lineno,
+          colno: colno,
+          stack: error ? error.stack : null
+        })
+      });
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      fetch('/api/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'unhandledrejection',
+          reason: event.reason ? (event.reason.stack || event.reason.message || event.reason) : 'Unknown reason'
+        })
+      });
+    });
+  </script>
 </head>
 
 <body>

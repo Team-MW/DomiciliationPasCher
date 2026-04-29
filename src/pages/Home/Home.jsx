@@ -267,6 +267,7 @@ function FaqItem({ q, a }) {
 export default function Home() {
     const pageRef = useAnimateOnScroll();
     const [showScrollTop, setShowScrollTop] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     useEffect(() => {
         document.title = "Domiciliation d'entreprise pas chère — Dès 20€ HT/mois — Domiciliation-Pas-Cher.com";
@@ -279,6 +280,7 @@ export default function Home() {
         // --- EMAIL JS ON PAYMENT SUCCESS ---
         const params = new URLSearchParams(window.location.search);
         if (params.get('success') === 'true') {
+            setShowSuccessModal(true);
             const pendingEmail = localStorage.getItem('pending_emailjs');
             const pendingName = localStorage.getItem('pending_namejs');
             if (pendingEmail) {
@@ -701,6 +703,86 @@ export default function Home() {
                     <path d="M12 19V5M5 12l7-7 7 7" />
                 </svg>
             </button>
+            
+            {showSuccessModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 99999,
+                    padding: '20px',
+                }}>
+                    <div style={{
+                        background: '#FFFFFF',
+                        maxWidth: '450px',
+                        width: '100%',
+                        borderRadius: '24px',
+                        padding: '40px',
+                        textAlign: 'center',
+                        boxShadow: '0 20px 50px rgba(15, 23, 42, 0.3)',
+                        border: '1px solid #F1F5F9',
+                    }}>
+                        <div style={{
+                            width: '64px',
+                            height: '64px',
+                            background: '#ECFDF5',
+                            color: '#10B981',
+                            borderRadius: '9999px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 24px auto',
+                            fontSize: '28px'
+                        }}>
+                            🎉
+                        </div>
+                        
+                        <h2 style={{
+                            fontSize: '24px',
+                            fontWeight: '800',
+                            color: '#0F172A',
+                            marginBottom: '12px',
+                            letterSpacing: '-0.025em'
+                        }}>
+                            Paiement validé !
+                        </h2>
+                        
+                        <p style={{
+                            fontSize: '15px',
+                            color: '#64748B',
+                            lineHeight: '1.6',
+                            marginBottom: '32px'
+                        }}>
+                            Félicitations pour votre abonnement. Pour accéder à vos services et consulter vos documents, créez votre compte client dès maintenant.
+                        </p>
+                        
+                        <Link 
+                            to="/inscription"
+                            onClick={() => setShowSuccessModal(false)}
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '16px',
+                                background: '#0F172A',
+                                color: '#FFFFFF',
+                                borderRadius: '12px',
+                                fontSize: '15px',
+                                fontWeight: '700',
+                                textDecoration: 'none',
+                                transition: 'opacity 0.2s',
+                                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
+                                marginBottom: '12px'
+                            }}
+                        >
+                            Créer mon espace sécurisé
+                        </Link>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

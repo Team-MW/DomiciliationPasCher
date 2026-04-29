@@ -609,8 +609,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                     Retour
                 </button>
                 <div className="dossier-title">
-                    <h1>{client.company}</h1>
-                    <span className="badge-status">Compte {client.status}</span>
+                    <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.025em' }}>{client.company}</h1>
                 </div>
             </div>
 
@@ -647,37 +646,57 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                 </div>
 
                 <div className="dossier-sidebar">
-                    <div className="content-card">
-                        <div className="card-header"><h2>Informations</h2></div>
-                        <div className="card-body info-list">
-                            <div className="info-group"><label>Clerk User ID</label><code style={{ fontSize: '10px' }}>{client.clerkId || "En attente d'inscription"}</code></div>
-                            <div className="info-group"><label>Gérant</label><span>{client.name}</span></div>
-                            <div className="info-group"><label>Email</label><span>{client.email}</span></div>
-                            <div className="info-group"><label>Formule</label><span>{client.plan}</span></div>
-                            <div className="info-group"><label>Date d'entrée</label><span>{client.since}</span></div>
-                            <div className="info-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <button 
-                                    className="btn-danger-outline" 
-                                    onClick={async () => {
-                                        if (window.confirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé'.")) {
-                                            try {
-                                                await adminDataService.updateClientStatus(client.id, 'impayé');
-                                                onUpdate();
-                                                onBack();
-                                            } catch (e) {
-                                                alert("Erreur de mise à jour");
-                                            }
-                                        }
-                                    }} 
-                                    disabled={isLoading}
-                                    style={{ background: '#fff1f2', color: '#9f1239', borderColor: '#fda4af', borderStyle: 'solid', borderWidth: '1px' }}
-                                >
-                                    Le client a un impayé
-                                </button>
-                                <button className="btn-danger-outline" onClick={handleDelete} disabled={isLoading}>
-                                    {isLoading ? 'Suppression...' : 'Supprimer le profil'}
-                                </button>
+                    <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', marginBottom: '20px', borderBottom: '1px solid #F1F5F9', paddingBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Informations</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>CLERK USER ID</span>
+                                <code style={{ fontSize: '11px', background: '#F8FAFC', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', wordBreak: 'break-all', color: '#334155' }}>{client.clerkId || "user_unknown"}</code>
                             </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>GÉRANT</span>
+                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{client.name}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>EMAIL</span>
+                                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', wordBreak: 'break-all' }}>{client.email}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>FORMULE</span>
+                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#2563EB' }}>{client.plan}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>DATE D'ENTRÉE</span>
+                                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{client.since}</span>
+                            </div>
+                        </div>
+                        <div className="info-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <button 
+                                className="btn-danger-outline" 
+                                onClick={async () => {
+                                    if (window.confirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé'.")) {
+                                        try {
+                                            await adminDataService.updateClientStatus(client.id, 'impayé');
+                                            onUpdate();
+                                            onBack();
+                                        } catch (e) {
+                                            alert("Erreur de mise à jour");
+                                        }
+                                    }
+                                }} 
+                                disabled={isLoading}
+                                style={{ background: '#fff1f2', color: '#9f1239', borderColor: '#fda4af', borderStyle: 'solid', borderWidth: '1px', padding: '10px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', width: '100%' }}
+                            >
+                                Le client a un impayé
+                            </button>
+                            <button 
+                                className="btn-danger-outline" 
+                                onClick={handleDelete} 
+                                disabled={isLoading}
+                                style={{ background: '#FFFFFF', color: '#DC2626', borderColor: '#FCA5A5', borderStyle: 'solid', borderWidth: '1px', padding: '10px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', width: '100%' }}
+                            >
+                                {isLoading ? 'Suppression...' : 'Supprimer le profil'}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -472,7 +472,7 @@ export default function Souscription() {
                                         try {
                                             // Enregistrer la demande dans le service admin
                                             // On ajoute le numéro de téléphone pour que l'admin y ait accès dans son pannel
-                                            adminDataService.addDemande({
+                                            await adminDataService.addDemande({
                                                 clientName: `${data.prenom} ${data.nom} - 📞 ${data.telephone}`,
                                                 email: data.email,
                                                 company: data.nomSociete || 'En cours de création',
