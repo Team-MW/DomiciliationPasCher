@@ -628,9 +628,24 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                 </button>
                 <button 
                     onClick={() => setActiveDossierTab('messages')} 
-                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'messages' ? 'white' : 'transparent', color: activeDossierTab === 'messages' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'messages' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'messages' ? 'white' : 'transparent', color: activeDossierTab === 'messages' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'messages' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     Messagerie
+                    {parseInt(client.unreadCount) > 0 && activeDossierTab !== 'messages' && (
+                        <span style={{ 
+                            background: '#6366F1', 
+                            color: 'white', 
+                            fontSize: '10px', 
+                            width: '18px', 
+                            height: '18px', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center' 
+                        }}>
+                            {client.unreadCount}
+                        </span>
+                    )}
                 </button>
                 <button 
                     onClick={() => setActiveDossierTab('facturation')} 
