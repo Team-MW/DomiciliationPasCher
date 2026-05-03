@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import './Navbar.css';
 
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
@@ -163,9 +163,8 @@ export default function Navbar() {
                                 <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
                                 <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
                             </svg>
-                            Mon espace
+                            ACCÈS ESPACE
                         </Link>
-                        <UserButton afterSignOutUrl="/" />
                     </SignedIn>
 
                     <Link to="/tarifs" className="btn btn-primary" id="nav-cta-btn">
@@ -216,9 +215,6 @@ export default function Navbar() {
                     >
                         Mon espace client
                     </Link>
-                    <div style={{ padding: '8px 12px' }}>
-                        <UserButton afterSignOutUrl="/" />
-                    </div>
                 </SignedIn>
                 <Link
                     to="/tarifs"

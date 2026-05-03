@@ -178,7 +178,10 @@ export default function OverviewTab({ stats, clients, mail }) {
                                 {clients.slice(0, 5).map(c => (
                                     <tr key={c.id}>
                                         <td>
-                                            <div className="table-primary">{c.company}</div>
+                                            <div className="table-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                {c.company}
+                                                {parseInt(c.unreadCount) > 0 && <span className="red-dot" style={{ position: 'static', transform: 'none' }}></span>}
+                                            </div>
                                             <div className="table-secondary">{c.name}</div>
                                         </td>
                                         <td><span className="badge-outline">{c.plan}</span></td>

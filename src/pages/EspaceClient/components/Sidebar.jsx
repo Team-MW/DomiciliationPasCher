@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
 import { Icons } from './Icons';
 import logoSvg from '../../../assets/DomiciliationPasCher-Logo.png';
 
@@ -44,9 +45,7 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
 
             <div className="ec-sidebar-footer">
                 <div className="ec-user-card">
-                    <div className="ec-user-avatar">
-                        {user?.imageUrl ? <img src={user.imageUrl} alt="Avatar" /> : <span>{user?.firstName?.charAt(0) || 'U'}</span>}
-                    </div>
+                    <UserButton afterSignOutUrl="/" />
                     <div className="ec-user-info">
                         <div className="ec-user-name">{user?.firstName || 'Utilisateur'}</div>
                         <div className="ec-user-company">{clientData?.company}</div>

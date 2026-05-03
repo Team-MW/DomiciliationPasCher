@@ -56,17 +56,23 @@ export default function Meeting({ clientData, setActiveTab }) {
 
         if (!date) return setErrorMsg('Veuillez choisir une date de réservation.');
 
-        // On redirige IMMÉDIATEMENT vers Stripe (cash)
-        const cache = { type, date, duration, city: clientData.city };
-        setBookingCache(cache);
-        
+        // Calcul du prix dynamique
+        let price = 20;
+        if (type.includes('Salle')) {
+            price = duration === 'Journée complète' ? 40 : 25;
+        } else if (type.includes('Bureau')) {
+            price = duration === 'Journée complète' ? 40 : 20;
+        } else {
+            price = duration === 'Journée complète' ? 30 : 15;
+        }
+
         setIsSubmitting(true);
         try {
             sessionStorage.setItem('pendingBooking', JSON.stringify(cache));
             const successUrl = `${window.location.origin}/espace-client?tab=meeting&booking_success=true`;
             const cancelUrl = `${window.location.origin}/espace-client?tab=meeting&booking_cancel=true`;
             
-            await handleCheckout('salle', 40, `Réservation ${type}`, 'one_time', successUrl, cancelUrl);
+            await handleCheckout('salle', price, `Réservation ${type} (${duration})`, 'one_time', successUrl, cancelUrl);
             // La page va être redirigée vers Stripe ici.
         } catch (error) {
             console.error("Booking payment error:", error);
@@ -74,6 +80,18 @@ export default function Meeting({ clientData, setActiveTab }) {
             setIsSubmitting(false);
         }
     };
+
+    // Calcul du prix pour l'affichage du bouton
+    const getDisplayPrice = () => {
+        const type = document.getElementById('book-type')?.value || '';
+        const duration = document.getElementById('book-duration')?.value || '';
+        if (type.includes('Salle')) return duration === 'Journée complète' ? '40,00' : '25,00';
+        if (type.includes('Bureau')) return duration === 'Journée complète' ? '40,00' : '20,00';
+        return duration === 'Journée complète' ? '30,00' : '15,00';
+    };
+
+    // Force re-render on select change to update price
+    const [priceTrigger, setPriceTrigger] = useState(0);
 
 
 
@@ -113,34 +131,34 @@ export default function Meeting({ clientData, setActiveTab }) {
                         <div className="ec-booking-form">
                             <div className="form-group">
                                 <label>Type de location</label>
-                                <select id="book-type" className="ec-input">
-                                    <option>Salle de réunion (6-8 pers)</option>
-                                    <option>Bureau privé (1-2 pers)</option>
-                                    <option>Espace Coworking</option>
-                                </select>
-                            </div>
-                            <div className="form-grid">
-                                <div className="form-group">
-                                    <label>Date souhaitée</label>
-                                    <input type="date" id="book-date" className="ec-input" />
-                                </div>
-                                <div className="form-group">
-                                    <label>Durée</label>
-                                    <select id="book-duration" className="ec-input">
-                                        <option>Matinée (9h-12h)</option>
-                                        <option>Après-midi (14h-18h)</option>
-                                        <option>Journée complète</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <button
-                                className="ec-btn-primary"
-                                style={{ width: '100%', marginTop: '20px' }}
-                                onClick={handleBooking}
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? 'Connexion à Stripe...' : 'Payer (40,00 €) et Réserver'}
-                            </button>
+                                <select id="book-type" className="ec-input" onChange={() => setPriceTrigger(p => p + 1)}>
+                                     <option>Salle de réunion (6-8 pers)</option>
+                                     <option>Bureau privé (1-2 pers)</option>
+                                     <option>Espace Coworking</option>
+                                 </select>
+                             </div>
+                             <div className="form-grid">
+                                 <div className="form-group">
+                                     <label>Date souhaitée</label>
+                                     <input type="date" id="book-date" className="ec-input" />
+                                 </div>
+                                 <div className="form-group">
+                                     <label>Durée</label>
+                                     <select id="book-duration" className="ec-input" onChange={() => setPriceTrigger(p => p + 1)}>
+                                         <option>Matinée (9h-12h)</option>
+                                         <option>Après-midi (14h-18h)</option>
+                                         <option>Journée complète</option>
+                                     </select>
+                                 </div>
+                             </div>
+                             <button
+                                 className="ec-btn-primary"
+                                 style={{ width: '100%', marginTop: '20px' }}
+                                 onClick={handleBooking}
+                                 disabled={isSubmitting}
+                             >
+                                 {isSubmitting ? 'Connexion à Stripe...' : `Payer (${getDisplayPrice()} € HT) et Réserver`}
+                             </button>
                         </div>
                     </div>
                 </div>

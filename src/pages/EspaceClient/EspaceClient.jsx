@@ -24,7 +24,6 @@ export default function EspaceClient() {
     const [mail, setMail] = useState([]);
     const [documents, setDocuments] = useState([]);
     const [bookings, setBookings] = useState([]);
-    const [currentFolder, setCurrentFolder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [unreadMsgsCount, setUnreadMsgsCount] = useState(0);
     const [hasNewDocs, setHasNewDocs] = useState(false);
@@ -33,7 +32,7 @@ export default function EspaceClient() {
     useEffect(() => {
         const body = document.querySelector('.ec-main');
         if (body) body.scrollTop = 0;
-    }, [activeTab, currentFolder]);
+    }, [activeTab]);
 
     useEffect(() => {
         async function fetchData() {
@@ -64,9 +63,9 @@ export default function EspaceClient() {
             if (isLoaded && user) {
                 await adminDataService.init(); 
                 const email = user.primaryEmailAddress?.emailAddress;
-                const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'mwcrea.agency@gmail.com';
+                const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
                 
-                if (email === ADMIN_EMAIL) {
+                if (ADMIN_EMAILS.includes(email)) {
                     navigate('/admin');
                     return;
                 }
@@ -213,8 +212,6 @@ export default function EspaceClient() {
                         <Docs
                             documents={documents}
                             setDocuments={setDocuments}
-                            currentFolder={currentFolder}
-                            setCurrentFolder={setCurrentFolder}
                             clientData={clientData}
                         />
                     )}

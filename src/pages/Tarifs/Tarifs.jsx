@@ -72,7 +72,7 @@ const spaces = [
         icon: '🤝',
         name: 'Salle de Réunion',
         prices: [
-            { duration: 'Demi-journée (4h)', amount: '20€ HT' },
+            { duration: 'Demi-journée (4h)', amount: '25€ HT' },
             { duration: 'Journée complète (8h)', amount: '40€ HT' },
         ],
         features: ['Jusqu\'à 10 personnes', 'Vidéoprojecteur & écran', 'WiFi fibre haut débit', 'Café & eau offerts', 'Accueil professionnel'],

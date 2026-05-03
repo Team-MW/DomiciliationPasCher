@@ -36,9 +36,29 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, o
                     <tbody>
                         {filtered.map(c => (
                             <tr key={c.id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }} className="table-row-hover">
-                                <td style={{ padding: '16px 20px', cursor: 'pointer' }} onClick={() => onSelect(c.id)}>
-                                    <div style={{ fontWeight: '700', fontSize: '14px', color: '#0F172A' }}>{c.company}</div>
-                                    <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>{c.name}</div>
+                                <td style={{ padding: '16px 20px', cursor: 'pointer', position: 'relative' }} onClick={() => onSelect(c.id)}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ fontWeight: '700', fontSize: '14px', color: '#0F172A' }}>{c.company}</div>
+                                        {parseInt(c.unreadCount) > 0 && (
+                                            <span style={{ 
+                                                background: '#6366F1', 
+                                                color: 'white', 
+                                                fontSize: '10px', 
+                                                fontWeight: '800', 
+                                                padding: '2px 6px', 
+                                                borderRadius: '10px',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                {c.unreadCount} message{parseInt(c.unreadCount) > 1 ? 's' : ''}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+                                        {c.name}
+                                        {parseInt(c.unreadCount) > 0 && <span style={{ width: '6px', height: '6px', background: '#EF4444', borderRadius: '50%' }}></span>}
+                                    </div>
                                 </td>
                                 <td style={{ padding: '16px 20px' }}>
                                     <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#EFF6FF', color: '#2563EB', fontWeight: '600', fontSize: '12px' }}>{c.plan}</span>

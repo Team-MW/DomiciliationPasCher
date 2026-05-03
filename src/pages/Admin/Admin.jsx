@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useUser, useClerk, SignIn } from '@clerk/clerk-react';
+import { useUser, useClerk, SignIn, UserButton } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
 import './Admin.css';
@@ -32,7 +32,9 @@ export default function Admin() {
     const [isCreatingClient, setIsCreatingClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'mwcrea.agency@gmail.com';
+    const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
+    const isAdmin = ADMIN_EMAILS.includes(userEmail);
 
     const refreshData = useCallback(async () => {
         setIsLoading(true);
@@ -89,9 +91,6 @@ export default function Admin() {
         await signOut();
         navigate('/');
     };
-
-    const userEmail = user?.primaryEmailAddress?.emailAddress;
-    const isAdmin = userEmail === ADMIN_EMAIL;
 
     useEffect(() => {
         if (isLoaded && isAdmin) {
@@ -203,13 +202,13 @@ export default function Admin() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <div className="header-profile">
-                        <div className="profile-info">
-                            <span className="profile-name">Admin DPC</span>
-                            <span className="profile-email">{user?.primaryEmailAddress?.emailAddress}</span>
+                        <div className="header-profile">
+                            <div className="profile-info">
+                                <span className="profile-name">Admin DPC</span>
+                                <span className="profile-email">{user?.primaryEmailAddress?.emailAddress}</span>
+                            </div>
+                            <UserButton afterSignOutUrl="/" />
                         </div>
-                        <div className="profile-avatar">AD</div>
-                    </div>
                 </header>
 
                 <div className="admin-body">

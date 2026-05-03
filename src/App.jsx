@@ -47,8 +47,8 @@ function PublicOnlyRoute({ children }) {
   const { user, isLoaded } = useUser();
   
   if (isLoaded && user) {
-    const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'mwcrea.agency@gmail.com';
-    if (user.primaryEmailAddress?.emailAddress === ADMIN_EMAIL) {
+    const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
+    if (ADMIN_EMAILS.includes(user.primaryEmailAddress?.emailAddress)) {
       return <Navigate to="/app/admin" replace />;
     }
     return <Navigate to="/app/espace-client" replace />;

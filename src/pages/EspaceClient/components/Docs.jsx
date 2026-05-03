@@ -3,16 +3,12 @@ import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 
-export default function Docs({ documents, setDocuments, currentFolder, setCurrentFolder, clientData }) {
+export default function Docs({ documents, setDocuments, clientData }) {
     const [isUploading, setIsUploading] = useState(false);
-
-    // Dériver les dossiers depuis la liste des documents reçue en prop
-    const folders = Array.from(new Set(documents.map(d => d.folder || 'Documents')));
 
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         await performUpload(file);
     };
 
@@ -20,7 +16,7 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
         setIsUploading(true);
         try {
             const info = await uploadFile(file, {
-                folder: `clients/${clientData.id}/${currentFolder || 'Documents'}`
+                folder: `clients/${clientData.id}/Documents`
             });
 
             await adminDataService.addDocument(clientData.id, {
@@ -28,7 +24,7 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
                 size: (file.size / 1024).toFixed(0) + ' KB',
                 type: file.type || (info.resource_type + '/' + info.format),
                 owner: 'client',
-                folder: currentFolder || 'Documents',
+                folder: 'Documents',
                 url: info.secure_url
             });
 
@@ -61,13 +57,7 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
             <div className="ec-content-card">
                 <div className="ec-card-header">
                     <div className="ec-breadcrumb">
-                        <button className={`ec-crumb ${!currentFolder ? 'active' : ''}`} onClick={() => setCurrentFolder(null)}>Documents</button>
-                        {currentFolder && (
-                            <>
-                                <span className="ec-divider">/</span>
-                                <button className="ec-crumb active">{currentFolder}</button>
-                            </>
-                        )}
+                        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>Mes Documents</h2>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <input
@@ -78,63 +68,49 @@ export default function Docs({ documents, setDocuments, currentFolder, setCurren
                             disabled={isUploading}
                         />
                         <button className="ec-btn-primary" onClick={() => document.getElementById('file-upload').click()} disabled={isUploading}>
-                            {isUploading ? 'Transfert...' : '+ Déposer un fichier'}
+                            {isUploading ? 'Transfert...' : '+ Déposer un document'}
                         </button>
                     </div>
                 </div>
 
                 <div
                     className="ec-explorer-grid"
-                    style={{ padding: '24px', minHeight: '300px' }}
+                    style={{ padding: '24px', minHeight: '400px' }}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                 >
-                    {/* SI VIEW ROOT : AFFICHER LES DOSSIERS */}
-                    {!currentFolder && (
-                        <>
-                            {folders.map(folder => (
-                                <div key={folder} className="ec-explorer-item folder" onClick={() => setCurrentFolder(folder)}>
-                                    <div className="ec-explorer-icon"><Icons.Folder /></div>
-                                    <div className="ec-explorer-name">{folder}</div>
-                                    <div className="ec-explorer-count">
-                                        {documents.filter(d => d.folder === folder).length} fichiers
-                                    </div>
+                    {documents.length === 0 ? (
+                        <div className="ec-empty" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📂</div>
+                            <p style={{ color: '#64748B', fontSize: '15px' }}>Aucun document pour le moment.</p>
+                            <p style={{ color: '#94A3B8', fontSize: '13px', marginTop: '4px' }}>Glissez-déposez un fichier ici pour l'envoyer.</p>
+                        </div>
+                    ) : (
+                        documents.map(doc => (
+                            <div key={doc.id} className="ec-explorer-item file" style={{ cursor: 'default' }}>
+                                <div className="ec-explorer-icon"><Icons.Docs /></div>
+                                <div className="ec-explorer-name" style={{ fontWeight: 600 }}>{doc.name}</div>
+                                <div className="ec-explorer-meta">
+                                    {doc.size} · {doc.owner === 'admin' ? 'Transmis par Admin' : 'Déposé par moi'}
                                 </div>
-                            ))}
-                            <div className="ec-explorer-item folder new" onClick={() => {
-                                const name = prompt('Nom du nouveau dossier ?');
-                                // Le dossier sera créé lors du premier ajout de doc dedans
-                                if (name) setCurrentFolder(name);
-                            }}>
-                                <div className="ec-explorer-icon add">+</div>
-                                <div className="ec-explorer-name">Nouveau dossier</div>
+                                <button 
+                                    className="ec-explorer-dl" 
+                                    onClick={() => window.open(doc.url, '_blank')}
+                                    title="Télécharger"
+                                >
+                                    <Icons.ArrowRight />
+                                </button>
                             </div>
-                        </>
-                    )}
-
-                    {/* SI VIEW FOLDER : AFFICHER LES FICHIERS DU DOSSIER */}
-                    {currentFolder && (
-                        <>
-                            <div className="ec-explorer-item back" onClick={() => setCurrentFolder(null)}>
-                                <div className="ec-explorer-icon"><Icons.Back /></div>
-                                <div className="ec-explorer-name">Retour</div>
-                            </div>
-                            {documents.filter(d => d.folder === currentFolder).map(doc => (
-                                <div key={doc.id} className="ec-explorer-item file">
-                                    <div className="ec-explorer-icon"><Icons.Docs /></div>
-                                    <div className="ec-explorer-name">{doc.name}</div>
-                                    <div className="ec-explorer-meta">
-                                        {doc.size} · {doc.owner === 'admin' ? 'Admin' : 'Moi'}
-                                    </div>
-                                    <button className="ec-explorer-dl" onClick={() => window.open(doc.url, '_blank')}><Icons.ArrowRight /></button>
-                                </div>
-                            ))}
-                            {documents.filter(d => d.folder === currentFolder).length === 0 && (
-                                <div className="ec-empty">Ce dossier est vide. Prêt pour un dépôt.</div>
-                            )}
-                        </>
+                        ))
                     )}
                 </div>
+            </div>
+            
+            <div style={{ marginTop: '20px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed #E2E8F0' }}>
+                <p style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.5' }}>
+                    <strong>Note :</strong> Tous vos documents (justificatifs, contrats, courriers scannés) sont regroupés ici. 
+                    Vous pouvez ajouter de nouveaux fichiers à tout moment en cliquant sur le bouton ci-dessus.
+                </p>
             </div>
         </div>
     );

@@ -1,0 +1,16 @@
+{
+  "short_name": "DPC",
+  "name": "Domiciliation Pas Cher",
+  "icons": [
+    {
+      "src": "app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0F172A",
+  "background_color": "#ffffff"
+}
