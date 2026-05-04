@@ -1,8 +1,19 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SignUp } from '@clerk/clerk-react';
 import './Auth.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
 export default function InscriptionPage() {
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const canRegister = localStorage.getItem('allow_registration');
+        if (!canRegister) {
+            navigate('/');
+        }
+    }, [navigate]);
+
     return (
         <main className="auth-page">
             <div className="auth-left">

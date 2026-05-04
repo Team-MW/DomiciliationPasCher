@@ -472,7 +472,7 @@ export default function Souscription() {
                                         try {
                                             // Enregistrer la demande dans le service admin
                                             // On ajoute le numéro de téléphone pour que l'admin y ait accès dans son pannel
-                                            await adminDataService.addDemande({
+                                            const demande = await adminDataService.addDemande({
                                                 clientName: `${data.prenom} ${data.nom} - 📞 ${data.telephone}`,
                                                 email: data.email,
                                                 company: data.nomSociete || 'En cours de création',
@@ -481,6 +481,9 @@ export default function Souscription() {
                                                 amount: parseFloat(prixTotal().split('€')[0]).toFixed(2),
                                                 extra_info: data
                                             });
+
+                                            // Stocker l'ID pour confirmation au retour de Stripe
+                                            localStorage.setItem('pending_demande_id', demande.id);
 
                                             const totalAmount = parseFloat(prixTotal().split('€')[0]);
                                             let productName = `Forfait ${currentPlanName} - ${data.ville} (${data.frequence})`;

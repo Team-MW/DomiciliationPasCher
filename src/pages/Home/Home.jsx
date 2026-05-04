@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CityIcons } from '../../utils/cityIcons';
 import { sendWelcomeEmail } from '../../utils/emailService';
+import { adminDataService } from '../../services/adminDataService';
 import './Home.css';
 
 const stats = [
@@ -283,10 +284,19 @@ export default function Home() {
             setShowSuccessModal(true);
             const pendingEmail = localStorage.getItem('pending_emailjs');
             const pendingName = localStorage.getItem('pending_namejs');
+            const pendingDemandeId = localStorage.getItem('pending_demande_id');
+
             if (pendingEmail) {
                 sendWelcomeEmail(pendingEmail, pendingName);
                 localStorage.removeItem('pending_emailjs');
                 localStorage.removeItem('pending_namejs');
+            }
+
+            if (pendingDemandeId) {
+                adminDataService.confirmDemandePayment(pendingDemandeId);
+                localStorage.removeItem('pending_demande_id');
+                // Autoriser l'accès à la page d'inscription
+                localStorage.setItem('allow_registration', 'true');
             }
         }
 

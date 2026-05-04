@@ -76,16 +76,39 @@ export const adminDataService = {
     },
 
     async addDemande(d) {
-        const id = 'req_' + Date.now();
+        // Vérifier si une demande en attente (ou attente paiement) existe déjà pour cet email
+        const existing = await conn.execute(
+            "SELECT id FROM demandes WHERE email = ? AND (status = 'en_attente' OR status = 'en_attente_paiement') LIMIT 1",
+            [d.email]
+        );
+
         const date = new Date().toISOString();
         const city = d.city || 'À définir';
         const extraInfoStr = d.extra_info ? (typeof d.extra_info === 'string' ? d.extra_info : JSON.stringify(d.extra_info)) : null;
-        await conn.execute(
-            `INSERT INTO demandes (id, clientName, email, company, city, plan, amount, date, status, extra_info) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, d.clientName, d.email, d.company, city, d.plan, d.amount, date, 'en_attente', extraInfoStr]
-        );
-        return { id, ...d, city, date, status: 'en_attente' };
+
+        if (existing.rows.length > 0) {
+            // Update l'existante
+            const id = existing.rows[0].id;
+            await conn.execute(
+                `UPDATE demandes SET clientName = ?, company = ?, city = ?, plan = ?, amount = ?, date = ?, extra_info = ?, status = 'en_attente_paiement' 
+                 WHERE id = ?`,
+                [d.clientName, d.company, city, d.plan, d.amount, date, extraInfoStr, id]
+            );
+            return { id, ...d, city, date, status: 'en_attente_paiement' };
+        } else {
+            // Créer nouvelle
+            const id = 'req_' + Date.now();
+            await conn.execute(
+                `INSERT INTO demandes (id, clientName, email, company, city, plan, amount, date, status, extra_info) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [id, d.clientName, d.email, d.company, city, d.plan, d.amount, date, 'en_attente_paiement', extraInfoStr]
+            );
+            return { id, ...d, city, date, status: 'en_attente_paiement' };
+        }
+    },
+
+    async confirmDemandePayment(id) {
+        await conn.execute("UPDATE demandes SET status = 'en_attente' WHERE id = ?", [id]);
     },
 
     async traiterDemande(id) {
