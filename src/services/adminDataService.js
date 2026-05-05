@@ -111,6 +111,14 @@ export const adminDataService = {
         await conn.execute("UPDATE demandes SET status = 'en_attente' WHERE id = ?", [id]);
     },
 
+    async checkPaymentStatus(email) {
+        const res = await conn.execute(
+            "SELECT id FROM demandes WHERE email = ? AND status = 'en_attente' LIMIT 1",
+            [email]
+        );
+        return res.rows.length > 0;
+    },
+
     async traiterDemande(id) {
         const res = await conn.execute('SELECT * FROM demandes WHERE id = ?', [id]);
         const d = res.rows[0];
