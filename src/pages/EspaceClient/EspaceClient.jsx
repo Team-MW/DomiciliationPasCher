@@ -127,38 +127,21 @@ export default function EspaceClient() {
 
     if (isLoading) return <div className="ec-loading">Initialisation de votre espace sécurisé...</div>;
 
-    const handleAccessSpace = async () => {
-        setIsLoading(true);
-        try {
-            const email = user?.primaryEmailAddress?.emailAddress;
-            const newClient = await adminDataService.addClient({
-                name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Client',
-                email: email,
-                company: 'Société en cours de création',
-                city: 'À définir',
-                plan: 'Essentiel'
-            });
-            await adminDataService.updateClientClerkId(newClient.id, user.id);
-            newClient.clerkId = user.id;
-            setClientData(newClient);
-        } catch (err) {
-            console.error("Erreur accès espace client:", err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // handleAccessSpace a été supprimé pour des raisons de sécurité.
+    // L'accès est désormais géré automatiquement après validation de la demande.
 
     if (!isLoading && !clientData) {
         return (
             <div className="ec-pending-screen">
                 <div className="ec-pending-card">
-                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
-                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>Compte créé avec succès !</h2>
+                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>Dossier en cours de validation</h2>
                     <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '24px' }}>
-                        Parfait, vous avez créé votre compte ! Vous pouvez envoyer ou recevoir vos pièces justificatives dès maintenant.
+                        Votre compte a été créé ! Nos équipes vérifient actuellement votre dossier et valident votre paiement.
+                        Vous recevrez un e-mail dès que votre espace sera totalement activé (généralement sous 24h).
                     </p>
-                    <button className="btn-primary" onClick={handleAccessSpace} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
-                        Accès à l'espace
+                    <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
+                        Se déconnecter
                     </button>
                 </div>
             </div>

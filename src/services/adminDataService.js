@@ -115,15 +115,28 @@ export const adminDataService = {
         const res = await conn.execute('SELECT * FROM demandes WHERE id = ?', [id]);
         const d = res.rows[0];
         if (d) {
-            const clientId = Date.now().toString();
+            // Vérifier si un client avec cet email existe déjà
+            const existingClientRes = await conn.execute('SELECT id FROM clients WHERE email = ?', [d.email]);
+            let clientId;
             const since = new Date().toISOString().split('T')[0];
 
-            // Créer le client
-            await conn.execute(
-                `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent', d.extra_info || null]
-            );
+            if (existingClientRes.rows.length > 0) {
+                // Mettre à jour le client existant
+                clientId = existingClientRes.rows[0].id;
+                await conn.execute(
+                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ? 
+                     WHERE id = ?`,
+                    [d.clientName, d.company, d.city || 'À définir', d.plan, since, d.extra_info || null, clientId]
+                );
+            } else {
+                // Créer le nouveau client
+                clientId = Date.now().toString();
+                await conn.execute(
+                    `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent', d.extra_info || null]
+                );
+            }
 
             // Créer le paiement initial
             await this.addPayment(clientId, {
@@ -137,6 +150,10 @@ export const adminDataService = {
             await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
             return { id: clientId, ...d };
         }
+    },
+
+    async deleteDemande(id) {
+        await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
     },
 
     // --- MAIL ---

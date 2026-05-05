@@ -16,6 +16,18 @@ export default function DemandesTab({ demandes, onUpdate }) {
         }
     };
 
+    const handleRefuser = async (id) => {
+        if (window.confirm("Supprimer cette demande ? Elle ne sera pas convertie en client.")) {
+            setLoadingId(id);
+            try {
+                await adminDataService.deleteDemande(id);
+                onUpdate();
+            } finally {
+                setLoadingId(null);
+            }
+        }
+    };
+
     return (
         <div className="demandes-container">
             <div className="tab-header" style={{ marginBottom: '24px' }}>
@@ -70,14 +82,22 @@ export default function DemandesTab({ demandes, onUpdate }) {
                                 </div>
                             </div>
                             
-                            <div className="case-card-footer">
+                            <div className="case-card-footer" style={{ display: 'flex', gap: '10px' }}>
                                 <button
                                     className="btn-primary-sm"
                                     onClick={() => handleAccepter(d.id)}
                                     disabled={loadingId === d.id}
-                                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }}
+                                    style={{ flex: 2, padding: '12px', borderRadius: '8px' }}
                                 >
-                                    {loadingId === d.id ? 'Création accès...' : 'Approuver'}
+                                    {loadingId === d.id ? '...' : 'Approuver'}
+                                </button>
+                                <button
+                                    className="btn-outline-sm"
+                                    onClick={() => handleRefuser(d.id)}
+                                    disabled={loadingId === d.id}
+                                    style={{ flex: 1, padding: '12px', borderRadius: '8px', background: 'transparent', border: '1px solid #E2E8F0', color: '#64748B', cursor: 'pointer' }}
+                                >
+                                    Refuser
                                 </button>
                             </div>
                             </div>
