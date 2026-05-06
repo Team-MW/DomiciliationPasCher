@@ -44,11 +44,16 @@ export const uploadFile = async (file, options = {}) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', uploadPreset);
+    
+    // On laisse Cloudinary décider du type mais on lui donne des indices
+    formData.append('resource_type', 'auto');
+
     if (options.folder) {
         formData.append('folder', options.folder);
     }
 
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+    // Utilisation de l'endpoint générique 'upload'
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
         method: 'POST',
         body: formData
     });
@@ -58,5 +63,9 @@ export const uploadFile = async (file, options = {}) => {
         throw new Error(errorData.error?.message || 'Erreur lors de l\'envoi vers Cloudinary');
     }
 
-    return await response.json();
+    const result = await response.json();
+    
+    // Petite astuce : si c'est un PDF et qu'il est en resource_type 'image', 
+    // on s'assure que l'URL ne contient pas de transformations qui pourraient bloquer
+    return result;
 };

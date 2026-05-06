@@ -14,6 +14,7 @@ import FailedPaymentsTab from './components/FailedPaymentsTab';
 import MeetingTab from './components/MeetingTab';
 import DossierClient from './components/DossierClient';
 import CreateClientModal from './components/CreateClientModal';
+import { DemandeDetailsModal } from './components/DemandesTab';
 
 export default function Admin() {
     const { user, isLoaded } = useUser();
@@ -29,8 +30,10 @@ export default function Admin() {
     const [stats, setStats] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClientId, setSelectedClientId] = useState(null);
+    const [selectedDemande, setSelectedDemande] = useState(null);
     const [isCreatingClient, setIsCreatingClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingId, setLoadingId] = useState(null);
 
     const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
     const userEmail = user?.primaryEmailAddress?.emailAddress;
@@ -223,13 +226,44 @@ export default function Admin() {
                     ) : (
                         <>
                             {activeTab === 'overview' && <OverviewTab stats={stats} clients={clients} mail={mail} />}
-                            {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} />}
+                            {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} onSelectDemande={setSelectedDemande} />}
                             {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
                             {activeTab === 'billing' && <FailedPaymentsTab clients={clients} onSelect={setSelectedClientId} onUpdate={refreshData} />}
                             {activeTab === 'meeting' && <MeetingTab bookings={bookings} clients={clients} onUpdate={refreshData} />}
                         </>
                     )}
                 </div>
+
+                {selectedDemande && (
+                    <DemandeDetailsModal 
+                        demande={selectedDemande} 
+                        onClose={() => setSelectedDemande(null)} 
+                        onAccept={async (id) => {
+                            setLoadingId(id);
+                            try {
+                                await adminDataService.traiterDemande(id);
+                                refreshData();
+                                setSelectedDemande(null);
+                                alert("Accès créé avec succès !");
+                            } finally {
+                                setLoadingId(null);
+                            }
+                        }}
+                        onReject={async (id) => {
+                            if (window.confirm("Supprimer cette demande ?")) {
+                                setLoadingId(id);
+                                try {
+                                    await adminDataService.deleteDemande(id);
+                                    refreshData();
+                                    setSelectedDemande(null);
+                                } finally {
+                                    setLoadingId(null);
+                                }
+                            }
+                        }}
+                        loadingId={loadingId}
+                    />
+                )}
 
                 {isCreatingClient && (
                     <CreateClientModal

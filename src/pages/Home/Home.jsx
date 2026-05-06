@@ -281,23 +281,49 @@ export default function Home() {
         // --- EMAIL JS ON PAYMENT SUCCESS ---
         const params = new URLSearchParams(window.location.search);
         if (params.get('success') === 'true') {
-            setShowSuccessModal(true);
-            const pendingEmail = localStorage.getItem('pending_emailjs');
-            const pendingName = localStorage.getItem('pending_namejs');
+            const sessionId = params.get('session_id');
             const pendingDemandeId = localStorage.getItem('pending_demande_id');
 
-            if (pendingEmail) {
-                sendWelcomeEmail(pendingEmail, pendingName);
-                localStorage.removeItem('pending_emailjs');
-                localStorage.removeItem('pending_namejs');
-            }
+            const verifyAndConfirm = async () => {
+                let isValid = true;
+                let stripeData = null;
+                
+                // Si on a un session_id, on demande au serveur de vérifier VRAIMENT chez Stripe
+                if (sessionId) {
+                    try {
+                        const res = await fetch(`/api/verify-session?session_id=${sessionId}`);
+                        stripeData = await res.json();
+                        isValid = stripeData.success;
+                    } catch (err) {
+                        console.error("Erreur verification Stripe:", err);
+                        isValid = false; 
+                    }
+                }
 
-            if (pendingDemandeId) {
-                adminDataService.confirmDemandePayment(pendingDemandeId);
-                localStorage.removeItem('pending_demande_id');
-                // Autoriser l'accès à la page d'inscription
-                localStorage.setItem('allow_registration', 'true');
-            }
+                if (isValid) {
+                    setShowSuccessModal(true);
+                    const pendingEmail = localStorage.getItem('pending_emailjs');
+                    const pendingName = localStorage.getItem('pending_namejs');
+                    const stripeCustomerId = stripeData?.customer_id || null;
+
+                    if (pendingEmail) {
+                        sendWelcomeEmail(pendingEmail, pendingName);
+                        localStorage.removeItem('pending_emailjs');
+                        localStorage.removeItem('pending_namejs');
+                    }
+
+                    if (pendingDemandeId) {
+                        await adminDataService.confirmDemandePayment(pendingDemandeId, sessionId, stripeCustomerId);
+                        localStorage.setItem('last_successful_session', sessionId);
+                        localStorage.removeItem('pending_demande_id');
+                        localStorage.setItem('allow_registration', 'true');
+                    }
+                } else {
+                    console.error("Paiement non valide selon Stripe.");
+                }
+            };
+
+            verifyAndConfirm();
         }
 
         return () => window.removeEventListener('scroll', handleScroll);

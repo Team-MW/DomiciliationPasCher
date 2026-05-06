@@ -93,13 +93,30 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                 <div className="ec-explorer-meta">
                                     {doc.size} · {doc.owner === 'admin' ? 'Transmis par Admin' : 'Déposé par moi'}
                                 </div>
-                                <button 
-                                    className="ec-explorer-dl" 
-                                    onClick={() => window.open(doc.url, '_blank')}
-                                    title="Télécharger"
-                                >
-                                    <Icons.ArrowRight />
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '12px', width: '100%' }}>
+                                    <button 
+                                        className="ec-explorer-dl" 
+                                        style={{ flex: 1 }}
+                                        onClick={() => window.open(doc.url, '_blank')}
+                                        title="Ouvrir / Télécharger"
+                                    >
+                                        <Icons.ArrowRight />
+                                    </button>
+                                    <button 
+                                        onClick={async () => {
+                                            if (window.confirm("Supprimer ce document ?")) {
+                                                try {
+                                                    await adminDataService.deleteDocument(doc.id);
+                                                    setDocuments(prev => prev.filter(x => x.id !== doc.id));
+                                                } catch (err) { alert("Erreur lors de la suppression"); }
+                                            }
+                                        }}
+                                        style={{ width: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #FEE2E2', borderRadius: '8px', background: '#FEF2F2', cursor: 'pointer', color: '#DC2626' }}
+                                        title="Supprimer"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                    </button>
+                                </div>
                             </div>
                         ))
                     )}

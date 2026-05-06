@@ -23,7 +23,16 @@ export const adminDataService = {
     },
 
     async getClientByEmail(email) {
-        const res = await conn.execute('SELECT * FROM clients WHERE email = ?', [email]);
+        if (!email) return null;
+        const cleanEmail = email.trim().toLowerCase();
+        const res = await conn.execute('SELECT * FROM clients WHERE email = ?', [cleanEmail]);
+        return res.rows[0];
+    },
+
+    async getClientBySessionId(sessionId) {
+        if (!sessionId) return null;
+        // On cherche dans le JSON extra_info
+        const res = await conn.execute("SELECT * FROM clients WHERE JSON_EXTRACT(extra_info, '$.stripe_session_id') = ?", [sessionId]);
         return res.rows[0];
     },
 
@@ -49,6 +58,10 @@ export const adminDataService = {
             'UPDATE clients SET clerkId = ?, clerkStatus = ? WHERE id = ?',
             [clerkId, 'linked', clientId]
         );
+    },
+
+    async updateDemandeClerkId(demandeId, clerkId) {
+        await conn.execute('UPDATE demandes SET clerkId = ? WHERE id = ?', [clerkId, demandeId]);
     },
 
     async updateClientProfile(id, data) {
@@ -107,8 +120,21 @@ export const adminDataService = {
         }
     },
 
-    async confirmDemandePayment(id) {
-        await conn.execute("UPDATE demandes SET status = 'en_attente' WHERE id = ?", [id]);
+    async confirmDemandePayment(id, sessionId = null, customerId = null) {
+        if (sessionId) {
+            await conn.execute(
+                "UPDATE demandes SET status = 'en_attente', extra_info = JSON_SET(COALESCE(extra_info, '{}'), '$.stripe_session_id', ?, '$.stripe_customer_id', ?) WHERE id = ?",
+                [sessionId, customerId, id]
+            );
+        } else {
+            await conn.execute("UPDATE demandes SET status = 'en_attente' WHERE id = ?", [id]);
+        }
+    },
+
+    async getDemandeBySessionId(sessionId) {
+        if (!sessionId) return null;
+        const res = await conn.execute("SELECT * FROM demandes WHERE JSON_EXTRACT(extra_info, '$.stripe_session_id') = ?", [sessionId]);
+        return res.rows[0];
     },
 
     async checkPaymentStatus(email) {
@@ -132,17 +158,19 @@ export const adminDataService = {
                 // Mettre à jour le client existant
                 clientId = existingClientRes.rows[0].id;
                 await conn.execute(
-                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ? 
+                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = 'linked' 
                      WHERE id = ?`,
-                    [d.clientName, d.company, d.city || 'À définir', d.plan, since, d.extra_info || null, clientId]
+                    [d.clientName, d.company, d.city || 'À définir', d.plan, since, d.extra_info || null, d.clerkId || '', clientId]
                 );
             } else {
                 // Créer le nouveau client
                 clientId = Date.now().toString();
+                const extraInfo = typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info;
+                
                 await conn.execute(
                     `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, '', 'invitation_sent', d.extra_info || null]
+                    [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, d.clerkId || '', d.clerkId ? 'linked' : 'invitation_sent', JSON.stringify(extraInfo)]
                 );
             }
 
@@ -183,6 +211,10 @@ export const adminDataService = {
     async getDocuments(clientId) {
         const res = await conn.execute('SELECT * FROM documents WHERE clientId = ? ORDER BY uploadedAt DESC', [clientId]);
         return res.rows;
+    },
+
+    async deleteDocument(id) {
+        await conn.execute('DELETE FROM documents WHERE id = ?', [id]);
     },
 
     async addDocument(clientId, fileInfo) {
@@ -382,6 +414,9 @@ export const adminDataService = {
         } catch (err) {}
         try {
             await conn.execute('ALTER TABLE demandes ADD COLUMN city VARCHAR(100) DEFAULT "À définir"');
+        } catch (err) {}
+        try {
+            await conn.execute('ALTER TABLE demandes ADD COLUMN clerkId VARCHAR(100) DEFAULT ""');
         } catch (err) {}
     },
 

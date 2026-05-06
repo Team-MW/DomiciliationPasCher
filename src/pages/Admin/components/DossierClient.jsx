@@ -279,13 +279,30 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                                 <div className="ec-explorer-meta" style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
                                                     {doc.size} · {doc.owner === 'admin' ? 'Déposé par vous' : 'Client'}
                                                 </div>
-                                                <button 
-                                                    className="ec-explorer-dl" 
-                                                    onClick={(e) => { e.stopPropagation(); window.open(doc.url, '_blank'); }}
-                                                    style={{ marginTop: '12px', width: '100%', padding: '8px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', cursor: 'pointer', fontWeight: '600', fontSize: '12px' }}
-                                                >
-                                                    Ouvrir / Télécharger
-                                                </button>
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                                    <button 
+                                                        className="ec-explorer-dl" 
+                                                        onClick={(e) => { e.stopPropagation(); window.open(doc.url, '_blank'); }}
+                                                        style={{ flex: 1, padding: '8px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', cursor: 'pointer', fontWeight: '600', fontSize: '12px' }}
+                                                    >
+                                                        Ouvrir
+                                                    </button>
+                                                    <button 
+                                                        onClick={async (e) => { 
+                                                            e.stopPropagation(); 
+                                                            if (window.confirm("Supprimer ce document ?")) {
+                                                                try {
+                                                                    await adminDataService.deleteDocument(doc.id);
+                                                                    setDocuments(prev => prev.filter(x => x.id !== doc.id));
+                                                                } catch (err) { alert("Erreur lors de la suppression"); }
+                                                            }
+                                                        }}
+                                                        style={{ padding: '8px', border: '1px solid #FEE2E2', borderRadius: '8px', background: '#FEF2F2', cursor: 'pointer', color: '#DC2626' }}
+                                                        title="Supprimer"
+                                                    >
+                                                        <Icons.Trash style={{ width: '16px', height: '16px' }} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))
                                     )}

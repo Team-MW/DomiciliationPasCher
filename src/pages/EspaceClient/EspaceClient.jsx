@@ -28,6 +28,7 @@ export default function EspaceClient() {
     const [unreadMsgsCount, setUnreadMsgsCount] = useState(0);
     const [hasNewDocs, setHasNewDocs] = useState(false);
     const [hasNewFactures, setHasNewFactures] = useState(false);
+    const [pendingDemande, setPendingDemande] = useState(null);
 
     useEffect(() => {
         const body = document.querySelector('.ec-main');
@@ -63,53 +64,81 @@ export default function EspaceClient() {
             if (isLoaded && user) {
                 await adminDataService.init(); 
                 const email = user.primaryEmailAddress?.emailAddress;
+                const cleanEmail = email?.trim().toLowerCase();
                 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
                 
-                if (ADMIN_EMAILS.includes(email)) {
+                const savedSessionId = localStorage.getItem('last_successful_session');
+                let data = await adminDataService.getClientByEmail(cleanEmail);
+
+                // Fallback : Recherche par Session ID pour les clients déjà approuvés
+                if (!data && savedSessionId) {
+                    data = await adminDataService.getClientBySessionId(savedSessionId);
+                }
+
+                // NOUVEAU : Si toujours pas de client, on regarde dans les demandes
+                if (!data) {
+                    const demandes = await adminDataService.getDemandes();
+                    let maDemande = demandes.find(d => d.email?.trim().toLowerCase() === cleanEmail);
+                    
+                    // Fallback par Session ID pour les demandes
+                    if (!maDemande && savedSessionId) {
+                        maDemande = await adminDataService.getDemandeBySessionId(savedSessionId);
+                    }
+                    
+                    if (maDemande) {
+                        data = {
+                            id: maDemande.id,
+                            name: maDemande.clientName,
+                            email: maDemande.email,
+                            company: maDemande.company,
+                            plan: maDemande.plan,
+                            status: 'en_attente_validation',
+                            since: maDemande.date,
+                            isTemporary: true
+                        };
+                    }
+                }
+
+                // Si c'est un admin ET qu'il n'a pas de compte client/demande, on le redirige vers l'admin
+                if (ADMIN_EMAILS.map(e => e.trim().toLowerCase()).includes(cleanEmail) && !data) {
                     navigate('/admin');
                     return;
                 }
 
-                const data = await adminDataService.getClientByEmail(email);
-
                 if (data) {
-                    // Si le compte Clerk n'était pas encore lié en DB, on le lie au premier login
+                    // LIEN DÉFINITIF : Lier le Clerk ID au compte trouvé
                     if (!data.clerkId || data.clerkId === '') {
                         try {
-                            await adminDataService.updateClientClerkId(data.id, user.id);
-                            data.clerkId = user.id;
-                        } catch (err) {
-                            console.error("Impossible de lier le Clerk ID:", err);
-                        }
+                            if (data.isTemporary) {
+                                await adminDataService.updateDemandeClerkId(data.id, user.id);
+                            } else {
+                                await adminDataService.updateClientClerkId(data.id, user.id);
+                            }
+                            data.clerkId = user.id; // On met à jour localement pour éviter de reboucler
+                        } catch (err) { console.error("Lien Clerk ID échoué:", err); }
                     }
-
                     setClientData(data);
-                    const [m, d, b, msgs] = await Promise.all([
-                        adminDataService.getClientMail(data.id),
-                        adminDataService.getDocuments(data.id),
-                        adminDataService.getClientBookings(data.id),
-                        adminDataService.getMessages(data.id)
-                    ]);
-                    setMail(m);
-                    setDocuments(d);
-                    setBookings(b);
-                    const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
-                    setUnreadMsgsCount(unread);
-
-                    // Notifications persistantes (Client)
-                    const lastDocsCount = parseInt(localStorage.getItem(`client_seen_docs_${data.id}`) || '0');
-                    if (d.length > lastDocsCount && activeTab !== 'docs') {
-                        setHasNewDocs(true);
+                    
+                    // On ne charge les dossiers/mails que si c'est un vrai client (pas une demande temporaire)
+                    if (!data.isTemporary) {
+                        const [m, d, b, msgs] = await Promise.all([
+                            adminDataService.getClientMail(data.id),
+                            adminDataService.getDocuments(data.id),
+                            adminDataService.getClientBookings(data.id),
+                            adminDataService.getMessages(data.id)
+                        ]);
+                        setMail(m);
+                        setDocuments(d);
+                        setBookings(b);
+                        const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
+                        setUnreadMsgsCount(unread);
+                    } else {
+                        // Pour une demande temporaire, on met des listes vides
+                        setMail([]);
+                        setDocuments([]);
+                        setBookings([]);
+                        setUnreadMsgsCount(0);
                     }
-
-                    // On vérifie les factures (via adminDataService)
-                    try {
-                        const pay = await adminDataService.getPayments(data.id);
-                        const lastPayCount = parseInt(localStorage.getItem(`client_seen_pay_${data.id}`) || '0');
-                        if (pay.length > lastPayCount && activeTab !== 'factures') {
-                            setHasNewFactures(true);
-                        }
-                    } catch (err) { /* ignore */ }
                 } else {
                     setClientData(null);
                 }
@@ -127,22 +156,37 @@ export default function EspaceClient() {
 
     if (isLoading) return <div className="ec-loading">Initialisation de votre espace sécurisé...</div>;
 
-    // handleAccessSpace a été supprimé pour des raisons de sécurité.
-    // L'accès est désormais géré automatiquement après validation de la demande.
-
     if (!isLoading && !clientData) {
         return (
             <div className="ec-pending-screen">
-                <div className="ec-pending-card">
-                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>Dossier en cours de validation</h2>
-                    <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '24px' }}>
-                        Votre compte a été créé ! Nos équipes vérifient actuellement votre dossier et valident votre paiement.
-                        Vous recevrez un e-mail dès que votre espace sera totalement activé (généralement sous 24h).
+                <div className="ec-pending-card" style={{ maxWidth: '500px' }}>
+                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>
+                        {pendingDemande ? '⏳' : '🔍'}
+                    </div>
+                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>
+                        {pendingDemande ? 'Dossier en attente de validation' : 'Aucun dossier trouvé'}
+                    </h2>
+                    <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
+                        {pendingDemande 
+                            ? "Votre paiement a été validé ! Votre dossier est maintenant en cours de vérification par nos équipes (validation manuelle sous 24h)."
+                            : `Nous n'avons pas trouvé de dossier correspondant à l'adresse e-mail : ${user?.primaryEmailAddress?.emailAddress}.`
+                        }
                     </p>
-                    <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
-                        Se déconnecter
-                    </button>
+                    
+                    {!pendingDemande && (
+                        <div style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '13px', color: '#9A3412', textAlign: 'left' }}>
+                            <strong>Note :</strong> Assurez-vous d'utiliser le même e-mail que lors de votre inscription. Si vous avez payé mais que vous voyez ce message, contactez-nous.
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <button className="btn-primary" onClick={() => window.location.reload()} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
+                            Rafraîchir la page
+                        </button>
+                        <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
+                            Se déconnecter
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -181,10 +225,17 @@ export default function EspaceClient() {
                         <p className="ec-welcome-sub">Gérez votre domiciliation et vos courriers pour <strong>{clientData?.company}</strong></p>
                     </div>
                     <div className="ec-header-right">
-                        <div className="ec-status-tag">
-                            <span className="status-dot-green"></span>
-                            Abonnement {clientData?.plan} Actif
-                        </div>
+                        {clientData?.status === 'en_attente_validation' ? (
+                            <div className="ec-status-tag" style={{ background: '#FFF7ED', color: '#9A3412', border: '1px solid #FFEDD5' }}>
+                                <span className="status-dot-orange" style={{ background: '#F97316' }}></span>
+                                Dossier en cours de validation
+                            </div>
+                        ) : (
+                            <div className="ec-status-tag">
+                                <span className="status-dot-green"></span>
+                                Abonnement {clientData?.plan} Actif
+                            </div>
+                        )}
                     </div>
                 </header>
 
