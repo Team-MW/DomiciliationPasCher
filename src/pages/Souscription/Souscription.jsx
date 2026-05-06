@@ -59,6 +59,7 @@ export default function Souscription() {
         frequence: 'mensuel',
         // CGV
         cgv: false,
+        adressePerso: '',
     });
 
     const set = (key, val) => setData(d => ({ ...d, [key]: val }));
@@ -75,6 +76,7 @@ export default function Souscription() {
             if (!data.prenom.trim()) e.prenom = 'Requis';
             if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) e.email = 'Email invalide';
             if (!data.telephone.trim()) e.telephone = 'Requis';
+            if (!data.adressePerso.trim()) e.adressePerso = 'Requis';
         }
         if (step === 2) {
             if (!data.nomSociete.trim() && data.typeProjet !== 'creation') e.nomSociete = 'Requis';
@@ -238,6 +240,17 @@ export default function Souscription() {
                                 <div className="sous-field">
                                     <label className="sous-label">Lieu de naissance</label>
                                     <input className="sous-input" placeholder="Ville, Pays" value={data.lieuNaissance} onChange={e => set('lieuNaissance', e.target.value)} />
+                                </div>
+                                <div className="sous-field sous-field-full">
+                                    <label className="sous-label">Adresse personnelle *</label>
+                                    <textarea 
+                                        className={`sous-input sous-textarea ${errors.adressePerso ? 'error' : ''}`} 
+                                        placeholder="Votre adresse complète (Rue, CP, Ville)" 
+                                        rows={2}
+                                        value={data.adressePerso} 
+                                        onChange={e => set('adressePerso', e.target.value)} 
+                                    />
+                                    {errors.adressePerso && <div className="field-error">{errors.adressePerso}</div>}
                                 </div>
                             </div>
                         </div>

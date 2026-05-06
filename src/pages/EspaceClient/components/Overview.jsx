@@ -7,21 +7,7 @@ export default function Overview({ mail, documents, bookings, clientData }) {
     return (
         <div className="ec-tab-animate" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             
-            <div className="ec-stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-                <div className="ec-stat-card">
-                    <div className="ec-stat-label">Courriers Reçus</div>
-                    <div className="ec-stat-value">{mail.length}</div>
-                    <div className="ec-stat-footer" style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Depuis votre inscription
-                    </div>
-                </div>
-                <div className="ec-stat-card" style={{ border: unreadMailCount > 0 ? '1px solid #ef4444' : '' }}>
-                    <div className="ec-stat-label">Courriers Non Lus</div>
-                    <div className="ec-stat-value" style={{ color: unreadMailCount > 0 ? '#ef4444' : 'var(--ec-text-main)' }}>{unreadMailCount}</div>
-                    <div className="ec-stat-footer" style={{ color: unreadMailCount > 0 ? '#ef4444' : 'inherit' }}>
-                        {unreadMailCount > 0 ? 'Action requise ' : 'À jour '}
-                    </div>
-                </div>
+            <div className="ec-stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
                 <div className="ec-stat-card">
                     <div className="ec-stat-label">Documents Sécurisés</div>
                     <div className="ec-stat-value">{documents.length}</div>
@@ -34,33 +20,8 @@ export default function Overview({ mail, documents, bookings, clientData }) {
                 </div>
             </div>
 
-            <div className="ec-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '24px' }}>
+            <div className="ec-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
                 
-                <div className="ec-content-card" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div className="ec-card-header" style={{ padding: '20px 24px' }}>
-                        <h2 style={{ fontSize: '15px' }}>Activité Récente (Courrier)</h2>
-                    </div>
-                    <div className="ec-activity-list" style={{ padding: '0 24px', flex: 1 }}>
-                        {mail.slice(0, 4).map(m => (
-                            <div key={m.id} className="ec-activity-item" style={{ padding: '16px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: '16px', alignItems: 'center' }}>
-                                <div className="ec-activity-icon" style={{ background: m.status === 'non lu' ? '#eff6ff' : '#f8fafc', color: m.status === 'non lu' ? '#2563eb' : '#94a3b8', width: '36px', height: '36px', borderRadius: '10px' }}>
-                                    <Icons.Mail />
-                                </div>
-                                <div className="ec-activity-body" style={{ flex: 1 }}>
-                                    <div className="ec-activity-title" style={{ fontSize: '14px', fontWeight: '600' }}>{m.type} de {m.from}</div>
-                                    <div className="ec-activity-meta" style={{ fontSize: '12px', color: '#64748b' }}>Reçu le {m.date}</div>
-                                </div>
-                                {m.status === 'non lu' && (
-                                    <span style={{ width: '8px', height: '8px', background: '#2563eb', borderRadius: '50%' }}></span>
-                                )}
-                            </div>
-                        ))}
-                        {mail.length === 0 && (
-                            <div style={{ padding: '40px 0', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>Aucune activité récente.</div>
-                        )}
-                    </div>
-                </div>
-
                 <div className="ec-content-card" style={{ background: '#09090b', color: 'white', border: '1px solid #1e293b' }}>
                     <div className="ec-card-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '20px 24px' }}>
                         <h2 style={{ fontSize: '15px', color: 'white' }}>Adresse de Domiciliation</h2>

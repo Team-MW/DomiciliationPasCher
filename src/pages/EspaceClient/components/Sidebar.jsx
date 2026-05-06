@@ -17,11 +17,6 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
                 <button className={`ec-nav-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
                     <span className="ec-nav-icon"><Icons.Dashboard /></span> Dashboard
                 </button>
-                <button className={`ec-nav-item ${activeTab === 'mail' ? 'active' : ''}`} onClick={() => setActiveTab('mail')}>
-                    <span className="ec-nav-icon"><Icons.Mail /></span> Courrier
-                    {mailCount > 0 && <span className="ec-nav-badge">{mailCount}</span>}
-                    {mailCount > 0 && activeTab !== 'mail' && <span className="red-dot"></span>}
-                </button>
                 <button className={`ec-nav-item ${activeTab === 'docs' ? 'active' : ''}`} onClick={() => setActiveTab('docs')}>
                     <span className="ec-nav-icon"><Icons.Docs /></span> Documents
                     {hasNewDocs && <span className="red-dot"></span>}

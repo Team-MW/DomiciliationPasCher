@@ -86,16 +86,37 @@ export default function EspaceClient() {
                     }
                     
                     if (maDemande) {
+                        let extra = {};
+                        try {
+                            extra = typeof maDemande.extra_info === 'string' ? JSON.parse(maDemande.extra_info) : (maDemande.extra_info || {});
+                        } catch (e) { console.error("Error parsing extra_info", e); }
+
                         data = {
                             id: maDemande.id,
-                            name: maDemande.clientName,
+                            name: extra.nom ? `${extra.prenom} ${extra.nom}` : maDemande.clientName,
                             email: maDemande.email,
                             company: maDemande.company,
                             plan: maDemande.plan,
+                            phone: extra.telephone || '',
+                            address: extra.adressePerso || '',
                             status: 'en_attente_validation',
                             since: maDemande.date,
                             isTemporary: true
                         };
+                    }
+                }
+
+                // Pour les clients existants, on complète aussi avec extra_info si des champs manquent
+                if (data && data.extra_info) {
+                    let extra = {};
+                    try {
+                        extra = typeof data.extra_info === 'string' ? JSON.parse(data.extra_info) : data.extra_info;
+                    } catch (e) {}
+                    
+                    data.phone = data.phone || extra.telephone || '';
+                    data.address = data.address || extra.adressePerso || '';
+                    if (extra.nom && !data.name) {
+                        data.name = `${extra.prenom} ${extra.nom}`;
                     }
                 }
 

@@ -10,6 +10,19 @@ export default function Settings({ clientData, setClientData }) {
         phone: clientData?.phone || ''
     });
     
+    // Mettre à jour le formulaire quand les données arrivent
+    React.useEffect(() => {
+        if (clientData) {
+            setFormData({
+                name: clientData.name || '',
+                email: clientData.email || '',
+                company: clientData.company || '',
+                address: clientData.address || '',
+                phone: clientData.phone || ''
+            });
+        }
+    }, [clientData]);
+
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
