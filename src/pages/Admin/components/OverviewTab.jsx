@@ -193,28 +193,6 @@ export default function OverviewTab({ stats, clients, mail }) {
                     </div>
                 </div>
 
-                <div className="content-card">
-                    <div className="card-header">
-                        <h2>Flux Courrier</h2>
-                        <button className="btn-text">Marquer tout lu</button>
-                    </div>
-                    <div className="card-list">
-                        {mail.filter(m => m.status === 'non lu').length === 0 ? (
-                            <div className="empty-state">Aucun courrier urgent</div>
-                        ) : (
-                            mail.filter(m => m.status === 'non lu').map(m => (
-                                <div key={m.id} className="list-item">
-                                    <div className="item-icon"><Icons.Mail /></div>
-                                    <div className="item-content">
-                                        <div className="item-title">{m.company}</div>
-                                        <div className="item-meta">{m.from} · {m.type}</div>
-                                    </div>
-                                    <div className="item-date">{m.date}</div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
             </div>
         </div>
     );

@@ -45,8 +45,11 @@ export const uploadFile = async (file, options = {}) => {
     formData.append('file', file);
     formData.append('upload_preset', uploadPreset);
     
-    // On laisse Cloudinary décider du type mais on lui donne des indices
-    formData.append('resource_type', 'auto');
+    // Pour les PDF, on utilise 'raw'. 
+    // Avantage : Cloudinary les sert tels quels et le navigateur les télécharge souvent par défaut.
+    // Cela évite les erreurs 401 liées aux transformations restreintes sur les PDF.
+    const isPDF = file.name?.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    formData.append('resource_type', isPDF ? 'raw' : 'auto');
 
     if (options.folder) {
         formData.append('folder', options.folder);

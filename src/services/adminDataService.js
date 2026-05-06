@@ -78,6 +78,23 @@ export const adminDataService = {
     },
 
     async deleteClient(id) {
+        // 1. Essayer de supprimer le compte Clerk d'abord
+        const client = await this.getClientById(id);
+        if (client && client.clerkId && client.clerkId !== 'user_unknown') {
+            try {
+                const resp = await fetch('/api/delete-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ clerkId: client.clerkId })
+                });
+                const resData = await resp.json();
+                console.log("Résultat suppression Clerk:", resData);
+            } catch (err) {
+                console.warn("Échec appel API suppression Clerk:", err);
+            }
+        }
+
+        // 2. Supprimer de la DB locale
         await conn.execute('DELETE FROM clients WHERE id = ?', [id]);
     },
 
@@ -154,23 +171,27 @@ export const adminDataService = {
             let clientId;
             const since = new Date().toISOString().split('T')[0];
 
+            // On s'assure que extra_info est bien une chaîne JSON propre
+            let extraInfoStr = d.extra_info;
+            if (extraInfoStr && typeof extraInfoStr !== 'string') {
+                extraInfoStr = JSON.stringify(extraInfoStr);
+            }
+
             if (existingClientRes.rows.length > 0) {
-                // Mettre à jour le client existant
+                // Mettre à jour le client existant avec TOUTES les nouvelles infos
                 clientId = existingClientRes.rows[0].id;
                 await conn.execute(
                     `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = 'linked' 
                      WHERE id = ?`,
-                    [d.clientName, d.company, d.city || 'À définir', d.plan, since, d.extra_info || null, d.clerkId || '', clientId]
+                    [d.clientName, d.company, d.city || 'À définir', d.plan, since, extraInfoStr, d.clerkId || '', clientId]
                 );
             } else {
                 // Créer le nouveau client
                 clientId = Date.now().toString();
-                const extraInfo = typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info;
-                
                 await conn.execute(
                     `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, d.clerkId || '', d.clerkId ? 'linked' : 'invitation_sent', JSON.stringify(extraInfo)]
+                    [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, d.clerkId || '', d.clerkId ? 'linked' : 'invitation_sent', extraInfoStr]
                 );
             }
 
@@ -189,6 +210,18 @@ export const adminDataService = {
     },
 
     async deleteDemande(id) {
+        // Supprimer aussi Clerk si lié
+        const res = await conn.execute('SELECT clerkId FROM demandes WHERE id = ?', [id]);
+        const clerkId = res.rows[0]?.clerkId;
+        if (clerkId && clerkId !== 'user_unknown') {
+            try {
+                await fetch('/api/delete-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ clerkId })
+                });
+            } catch (err) { }
+        }
         await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
     },
 

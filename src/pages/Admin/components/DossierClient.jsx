@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
+import { convertPdfToPng } from '../../../utils/pdfConverter';
 
 export default function DossierClient({ client, onBack, onUpdate }) {
     const [documents, setDocuments] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [currentFolder, setCurrentFolder] = useState(null);
 
-    // Dériver les dossiers depuis la liste des documents
-    const folders = Array.from(new Set(documents.map(d => d.folder || 'Documents')));
+    // Dériver les dossiers depuis la liste des documents de manière sécurisée
+    const folders = Array.from(new Set((documents || []).map(d => (d && d.folder) || 'Documents')));
 
     const [activeDossierTab, setActiveDossierTab] = useState('details');
     const [messages, setMessages] = useState([]);
@@ -66,34 +67,55 @@ export default function DossierClient({ client, onBack, onUpdate }) {
     };
 
     const handleFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        await performUpload(file);
+        const originalFile = e.target.files[0];
+        if (!originalFile) return;
+        
+        setIsLoading(true);
+        try {
+            let fileToUpload = originalFile;
+            
+            // Si c'est un PDF, on le transforme en PNG avant l'envoi
+            if (originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf')) {
+                console.log("Conversion du PDF en PNG...");
+                fileToUpload = await convertPdfToPng(originalFile);
+            }
+            
+            await performUpload(fileToUpload);
+        } catch (err) {
+            console.error("Erreur préparation fichier:", err);
+            alert("Erreur de préparation : " + err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const performUpload = async (file) => {
-        setIsLoading(true);
         try {
             const info = await uploadFile(file, {
                 folder: `clients/${client.id}/Documents`
             });
 
             await adminDataService.addDocument(client.id, {
-                name: file.name || info.original_filename || 'Sans nom',
+                name: file.name,
                 size: (file.size / 1024).toFixed(0) + ' KB',
-                type: file.type || (info.resource_type + '/' + info.format),
+                type: file.type,
                 owner: 'admin',
                 folder: 'Documents',
                 url: info.secure_url
             });
+
             const docs = await adminDataService.getDocuments(client.id);
-            setDocuments(docs);
+            setDocuments(Array.isArray(docs) ? docs : []);
         } catch (err) {
             console.error("Error during upload:", err);
-            alert("Erreur lors de l'envoi : " + err.message);
+            alert("Erreur critique : " + err.message);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleUploadClick = () => {
+        document.getElementById('admin-file-upload').click();
     };
 
     const onDragOver = (e) => {
@@ -104,10 +126,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
     const onDrop = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const files = e.dataTransfer.files;
-        if (files && files.length > 0) {
-            performUpload(files[0]);
-        }
+        handleUploadClick(); // On ouvre le widget pour plus de sécurité
     };
 
     const handleAddInvoice = async () => {
@@ -231,6 +250,8 @@ export default function DossierClient({ client, onBack, onUpdate }) {
     try {
         if (client.extra_info) {
             extra = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+            // Si c'est un objet vide, on le remet à null pour l'affichage du message d'aide
+            if (extra && Object.keys(extra).length === 0) extra = null;
         }
     } catch (e) {
         console.error("Error parsing extra_info", e);
@@ -251,7 +272,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                     onChange={handleFileChange}
                                     disabled={isLoading}
                                 />
-                                <button className="btn-primary-sm" onClick={() => document.getElementById('admin-file-upload').click()} disabled={isLoading}>
+                                <button className="btn-primary-sm" onClick={handleUploadClick} disabled={isLoading}>
                                     {isLoading ? 'Envoi...' : 'Uploader'}
                                 </button>
                             </div>
@@ -262,49 +283,59 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                             onDrop={onDrop}
                             style={{ minHeight: '250px' }}
                         >
-                            {isLoading && documents.length === 0 ? (
+                            {isLoading && (!documents || documents.length === 0) ? (
                                 <div className="empty-state-full"><p>Chargement...</p></div>
                             ) : (
                                 <div className="ec-explorer-grid" style={{ padding: '0px', border: 'none', background: 'transparent' }}>
-                                    {documents.length === 0 ? (
+                                    {!documents || documents.length === 0 ? (
                                         <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: '#64748B' }}>
                                             <Icons.File style={{ width: '48px', height: '48px', opacity: '0.4', marginBottom: '12px' }} />
                                             <p>Aucun document pour ce client. Glissez-déposez ou cliquez sur Uploader.</p>
                                         </div>
                                     ) : (
-                                        documents.map(doc => (
-                                            <div key={doc.id} className="ec-explorer-item file" onClick={() => doc.url && window.open(doc.url, '_blank')} style={{ border: '1px solid #E2E8F0', padding: '16px', borderRadius: '12px', background: 'white' }}>
-                                                <div className="ec-explorer-icon"><Icons.File style={{ width: '24px', height: '24px', color: '#6366F1' }} /></div>
-                                                <div className="ec-explorer-name" style={{ fontWeight: '600', fontSize: '14px', color: '#1E293B' }}>{doc.name}</div>
-                                                <div className="ec-explorer-meta" style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
-                                                    {doc.size} · {doc.owner === 'admin' ? 'Déposé par vous' : 'Client'}
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                                                    <button 
-                                                        className="ec-explorer-dl" 
-                                                        onClick={(e) => { e.stopPropagation(); window.open(doc.url, '_blank'); }}
-                                                        style={{ flex: 1, padding: '8px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', cursor: 'pointer', fontWeight: '600', fontSize: '12px' }}
-                                                    >
-                                                        Ouvrir
-                                                    </button>
-                                                    <button 
-                                                        onClick={async (e) => { 
-                                                            e.stopPropagation(); 
-                                                            if (window.confirm("Supprimer ce document ?")) {
-                                                                try {
-                                                                    await adminDataService.deleteDocument(doc.id);
-                                                                    setDocuments(prev => prev.filter(x => x.id !== doc.id));
-                                                                } catch (err) { alert("Erreur lors de la suppression"); }
-                                                            }
-                                                        }}
-                                                        style={{ padding: '8px', border: '1px solid #FEE2E2', borderRadius: '8px', background: '#FEF2F2', cursor: 'pointer', color: '#DC2626' }}
-                                                        title="Supprimer"
-                                                    >
-                                                        <Icons.Trash style={{ width: '16px', height: '16px' }} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
+                                        documents.map(doc => {
+                                            if (!doc) return null;
+                                            return (
+                                                <a 
+                                                    key={doc.id} 
+                                                    href={doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\.pdf$/i, '.jpg') : doc.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="ec-explorer-item file" 
+                                                    style={{ border: '1px solid #E2E8F0', padding: '16px', borderRadius: '12px', background: 'white', textDecoration: 'none', display: 'block' }}
+                                                >
+                                                    <div className="ec-explorer-icon"><Icons.File style={{ width: '24px', height: '24px', color: '#6366F1' }} /></div>
+                                                    <div className="ec-explorer-name" style={{ fontWeight: '600', fontSize: '14px', color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.name}</div>
+                                                    <div className="ec-explorer-meta" style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                                                        {doc.size} · {doc.owner === 'admin' ? 'Déposé par vous' : 'Client'}
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                                        <div 
+                                                            className="ec-explorer-dl" 
+                                                            style={{ flex: 1, padding: '8px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', textAlign: 'center', fontWeight: '600', fontSize: '12px', color: '#0F172A' }}
+                                                        >
+                                                            Ouvrir / Télécharger
+                                                        </div>
+                                                        <button 
+                                                            onClick={async (e) => { 
+                                                                e.preventDefault();
+                                                                e.stopPropagation(); 
+                                                                if (window.confirm("Supprimer ce document ?")) {
+                                                                    try {
+                                                                        await adminDataService.deleteDocument(doc.id);
+                                                                        setDocuments(prev => (prev || []).filter(x => x.id !== doc.id));
+                                                                    } catch (err) { alert("Erreur lors de la suppression"); }
+                                                                }
+                                                            }}
+                                                            style={{ padding: '8px', border: '1px solid #FEE2E2', borderRadius: '8px', background: '#FEF2F2', cursor: 'pointer', color: '#DC2626' }}
+                                                            title="Supprimer"
+                                                        >
+                                                            <Icons.Trash style={{ width: '16px', height: '16px' }} />
+                                                        </button>
+                                                    </div>
+                                                </a>
+                                            );
+                                        })
                                     )}
                                 </div>
                             )}

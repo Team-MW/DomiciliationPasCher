@@ -88,6 +88,42 @@ const localStripePlugin = {
         });
         return;
       }
+      if (req.url === '/api/delete-user' && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString() });
+        req.on('end', async () => {
+          try {
+            const body = JSON.parse(bodyStr || '{}');
+            const { clerkId } = body;
+            
+            let secretKey = null;
+            if (fs.existsSync('.env')) {
+               const envContent = fs.readFileSync('.env', 'utf-8');
+               const match = envContent.match(/CLERK_SECRET_KEY=(.*)/);
+               if (match) secretKey = match[1].trim();
+            }
+
+            if (!secretKey) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: "CLERK_SECRET_KEY manquante dans .env" }));
+              return;
+            }
+
+            const { createClerkClient } = await import('@clerk/clerk-sdk-node');
+            const clerk = createClerkClient({ secretKey });
+            await clerk.users.deleteUser(clerkId);
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ message: "Supprimé avec succès de Clerk" }));
+          } catch (e) {
+            console.error("Vite Clerk Delete Error:", e);
+            res.statusCode = 200; // On renvoie 200 même si erreur pour ne pas bloquer
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+        return;
+      }
       next();
     });
   }
