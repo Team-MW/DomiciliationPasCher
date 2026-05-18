@@ -68,11 +68,22 @@ export default function Meeting({ clientData, setActiveTab }) {
 
         setIsSubmitting(true);
         try {
+            const cache = { type, date, duration };
             sessionStorage.setItem('pendingBooking', JSON.stringify(cache));
             const successUrl = `${window.location.origin}/espace-client?tab=meeting&booking_success=true`;
             const cancelUrl = `${window.location.origin}/espace-client?tab=meeting&booking_cancel=true`;
             
-            await handleCheckout('salle', price, `Réservation ${type} (${duration})`, 'one_time', successUrl, cancelUrl);
+            await handleCheckout(
+                'salle',
+                price,
+                `Réservation ${type} (${duration})`,
+                'one_time',
+                successUrl,
+                cancelUrl,
+                clientData.email,
+                clientData.name,
+                { client_id: clientData.id, type: 'meeting_booking' }
+            );
             // La page va être redirigée vers Stripe ici.
         } catch (error) {
             console.error("Booking payment error:", error);

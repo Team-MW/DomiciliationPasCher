@@ -213,6 +213,38 @@ export default function EspaceClient() {
         );
     }
 
+    if (!isLoading && (clientData?.status === 'impayé' || clientData?.status === 'echec_paiement')) {
+        return (
+            <div className="ec-pending-screen">
+                <div className="ec-pending-card" style={{ maxWidth: '500px', borderTop: '4px solid #EF4444' }}>
+                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px', color: '#EF4444' }}>
+                        ⚠️
+                    </div>
+                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>
+                        Accès Suspendu — Incident de Paiement
+                    </h2>
+                    <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
+                        Votre espace client pour <strong>{clientData.company}</strong> a été temporairement suspendu suite à un incident de paiement ou un prélèvement bloqué.
+                    </p>
+                    
+                    <div style={{ background: '#FEF2F2', border: '1px solid #FEE2E2', padding: '16px', borderRadius: '8px', marginBottom: '24px', fontSize: '13px', color: '#991B1B', textAlign: 'left' }}>
+                        <strong>Comment régulariser votre situation ?</strong><br/>
+                        Un email contenant votre facture et un lien de paiement sécurisé vous a été envoyé par Stripe pour mettre à jour votre carte bancaire. Vous pouvez également nous contacter pour obtenir de l'aide.
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <button className="btn-primary" onClick={() => window.location.reload()} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700', background: '#EF4444' }}>
+                            Vérifier mon paiement
+                        </button>
+                        <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
+                            Se déconnecter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="ec-layout">
             <Sidebar

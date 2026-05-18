@@ -334,9 +334,12 @@ export const adminDataService = {
         await conn.execute('DELETE FROM payments WHERE id = ?', [paymentId]);
     },
 
-    async syncStripePayments(email) {
+    async syncStripePayments(email, stripeCustomerId = null) {
         try {
-            const res = await fetch(`/api/list-payments?email=${email}`);
+            const url = stripeCustomerId
+                ? `/api/list-payments?email=${encodeURIComponent(email)}&customerId=${encodeURIComponent(stripeCustomerId)}`
+                : `/api/list-payments?email=${encodeURIComponent(email)}`;
+            const res = await fetch(url);
             const data = await res.json();
             return data.payments || [];
         } catch (err) {

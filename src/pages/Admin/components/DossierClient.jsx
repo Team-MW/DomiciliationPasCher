@@ -192,7 +192,18 @@ export default function DossierClient({ client, onBack, onUpdate }) {
 
         try {
             setIsLoading(true);
-            const stripePayments = await adminDataService.syncStripePayments(client.email);
+            
+            let stripeCustomerId = null;
+            try {
+                if (client.extra_info) {
+                    const extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                    stripeCustomerId = extraInfo?.stripe_customer_id || null;
+                }
+            } catch (e) {
+                console.error("Error parsing client.extra_info in handleSyncStripe:", e);
+            }
+
+            const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId);
             
             if (stripePayments.length === 0) {
                 alert("Aucun paiement trouvé sur Stripe pour ce client.");
@@ -487,13 +498,12 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                             <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>Montant</th>
                                             <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>Méthode</th>
                                             <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>Statut</th>
-                                            <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {payments.length === 0 ? (
                                             <tr>
-                                                <td colSpan="6" style={{ textAlign: 'center', padding: '60px 20px', color: '#64748B', background: '#FFFFFF' }}>
+                                                <td colSpan="5" style={{ textAlign: 'center', padding: '60px 20px', color: '#64748B', background: '#FFFFFF' }}>
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 40, height: 40, opacity: 0.3, marginBottom: '12px' }}><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
                                                     <p style={{ fontSize: '14px', marginBottom: '16px' }}>Aucune facture enregistrée pour ce client.</p>
                                                     <button 
@@ -532,29 +542,6 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                                         }}>
                                                             {p.status === 'payé' ? 'Payé' : 'Échec'}
                                                         </span>
-                                                    </td>
-                                                    <td style={{ padding: '16px' }}>
-                                                        <div style={{ display: 'flex', gap: '12px' }}>
-                                                            <button 
-                                                                className="btn-text"
-                                                                onClick={() => p.url && window.open(p.url, '_blank')}
-                                                                style={{ background: 'none', border: 'none', color: '#4F46E5', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
-                                                            >
-                                                                Ouvrir
-                                                            </button>
-                                                            <button 
-                                                                onClick={async () => {
-                                                                    if (window.confirm("Supprimer cette facture ?")) {
-                                                                        await adminDataService.deletePayment(p.id);
-                                                                        setPayments(prev => prev.filter(x => x.id !== p.id));
-                                                                    }
-                                                                }}
-                                                                className="btn-text" 
-                                                                style={{ background: 'none', border: 'none', color: '#EF4444', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
-                                                            >
-                                                                Supprimer
-                                                            </button>
-                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))

@@ -506,7 +506,17 @@ export default function Souscription() {
                                             localStorage.setItem('pending_namejs', `${data.prenom} ${data.nom}`);
 
                                             const actualPlanId = data.offre === 'scan' ? 'scan-plus' : (data.offre === 'reexpedition' ? 'physique' : 'essentiel');
-                                            await handleCheckout(actualPlanId, totalAmount, productName, data.frequence);
+                                            await handleCheckout(
+                                                actualPlanId,
+                                                totalAmount,
+                                                productName,
+                                                data.frequence,
+                                                null,
+                                                null,
+                                                data.email,
+                                                `${data.prenom} ${data.nom}`,
+                                                { demande_id: demande.id }
+                                            );
                                         } finally {
                                             setLoading(false);
                                         }

@@ -6,9 +6,9 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { email } = req.query;
-    if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
+    const { email, customerId } = req.query;
+    if (!email && !customerId) {
+        return res.status(400).json({ error: 'Email or CustomerId is required' });
     }
 
     try {
@@ -25,17 +25,23 @@ export default async function handler(req, res) {
 
         const stripe = new Stripe(secretKey);
 
-        // Rechercher le client Stripe par email
-        const customers = await stripe.customers.list({ email, limit: 1 });
-        if (customers.data.length === 0) {
+        let activeCustomerId = customerId;
+
+        if (!activeCustomerId && email) {
+            // Rechercher le client Stripe par email
+            const customers = await stripe.customers.list({ email: email.trim().toLowerCase(), limit: 1 });
+            if (customers.data.length > 0) {
+                activeCustomerId = customers.data[0].id;
+            }
+        }
+
+        if (!activeCustomerId) {
             return res.status(200).json({ payments: [] });
         }
 
-        const customerId = customers.data[0].id;
-
         // Récupérer les paiements (charges ou invoices)
         const paymentIntents = await stripe.paymentIntents.list({
-            customer: customerId,
+            customer: activeCustomerId,
             limit: 10
         });
 

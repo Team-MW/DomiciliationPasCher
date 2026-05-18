@@ -306,16 +306,21 @@ export default function Home() {
                     const pendingName = localStorage.getItem('pending_namejs');
                     const stripeCustomerId = stripeData?.customer_id || null;
 
-                    if (pendingEmail) {
-                        sendWelcomeEmail(pendingEmail, pendingName);
-                        localStorage.removeItem('pending_emailjs');
-                        localStorage.removeItem('pending_namejs');
-                    }
+                    const demandIdToConfirm = pendingDemandeId || stripeData?.metadata?.demande_id;
 
-                    if (pendingDemandeId) {
-                        await adminDataService.confirmDemandePayment(pendingDemandeId, sessionId, stripeCustomerId);
+                    if (demandIdToConfirm) {
+                        await adminDataService.confirmDemandePayment(demandIdToConfirm, sessionId, stripeCustomerId);
+                        
+                        const emailToUse = pendingEmail || stripeData?.metadata?.email || stripeData?.customer_email;
+                        const nameToUse = pendingName || stripeData?.metadata?.clientName;
+                        if (emailToUse) {
+                            sendWelcomeEmail(emailToUse, nameToUse || '');
+                        }
+                        
                         localStorage.setItem('last_successful_session', sessionId);
                         localStorage.removeItem('pending_demande_id');
+                        localStorage.removeItem('pending_emailjs');
+                        localStorage.removeItem('pending_namejs');
                         localStorage.setItem('allow_registration', 'true');
                     }
                 } else {
@@ -744,8 +749,8 @@ export default function Home() {
                 <div style={{
                     position: 'fixed',
                     top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(15, 23, 42, 0.75)',
-                    backdropFilter: 'blur(10px)',
+                    background: 'rgba(8, 12, 24, 0.95)',
+                    backdropFilter: 'blur(15px)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -754,46 +759,67 @@ export default function Home() {
                 }}>
                     <div style={{
                         background: '#FFFFFF',
-                        maxWidth: '450px',
+                        maxWidth: '500px',
                         width: '100%',
-                        borderRadius: '24px',
-                        padding: '40px',
+                        borderRadius: '28px',
+                        padding: '44px 40px',
                         textAlign: 'center',
-                        boxShadow: '0 20px 50px rgba(15, 23, 42, 0.3)',
-                        border: '1px solid #F1F5F9',
+                        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        position: 'relative',
                     }}>
                         <div style={{
-                            width: '64px',
-                            height: '64px',
+                            width: '72px',
+                            height: '72px',
                             background: '#ECFDF5',
                             color: '#10B981',
                             borderRadius: '9999px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            margin: '0 auto 24px auto',
-                            fontSize: '28px'
+                            margin: '0 auto 28px auto',
+                            fontSize: '32px',
+                            boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
+                            animation: 'pulse 2s infinite'
                         }}>
-                            🎉
+                            ✅
                         </div>
                         
                         <h2 style={{
-                            fontSize: '24px',
-                            fontWeight: '800',
+                            fontSize: '26px',
+                            fontWeight: '900',
                             color: '#0F172A',
-                            marginBottom: '12px',
-                            letterSpacing: '-0.025em'
+                            marginBottom: '16px',
+                            letterSpacing: '-0.03em',
+                            lineHeight: '1.2'
                         }}>
-                            Paiement validé !
+                            Paiement Réussi !<br/>
+                            <span style={{ color: '#10B981', fontSize: '20px', fontWeight: '800' }}>Adresse Réservée avec Succès</span>
                         </h2>
                         
+                        <div style={{
+                            background: '#FFFBEB',
+                            border: '1px solid #FDE68A',
+                            borderRadius: '16px',
+                            padding: '18px',
+                            marginBottom: '28px',
+                            textAlign: 'left',
+                        }}>
+                            <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                ⚠️ ACTION OBLIGATOIRE ET IMMÉDIATE
+                            </h3>
+                            <p style={{ fontSize: '13.5px', color: '#78350F', lineHeight: '1.5', margin: 0 }}>
+                                Pour obtenir votre <strong>attestation de domiciliation officielle</strong> (indispensable pour l'immatriculation au Greffe de votre entreprise) et activer le renvoi/scan de vos courriers, vous devez <strong>obligatoirement</strong> configurer votre Espace Client Sécurisé dès maintenant.
+                            </p>
+                        </div>
+                        
                         <p style={{
-                            fontSize: '15px',
+                            fontSize: '14.5px',
                             color: '#64748B',
                             lineHeight: '1.6',
                             marginBottom: '32px'
                         }}>
-                            Félicitations pour votre abonnement. Pour accéder à vos services et consulter vos documents, créez votre compte client dès maintenant.
+                            Cette étape ne prend que 30 secondes et permet de lier de manière définitive votre paiement à votre compte utilisateur légal.
                         </p>
                         
                         <Link 
@@ -802,19 +828,21 @@ export default function Home() {
                             style={{
                                 display: 'block',
                                 width: '100%',
-                                padding: '16px',
-                                background: '#0F172A',
+                                padding: '18px',
+                                background: '#10B981',
                                 color: '#FFFFFF',
-                                borderRadius: '12px',
-                                fontSize: '15px',
-                                fontWeight: '700',
+                                borderRadius: '14px',
+                                fontSize: '16px',
+                                fontWeight: '800',
                                 textDecoration: 'none',
-                                transition: 'opacity 0.2s',
-                                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
-                                marginBottom: '12px'
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
+                                border: 'none',
+                                cursor: 'pointer',
+                                outline: 'none'
                             }}
                         >
-                            Créer mon espace sécurisé
+                            👉 Créer mon Espace Sécurisé (Étape Suivante)
                         </Link>
                     </div>
                 </div>

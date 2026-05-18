@@ -20,7 +20,7 @@ export const getStripe = () => {
  * @param {string} productName - Nom descriptif du forfait
  * @param {string} interval - 'month' ou 'year'
  */
-export const handleCheckout = async (planId, amount, productName = '', interval = 'month', customSuccessUrl = null, customCancelUrl = null) => {
+export const handleCheckout = async (planId, amount, productName = '', interval = 'month', customSuccessUrl = null, customCancelUrl = null, email = '', clientName = '', metadata = {}) => {
     try {
         const stripe = await getStripe();
 
@@ -42,6 +42,9 @@ export const handleCheckout = async (planId, amount, productName = '', interval 
                 interval: finalInterval,
                 successUrl: customSuccessUrl || `${window.location.origin}/?success=true`,
                 cancelUrl: customCancelUrl || `${window.location.origin}/`,
+                email,
+                clientName,
+                metadata,
             }),
         });
 

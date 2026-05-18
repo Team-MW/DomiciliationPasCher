@@ -36,7 +36,8 @@ export default async function handler(req, res) {
             status: session.payment_status,
             customer_email: session.customer_details?.email,
             customer_id: session.customer, // Récupérer l'ID client Stripe
-            session_id: session.id
+            session_id: session.id,
+            metadata: session.metadata || {}
         });
     } catch (error) {
         console.error('Verify session error:', error);

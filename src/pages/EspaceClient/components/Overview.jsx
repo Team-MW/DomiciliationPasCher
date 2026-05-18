@@ -26,7 +26,7 @@ export default function Overview({ mail, documents, bookings, clientData }) {
                     <div className="ec-card-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '20px 24px' }}>
                         <h2 style={{ fontSize: '15px', color: 'white' }}>Adresse de Domiciliation</h2>
                         <button className="ec-btn-text" style={{ fontSize: '12px', color: '#ffffff', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => {
-                            const text = `${clientData?.company}\n122 Avenue des Champs-Élysées\n75008 Paris`;
+                            const text = `${clientData?.company}\n150 Rue Nicolas Louis Vauquelin\n31100 Toulouse\nFRANCE`;
                             if (navigator.clipboard) {
                                 navigator.clipboard.writeText(text);
                             } else {
@@ -53,8 +53,8 @@ export default function Overview({ mail, documents, bookings, clientData }) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontWeight: '800' }}>Adresse Officielle</span>
                             <div style={{ fontSize: '15px', lineHeight: '1.6', color: '#e2e8f0' }}>
-                                122 Avenue des Champs-Élysées<br/>
-                                75008 Paris<br/>
+                                150 Rue Nicolas Louis Vauquelin<br/>
+                                31100 Toulouse<br/>
                                 FRANCE
                             </div>
                         </div>
