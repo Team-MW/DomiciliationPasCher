@@ -11,11 +11,42 @@ export default function Factures({ clientData }) {
         if (clientData?.id) {
             const fetchPayments = async () => {
                 try {
+                    // 1. Charger d'abord les paiements stockés localement
                     const pay = await adminDataService.getPayments(clientData.id);
                     setRealPayments(pay);
+                    setIsLoading(false);
+
+                    // 2. Synchronisation silencieuse en tâche de fond avec Stripe
+                    let stripeCustomerId = null;
+                    if (clientData.extra_info) {
+                        try {
+                            const extraInfo = typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info;
+                            stripeCustomerId = extraInfo?.stripe_customer_id || null;
+                        } catch (e) {
+                            console.error("Error parsing clientData.extra_info:", e);
+                        }
+                    }
+
+                    const stripePayments = await adminDataService.syncStripePayments(clientData.email, stripeCustomerId);
+                    if (stripePayments && stripePayments.length > 0) {
+                        let addedCount = 0;
+                        for (const sp of stripePayments) {
+                            const alreadyExists = pay.some(p => p.amount == sp.amount && p.date == sp.date);
+                            if (!alreadyExists) {
+                                await adminDataService.addPayment(clientData.id, {
+                                    ...sp,
+                                    invoice_ref: `STRIPE-${sp.id.substring(3, 10)}`
+                                });
+                                addedCount++;
+                            }
+                        }
+                        if (addedCount > 0) {
+                            const updatedPay = await adminDataService.getPayments(clientData.id);
+                            setRealPayments(updatedPay);
+                        }
+                    }
                 } catch (err) {
-                    console.error("Erreur chargement factures:", err);
-                } finally {
+                    console.error("Erreur chargement/sync factures:", err);
                     setIsLoading(false);
                 }
             };
@@ -36,43 +67,15 @@ export default function Factures({ clientData }) {
         );
     }
 
-    // Calculer les factures à afficher
-    let factures = [];
-
-    if (realPayments.length > 0) {
-        factures = realPayments.map(p => ({
+    // Calculer uniquement les vraies factures payées à afficher (filtrage strict)
+    const factures = realPayments
+        .filter(p => p.status === 'payé')
+        .map(p => ({
             id: p.id,
             ref: p.invoice_ref,
             dateStr: new Date(p.date).toLocaleDateString('fr-FR'),
             amount: parseFloat(p.amount)
         }));
-    } else {
-        const startDate = new Date(clientData.since);
-        const currentDate = new Date();
-        
-        let iterationDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-        const endLimit = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-
-        while (iterationDate <= endLimit) {
-            const month = iterationDate.getMonth() + 1;
-            const year = iterationDate.getFullYear();
-            const day = startDate.getDate() > 28 ? 28 : startDate.getDate(); 
-            const dateStr = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
-            const ref = `FAC-${year}${month.toString().padStart(2, '0')}-${clientData.id.toString().substring(0, 4)}`;
-            let amount = 20;
-            if (clientData.plan === 'Scan+') amount = 24;
-            else if (clientData.plan === 'Physique+') amount = 38;
-
-            factures.push({
-                id: ref,
-                ref,
-                dateStr,
-                amount
-            });
-            iterationDate.setMonth(iterationDate.getMonth() + 1);
-        }
-        factures.reverse();
-    }
 
     const generatePdf = async (facture) => {
         try {

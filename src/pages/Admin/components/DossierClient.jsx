@@ -3,6 +3,8 @@ import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
+import { sendFailedPaymentEmail } from '../../../utils/emailService';
+import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
 
 export default function DossierClient({ client, onBack, onUpdate }) {
     const [documents, setDocuments] = useState([]);
@@ -21,13 +23,64 @@ export default function DossierClient({ client, onBack, onUpdate }) {
         if (client) {
             const fetchData = async () => {
                 setIsLoading(true);
-                const [docs, pay] = await Promise.all([
-                    adminDataService.getDocuments(client.id),
-                    adminDataService.getPayments(client.id)
-                ]);
-                setDocuments(docs);
-                setPayments(pay);
-                setIsLoading(false);
+                try {
+                    const [docs, pay] = await Promise.all([
+                        adminDataService.getDocuments(client.id),
+                        adminDataService.getPayments(client.id)
+                    ]);
+                    setDocuments(docs);
+                    setPayments(pay);
+                    setIsLoading(false);
+
+                    // Synchronisation silencieuse en tâche de fond avec Stripe
+                    let stripeCustomerId = null;
+                    if (client.extra_info) {
+                        try {
+                            const extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                            stripeCustomerId = extraInfo?.stripe_customer_id || null;
+                        } catch (e) {
+                            console.error("Error parsing client.extra_info:", e);
+                        }
+                    }
+
+                    const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId);
+                    if (stripePayments && stripePayments.length > 0) {
+                        let addedCount = 0;
+                        for (const sp of stripePayments) {
+                            const alreadyExists = pay.some(p => p.amount == sp.amount && p.date == sp.date);
+                            if (!alreadyExists) {
+                                await adminDataService.addPayment(client.id, {
+                                    ...sp,
+                                    invoice_ref: `STRIPE-${sp.id.substring(3, 10)}`
+                                });
+                                addedCount++;
+                            }
+                        }
+
+                        // Récupérer la liste à jour des paiements locaux
+                        let finalPayments = pay;
+                        if (addedCount > 0) {
+                            finalPayments = await adminDataService.getPayments(client.id);
+                            setPayments(finalPayments);
+                        }
+
+                        // Vérifier le statut de paiement le plus récent pour automatiser les statuts client
+                        const sortedPayments = [...finalPayments].sort((a, b) => new Date(b.date) - new Date(a.date));
+                        if (sortedPayments.length > 0) {
+                            const latestPayment = sortedPayments[0];
+                            if (latestPayment.status === 'échec' && client.status === 'actif') {
+                                await adminDataService.updateClientStatus(client.id, 'echec_paiement');
+                                onUpdate(); // Notification à Admin.jsx pour rafraîchir la liste générale
+                            } else if (latestPayment.status === 'payé' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
+                                await adminDataService.updateClientStatus(client.id, 'actif');
+                                onUpdate();
+                            }
+                        }
+                    }
+                } catch (stripeErr) {
+                    console.warn("Silent Stripe sync failed:", stripeErr);
+                    setIsLoading(false);
+                }
             };
             fetchData();
         }
@@ -224,12 +277,30 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                 }
             }
 
+            // Récupérer la liste finale à jour des paiements locaux
+            const finalPayments = await adminDataService.getPayments(client.id);
+            setPayments(finalPayments);
+
+            // Vérifier le statut de paiement le plus récent pour automatiser les statuts client
+            const sortedPayments = [...finalPayments].sort((a, b) => new Date(b.date) - new Date(a.date));
+            let statusUpdated = false;
+            if (sortedPayments.length > 0) {
+                const latestPayment = sortedPayments[0];
+                if (latestPayment.status === 'échec' && client.status === 'actif') {
+                    await adminDataService.updateClientStatus(client.id, 'echec_paiement');
+                    statusUpdated = true;
+                    onUpdate();
+                } else if (latestPayment.status === 'payé' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
+                    await adminDataService.updateClientStatus(client.id, 'actif');
+                    statusUpdated = true;
+                    onUpdate();
+                }
+            }
+
             if (addedCount > 0) {
-                alert(`${addedCount} nouveau(x) paiement(s) récupéré(s) de Stripe !`);
-                const pay = await adminDataService.getPayments(client.id);
-                setPayments(pay);
+                alert(`${addedCount} nouveau(x) paiement(s) récupéré(s) de Stripe !` + (statusUpdated ? " Le statut d'accès du client a été mis à jour automatiquement." : ""));
             } else {
-                alert("Historique déjà à jour avec Stripe.");
+                alert("Historique déjà à jour avec Stripe." + (statusUpdated ? " Le statut d'accès du client a été mis à jour automatiquement." : ""));
             }
         } catch (err) {
             console.error(err);
@@ -273,8 +344,64 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             case 'docs':
                 return (
                     <>
+                        {/* NOUVEAU : Bloc Génération administrative */}
+                        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '20px', borderRadius: '12px', marginBottom: '24px' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>⚙️</span> Génération de Documents Officiels
+                            </h3>
+                            <p style={{ color: '#64748B', fontSize: '13px', lineHeight: '1.5', marginBottom: '16px', margin: 0 }}>
+                                Générez et téléchargez instantanément l'attestation ou le contrat officiel pré-remplis avec les données d'inscription validées pour ce client.
+                            </p>
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
+                                <button 
+                                    className="btn-primary-sm" 
+                                    style={{ background: '#0F172A', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
+                                    onClick={() => generateAttestationPdf(client)}
+                                >
+                                    <span>📥</span> Attestation de Domiciliation
+                                </button>
+                                <button 
+                                    style={{ background: 'white', color: '#0F172A', border: '1px solid #D1D5DB', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
+                                    onClick={() => generateContratPdf(client)}
+                                >
+                                    <span>📜</span> Contrat de Domiciliation
+                                </button>
+                            </div>
+                            
+                            {/* NOUVEAU : Documents Communs de l'Établissement */}
+                            <div style={{ borderTop: '1px solid #E2E8F0', marginTop: '20px', paddingTop: '16px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '10px' }}>📁 Documents Communs Domiciliataire (Toulouse) :</span>
+                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                    <a 
+                                        href="/Agrement_CASSIN.pdf" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
+                                    >
+                                        🛡️ Agrément CASSIN.pdf
+                                    </a>
+                                    <a 
+                                        href="/Extrait_KBIS_CASSIN.pdf" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
+                                    >
+                                        🏢 Extrait KBIS CASSIN.pdf
+                                    </a>
+                                    <a 
+                                        href="/Procuration_Postale.pdf" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
+                                    >
+                                        ✉️ Procuration Postale.pdf
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="card-header">
-                            <h2>Documents</h2>
+                            <h2>Documents Déposés / Partagés</h2>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <input
                                     type="file"
@@ -724,9 +851,14 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                             <button 
                                 className="btn-danger-outline" 
                                 onClick={async () => {
-                                    if (window.confirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé'.")) {
+                                    if (window.confirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé' et un email d'avertissement lui sera envoyé.")) {
                                         try {
                                             await adminDataService.updateClientStatus(client.id, 'impayé');
+                                            try {
+                                                await sendFailedPaymentEmail(client.email, client.name);
+                                            } catch (mailErr) {
+                                                console.error("Erreur d'envoi d'email impayé :", mailErr);
+                                            }
                                             onUpdate();
                                             onBack();
                                         } catch (e) {

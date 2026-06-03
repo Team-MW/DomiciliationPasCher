@@ -39,6 +39,7 @@ if (!clerkPublishableKey) {
         publishableKey={clerkPublishableKey}
         signInFallbackRedirectUrl="/app/espace-client"
         signUpFallbackRedirectUrl="/app/espace-client"
+        localization={frFR}
       >
         <App />
       </ClerkProvider>

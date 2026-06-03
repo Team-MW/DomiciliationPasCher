@@ -29,10 +29,15 @@ export default async function handler(req, res) {
             } catch (e) { console.error(e) }
         }
 
-        const { email, nom } = req.body;
+        const { email, nom, type } = req.body;
 
         if (!email) {
             return res.status(400).json({ error: "L'email est requis." });
+        }
+
+        let message = "Votre paiement a été validé avec succès. Merci de créer votre compte Espace Client et de déposer vos pièces justificatives.";
+        if (type === 'payment_failed') {
+            message = "⚠️ Attention : Votre dernier prélèvement ou paiement de domiciliation a échoué ou a été bloqué. Votre accès à l'Espace Client Sécurisé est momentanément restreint. Veuillez régulariser votre paiement au plus vite afin de réactiver votre adresse professionnelle et conserver l'accès à vos courriers.";
         }
 
         // 2. Appel à l'API EmailJS côté serveur (La clé privée reste protégée !)
@@ -47,7 +52,7 @@ export default async function handler(req, res) {
                 template_params: {
                     to_email: email,
                     to_name: nom || "Client",
-                    message: "Votre paiement a été validé avec succès. Merci de créer votre compte Espace Client et de déposer vos pièces justificatives."
+                    message: message
                 }
             })
         });

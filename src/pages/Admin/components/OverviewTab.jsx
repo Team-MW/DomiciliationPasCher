@@ -15,22 +15,22 @@ export default function OverviewTab({ stats, clients, mail }) {
     const pctScan = Math.round((planCounts['scan-plus'] / totalClients) * 100);
     const pctPhysique = Math.round((planCounts.physique / totalClients) * 100);
 
-    // Données pour le graphique de revenus
-    const currentRev = stats.monthlyRevenue || 0;
-    const revenueData = [
-        Math.round(currentRev * 0.2),
-        Math.round(currentRev * 0.4),
-        Math.round(currentRev * 0.55),
-        Math.round(currentRev * 0.75),
-        Math.round(currentRev * 0.9),
-        currentRev
+    // Données réelles issues de l'historique de la base de données (sécurisé avec valeurs par défaut sur le premier render)
+    const revenueHistory = stats.revenueHistory || [
+        { label: '...', revenue: 0 },
+        { label: '...', revenue: 0 },
+        { label: '...', revenue: 0 },
+        { label: '...', revenue: 0 },
+        { label: '...', revenue: 0 },
+        { label: '...', revenue: 0 }
     ];
-    const revenueLabels = ['Nov', 'Déc', 'Jan', 'Fév', 'Mar', 'Avr'];
+    const revenueData = revenueHistory.map(h => h.revenue);
+    const revenueLabels = revenueHistory.map(h => h.label);
     
     // Calcul des points SVG
     const svgWidth = 500;
     const svgHeight = 150;
-    const padding = 30;
+    const padding = 45; // Augmenté pour les légendes Y
     const maxVal = Math.max(...revenueData, 100) * 1.2;
     
     const points = revenueData.map((val, i) => {
@@ -41,7 +41,6 @@ export default function OverviewTab({ stats, clients, mail }) {
 
     const pathD = points.reduce((acc, p, i) => {
         if (i === 0) return `M ${p.x} ${p.y}`;
-        // Courbe de Bézier
         const prev = points[i - 1];
         const cpX1 = prev.x + (p.x - prev.x) / 2;
         const cpY1 = prev.y;
@@ -50,26 +49,40 @@ export default function OverviewTab({ stats, clients, mail }) {
         return `${acc} C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p.x} ${p.y}`;
     }, '');
 
-    const fillD = `${pathD} L ${points[points.length - 1].x} ${svgHeight - padding} L ${points[0].x} ${svgHeight - padding} Z`;
+    const fillD = points.length > 0 
+        ? `${pathD} L ${points[points.length - 1].x} ${svgHeight - padding} L ${points[0].x} ${svgHeight - padding} Z`
+        : '';
+
+    // Calcul de l'évolution en pourcentage pour le tableau
+    const tableData = revenueHistory.map((h, i) => {
+        let pctChange = null;
+        if (i > 0 && revenueHistory[i - 1].revenue > 0) {
+            pctChange = Math.round(((h.revenue - revenueHistory[i - 1].revenue) / revenueHistory[i - 1].revenue) * 100);
+        }
+        return {
+            ...h,
+            pctChange
+        };
+    });
 
     return (
         <div className="tab-container">
             <div className="stats-row">
                 <div className="stat-card">
                     <span className="stat-card-label">Clients Actifs</span>
-                    <div className="stat-card-value">{stats.activeClients}</div>
+                    <div className="stat-card-value">{stats.activeClients || 0}</div>
                     <div className="stat-card-trend trend-up">
                         <Icons.TrendUp /> <span>12.5%</span>
                     </div>
                 </div>
                 <div className="stat-card">
                     <span className="stat-card-label">Demandes en attente</span>
-                    <div className="stat-card-value">{stats.pendingDemandes}</div>
+                    <div className="stat-card-value">{stats.pendingDemandes || 0}</div>
                     <div className="stat-card-trend" style={{ color: '#1A56DB' }}>Action requise</div>
                 </div>
                 <div className="stat-card">
                     <span className="stat-card-label">Revenu Mensuel</span>
-                    <div className="stat-card-value">{stats.monthlyRevenue}€</div>
+                    <div className="stat-card-value">{(stats.monthlyRevenue || 0)}€</div>
                     <div className="stat-card-trend trend-up">
                         <Icons.TrendUp /> <span>8.2%</span>
                     </div>
@@ -84,44 +97,86 @@ export default function OverviewTab({ stats, clients, mail }) {
             {/* ══ Graphiques Section ══ */}
             <div className="dashboard-grid" style={{ marginBottom: '24px' }}>
                 <div className="content-card">
-                    <div className="card-header">
-                        <h2>Évolution des Revenus (Mensuel)</h2>
+                    <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h2>Analyse Mensuelle des Revenus (Live Stripe)</h2>
+                        <span style={{ fontSize: '12px', background: '#ECFDF5', color: '#047857', padding: '4px 8px', borderRadius: '6px', fontWeight: '700' }}>
+                            Base de données synchronisée
+                        </span>
                     </div>
-                    <div className="card-body" style={{ padding: '20px' }}>
-                        <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ overflow: 'visible' }}>
-                            <defs>
-                                <linearGradient id="revGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.3" />
-                                    <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
-                                </linearGradient>
-                            </defs>
-                            {/* Grille horizontale */}
-                            {[0, 0.25, 0.5, 0.75, 1].map((p, i) => {
-                                const y = svgHeight - padding - p * (svgHeight - padding * 2);
-                                return (
-                                    <line key={i} x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#E2E8F0" strokeDasharray="4 4" />
-                                );
-                            })}
-                            
-                            {/* Remplissage sous la courbe */}
-                            <path d={fillD} fill="url(#revGrad)" />
-                            
-                            {/* Ligne de la courbe */}
-                            <path d={pathD} fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" />
-                            
-                            {/* Points de données */}
-                            {points.map((p, i) => (
-                                <circle key={i} cx={p.x} cy={p.y} r="5" fill="white" stroke="var(--primary)" strokeWidth="2" />
-                            ))}
+                    <div className="card-body" style={{ padding: '24px', display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '32px', alignItems: 'center' }}>
+                        {/* Partie Gauche : Graphique Premium */}
+                        <div>
+                            <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ overflow: 'visible' }}>
+                                <defs>
+                                    <linearGradient id="revGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.4" />
+                                        <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.0" />
+                                    </linearGradient>
+                                </defs>
+                                {/* Grille horizontale avec valeurs Y-axis */}
+                                {[0, 0.25, 0.5, 0.75, 1].map((p, i) => {
+                                    const y = svgHeight - padding - p * (svgHeight - padding * 2);
+                                    const val = Math.round(p * maxVal);
+                                    return (
+                                        <g key={i}>
+                                            <line x1={padding} y1={y} x2={svgWidth - padding} y2={y} stroke="#E2E8F0" strokeDasharray="4 4" />
+                                            <text x={padding - 8} y={y + 4} textAnchor="end" fontSize="9" fill="#94A3B8" fontWeight="600">{val}€</text>
+                                        </g>
+                                    );
+                                })}
+                                
+                                {/* Remplissage sous la courbe */}
+                                <path d={fillD} fill="url(#revGrad)" />
+                                
+                                {/* Ligne de la courbe */}
+                                <path d={pathD} fill="none" stroke="#2563EB" strokeWidth="4" strokeLinecap="round" />
+                                
+                                {/* Points de données avec tooltips de valeur */}
+                                {points.map((p, i) => (
+                                    <g key={i} className="chart-point-group">
+                                        <circle cx={p.x} cy={p.y} r="6" fill="white" stroke="#2563EB" strokeWidth="3" />
+                                        <text x={p.x} y={p.y - 12} textAnchor="middle" fontSize="10" fill="#1E293B" fontWeight="800" style={{ pointerEvents: 'none' }}>
+                                            {revenueData[i]}€
+                                        </text>
+                                    </g>
+                                ))}
 
-                            {/* Libellés X */}
-                            {revenueLabels.map((l, i) => {
-                                const x = padding + (i * (svgWidth - padding * 2)) / (revenueLabels.length - 1);
-                                return (
-                                    <text key={i} x={x} y={svgHeight - 10} textAnchor="middle" fontSize="11" fill="#94A3B8" fontWeight="600">{l}</text>
-                                );
-                            })}
-                        </svg>
+                                {/* Libellés X */}
+                                {revenueLabels.map((l, i) => {
+                                    const x = padding + (i * (svgWidth - padding * 2)) / (revenueLabels.length - 1);
+                                    return (
+                                        <text key={i} x={x} y={svgHeight - 8} textAnchor="middle" fontSize="11" fill="#64748B" fontWeight="700">{l}</text>
+                                    );
+                                })}
+                            </svg>
+                        </div>
+
+                        {/* Partie Droite : Tableau Professionnel connecté aux chiffres */}
+                        <div style={{ borderLeft: '1px solid #E2E8F0', paddingLeft: '32px' }}>
+                            <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
+                                Historique des Chiffres
+                            </h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', padding: '8px 12px', background: '#F8FAFC', borderRadius: '8px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>
+                                    <span>Mois</span>
+                                    <span style={{ textAlign: 'right' }}>Revenus</span>
+                                    <span style={{ textAlign: 'right' }}>Évolution</span>
+                                </div>
+                                {tableData.map((row, idx) => (
+                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', padding: '10px 12px', borderBottom: '1px solid #F1F5F9', fontSize: '13px', fontWeight: '600', alignItems: 'center' }}>
+                                        <span style={{ color: '#0F172A' }}>{row.label}</span>
+                                        <span style={{ color: '#0F172A', fontWeight: '700', textAlign: 'right' }}>{row.revenue.toLocaleString()} €</span>
+                                        <span style={{ 
+                                            textAlign: 'right', 
+                                            fontWeight: '700',
+                                            color: row.pctChange === null ? '#94A3B8' : (row.pctChange >= 0 ? '#10B981' : '#EF4444')
+                                        }}>
+                                            {row.pctChange === null ? '-' : (row.pctChange >= 0 ? `+${row.pctChange}%` : `${row.pctChange}%`)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
 

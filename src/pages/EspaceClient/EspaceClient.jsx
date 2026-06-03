@@ -62,11 +62,11 @@ export default function EspaceClient() {
             }
 
             if (isLoaded && user) {
-                await adminDataService.init(); 
+                await adminDataService.init();
                 const email = user.primaryEmailAddress?.emailAddress;
                 const cleanEmail = email?.trim().toLowerCase();
                 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
-                
+
                 const savedSessionId = localStorage.getItem('last_successful_session');
                 let data = await adminDataService.getClientByEmail(cleanEmail);
 
@@ -79,12 +79,12 @@ export default function EspaceClient() {
                 if (!data) {
                     const demandes = await adminDataService.getDemandes();
                     let maDemande = demandes.find(d => d.email?.trim().toLowerCase() === cleanEmail);
-                    
+
                     // Fallback par Session ID pour les demandes
                     if (!maDemande && savedSessionId) {
                         maDemande = await adminDataService.getDemandeBySessionId(savedSessionId);
                     }
-                    
+
                     if (maDemande) {
                         let extra = {};
                         try {
@@ -111,8 +111,8 @@ export default function EspaceClient() {
                     let extra = {};
                     try {
                         extra = typeof data.extra_info === 'string' ? JSON.parse(data.extra_info) : data.extra_info;
-                    } catch (e) {}
-                    
+                    } catch (e) { }
+
                     data.phone = data.phone || extra.telephone || '';
                     data.address = data.address || extra.adressePerso || '';
                     if (extra.nom && !data.name) {
@@ -139,7 +139,7 @@ export default function EspaceClient() {
                         } catch (err) { console.error("Lien Clerk ID échoué:", err); }
                     }
                     setClientData(data);
-                    
+
                     // On ne charge les dossiers/mails que si c'est un vrai client (pas une demande temporaire)
                     if (!data.isTemporary) {
                         const [m, d, b, msgs] = await Promise.all([
@@ -188,12 +188,12 @@ export default function EspaceClient() {
                         {pendingDemande ? 'Dossier en attente de validation' : 'Aucun dossier trouvé'}
                     </h2>
                     <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
-                        {pendingDemande 
+                        {pendingDemande
                             ? "Votre paiement a été validé ! Votre dossier est maintenant en cours de vérification par nos équipes (validation manuelle sous 24h)."
                             : `Nous n'avons pas trouvé de dossier correspondant à l'adresse e-mail : ${user?.primaryEmailAddress?.emailAddress}.`
                         }
                     </p>
-                    
+
                     {!pendingDemande && (
                         <div style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '13px', color: '#9A3412', textAlign: 'left' }}>
                             <strong>Note :</strong> Assurez-vous d'utiliser le même e-mail que lors de votre inscription. Si vous avez payé mais que vous voyez ce message, contactez-nous.
@@ -226,9 +226,9 @@ export default function EspaceClient() {
                     <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
                         Votre espace client pour <strong>{clientData.company}</strong> a été temporairement suspendu suite à un incident de paiement ou un prélèvement bloqué.
                     </p>
-                    
+
                     <div style={{ background: '#FEF2F2', border: '1px solid #FEE2E2', padding: '16px', borderRadius: '8px', marginBottom: '24px', fontSize: '13px', color: '#991B1B', textAlign: 'left' }}>
-                        <strong>Comment régulariser votre situation ?</strong><br/>
+                        <strong>Comment régulariser votre situation ?</strong><br />
                         Un email contenant votre facture et un lien de paiement sécurisé vous a été envoyé par Stripe pour mettre à jour votre carte bancaire. Vous pouvez également nous contacter pour obtenir de l'aide.
                     </div>
 
