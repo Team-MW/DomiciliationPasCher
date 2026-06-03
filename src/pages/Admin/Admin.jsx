@@ -35,6 +35,43 @@ export default function Admin() {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingId, setLoadingId] = useState(null);
 
+    // Custom Confirm and Alert modals state
+    const [confirmConfig, setConfirmConfig] = useState(null);
+    const [alertConfig, setAlertConfig] = useState(null);
+
+    const showConfirm = useCallback((message, options = {}) => {
+        return new Promise((resolve) => {
+            setConfirmConfig({
+                title: options.title || 'Confirmation',
+                message,
+                confirmText: options.confirmText || 'OK',
+                cancelText: options.cancelText || 'Annuler',
+                isDanger: !!options.isDanger,
+                onConfirm: () => {
+                    setConfirmConfig(null);
+                    resolve(true);
+                },
+                onCancel: () => {
+                    setConfirmConfig(null);
+                    resolve(false);
+                }
+            });
+        });
+    }, []);
+
+    const showAlert = useCallback((message, options = {}) => {
+        return new Promise((resolve) => {
+            setAlertConfig({
+                title: options.title || 'Notification',
+                message,
+                onClose: () => {
+                    setAlertConfig(null);
+                    resolve(true);
+                }
+            });
+        });
+    }, []);
+
     const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
     const userEmail = user?.primaryEmailAddress?.emailAddress;
     const isAdmin = ADMIN_EMAILS.includes(userEmail);
@@ -168,14 +205,19 @@ export default function Admin() {
                 </div>
 
                 <nav className="admin-menu">
+                    <div className="sidebar-section-title">Analytiques</div>
                     <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Overview /></span> Dashboard
                     </button>
+
+                    <div className="sidebar-section-title">Demandes</div>
                     <button className={`menu-item ${activeTab === 'demandes' ? 'active' : ''}`} onClick={() => { setActiveTab('demandes'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Demandes /></span> Demandes 
                         {stats.pendingDemandes > 0 && <span className="menu-badge" style={{ background: '#EF4444' }}>{stats.pendingDemandes}</span>}
                         {hasNewDemande && <span className="red-dot"></span>}
                     </button>
+
+                    <div className="sidebar-section-title">Gestion</div>
                     <button className={`menu-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }}>
                         <span className="menu-icon"><Icons.Clients /></span> Gestion Clients 
                         {stats.pendingMessages > 0 && <span className="menu-badge" style={{ background: '#6366F1' }}>{stats.pendingMessages}</span>}
@@ -190,7 +232,10 @@ export default function Admin() {
                     </button>
                 </nav>
 
-                <div style={{ marginTop: 'auto', padding: '12px' }}>
+                <div style={{ marginTop: 'auto', padding: '12px 20px', borderTop: '1px solid var(--admin-border)' }}>
+                    <button className="menu-item logout-item" onClick={handleLogout} style={{ color: '#EF4444' }}>
+                        <span className="menu-icon" style={{ color: '#EF4444' }}><Icons.Logout /></span> Déconnexion
+                    </button>
                 </div>
             </aside>
 
@@ -215,21 +260,27 @@ export default function Admin() {
                 </header>
 
                 <div className="admin-body">
-                    {isLoading && <div className="loading-overlay">Chargement des données...</div>}
+                    {isLoading && (
+                        <div className="loading-overlay">
+                            <div className="spinner"></div>
+                        </div>
+                    )}
 
                     {selectedClientId ? (
                         <DossierClient
                             client={selectedClient}
                             onBack={() => setSelectedClientId(null)}
                             onUpdate={refreshData}
+                            showConfirm={showConfirm}
+                            showAlert={showAlert}
                         />
                     ) : (
                         <>
                             {activeTab === 'overview' && <OverviewTab stats={stats} clients={clients} mail={mail} />}
-                            {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} onSelectDemande={setSelectedDemande} />}
+                            {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} onSelectDemande={setSelectedDemande} showConfirm={showConfirm} showAlert={showAlert} />}
                             {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
-                            {activeTab === 'billing' && <FailedPaymentsTab clients={clients} onSelect={setSelectedClientId} onUpdate={refreshData} />}
-                            {activeTab === 'meeting' && <MeetingTab bookings={bookings} clients={clients} onUpdate={refreshData} />}
+                            {activeTab === 'billing' && <FailedPaymentsTab clients={clients} onSelect={setSelectedClientId} onUpdate={refreshData} showConfirm={showConfirm} showAlert={showAlert} />}
+                            {activeTab === 'meeting' && <MeetingTab bookings={bookings} clients={clients} onUpdate={refreshData} showAlert={showAlert} />}
                         </>
                     )}
                 </div>
@@ -244,13 +295,14 @@ export default function Admin() {
                                 await adminDataService.traiterDemande(id);
                                 refreshData();
                                 setSelectedDemande(null);
-                                alert("Accès créé avec succès !");
+                                await showAlert("Accès créé avec succès !", { title: "Succès" });
                             } finally {
                                 setLoadingId(null);
                             }
                         }}
                         onReject={async (id) => {
-                            if (window.confirm("Supprimer cette demande ?")) {
+                            const confirmed = await showConfirm("Supprimer cette demande ?", { isDanger: true });
+                            if (confirmed) {
                                 setLoadingId(id);
                                 try {
                                     await adminDataService.deleteDemande(id);
@@ -272,9 +324,54 @@ export default function Admin() {
                             refreshData();
                             setIsCreatingClient(false);
                         }}
+                        showAlert={showAlert}
                     />
                 )}
             </main>
+
+            {/* Custom Confirm Modal */}
+            {confirmConfig && (
+                <div className="custom-modal-overlay">
+                    <div className="custom-dialog-box">
+                        <div className="custom-dialog-header">
+                            <h3>{confirmConfig.title}</h3>
+                        </div>
+                        <div className="custom-dialog-body">
+                            <p>{confirmConfig.message}</p>
+                        </div>
+                        <div className="custom-dialog-footer">
+                            <button className="btn-secondary" onClick={confirmConfig.onCancel}>
+                                {confirmConfig.cancelText}
+                            </button>
+                            <button 
+                                className={confirmConfig.isDanger ? "btn-primary btn-danger-action" : "btn-primary"} 
+                                onClick={confirmConfig.onConfirm}
+                            >
+                                {confirmConfig.confirmText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Alert Modal */}
+            {alertConfig && (
+                <div className="custom-modal-overlay">
+                    <div className="custom-dialog-box">
+                        <div className="custom-dialog-header">
+                            <h3>{alertConfig.title}</h3>
+                        </div>
+                        <div className="custom-dialog-body">
+                            <p>{alertConfig.message}</p>
+                        </div>
+                        <div className="custom-dialog-footer">
+                            <button className="btn-primary" onClick={alertConfig.onClose}>
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

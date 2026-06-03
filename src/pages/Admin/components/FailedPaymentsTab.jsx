@@ -1,18 +1,29 @@
 import React from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 
-export default function FailedPaymentsTab({ clients, onSelect, onUpdate }) {
+const formatDateShort = (dateStr) => {
+    if (!dateStr) return 'Non définie';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        const [year, month, day] = parts;
+        return `${day}/${month}/${year}`;
+    }
+    return dateStr;
+};
+
+export default function FailedPaymentsTab({ clients, onSelect, onUpdate, showConfirm, showAlert }) {
     const failedClients = clients.filter(c => c.status === 'impayé' || c.status === 'echec_paiement');
 
     const handleMarkAsActive = async (id, e) => {
         e.stopPropagation();
-        if (window.confirm('Confirmer que le paiement a bien été régularisé ? Le compte repassera en "actif".')) {
+        const confirmed = await showConfirm('Confirmer que le paiement a bien été régularisé ? Le compte repassera en "actif".');
+        if (confirmed) {
             try {
                 await adminDataService.updateClientStatus(id, 'actif');
                 onUpdate();
             } catch (err) {
                 console.error("Erreur mise à jour statut", err);
-                alert("Erreur lors de la mise à jour");
+                await showAlert("Erreur lors de la mise à jour");
             }
         }
     };
@@ -58,7 +69,7 @@ export default function FailedPaymentsTab({ clients, onSelect, onUpdate }) {
                                         {c.status}
                                     </span>
                                 </td>
-                                <td style={{ padding: '16px 20px', fontSize: '13px', color: '#64748B' }}>{c.since || 'Non définie'}</td>
+                                <td style={{ padding: '16px 20px', fontSize: '13px', color: '#64748B' }}>{formatDateShort(c.since)}</td>
                                 <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                         <button onClick={(e) => handleMarkAsActive(c.id, e)} style={{ padding: '8px 14px', background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>

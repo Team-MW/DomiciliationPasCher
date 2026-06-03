@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 
-export default function DemandesTab({ demandes, onUpdate, onSelectDemande }) {
+export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showConfirm, showAlert }) {
     const [loadingId, setLoadingId] = useState(null);
 
     const handleAccepter = async (id) => {
@@ -9,14 +9,15 @@ export default function DemandesTab({ demandes, onUpdate, onSelectDemande }) {
         try {
             await adminDataService.traiterDemande(id);
             onUpdate();
-            alert(`Accès créé avec succès !`);
+            await showAlert(`Accès créé avec succès !`);
         } finally {
             setLoadingId(null);
         }
     };
 
     const handleRefuser = async (id) => {
-        if (window.confirm("Supprimer cette demande ?")) {
+        const confirmed = await showConfirm("Supprimer cette demande ?", { isDanger: true });
+        if (confirmed) {
             setLoadingId(id);
             try {
                 await adminDataService.deleteDemande(id);

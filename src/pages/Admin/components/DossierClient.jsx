@@ -6,7 +6,21 @@ import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { sendFailedPaymentEmail } from '../../../utils/emailService';
 import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
 
-export default function DossierClient({ client, onBack, onUpdate }) {
+const formatDateLong = (dateStr) => {
+    if (!dateStr) return 'Non définie';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        const [year, month, day] = parts;
+        const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+        const mIndex = parseInt(month, 10) - 1;
+        if (mIndex >= 0 && mIndex < 12) {
+            return `${parseInt(day, 10)} ${months[mIndex]} ${year}`;
+        }
+    }
+    return dateStr;
+};
+
+export default function DossierClient({ client, onBack, onUpdate, showConfirm, showAlert }) {
     const [documents, setDocuments] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [currentFolder, setCurrentFolder] = useState(null);
@@ -115,7 +129,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             setMessages(prev => [...prev, msg]);
             setNewMessage('');
         } catch (err) {
-            alert("Erreur lors de l'envoi du message");
+            await showAlert("Erreur lors de l'envoi du message");
         }
     };
 
@@ -136,7 +150,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             await performUpload(fileToUpload);
         } catch (err) {
             console.error("Erreur préparation fichier:", err);
-            alert("Erreur de préparation : " + err.message);
+            await showAlert("Erreur de préparation : " + err.message);
         } finally {
             setIsLoading(false);
         }
@@ -161,7 +175,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             setDocuments(Array.isArray(docs) ? docs : []);
         } catch (err) {
             console.error("Error during upload:", err);
-            alert("Erreur critique : " + err.message);
+            await showAlert("Erreur critique : " + err.message);
         } finally {
             setIsLoading(false);
         }
@@ -202,14 +216,15 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             const pay = await adminDataService.getPayments(client.id);
             setPayments(pay);
         } catch (err) {
-            alert("Erreur lors de l'ajout de la facture");
+            await showAlert("Erreur lors de l'ajout de la facture");
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleGenerateMockHistory = async () => {
-        if (!window.confirm("Générer l'historique complet des paiements pour ce client depuis son inscription ?")) return;
+        const confirmed = await showConfirm("Générer l'historique complet des paiements pour ce client depuis son inscription ?");
+        if (!confirmed) return;
         
         try {
             setIsLoading(true);
@@ -232,16 +247,17 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             
             const pay = await adminDataService.getPayments(client.id);
             setPayments(pay);
-            alert("Historique généré avec succès !");
+            await showAlert("Historique généré avec succès !");
         } catch (err) {
-            alert("Erreur lors de la génération de l'historique");
+            await showAlert("Erreur lors de la génération de l'historique");
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleSyncStripe = async () => {
-        if (!window.confirm(`Vérifier les paiements réels sur Stripe pour ${client.email} ?`)) return;
+        const confirmed = await showConfirm(`Vérifier les paiements réels sur Stripe pour ${client.email} ?`);
+        if (!confirmed) return;
 
         try {
             setIsLoading(true);
@@ -259,7 +275,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId);
             
             if (stripePayments.length === 0) {
-                alert("Aucun paiement trouvé sur Stripe pour ce client.");
+                await showAlert("Aucun paiement trouvé sur Stripe pour ce client.");
                 return;
             }
 
@@ -298,20 +314,21 @@ export default function DossierClient({ client, onBack, onUpdate }) {
             }
 
             if (addedCount > 0) {
-                alert(`${addedCount} nouveau(x) paiement(s) récupéré(s) de Stripe !` + (statusUpdated ? " Le statut d'accès du client a été mis à jour automatiquement." : ""));
+                await showAlert(`${addedCount} nouveau(x) paiement(s) récupéré(s) de Stripe !` + (statusUpdated ? " Le statut d'accès du client a été mis à jour automatiquement." : ""));
             } else {
-                alert("Historique déjà à jour avec Stripe." + (statusUpdated ? " Le statut d'accès du client a été mis à jour automatiquement." : ""));
+                await showAlert("Historique déjà à jour avec Stripe." + (statusUpdated ? " Le statut d'accès du client a été mis à jour automatiquement." : ""));
             }
         } catch (err) {
             console.error(err);
-            alert("Erreur lors de la synchronisation Stripe.");
+            await showAlert("Erreur lors de la synchronisation Stripe.");
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleDelete = async () => {
-        if (window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement le compte de ${client.company} ?\n\nCela révoquera instantanément son accès à l'Espace Client.`)) {
+        const confirmed = await showConfirm(`Êtes-vous sûr de vouloir supprimer définitivement le compte de ${client.company} ?\n\nCela révoquera instantanément son accès à l'Espace Client.`, { isDanger: true });
+        if (confirmed) {
             setIsLoading(true);
             try {
                 await adminDataService.deleteClient(client.id);
@@ -319,7 +336,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                 onBack(); // Go back to the client list
             } catch (err) {
                 console.error("Error deleting client:", err);
-                alert("Erreur lors de la suppression du client.");
+                await showAlert("Erreur lors de la suppression du client.");
             } finally {
                 setIsLoading(false);
             }
@@ -458,11 +475,12 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                                             onClick={async (e) => { 
                                                                 e.preventDefault();
                                                                 e.stopPropagation(); 
-                                                                if (window.confirm("Supprimer ce document ?")) {
+                                                                const confirmed = await showConfirm("Supprimer ce document ?");
+                                                                if (confirmed) {
                                                                     try {
                                                                         await adminDataService.deleteDocument(doc.id);
                                                                         setDocuments(prev => (prev || []).filter(x => x.id !== doc.id));
-                                                                    } catch (err) { alert("Erreur lors de la suppression"); }
+                                                                    } catch (err) { await showAlert("Erreur lors de la suppression"); }
                                                                 }
                                                             }}
                                                             style={{ padding: '8px', border: '1px solid #FEE2E2', borderRadius: '8px', background: '#FEF2F2', cursor: 'pointer', color: '#DC2626' }}
@@ -844,14 +862,15 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>DATE D'ENTRÉE</span>
-                                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{client.since}</span>
+                                <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{formatDateLong(client.since)}</span>
                             </div>
                         </div>
                         <div className="info-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <button 
                                 className="btn-danger-outline" 
                                 onClick={async () => {
-                                    if (window.confirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé' et un email d'avertissement lui sera envoyé.")) {
+                                    const confirmed = await showConfirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé' et un email d'avertissement lui sera envoyé.", { isDanger: true });
+                                    if (confirmed) {
                                         try {
                                             await adminDataService.updateClientStatus(client.id, 'impayé');
                                             try {
@@ -862,7 +881,7 @@ export default function DossierClient({ client, onBack, onUpdate }) {
                                             onUpdate();
                                             onBack();
                                         } catch (e) {
-                                            alert("Erreur de mise à jour");
+                                            await showAlert("Erreur de mise à jour");
                                         }
                                     }
                                 }} 

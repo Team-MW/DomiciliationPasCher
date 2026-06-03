@@ -1,5 +1,15 @@
 import React from 'react';
 
+const formatDateShort = (dateStr) => {
+    if (!dateStr) return 'Non définie';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        const [year, month, day] = parts;
+        return `${day}/${month}/${year}`;
+    }
+    return dateStr;
+};
+
 export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, onCreateClick }) {
     const filtered = clients.filter(c =>
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -63,7 +73,7 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, o
                                 <td style={{ padding: '16px 20px' }}>
                                     <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#EFF6FF', color: '#2563EB', fontWeight: '600', fontSize: '12px' }}>{c.plan}</span>
                                 </td>
-                                <td style={{ padding: '16px 20px', fontSize: '13px', color: '#64748B' }}>{c.since || 'Non définie'}</td>
+                                <td style={{ padding: '16px 20px', fontSize: '13px', color: '#64748B' }}>{formatDateShort(c.since)}</td>
                                 <td style={{ padding: '16px 20px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <div style={{ width: '60px', height: '6px', background: '#E2E8F0', borderRadius: '10px', overflow: 'hidden' }}>

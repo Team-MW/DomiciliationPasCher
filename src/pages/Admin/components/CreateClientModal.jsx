@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 
-export default function CreateClientModal({ onClose, onCreated }) {
+export default function CreateClientModal({ onClose, onCreated, showAlert }) {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -18,7 +18,7 @@ export default function CreateClientModal({ onClose, onCreated }) {
             await adminDataService.addClient(formData);
             onCreated();
         } catch (err) {
-            alert('Erreur lors de la création');
+            await showAlert('Erreur lors de la création');
         } finally {
             setLoading(false);
         }

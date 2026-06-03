@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 
-export default function MeetingTab({ bookings, clients, onUpdate }) {
+export default function MeetingTab({ bookings, clients, onUpdate, showAlert }) {
     const [isUpdating, setIsUpdating] = useState(false);
 
     const handleUpdateStatus = async (bookingId, newStatus) => {
@@ -11,7 +11,7 @@ export default function MeetingTab({ bookings, clients, onUpdate }) {
             onUpdate(); 
         } catch (error) {
             console.error(error);
-            alert("Erreur lors de la mise à jour de la réservation.");
+            await showAlert("Erreur lors de la mise à jour de la réservation.");
         } finally {
             setIsUpdating(false);
         }
