@@ -74,7 +74,8 @@ export default function Factures({ clientData }) {
             id: p.id,
             ref: p.invoice_ref,
             dateStr: new Date(p.date).toLocaleDateString('fr-FR'),
-            amount: parseFloat(p.amount)
+            amountHT: parseFloat(p.amount),           // prix stocké = HT
+            amountTTC: parseFloat(p.amount) * 1.2,    // TTC = HT + 20% TVA
         }));
 
     const generatePdf = async (facture) => {
@@ -135,12 +136,12 @@ export default function Factures({ clientData }) {
                 doc.setTextColor(100, 116, 139);
                 doc.text(`Forfait Domiciliation - ${clientData.plan || 'Standard'}`, 15, 102);
                 
-                const ttc = facture.amount;
-                const ht = (ttc / 1.2).toFixed(2);
-                const tva = (ttc - ht).toFixed(2);
+                const ht = facture.amountHT.toFixed(2);
+                const tva = (facture.amountHT * 0.2).toFixed(2);
+                const ttc = facture.amountTTC.toFixed(2);
 
                 doc.text(`${ht} €`, 130, 102);
-                doc.text(`${ttc.toFixed(2)} €`, 170, 102);
+                doc.text(`${ttc} €`, 170, 102);
 
                 doc.line(15, 110, 195, 110);
 
@@ -155,7 +156,7 @@ export default function Factures({ clientData }) {
                 doc.setFontSize(12);
                 doc.setFont("helvetica", "bold");
                 doc.text('Total TTC :', 130, 138);
-                doc.text(`${ttc.toFixed(2)} €`, 170, 138);
+                doc.text(`${ttc} €`, 170, 138);
                 
                 doc.setFont("helvetica", "normal");
                 doc.setFontSize(9);
@@ -201,7 +202,8 @@ export default function Factures({ clientData }) {
                             
                             <div className="case-card-body">
                                 <h3 className="case-title">{fac.ref}</h3>
-                                <p className="case-client-name" style={{ marginTop: '8px', fontSize: '18px', fontWeight: '800', color: 'var(--ec-text-main)' }}>{fac.amount} €</p>
+                                <p className="case-client-name" style={{ marginTop: '8px', fontSize: '18px', fontWeight: '800', color: 'var(--ec-text-main)' }}>{fac.amountTTC.toFixed(2)} € TTC</p>
+                                <p style={{ fontSize: '12px', color: 'var(--ec-text-sub)', marginTop: '2px' }}>({fac.amountHT.toFixed(2)} € HT + TVA 20%)</p>
                             </div>
                             
                             <div className="case-card-footer">

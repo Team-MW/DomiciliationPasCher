@@ -23,9 +23,10 @@ const getClientExtraInfo = (clientData) => {
  */
 const getPlanTariff = (plan) => {
     const p = (plan || '').toLowerCase();
-    if (p.includes('scan')) return { ttc: 24, ht: '20.00', tva: '4.00', name: 'Scan+' };
-    if (p.includes('physique') || p.includes('reexpedition')) return { ttc: 38, ht: '31.67', tva: '6.33', name: 'Physique+' };
-    return { ttc: 20, ht: '16.67', tva: '3.33', name: 'Notification' };
+    // Les prix affichés sont HT. Le TTC = HT × 1.20 (TVA 20%)
+    if (p.includes('scan')) return { ht: 24, ttc: (24 * 1.2).toFixed(2), tva: (24 * 0.2).toFixed(2), name: 'Scan+' };
+    if (p.includes('physique') || p.includes('reexpedition')) return { ht: 38, ttc: (38 * 1.2).toFixed(2), tva: (38 * 0.2).toFixed(2), name: 'Physique+' };
+    return { ht: 20, ttc: (20 * 1.2).toFixed(2), tva: (20 * 0.2).toFixed(2), name: 'Notification' };
 };
 
 /**
@@ -377,8 +378,8 @@ export const generateContratPdf = async (clientData) => {
                 {
                     title: "ARTICLE 5 : CONDITIONS FINANCIÈRES ET MODALITÉS DE PAIEMENT",
                     body: `Le présent contrat est consenti et accepté moyennant le paiement d'un abonnement mensuel correspondant à la formule choisie :
-• Tarif mensuel Forfait ${planDetails.name} : ${planDetails.ttc.toFixed(2)} € TTC (soit ${planDetails.ht} € HT + ${planDetails.tva} € TVA).
-Le règlement s'effectue par prélèvement bancaire automatique ou carte bancaire récurrente Stripe, selon la fréquence de facturation retenue (${isAnnuel ? 'Annuelle' : 'Mensuelle'}). Tout mois entamé est dû dans son intégralité.`
+• Tarif mensuel Forfait ${planDetails.name} : ${parseFloat(planDetails.ttc).toFixed(2)} € TTC (soit ${parseFloat(planDetails.ht).toFixed(2)} € HT + ${parseFloat(planDetails.tva).toFixed(2)} € TVA 20%).
+ Le règlement s'effectue par prélèvement bancaire automatique ou carte bancaire récurrente Stripe, selon la fréquence de facturation retenue (${isAnnuel ? 'Annuelle' : 'Mensuelle'}). Tout mois entamé est dû dans son intégralité.`
                 },
                 {
                     title: "ARTICLE 6 : RÉSILIATION ET RUPTURE",
