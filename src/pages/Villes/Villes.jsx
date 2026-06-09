@@ -1,57 +1,34 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { CityIcons } from '../../utils/cityIcons';
+import { useTranslation } from '../../i18n/LanguageContext';
 import './Villes.css';
 
-const cities = [
-    {
-        name: 'Toulouse',
-        icon: CityIcons.Toulouse,
-        region: 'Occitanie',
-        desc: 'Surnommée la "Ville Rose", Toulouse est le fleuron de l\'industrie aéronautique européenne. Une adresse dynamique et stratégique.',
-        avantages: ['Capitale aéronautique', 'Bassin d\'emploi tech', 'Dynamisme insolent'],
-        zip: '31',
-        image: 'https://images.unsplash.com/photo-1596431760416-ed40d89f5bc5?q=80&w=2070&auto=format&fit=crop',
-    },
-];
+const cityImages = {
+    Toulouse: 'https://images.unsplash.com/photo-1596431760416-ed40d89f5bc5?q=80&w=2070&auto=format&fit=crop',
+};
 
-const cityBenefits = [
-    {
-        icon: (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-            </svg>
-        ),
-        title: 'Adresse Officielle',
-        desc: 'Adresse légalement valide pour votre immatriculation Kbis.'
-    },
-    {
-        icon: (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-        ),
-        title: 'Activation rapide',
-        desc: 'Votre adresse est activée sous 24h, sans déplacement.'
-    },
-    {
-        icon: (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-            </svg>
-        ),
-        title: 'Changement possible',
-        desc: 'Changez de ville facilement si vos besoins évoluent.'
-    },
-    {
-        icon: (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-        ),
-        title: 'Multi-villes',
-        desc: 'Besoin de plusieurs adresses ? Tarifs dégressifs disponibles.'
-    },
+const benefitIcons = [
+    (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+        </svg>
+    ),
+    (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+        </svg>
+    ),
+    (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+        </svg>
+    ),
+    (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+    ),
 ];
 
 function useAnimateOnScroll() {
@@ -69,11 +46,19 @@ function useAnimateOnScroll() {
 }
 
 export default function Villes() {
+    const { tr } = useTranslation();
+
     useEffect(() => {
-        document.title = "Notre Ville : Adresse de prestige à Toulouse — DomiciliationPasCher";
-    }, []);
+        document.title = tr.villes.pageTitle;
+    }, [tr.villes.pageTitle]);
 
     const pageRef = useAnimateOnScroll();
+
+    const cities = tr.villes.cities.map(city => ({
+        ...city,
+        icon: CityIcons[city.name],
+        image: cityImages[city.name],
+    }));
 
     return (
         <main ref={pageRef} className="page-wrapper" style={{ background: '#FAFBFF' }}>
@@ -81,12 +66,12 @@ export default function Villes() {
             <section className="villes-hero section">
                 <div className="container">
                     <div className="villes-hero-inner animate-in">
-                        <div className="section-eyebrow">Présence Locale</div>
+                        <div className="section-eyebrow">{tr.villes.hero.eyebrow}</div>
                         <h1 className="hero-main-title">
-                            Notre adresse à<br /><span>Toulouse</span>
+                            {tr.villes.hero.title}<br /><span>{tr.villes.hero.titleHighlight}</span>
                         </h1>
                         <p className="hero-desc">
-                            Une présence stratégique pour votre siège social. Bénéficiez d'une adresse de prestige activée en 24h.
+                            {tr.villes.hero.desc}
                         </p>
                     </div>
 
@@ -110,9 +95,9 @@ export default function Villes() {
             <section className="city-benefits-bar">
                 <div className="container">
                     <div className="benefits-bar-grid">
-                        {cityBenefits.map((b, i) => (
+                        {tr.villes.benefits.map((b, i) => (
                             <div key={i} className="benefit-bar-item animate-in" style={{ animationDelay: `${i * 0.1}s` }}>
-                                <div className="benefit-bar-icon">{b.icon}</div>
+                                <div className="benefit-bar-icon">{benefitIcons[i]}</div>
                                 <div className="benefit-bar-content">
                                     <h4>{b.title}</h4>
                                     <p>{b.desc}</p>
@@ -171,11 +156,11 @@ export default function Villes() {
 
                                     <div className="cwc-footer">
                                         <div className="cwc-price-block">
-                                            <div className="cwc-price-label">À partir de</div>
-                                            <div className="cwc-price-value">20€<span> HT/mois</span></div>
+                                            <div className="cwc-price-label">{city.priceLabel}</div>
+                                            <div className="cwc-price-value">{city.priceValue}<span>{city.priceUnit}</span></div>
                                         </div>
                                         <Link to="/tarifs" className="btn btn-primary cwc-btn" id={`cta-${city.name.toLowerCase()}`}>
-                                            Choisir {city.name}
+                                            {city.cta}
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                                         </Link>
                                     </div>
@@ -191,12 +176,12 @@ export default function Villes() {
                 <div className="container">
                     <div className="city-help-card animate-in">
                         <div className="ch-content">
-                            <h2 className="ch-title">Votre ville ne figure pas dans la liste ?</h2>
-                            <p className="ch-desc">Nous étendons notre réseau chaque mois. Contactez nos conseillers pour discuter de vos besoins spécifiques.</p>
+                            <h2 className="ch-title">{tr.villes.helpCta.title}</h2>
+                            <p className="ch-desc">{tr.villes.helpCta.desc}</p>
                         </div>
                         <div className="ch-actions">
-                            <Link to="/tarifs" className="btn btn-white btn-lg">Parler à un conseiller</Link>
-                            <div className="ch-trust">Réponse en moins de 2h</div>
+                            <Link to="/tarifs" className="btn btn-white btn-lg">{tr.villes.helpCta.button}</Link>
+                            <div className="ch-trust">{tr.villes.helpCta.trust}</div>
                         </div>
                     </div>
                 </div>

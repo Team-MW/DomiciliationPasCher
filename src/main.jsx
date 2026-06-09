@@ -4,6 +4,7 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import { frFR } from '@clerk/localizations'
 import './index.css'
 import App from './App.jsx'
+import { LanguageProvider } from './i18n/LanguageContext.jsx'
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -41,7 +42,9 @@ if (!clerkPublishableKey) {
         signUpFallbackRedirectUrl="/app/espace-client"
         localization={frFR}
       >
-        <App />
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
       </ClerkProvider>
     </StrictMode>,
   )

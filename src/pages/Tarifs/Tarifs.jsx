@@ -1,100 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from '../../i18n/LanguageContext';
 import './Tarifs.css';
-
-const plans = [
-    {
-        id: 'essentiel',
-        popular: false,
-        name: 'Essentiel',
-        price: '20',
-        period: 'HT/mois',
-        subtitle: 'La domiciliation simple et efficace',
-        cta: 'Choisir Essentiel',
-        features: [
-            { ok: true, text: 'Adresse juridique officielle' },
-            { ok: true, text: 'Réception du courrier' },
-            { ok: true, text: 'Notification d\'arrivée par email' },
-            { ok: true, text: 'Attestation de domiciliation' },
-            { ok: true, text: 'Espace client 24h/24' },
-            { ok: true, text: 'Contrat legale conforme Dutreil' },
-            { ok: false, text: 'Scan des courriers' },
-            { ok: false, text: 'Transfert physique' },
-        ],
-    },
-    {
-        id: 'scan-plus',
-        popular: true,
-        name: 'Scan+',
-        price: '24',
-        period: 'HT/mois',
-        subtitle: 'Gérez votre courrier de n\'importe où',
-        cta: 'Choisir Scan+',
-        features: [
-            { ok: true, text: 'Adresse juridique officielle' },
-            { ok: true, text: 'Réception du courrier' },
-            { ok: true, text: 'Notification d\'arrivée par email' },
-            { ok: true, text: 'Attestation de domiciliation' },
-            { ok: true, text: 'Espace client 24h/24' },
-            { ok: true, text: 'Contrat legale conforme Dutreil' },
-            { ok: true, text: 'Scan numérique de vos courriers' },
-            { ok: false, text: 'Transfert physique' },
-        ],
-    },
-    {
-        id: 'physique',
-        popular: false,
-        name: 'Physique+',
-        price: '38',
-        period: 'HT/mois',
-        subtitle: 'Courrier transféré directement chez vous',
-        cta: 'Choisir Physique+',
-        features: [
-            { ok: true, text: 'Adresse juridique officielle' },
-            { ok: true, text: 'Réception du courrier' },
-            { ok: true, text: 'Notification d\'arrivée par email' },
-            { ok: true, text: 'Attestation de domiciliation' },
-            { ok: true, text: 'Espace client 24h/24' },
-            { ok: true, text: 'Contrat legale conforme Dutreil' },
-            { ok: true, text: 'Scan numérique de vos courriers' },
-            { ok: true, text: 'Réexpédition physique mensuelle' },
-        ],
-    },
-];
-
-const options = [
-    { icon: '📬', name: 'Option Scan', price: '+4€', period: 'HT/mois', desc: 'Scannez et consultez vos courriers depuis votre espace client, où que vous soyez dans le monde.' },
-    { icon: '📦', name: 'Transfert Physique', price: '+18€', period: 'HT/mois', desc: 'Votre courrier vous est renvoyé à l\'adresse de votre choix, sous enveloppe, une fois par mois.' },
-];
-
-const spaces = [
-    {
-        icon: '🤝',
-        name: 'Salle de Réunion',
-        prices: [
-            { duration: 'Demi-journée (4h)', amount: '25€ HT' },
-            { duration: 'Journée complète (8h)', amount: '40€ HT' },
-        ],
-        features: ['Jusqu\'à 10 personnes', 'Vidéoprojecteur & écran', 'WiFi fibre haut débit', 'Café & eau offerts', 'Accueil professionnel'],
-    },
-    {
-        icon: '💼',
-        name: 'Bureau Privatif',
-        prices: [
-            { duration: 'Demi-journée (4h)', amount: '20€ HT' },
-            { duration: 'Journée complète (8h)', amount: '40€ HT' },
-        ],
-        features: ['Bureau individuel privatif', 'Connexion WiFi incluse', 'Environnement calme garanti', 'Climatisé en été', 'Imprimante disponible'],
-    },
-];
-
-const faqs = [
-    { q: 'Qu\'est-ce que la domiciliation d\'entreprise ?', a: 'La domiciliation consiste à fixer le siège social ou l\'adresse administrative de votre entreprise à une adresse qui n\'est pas nécessairement votre lieu de résidence ou de travail.' },
-    { q: 'La domiciliation est-elle légale ?', a: 'Oui, parfaitement légale en vertu de la loi Dutreil de 2003. Nous sommes un centre de domiciliation agréé, et vous pouvez utiliser notre adresse pour l\'immatriculation de votre société.' },
-    { q: 'Où est située l\'adresse ?', a: 'Notre adresse prestigieuse est située à Toulouse, le fleuron de l\'industrie aéronautique européenne.' },
-    { q: 'Combien de temps pour recevoir mon attestation ?', a: 'Votre attestation de domiciliation est envoyée sous 24h après la signature de votre contrat en ligne.' },
-    { q: 'Y a-t-il un engagement de durée ?', a: 'Non. Vous pouvez résilier à tout moment avec un préavis d\'un mois, sans frais de résiliation.' },
-];
 
 const CheckIcon = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5">
@@ -109,9 +16,11 @@ const CrossIcon = () => (
 );
 
 export default function Tarifs() {
+    const { tr } = useTranslation();
+
     useEffect(() => {
-        document.title = "Tarifs Domiciliation — À partir de 20€ HT/mois — DomiciliationPasCher";
-    }, []);
+        document.title = tr.tarifs.pageTitle;
+    }, [tr.tarifs.pageTitle]);
 
     return (
         <main className="page-wrapper">
@@ -120,12 +29,12 @@ export default function Tarifs() {
             <section className="page-header">
                 <div className="container">
                     <div className="page-header-content">
-                        <div className="section-eyebrow">Tarifs transparents</div>
+                        <div className="section-eyebrow">{tr.tarifs.header.eyebrow}</div>
                         <h1 className="section-title" style={{ marginTop: '12px' }}>
-                            Des prix clairs,<br /><span>sans mauvaise surprise</span>
+                            {tr.tarifs.header.title}<br /><span>{tr.tarifs.header.titleHighlight}</span>
                         </h1>
                         <p className="section-subtitle">
-                            Choisissez la formule adaptée à vos besoins. Engagement mensuel, résiliable à tout moment.
+                            {tr.tarifs.header.subtitle}
                         </p>
                     </div>
                 </div>
@@ -135,10 +44,10 @@ export default function Tarifs() {
             <section className="section" style={{ paddingTop: '56px' }}>
                 <div className="container">
                     <div className="pricing-grid">
-                        {plans.map(plan => (
+                        {tr.tarifs.plans.map(plan => (
                             <div key={plan.id} className={`pricing-card ${plan.popular ? 'featured' : ''}`} id={`plan-${plan.id}`}>
                                 {plan.popular && (
-                                    <div className="pricing-badge">⭐ Plus populaire</div>
+                                    <div className="pricing-badge">{plan.badge}</div>
                                 )}
                                 <div className="pricing-header">
                                     <div className="pricing-name">{plan.name}</div>
@@ -165,19 +74,14 @@ export default function Tarifs() {
                                 >
                                     {plan.cta} →
                                 </Link>
-                                <p className="pricing-note">Sans engagement · Résiliation à tout moment</p>
+                                <p className="pricing-note">{plan.note}</p>
                             </div>
                         ))}
                     </div>
 
                     {/* Trust indicators */}
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginTop: '40px', flexWrap: 'wrap' }}>
-                        {[
-                            { icon: '🔒', text: '100% sécurisé' },
-                            { icon: '📄', text: 'Attestation sous 24h' },
-                            { icon: '✅', text: 'Conforme loi Dutreil' },
-                            { icon: '↩️', text: 'Résiliable à tout moment' },
-                        ].map(item => (
+                        {tr.tarifs.trust.items.map(item => (
                             <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--gray-600)' }}>
                                 <span>{item.icon}</span>
                                 <span>{item.text}</span>
@@ -187,7 +91,7 @@ export default function Tarifs() {
 
                     {/* Stripe Trust Badges */}
                     <div className="pricing-payment-trust">
-                        <span>Paiements sécurisés par <strong>Stripe</strong></span>
+                        <span>{tr.tarifs.trust.payment}</span>
                         <div className="pricing-payment-logos">
                             <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" loading="lazy" />
                             <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" loading="lazy" />
@@ -203,12 +107,12 @@ export default function Tarifs() {
             <section className="section-sm" style={{ background: 'var(--off-white)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
                 <div className="container">
                     <div className="section-header">
-                        <div className="section-eyebrow">À la carte</div>
-                        <h2 className="section-title" style={{ marginTop: '12px' }}>Options <span>complémentaires</span></h2>
-                        <p className="section-subtitle">Ajoutez des services à votre formule de base selon vos besoins.</p>
+                        <div className="section-eyebrow">{tr.tarifs.options.eyebrow}</div>
+                        <h2 className="section-title" style={{ marginTop: '12px' }}>{tr.tarifs.options.title} <span>{tr.tarifs.options.titleHighlight}</span></h2>
+                        <p className="section-subtitle">{tr.tarifs.options.subtitle}</p>
                     </div>
                     <div className="options-grid">
-                        {options.map(opt => (
+                        {tr.tarifs.options.items.map(opt => (
                             <div key={opt.name} className="option-card">
                                 <div className="option-icon">{opt.icon}</div>
                                 <div className="option-info">
@@ -229,12 +133,12 @@ export default function Tarifs() {
             <section className="section">
                 <div className="container">
                     <div className="section-header">
-                        <div className="section-eyebrow">Espaces professionnels</div>
-                        <h2 className="section-title" style={{ marginTop: '12px' }}>Location d'espaces de <span>travail</span></h2>
-                        <p className="section-subtitle">Accédez à nos espaces pour vos réunions et rendez-vous clients, sans abonnement.</p>
+                        <div className="section-eyebrow">{tr.tarifs.spaces.eyebrow}</div>
+                        <h2 className="section-title" style={{ marginTop: '12px' }}>{tr.tarifs.spaces.title} <span>{tr.tarifs.spaces.titleHighlight}</span></h2>
+                        <p className="section-subtitle">{tr.tarifs.spaces.subtitle}</p>
                     </div>
                     <div className="grid-2">
-                        {spaces.map(space => (
+                        {tr.tarifs.spaces.items.map(space => (
                             <div key={space.name} className="space-card">
                                 <div className="space-header">
                                     <span className="space-icon">{space.icon}</span>
@@ -257,7 +161,7 @@ export default function Tarifs() {
                                     ))}
                                 </ul>
                                 <Link to="/services" className="btn btn-outline" style={{ justifyContent: 'center' }}>
-                                    Réserver →
+                                    {tr.tarifs.spaces.reserveCta}
                                 </Link>
                             </div>
                         ))}
@@ -269,11 +173,11 @@ export default function Tarifs() {
             <section className="section" style={{ background: 'var(--off-white)', borderTop: '1px solid var(--border)' }}>
                 <div className="container">
                     <div className="section-header">
-                        <div className="section-eyebrow">Questions fréquentes</div>
-                        <h2 className="section-title" style={{ marginTop: '12px' }}>Tout ce que vous devez <span>savoir</span></h2>
+                        <div className="section-eyebrow">{tr.tarifs.faqs.eyebrow}</div>
+                        <h2 className="section-title" style={{ marginTop: '12px' }}>{tr.tarifs.faqs.title} <span>{tr.tarifs.faqs.titleHighlight}</span></h2>
                     </div>
                     <div className="faq-list">
-                        {faqs.map((faq, i) => (
+                        {tr.tarifs.faqs.items.map((faq, i) => (
                             <details key={i} className="faq-item" id={`faq-${i}`}>
                                 <summary className="faq-question">
                                     {faq.q}
@@ -292,14 +196,14 @@ export default function Tarifs() {
             <section className="final-cta section-sm">
                 <div className="container">
                     <div className="final-cta-inner">
-                        <h2>Prêt à démarrer ?</h2>
-                        <p>Inscrivez-vous en ligne en 5 minutes. Aucun déplacement requis.</p>
+                        <h2>{tr.tarifs.cta.title}</h2>
+                        <p>{tr.tarifs.cta.subtitle}</p>
                         <div className="final-cta-actions">
                             <Link to="/" className="btn btn-white btn-lg" id="tarifs-final-cta">
-                                Choisir mon adresse →
+                                {tr.tarifs.cta.primary}
                             </Link>
                             <Link to="/services" className="btn btn-lg" style={{ color: 'rgba(255,255,255,0.85)', border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: 'var(--radius-full)', padding: '16px 32px', fontWeight: 600, textDecoration: 'none', display: 'inline-flex' }}>
-                                Nos services
+                                {tr.tarifs.cta.secondary}
                             </Link>
                         </div>
                     </div>

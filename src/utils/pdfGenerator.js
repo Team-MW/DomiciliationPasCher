@@ -455,3 +455,234 @@ export const generateContratPdf = async (clientData) => {
         alert("Erreur lors de la génération du contrat.");
     }
 };
+
+/**
+ * Génère le Contrat signé sous forme de Blob (pour upload Cloudinary).
+ * Intègre la signature du client et un bandeau de certification.
+ * @param {Object} clientData  - Données du client
+ * @param {string} signatureDataUrl - Data URL base64 de la signature
+ * @returns {Promise<Blob>}
+ */
+export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const { default: jsPDF } = await import('jspdf');
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+            const extra = getClientExtraInfo(clientData);
+            const planDetails = getPlanTariff(clientData.plan);
+
+            const rawDate = clientData.since || new Date().toISOString().split('T')[0];
+            const dateDebut = new Date(rawDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            const signedNow = new Date();
+            const signedAtDate = signedNow.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            const signedAtTime = signedNow.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+            const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
+            const companyName = clientData.company || extra.nomSociete || 'Société en cours de constitution';
+            const formeJuridique = extra.formeJuridique || 'EI / Société';
+            const sirenText = extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution';
+            const clientAddress = clientData.address || extra.adressePerso || 'Adresse personnelle non renseignée';
+            const isAnnuel = extra.frequence === 'annuel';
+
+            const buildPdf = (logoImg, sigImg) => {
+                // ===== PAGE 1 =====
+                doc.setDrawColor(226, 232, 240);
+                doc.setLineWidth(0.5);
+                doc.rect(8, 8, 194, 281);
+
+                if (logoImg) {
+                    try { doc.addImage(logoImg, 'PNG', 15, 15, 45, 15); } catch (e) {}
+                }
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(100, 116, 139);
+                doc.text('CONTRAT DE DOMICILIATION', 135, 18);
+                doc.text('Référence : CONTRAT-' + clientData.id, 135, 22);
+                doc.text('Date : ' + dateDebut, 135, 26);
+                doc.text('Formule : Forfait ' + planDetails.name, 135, 30);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(22, 163, 74);
+                doc.text('✔ SIGNÉ ÉLECTRONIQUEMENT', 135, 34);
+
+                doc.setDrawColor(203, 213, 225);
+                doc.line(15, 38, 195, 38);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(15, 23, 42);
+                doc.text('CONTRAT DE DOMICILIATION COMMERCIALE', 105, 50, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(71, 85, 105);
+                doc.text('Réglementé par les articles L. 123-11-2 et suivants du Code de commerce', 105, 55, { align: 'center' });
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(15, 23, 42);
+                doc.text('ENTRE LES SOUSSIGNÉS :', 15, 67);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9.5);
+                doc.setTextColor(51, 65, 85);
+
+                const txtP1 = "1. La société DOMICILIATION PAS CHER, société par actions simplifiée, au siège social situé au 150 Rue Nicolas Louis Vauquelin, 3ème étage, Lot 308, 31100 Toulouse, représentée par sa direction, titulaire de l'Agrément Préfectoral CASSIN-DOM-2026-31.";
+                const sP1 = doc.splitTextToSize(txtP1, 175);
+                doc.text(sP1, 15, 73);
+                doc.setFont('helvetica', 'bold');
+                doc.text("Ci-après désignée « Le Domiciliataire », d'une part.", 15, 73 + sP1.length * 4.5);
+
+                let ny = 73 + sP1.length * 4.5 + 8;
+                doc.setFont('helvetica', 'normal');
+                const txtP2 = `2. La société ${companyName.toUpperCase()}, ${formeJuridique}, ${sirenText}, représentée par M./Mme ${clientName}, demeurant à : ${clientAddress}.`;
+                const sP2 = doc.splitTextToSize(txtP2, 175);
+                doc.text(sP2, 15, ny);
+                doc.setFont('helvetica', 'bold');
+                doc.text("Ci-après désignée « Le Domicilié », d'autre part.", 15, ny + sP2.length * 4.5);
+
+                ny = ny + sP2.length * 4.5 + 12;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(15, 23, 42);
+                doc.text('IL A ÉTÉ CONVENU ET ARRÊTÉ CE QUI SUIT :', 15, ny);
+                ny += 8;
+
+                const articles = [
+                    { title: 'ARTICLE 1 : OBJET DU CONTRAT', body: `Le Domiciliataire met à la disposition du Domicilié ses locaux situés au 150 Rue Nicolas Louis Vauquelin, 3ème étage, Lot 308, 31100 Toulouse, afin d'y fixer son siège social. Le Domicilié s'engage à utiliser effectivement et exclusivement ces locaux à ce titre.` },
+                    { title: 'ARTICLE 2 : DURÉE DU CONTRAT', body: `Le présent contrat est conclu pour une durée initiale de trois (3) mois à compter du ${dateDebut}. À l'expiration, il se poursuit par tacite reconduction sauf résiliation avec un préavis d'un (1) mois.` },
+                    { title: 'ARTICLE 3 : SERVICES ET FORMULE', body: `Le Domicilié a souscrit au forfait « ${planDetails.name} ». Tarif mensuel : ${parseFloat(planDetails.ttc).toFixed(2)} € TTC (${parseFloat(planDetails.ht).toFixed(2)} € HT + TVA 20%). Fréquence : ${isAnnuel ? 'Annuelle' : 'Mensuelle'}.` },
+                ];
+
+                articles.forEach(art => {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10.5);
+                    doc.setTextColor(15, 23, 42);
+                    doc.text(art.title, 15, ny);
+                    ny += 5;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9.5);
+                    doc.setTextColor(51, 65, 85);
+                    const sb = doc.splitTextToSize(art.body, 175);
+                    doc.text(sb, 15, ny);
+                    ny += sb.length * 4.5 + 6;
+                });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(148, 163, 184);
+                doc.text('Paraphe Domiciliataire : _________                        Paraphe Domicilié : _________', 15, 275);
+                doc.text('Page 1 sur 2', 105, 280, { align: 'center' });
+
+                // ===== PAGE 2 =====
+                doc.addPage();
+                doc.setDrawColor(226, 232, 240);
+                doc.setLineWidth(0.5);
+                doc.rect(8, 8, 194, 281);
+
+                let p2y = 20;
+
+                const articles2 = [
+                    { title: 'ARTICLE 4 : OBLIGATIONS DU DOMICILIÉ', body: "Le Domicilié s'engage à informer le Domiciliataire de toute modification concernant sa forme juridique, son activité ou son identité. Il donne mandat au Domiciliataire de recevoir pour son compte tous les courriers et actes administratifs." },
+                    { title: 'ARTICLE 5 : CONDITIONS FINANCIÈRES', body: `Tarif mensuel : ${parseFloat(planDetails.ttc).toFixed(2)} € TTC. Règlement par prélèvement bancaire ou carte bancaire récurrente Stripe.` },
+                    { title: 'ARTICLE 6 : RÉSILIATION', body: "En cas de défaut de paiement, le contrat sera résilié de plein droit 15 jours après mise en demeure. Le Domiciliataire signalera la résiliation au Greffe du Tribunal de Commerce." },
+                ];
+
+                articles2.forEach(art => {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10.5);
+                    doc.setTextColor(15, 23, 42);
+                    doc.text(art.title, 15, p2y);
+                    p2y += 5;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9.5);
+                    doc.setTextColor(51, 65, 85);
+                    const sb = doc.splitTextToSize(art.body, 175);
+                    doc.text(sb, 15, p2y);
+                    p2y += sb.length * 4.5 + 6;
+                });
+
+                p2y += 6;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9.5);
+                doc.setTextColor(51, 65, 85);
+                doc.text(`Fait en double exemplaire à Toulouse, le ${signedAtDate}.`, 15, p2y);
+                p2y += 12;
+
+                // Blocs signatures côte à côte
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10.5);
+                doc.setTextColor(15, 23, 42);
+                doc.text('Le Domiciliataire', 20, p2y);
+                doc.text('Le Domicilié', 120, p2y);
+                p2y += 5;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(71, 85, 105);
+                doc.text('Domiciliation Pas Cher', 20, p2y);
+                doc.text(clientName, 120, p2y);
+                p2y += 3;
+
+                // Tampon admin
+                doc.setDrawColor(37, 99, 235);
+                doc.setTextColor(37, 99, 235);
+                doc.setLineWidth(0.6);
+                doc.rect(15, p2y + 3, 52, 22);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                doc.text('DOMICILIATION PAS CHER', 41, p2y + 10, { align: 'center' });
+                doc.text('CONTRAT SIGNÉ EN LIGNE', 41, p2y + 16, { align: 'center' });
+                doc.text('AGRÉÉ PRÉFECTURE 31', 41, p2y + 22, { align: 'center' });
+
+                // Signature du client (image)
+                if (sigImg) {
+                    try {
+                        doc.addImage(sigImg, 'PNG', 110, p2y + 3, 80, 22);
+                    } catch (e) {
+                        doc.setDrawColor(200, 200, 200);
+                        doc.rect(110, p2y + 3, 80, 22);
+                    }
+                }
+
+                // Bandeau certification
+                p2y += 32;
+                doc.setFillColor(239, 246, 255);
+                doc.setDrawColor(191, 219, 254);
+                doc.roundedRect(15, p2y, 180, 26, 3, 3, 'FD');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.setTextColor(30, 64, 175);
+                doc.text('✔ SIGNATURE ÉLECTRONIQUE CERTIFIÉE', 105, p2y + 8, { align: 'center' });
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(71, 85, 105);
+                doc.text(`Signataire : ${clientName} — ${clientData.email || ''}`, 105, p2y + 14, { align: 'center' });
+                doc.text(`Date/heure : ${signedAtDate} à ${signedAtTime} (heure locale) — Conforme règlement eIDAS`, 105, p2y + 20, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(148, 163, 184);
+                doc.text('Page 2 sur 2', 105, 280, { align: 'center' });
+
+                return doc.output('blob');
+            };
+
+            // Charger les images en parallèle
+            const loadImg = (src) => new Promise((res) => {
+                if (!src) return res(null);
+                const img = new Image();
+                img.onload = () => res(img);
+                img.onerror = () => res(null);
+                img.src = src;
+            });
+
+            const [logoImg, sigImg] = await Promise.all([loadImg(logoUrl), loadImg(signatureDataUrl)]);
+            const blob = buildPdf(logoImg, sigImg);
+            resolve(blob);
+        } catch (err) {
+            console.error('generateSignedContratBlob error:', err);
+            reject(err);
+        }
+    });
+};

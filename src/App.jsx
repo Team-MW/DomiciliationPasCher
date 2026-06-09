@@ -12,6 +12,7 @@ import About from './pages/About/About';
 import ConnexionPage from './pages/Connexion/Connexion';
 import InscriptionPage from './pages/Connexion/Inscription';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
+import { useTranslation } from './i18n/LanguageContext';
 
 /* Lazy loading pour les grosses pages */
 const EspaceClient = lazy(() => import('./pages/EspaceClient/EspaceClient'));
@@ -22,11 +23,14 @@ const FichesPratiques = lazy(() => import('./pages/FichesPratiques/FichesPratiqu
 const FicheDetail = lazy(() => import('./pages/FicheDetail/FicheDetail'));
 
 /* Loading fallback */
-const PageLoader = () => (
-  <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFF', color: '#1A56DB', fontWeight: 700 }}>
-    Chargement...
-  </div>
-);
+function LoadingFallback() {
+  const { tr } = useTranslation();
+  return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFF', color: '#1A56DB', fontWeight: 700 }}>
+      {tr.common.loading}
+    </div>
+  );
+}
 
 /* Route protégée : redirige vers /connexion si non connecté */
 function ProtectedRoute({ children }) {
@@ -72,7 +76,7 @@ function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <Suspense fallback={<PageLoader />}>
+      <Suspense fallback={<LoadingFallback />}>
         <Routes>
           {/* Pages publiques (Vitrine) */}
           <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />

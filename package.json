@@ -37,7 +37,8 @@
     "scheduler": "^0.27.0",
     "set-cookie-parser": "^3.1.0",
     "stripe": "^20.4.1",
-    "use-sync-external-store": "^1.6.0"
+    "use-sync-external-store": "^1.6.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

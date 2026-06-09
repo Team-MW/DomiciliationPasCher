@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { exportClientsToExcel } from '../../../utils/exportClientsExcel';
 
 const formatDateShort = (dateStr) => {
     if (!dateStr) return 'Non définie';
@@ -11,10 +12,24 @@ const formatDateShort = (dateStr) => {
 };
 
 export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, onCreateClick }) {
+    const [isExporting, setIsExporting] = useState(false);
+
     const filtered = clients.filter(c =>
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.company.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const handleExport = async () => {
+        if (clients.length === 0) return;
+        setIsExporting(true);
+        try {
+            exportClientsToExcel(clients);
+        } catch (err) {
+            console.error('Export Excel échoué:', err);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     return (
         <div className="clients-container">
@@ -24,6 +39,31 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, o
                     <p style={{ color: 'var(--admin-text-sub)', fontSize: '14px', marginTop: '4px' }}>Gérez et suivez vos dossiers clients en temps réel.</p>
                 </div>
                 <div className="header-actions" style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                        onClick={handleExport}
+                        disabled={isExporting || clients.length === 0}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 14px',
+                            background: '#FFFFFF',
+                            color: '#0F172A',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: '8px',
+                            fontWeight: '600',
+                            fontSize: '13px',
+                            cursor: clients.length === 0 ? 'not-allowed' : 'pointer',
+                            opacity: clients.length === 0 ? 0.5 : 1,
+                        }}
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        {isExporting ? 'Export...' : 'Exporter Excel'}
+                    </button>
                     <button className="btn-primary-sm" onClick={onCreateClick} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 16, height: 16 }}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         Nouveau Client

@@ -417,6 +417,63 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             </div>
                         </div>
 
+                        {/* ── STATUT SIGNATURE ÉLECTRONIQUE ─────────────────────── */}
+                        {(() => {
+                            const contractSigned = extra?.contractSigned;
+                            const contractUrl = extra?.contractSignedUrl;
+                            const contractAt = extra?.contractSignedAt;
+                            return (
+                                <div style={{
+                                    borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
+                                    border: contractSigned ? '2px solid #bbf7d0' : '2px solid #fde68a'
+                                }}>
+                                    <div style={{
+                                        background: contractSigned
+                                            ? 'linear-gradient(135deg, #064e3b, #065f46)'
+                                            : 'linear-gradient(135deg, #78350f, #92400e)',
+                                        padding: '14px 20px', color: 'white',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ fontSize: '22px' }}>{contractSigned ? '✅' : '⏳'}</span>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                                                    {contractSigned ? 'Contrat signé électroniquement' : 'En attente de signature du contrat'}
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', marginTop: '2px' }}>
+                                                    {contractSigned && contractAt
+                                                        ? `Signé le ${new Date(contractAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${new Date(contractAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                                                        : 'Le client n\'a pas encore signé son contrat de domiciliation'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {contractSigned && (
+                                            <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '99px' }}>
+                                                Validé ✔
+                                            </span>
+                                        )}
+                                    </div>
+                                    {contractSigned && contractUrl && (
+                                        <div style={{ background: 'white', padding: '12px 20px' }}>
+                                            <a
+                                                href={contractUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '8px',
+                                                    padding: '9px 16px', borderRadius: '8px', textDecoration: 'none',
+                                                    background: '#f0fdf4', border: '1.5px solid #bbf7d0',
+                                                    color: '#15803d', fontWeight: 700, fontSize: '13px'
+                                                }}
+                                            >
+                                                📥 Télécharger le contrat signé (PDF)
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
                         <div className="card-header">
                             <h2>Documents Déposés / Partagés</h2>
                             <div style={{ display: 'flex', gap: '8px' }}>

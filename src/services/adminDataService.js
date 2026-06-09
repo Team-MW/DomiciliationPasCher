@@ -79,6 +79,25 @@ export const adminDataService = {
         return { id, status: newStatus };
     },
 
+    /**
+     * Met à jour des champs spécifiques dans extra_info d'un client
+     * en fusionnant avec les données existantes.
+     */
+    async updateClientExtraInfo(clientId, extraData) {
+        // Récupérer l'extra_info existant
+        const res = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId]);
+        const row = res.rows[0];
+        let existing = {};
+        if (row && row.extra_info) {
+            try {
+                existing = typeof row.extra_info === 'string' ? JSON.parse(row.extra_info) : row.extra_info;
+            } catch (e) {}
+        }
+        const merged = { ...existing, ...extraData };
+        await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), clientId]);
+        return merged;
+    },
+
     async deleteClient(id) {
         // 1. Essayer de supprimer le compte Clerk d'abord
         const client = await this.getClientById(id);

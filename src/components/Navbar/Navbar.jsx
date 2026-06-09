@@ -1,24 +1,32 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { useTranslation } from '../../i18n/LanguageContext';
+import LanguageSwitcher from '../LanguageSwitcher/LanguageSwitcher';
 import './Navbar.css';
 
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
-const navLinks = [
-    { to: '/', label: 'Accueil' },
-    { to: '/services', label: 'Services' },
-    { to: '/tarifs', label: 'Tarifs' },
-    { to: '/villes', label: 'Adresses' },
-    { to: '/fiches-pratiques', label: 'Fiches pratiques', isMega: true },
+const navLinkDefs = [
+    { to: '/', labelKey: 'home' },
+    { to: '/services', labelKey: 'services' },
+    { to: '/tarifs', labelKey: 'tarifs' },
+    { to: '/villes', labelKey: 'villes' },
+    { to: '/fiches-pratiques', labelKey: 'fichesPratiques', isMega: true },
 ];
 
 export default function Navbar() {
+    const { tr } = useTranslation();
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [isMegaOpen, setIsMegaOpen] = useState(false);
     const megaTimeout = useRef(null);
     const location = useLocation();
+
+    const navLinks = navLinkDefs.map((link) => ({
+        ...link,
+        label: tr.nav.links[link.labelKey],
+    }));
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 16);
@@ -45,6 +53,8 @@ export default function Navbar() {
         }
     };
 
+    const mm = tr.nav.megaMenu;
+
     return (
         <header className={`navbar ${scrolled ? 'scrolled' : ''}`} id="navbar">
             <div className="container navbar-inner">
@@ -60,7 +70,7 @@ export default function Navbar() {
                         if (link.isMega) {
                             return (
                                 <div
-                                    key={link.label}
+                                    key={link.to}
                                     className="nav-item-wrapper"
                                     onMouseEnter={handleMouseEnter}
                                     onMouseLeave={handleMouseLeave}
@@ -81,55 +91,55 @@ export default function Navbar() {
                                             <div className="mega-menu-main">
                                                 <div className="mega-menu-top">
                                                     <Link to="/fiches-pratiques" className="mega-menu-all" onClick={() => setIsMegaOpen(false)}>
-                                                        Voir toutes les fiches pratiques →
+                                                        {mm.viewAll}
                                                     </Link>
                                                 </div>
                                                 <div className="mega-menu-grid">
                                                     <div className="mega-menu-col">
-                                                        <h4 className="mega-menu-title">Gérer son entreprise</h4>
+                                                        <h4 className="mega-menu-title">{mm.gererEntreprise}</h4>
                                                         <ul className="mega-menu-list">
-                                                            <li><Link to="/fiches-pratiques/fiscalite-et-imposition" onClick={() => setIsMegaOpen(false)}>Fiscalité et imposition</Link></li>
-                                                            <li><Link to="/fiches-pratiques/transfert-de-siege-social" onClick={() => setIsMegaOpen(false)}>Transfert de siège social</Link></li>
-                                                            <li><Link to="/fiches-pratiques/gouvernance" onClick={() => setIsMegaOpen(false)}>Gouvernance</Link></li>
-                                                            <li><Link to="/fiches-pratiques/services-aux-entreprises" onClick={() => setIsMegaOpen(false)}>Services aux entreprises</Link></li>
-                                                            <li><Link to="/fiches-pratiques/pieges-et-astuces-gestion" onClick={() => setIsMegaOpen(false)}>Pièges et astuces</Link></li>
+                                                            <li><Link to="/fiches-pratiques/fiscalite-et-imposition" onClick={() => setIsMegaOpen(false)}>{mm.fiscaliteImposition}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/transfert-de-siege-social" onClick={() => setIsMegaOpen(false)}>{mm.transfertSiege}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/gouvernance" onClick={() => setIsMegaOpen(false)}>{mm.gouvernance}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/services-aux-entreprises" onClick={() => setIsMegaOpen(false)}>{mm.servicesEntreprises}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/pieges-et-astuces-gestion" onClick={() => setIsMegaOpen(false)}>{mm.piegesAstucesGestion}</Link></li>
                                                         </ul>
-                                                        <h4 className="mega-menu-title" style={{ marginTop: '24px' }}>Actualités</h4>
+                                                        <h4 className="mega-menu-title" style={{ marginTop: '24px' }}>{mm.actualites}</h4>
                                                         <ul className="mega-menu-list">
-                                                            <li><Link to="/fiches-pratiques/reformes-legales" onClick={() => setIsMegaOpen(false)}>Réformes légales</Link></li>
-                                                            <li><Link to="/fiches-pratiques/podcast" onClick={() => setIsMegaOpen(false)}>Podcast</Link></li>
-                                                            <li><Link to="/fiches-pratiques/entrepreneuriat" onClick={() => setIsMegaOpen(false)}>Entrepreneuriat</Link></li>
-                                                            <li><Link to="/fiches-pratiques/sedomicilier" onClick={() => setIsMegaOpen(false)}>SeDomicilier</Link></li>
-                                                            <li><Link to="/fiches-pratiques/tech" onClick={() => setIsMegaOpen(false)}>Tech</Link></li>
+                                                            <li><Link to="/fiches-pratiques/reformes-legales" onClick={() => setIsMegaOpen(false)}>{mm.reformesLegales}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/podcast" onClick={() => setIsMegaOpen(false)}>{mm.podcast}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/entrepreneuriat" onClick={() => setIsMegaOpen(false)}>{mm.entrepreneuriat}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/sedomicilier" onClick={() => setIsMegaOpen(false)}>{mm.seDomicilier}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/tech" onClick={() => setIsMegaOpen(false)}>{mm.tech}</Link></li>
                                                         </ul>
                                                     </div>
                                                     <div className="mega-menu-col">
-                                                        <h4 className="mega-menu-title">Domiciliation</h4>
+                                                        <h4 className="mega-menu-title">{mm.domiciliation}</h4>
                                                         <ul className="mega-menu-list">
-                                                            <li><Link to="/fiches-pratiques/les-adresses" onClick={() => setIsMegaOpen(false)}>Les adresses</Link></li>
-                                                            <li><Link to="/fiches-pratiques/gestion-du-courrier" onClick={() => setIsMegaOpen(false)}>Gestion du courrier</Link></li>
-                                                            <li><Link to="/fiches-pratiques/pieges-et-astuces-domiciliation" onClick={() => setIsMegaOpen(false)}>Pièges et astuces</Link></li>
-                                                            <li><Link to="/fiches-pratiques/tout-savoir-sur-la-domiciliation" onClick={() => setIsMegaOpen(false)}>Tout savoir sur la domiciliation</Link></li>
+                                                            <li><Link to="/fiches-pratiques/les-adresses" onClick={() => setIsMegaOpen(false)}>{mm.lesAdresses}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/gestion-du-courrier" onClick={() => setIsMegaOpen(false)}>{mm.gestionCourrier}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/pieges-et-astuces-domiciliation" onClick={() => setIsMegaOpen(false)}>{mm.piegesAstucesDomiciliation}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/tout-savoir-sur-la-domiciliation" onClick={() => setIsMegaOpen(false)}>{mm.toutSavoirDomiciliation}</Link></li>
                                                         </ul>
-                                                        <h4 className="mega-menu-title" style={{ marginTop: '24px' }}>Créer une entreprise</h4>
+                                                        <h4 className="mega-menu-title" style={{ marginTop: '24px' }}>{mm.creerEntreprise}</h4>
                                                         <ul className="mega-menu-list">
-                                                            <li><Link to="/fiches-pratiques/formes-juridiques" onClick={() => setIsMegaOpen(false)}>Les formes juridiques</Link></li>
-                                                            <li><Link to="/fiches-pratiques/aides-a-la-creation" onClick={() => setIsMegaOpen(false)}>Les aides à la création</Link></li>
-                                                            <li><Link to="/fiches-pratiques/les-administrations" onClick={() => setIsMegaOpen(false)}>Les administrations</Link></li>
-                                                            <li><Link to="/fiches-pratiques/pieges-et-astuces-creation" onClick={() => setIsMegaOpen(false)}>Pièges et astuces</Link></li>
-                                                            <li><Link to="/fiches-pratiques/la-creation-d-entreprise" onClick={() => setIsMegaOpen(false)}>La création d'entreprise</Link></li>
+                                                            <li><Link to="/fiches-pratiques/formes-juridiques" onClick={() => setIsMegaOpen(false)}>{mm.formesJuridiques}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/aides-a-la-creation" onClick={() => setIsMegaOpen(false)}>{mm.aidesCreation}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/les-administrations" onClick={() => setIsMegaOpen(false)}>{mm.administrations}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/pieges-et-astuces-creation" onClick={() => setIsMegaOpen(false)}>{mm.piegesAstucesCreation}</Link></li>
+                                                            <li><Link to="/fiches-pratiques/la-creation-d-entreprise" onClick={() => setIsMegaOpen(false)}>{mm.laCreationEntreprise}</Link></li>
                                                         </ul>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="mega-menu-sidebar">
-                                                <h4 className="sidebar-title">Notre sélection du mois</h4>
+                                                <h4 className="sidebar-title">{mm.selectionMois}</h4>
                                                 <ul className="sidebar-list">
-                                                    <li><Link to="/fiches-pratiques/auto-entrepreneur-astuces-impot" onClick={() => setIsMegaOpen(false)}>Auto-entrepreneur : les 5 astuces pour payer moins d’impôt</Link></li>
-                                                    <li><Link to="/fiches-pratiques/qu-est-ce-que-la-domiciliation" onClick={() => setIsMegaOpen(false)}>Qu'est-ce que la domiciliation ?</Link></li>
-                                                    <li><Link to="/fiches-pratiques/cout-gestion-comptabilite" onClick={() => setIsMegaOpen(false)}>Combien coûte la gestion de votre comptabilité ?</Link></li>
-                                                    <li><Link to="/fiches-pratiques/creer-entreprise-en-ligne" onClick={() => setIsMegaOpen(false)}>Comment créer son entreprise en ligne ?</Link></li>
-                                                    <li><Link to="/fiches-pratiques/pourquoi-domicilier-en-idf" onClick={() => setIsMegaOpen(false)}>Pourquoi domicilier son entreprise en IDF ?</Link></li>
+                                                    <li><Link to="/fiches-pratiques/auto-entrepreneur-astuces-impot" onClick={() => setIsMegaOpen(false)}>{mm.autoEntrepreneurAstuces}</Link></li>
+                                                    <li><Link to="/fiches-pratiques/qu-est-ce-que-la-domiciliation" onClick={() => setIsMegaOpen(false)}>{mm.questCeDomiciliation}</Link></li>
+                                                    <li><Link to="/fiches-pratiques/cout-gestion-comptabilite" onClick={() => setIsMegaOpen(false)}>{mm.coutComptabilite}</Link></li>
+                                                    <li><Link to="/fiches-pratiques/creer-entreprise-en-ligne" onClick={() => setIsMegaOpen(false)}>{mm.creerEntrepriseEnLigne}</Link></li>
+                                                    <li><Link to="/fiches-pratiques/pourquoi-domicilier-en-idf" onClick={() => setIsMegaOpen(false)}>{mm.pourquoiDomicilierIdf}</Link></li>
                                                 </ul>
                                             </div>
                                         </div>
@@ -152,9 +162,10 @@ export default function Navbar() {
 
                 {/* Desktop Actions */}
                 <div className="navbar-actions">
+                    <LanguageSwitcher />
                     <SignedOut>
                         <Link to="/connexion" className="btn btn-ghost" id="nav-signin-btn" onClick={() => setIsMegaOpen(false)}>
-                            Se connecter
+                            {tr.nav.signIn}
                         </Link>
                     </SignedOut>
 
@@ -164,12 +175,12 @@ export default function Navbar() {
                                 <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
                                 <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
                             </svg>
-                            ACCÈS ESPACE
+                            {tr.nav.dashboard}
                         </Link>
                     </SignedIn>
 
                     <Link to="/tarifs" className="btn btn-primary" id="nav-cta-btn" onClick={() => setIsMegaOpen(false)}>
-                        Démarrer →
+                        {tr.nav.cta}
                     </Link>
                 </div>
 
@@ -177,7 +188,7 @@ export default function Navbar() {
                 <button
                     className={`hamburger ${menuOpen ? 'open' : ''}`}
                     onClick={() => setMenuOpen(!menuOpen)}
-                    aria-label="Menu"
+                    aria-label={tr.nav.menuAria}
                     id="hamburger-btn"
                 >
                     <span /><span /><span />
@@ -186,6 +197,7 @@ export default function Navbar() {
 
             {/* Mobile Menu */}
             <div className={`mobile-menu ${menuOpen ? 'open' : ''}`} id="mobile-menu">
+                <LanguageSwitcher />
                 {navLinks.map(link => (
                     <NavLink
                         key={link.to}
@@ -205,7 +217,7 @@ export default function Navbar() {
                         onClick={() => setMenuOpen(false)}
                         id="mobile-signin-btn"
                     >
-                        Se connecter
+                        {tr.nav.signIn}
                     </Link>
                 </SignedOut>
                 <SignedIn>
@@ -214,7 +226,7 @@ export default function Navbar() {
                         className="mobile-link"
                         onClick={() => setMenuOpen(false)}
                     >
-                        Mon espace client
+                        {tr.nav.dashboardMobile}
                     </Link>
                 </SignedIn>
                 <Link
@@ -223,7 +235,7 @@ export default function Navbar() {
                     onClick={() => setMenuOpen(false)}
                     id="mobile-cta-btn"
                 >
-                    Domicilier mon entreprise
+                    {tr.nav.mobileCta}
                 </Link>
             </div>
         </header>
