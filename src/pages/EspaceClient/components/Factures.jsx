@@ -27,7 +27,7 @@ export default function Factures({ clientData }) {
                         }
                     }
 
-                    const stripePayments = await adminDataService.syncStripePayments(clientData.email, stripeCustomerId);
+                    const stripePayments = await adminDataService.syncStripePayments(clientData.email, stripeCustomerId, clientData.since);
                     if (stripePayments && stripePayments.length > 0) {
                         let addedCount = 0;
                         for (const sp of stripePayments) {

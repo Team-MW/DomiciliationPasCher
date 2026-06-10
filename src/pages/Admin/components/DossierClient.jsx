@@ -57,15 +57,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         }
                     }
 
-                    const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId);
+                    const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
                     if (stripePayments && stripePayments.length > 0) {
                         let addedCount = 0;
                         for (const sp of stripePayments) {
-                            const alreadyExists = pay.some(p => p.amount == sp.amount && p.date == sp.date);
+                            // Vérifier si ce paiement Stripe existe déjà (par référence OU par montant+date pour éviter doublons avec le paiement initial manuel)
+                            const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
+                            const alreadyExists = pay.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
                             if (!alreadyExists) {
                                 await adminDataService.addPayment(client.id, {
                                     ...sp,
-                                    invoice_ref: `STRIPE-${sp.id.substring(3, 10)}`
+                                    invoice_ref: stripeRef
                                 });
                                 addedCount++;
                             }
@@ -136,17 +138,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const handleFileChange = async (e) => {
         const originalFile = e.target.files[0];
         if (!originalFile) return;
-        
+
         setIsLoading(true);
         try {
             let fileToUpload = originalFile;
-            
+
             // Si c'est un PDF, on le transforme en PNG avant l'envoi
             if (originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf')) {
                 console.log("Conversion du PDF en PNG...");
                 fileToUpload = await convertPdfToPng(originalFile);
             }
-            
+
             await performUpload(fileToUpload);
         } catch (err) {
             console.error("Erreur préparation fichier:", err);
@@ -200,10 +202,10 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         let defaultAmount = '20.00';
         if (client.plan === 'Scan+') defaultAmount = '24.00';
         else if (client.plan === 'Physique+') defaultAmount = '38.00';
-        
+
         const amount = prompt(`Montant de la facture (ex: ${defaultAmount}) ?`, defaultAmount);
         if (!amount) return;
-        
+
         const date = prompt("Date de la facture (AAAA-MM-JJ) ?", new Date().toISOString().split('T')[0]);
         if (!date) return;
 
@@ -225,13 +227,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const handleGenerateMockHistory = async () => {
         const confirmed = await showConfirm("Générer l'historique complet des paiements pour ce client depuis son inscription ?");
         if (!confirmed) return;
-        
+
         try {
             setIsLoading(true);
             const startDate = new Date(client.since);
             const currentDate = new Date();
             let iter = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-            
+
             while (iter <= currentDate) {
                 let amount = 20;
                 if (client.plan === 'Scan+') amount = 24;
@@ -244,7 +246,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 });
                 iter.setMonth(iter.getMonth() + 1);
             }
-            
+
             const pay = await adminDataService.getPayments(client.id);
             setPayments(pay);
             await showAlert("Historique généré avec succès !");
@@ -261,7 +263,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
         try {
             setIsLoading(true);
-            
+
             let stripeCustomerId = null;
             try {
                 if (client.extra_info) {
@@ -272,8 +274,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 console.error("Error parsing client.extra_info in handleSyncStripe:", e);
             }
 
-            const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId);
-            
+            const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+
             if (stripePayments.length === 0) {
                 await showAlert("Aucun paiement trouvé sur Stripe pour ce client.");
                 return;
@@ -283,11 +285,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             let addedCount = 0;
             const currentPayments = await adminDataService.getPayments(client.id);
             for (const sp of stripePayments) {
-                const alreadyExists = currentPayments.some(p => p.amount == sp.amount && p.date == sp.date);
+                // Vérifier si ce paiement Stripe existe déjà
+                const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
+                const alreadyExists = currentPayments.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
                 if (!alreadyExists) {
                     await adminDataService.addPayment(client.id, {
                         ...sp,
-                        invoice_ref: `STRIPE-${sp.id.substring(3, 10)}`
+                        invoice_ref: stripeRef
                     });
                     addedCount++;
                 }
@@ -370,44 +374,44 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 Générez et téléchargez instantanément l'attestation ou le contrat officiel pré-remplis avec les données d'inscription validées pour ce client.
                             </p>
                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
-                                <button 
-                                    className="btn-primary-sm" 
+                                <button
+                                    className="btn-primary-sm"
                                     style={{ background: '#0F172A', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
                                     onClick={() => generateAttestationPdf(client)}
                                 >
                                     <span>📥</span> Attestation de Domiciliation
                                 </button>
-                                <button 
+                                <button
                                     style={{ background: 'white', color: '#0F172A', border: '1px solid #D1D5DB', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
                                     onClick={() => generateContratPdf(client)}
                                 >
                                     <span>📜</span> Contrat de Domiciliation
                                 </button>
                             </div>
-                            
+
                             {/* NOUVEAU : Documents Communs de l'Établissement */}
                             <div style={{ borderTop: '1px solid #E2E8F0', marginTop: '20px', paddingTop: '16px' }}>
                                 <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '10px' }}>📁 Documents Communs Domiciliataire (Toulouse) :</span>
                                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                    <a 
-                                        href="/Agrement_CASSIN.pdf" 
-                                        target="_blank" 
+                                    <a
+                                        href="/Agrement_CASSIN.pdf"
+                                        target="_blank"
                                         rel="noopener noreferrer"
                                         style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
                                     >
                                         🛡️ Agrément CASSIN.pdf
                                     </a>
-                                    <a 
-                                        href="/Extrait_KBIS_CASSIN.pdf" 
-                                        target="_blank" 
+                                    <a
+                                        href="/Extrait_KBIS_CASSIN.pdf"
+                                        target="_blank"
                                         rel="noopener noreferrer"
                                         style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
                                     >
                                         🏢 Extrait KBIS CASSIN.pdf
                                     </a>
-                                    <a 
-                                        href="/Procuration_Postale.pdf" 
-                                        target="_blank" 
+                                    <a
+                                        href="/Procuration_Postale.pdf"
+                                        target="_blank"
                                         rel="noopener noreferrer"
                                         style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
                                     >
@@ -508,12 +512,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         documents.map(doc => {
                                             if (!doc) return null;
                                             return (
-                                                <a 
-                                                    key={doc.id} 
+                                                <a
+                                                    key={doc.id}
                                                     href={doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\.pdf$/i, '.jpg') : doc.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="ec-explorer-item file" 
+                                                    className="ec-explorer-item file"
                                                     style={{ border: '1px solid #E2E8F0', padding: '16px', borderRadius: '12px', background: 'white', textDecoration: 'none', display: 'block' }}
                                                 >
                                                     <div className="ec-explorer-icon"><Icons.File style={{ width: '24px', height: '24px', color: '#6366F1' }} /></div>
@@ -522,16 +526,16 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                         {doc.size} · {doc.owner === 'admin' ? 'Déposé par vous' : 'Client'}
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                                                        <div 
-                                                            className="ec-explorer-dl" 
+                                                        <div
+                                                            className="ec-explorer-dl"
                                                             style={{ flex: 1, padding: '8px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', textAlign: 'center', fontWeight: '600', fontSize: '12px', color: '#0F172A' }}
                                                         >
                                                             Ouvrir / Télécharger
                                                         </div>
-                                                        <button 
-                                                            onClick={async (e) => { 
+                                                        <button
+                                                            onClick={async (e) => {
                                                                 e.preventDefault();
-                                                                e.stopPropagation(); 
+                                                                e.stopPropagation();
                                                                 const confirmed = await showConfirm("Supprimer ce document ?");
                                                                 if (confirmed) {
                                                                     try {
@@ -596,13 +600,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <input
                                     type="text"
                                     placeholder="Écrivez votre message..."
-                                    style={{ 
+                                    style={{
                                         flex: 1,
-                                        height: '44px', 
-                                        borderRadius: '8px', 
-                                        border: '1px solid #E2E8F0', 
-                                        padding: '0 16px', 
-                                        fontSize: '14px', 
+                                        height: '44px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #E2E8F0',
+                                        padding: '0 16px',
+                                        fontSize: '14px',
                                         background: '#FFFFFF',
                                         color: '#0F172A',
                                         outline: 'none',
@@ -611,16 +615,16 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     value={newMessage}
                                     onChange={e => setNewMessage(e.target.value)}
                                 />
-                                <button 
-                                    type="submit" 
-                                    style={{ 
-                                        background: '#0F172A', 
-                                        color: '#FFFFFF', 
-                                        border: 'none', 
-                                        borderRadius: '8px', 
-                                        padding: '0 16px', 
-                                        fontWeight: '600', 
-                                        fontSize: '14px', 
+                                <button
+                                    type="submit"
+                                    style={{
+                                        background: '#0F172A',
+                                        color: '#FFFFFF',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        padding: '0 16px',
+                                        fontWeight: '600',
+                                        fontSize: '14px',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -735,15 +739,40 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                     <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{p.method}</td>
                                                     <td style={{ padding: '16px' }}>
                                                         <span style={{ 
-                                                            background: p.status === 'payé' ? '#DCFCE7' : '#FFE4E6', 
-                                                            color: p.status === 'payé' ? '#15803D' : '#9F1239', 
+                                                            background: p.status === 'payé' ? '#DCFCE7' : '#FEE2E2', 
+                                                            color: p.status === 'payé' ? '#166534' : '#991B1B', 
                                                             padding: '4px 10px', 
-                                                            borderRadius: '9999px', 
+                                                            borderRadius: '99px', 
                                                             fontSize: '12px', 
-                                                            fontWeight: '600' 
+                                                            fontWeight: '600',
+                                                            display: 'inline-block'
                                                         }}>
-                                                            {p.status === 'payé' ? 'Payé' : 'Échec'}
+                                                            {p.status}
                                                         </span>
+                                                        <button 
+                                                            onClick={async () => {
+                                                                const confirmed = await showConfirm(`Supprimer le paiement ${p.invoice_ref} ?`);
+                                                                if (confirmed) {
+                                                                    try {
+                                                                        await adminDataService.deletePayment(p.id);
+                                                                        setPayments(prev => prev.filter(x => x.id !== p.id));
+                                                                    } catch (err) {
+                                                                        await showAlert("Erreur de suppression");
+                                                                    }
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: '#DC2626',
+                                                                cursor: 'pointer',
+                                                                marginLeft: '12px',
+                                                                opacity: 0.6
+                                                            }}
+                                                            title="Supprimer"
+                                                        >
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))
@@ -754,6 +783,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         </div>
                     </>
                 );
+
             case 'details':
             default:
                 return (
@@ -851,41 +881,41 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             </div>
 
             <div style={{ display: 'inline-flex', padding: '4px', background: '#F1F5F9', borderRadius: '8px', marginBottom: '24px', gap: '4px' }}>
-                <button 
-                    onClick={() => setActiveDossierTab('details')} 
+                <button
+                    onClick={() => setActiveDossierTab('details')}
                     style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'details' ? 'white' : 'transparent', color: activeDossierTab === 'details' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'details' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
                     Détails Client
                 </button>
-                <button 
-                    onClick={() => setActiveDossierTab('docs')} 
+                <button
+                    onClick={() => setActiveDossierTab('docs')}
                     style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'docs' ? 'white' : 'transparent', color: activeDossierTab === 'docs' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'docs' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
                     Documents
                 </button>
-                <button 
-                    onClick={() => setActiveDossierTab('messages')} 
+                <button
+                    onClick={() => setActiveDossierTab('messages')}
                     style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'messages' ? 'white' : 'transparent', color: activeDossierTab === 'messages' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'messages' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     Messagerie
                     {parseInt(client.unreadCount) > 0 && activeDossierTab !== 'messages' && (
-                        <span style={{ 
-                            background: '#6366F1', 
-                            color: 'white', 
-                            fontSize: '10px', 
-                            width: '18px', 
-                            height: '18px', 
-                            borderRadius: '50%', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center' 
+                        <span style={{
+                            background: '#6366F1',
+                            color: 'white',
+                            fontSize: '10px',
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                         }}>
                             {client.unreadCount}
                         </span>
                     )}
                 </button>
-                <button 
-                    onClick={() => setActiveDossierTab('facturation')} 
+                <button
+                    onClick={() => setActiveDossierTab('facturation')}
                     style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'facturation' ? 'white' : 'transparent', color: activeDossierTab === 'facturation' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'facturation' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
                     Facturation
@@ -923,8 +953,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             </div>
                         </div>
                         <div className="info-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <button 
-                                className="btn-danger-outline" 
+                            <button
+                                className="btn-danger-outline"
                                 onClick={async () => {
                                     const confirmed = await showConfirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé' et un email d'avertissement lui sera envoyé.", { isDanger: true });
                                     if (confirmed) {
@@ -941,15 +971,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             await showAlert("Erreur de mise à jour");
                                         }
                                     }
-                                }} 
+                                }}
                                 disabled={isLoading}
                                 style={{ background: '#fff1f2', color: '#9f1239', borderColor: '#fda4af', borderStyle: 'solid', borderWidth: '1px', padding: '10px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', width: '100%' }}
                             >
                                 Le client a un impayé
                             </button>
-                            <button 
-                                className="btn-danger-outline" 
-                                onClick={handleDelete} 
+                            <button
+                                className="btn-danger-outline"
+                                onClick={handleDelete}
                                 disabled={isLoading}
                                 style={{ background: '#FFFFFF', color: '#DC2626', borderColor: '#FCA5A5', borderStyle: 'solid', borderWidth: '1px', padding: '10px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', width: '100%' }}
                             >

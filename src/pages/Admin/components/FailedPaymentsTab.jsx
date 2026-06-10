@@ -28,6 +28,8 @@ export default function FailedPaymentsTab({ clients, onSelect, onUpdate, showCon
         }
     };
 
+
+
     return (
         <div className="failed-payments-container">
             <div className="tab-header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -38,6 +40,7 @@ export default function FailedPaymentsTab({ clients, onSelect, onUpdate, showCon
                     </h2>
                     <p style={{ color: 'var(--admin-text-sub)', fontSize: '14px', marginTop: '4px' }}>Dossiers nécessitant une régularisation de paiement.</p>
                 </div>
+
             </div>
             
             {failedClients.length === 0 ? (

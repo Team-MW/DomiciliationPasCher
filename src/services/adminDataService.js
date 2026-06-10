@@ -366,18 +366,70 @@ export const adminDataService = {
         await conn.execute('DELETE FROM payments WHERE id = ?', [paymentId]);
     },
 
-    async syncStripePayments(email, stripeCustomerId = null) {
+    async syncStripePayments(email, stripeCustomerId = null, sinceDate = null) {
         try {
             const cleanEmail = email ? email.trim().toLowerCase() : '';
-            const url = stripeCustomerId
+            let url = stripeCustomerId
                 ? `/api/list-payments?email=${encodeURIComponent(cleanEmail)}&customerId=${encodeURIComponent(stripeCustomerId)}`
                 : `/api/list-payments?email=${encodeURIComponent(cleanEmail)}`;
+            if (sinceDate) {
+                url += `&since=${encodeURIComponent(sinceDate)}`;
+            }
             const res = await fetch(url);
             const data = await res.json();
             return data.payments || [];
         } catch (err) {
             console.error("Erreur sync Stripe:", err);
             return [];
+        }
+    },
+
+    async cleanupDuplicatePayments() {
+        try {
+            // Récupérer tous les paiements
+            const allPaymentsRes = await conn.execute('SELECT * FROM payments ORDER BY date DESC');
+            const allPayments = allPaymentsRes.rows;
+
+            // Grouper par invoice_ref
+            const paymentsByRef = new Map();
+            for (const payment of allPayments) {
+                const ref = payment.invoice_ref;
+                if (!paymentsByRef.has(ref)) {
+                    paymentsByRef.set(ref, []);
+                }
+                paymentsByRef.get(ref).push(payment);
+            }
+
+            // Identifier les doublons (plus d'un paiement avec le même invoice_ref)
+            const duplicates = [];
+            for (const [ref, payments] of paymentsByRef) {
+                if (payments.length > 1) {
+                    // Trier par date (plus récent en premier)
+                    payments.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    // Garder le premier (plus récent), marquer les autres comme doublons
+                    const toKeep = payments[0];
+                    const toDelete = payments.slice(1);
+                    duplicates.push({ ref, toKeep, toDelete });
+                }
+            }
+
+            if (duplicates.length === 0) {
+                return { success: true, deletedCount: 0, message: 'Aucun doublon trouvé' };
+            }
+
+            // Supprimer les doublons
+            let deletedCount = 0;
+            for (const dup of duplicates) {
+                for (const payment of dup.toDelete) {
+                    await conn.execute('DELETE FROM payments WHERE id = ?', [payment.id]);
+                    deletedCount++;
+                }
+            }
+
+            return { success: true, deletedCount, message: `${deletedCount} doublons supprimés` };
+        } catch (error) {
+            console.error('Erreur cleanup doublons:', error);
+            return { success: false, error: error.message };
         }
     },
 
