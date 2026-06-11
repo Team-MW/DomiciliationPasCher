@@ -42,21 +42,32 @@ export const uploadFile = async (file, options = {}) => {
     const uploadPreset = options.uploadPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'ml_default';
 
     const formData = new FormData();
-    formData.append('file', file);
+    // Contournement bug WebKit : si string (Base64), on l'ajoute tel quel. Sinon on force un nom.
+    if (typeof file === 'string') {
+        formData.append('file', file);
+    } else {
+        formData.append('file', file, file.name || 'document.pdf');
+    }
     formData.append('upload_preset', uploadPreset);
     
-    // Pour les PDF, on utilise 'raw'. 
-    // Avantage : Cloudinary les sert tels quels et le navigateur les télécharge souvent par défaut.
-    // Cela évite les erreurs 401 liées aux transformations restreintes sur les PDF.
-    const isPDF = file.name?.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
-    formData.append('resource_type', isPDF ? 'raw' : 'auto');
+    if (options.public_id) {
+        formData.append('public_id', options.public_id);
+    }
+    
+    const isPDF = (file.name && file.name.toLowerCase().endsWith('.pdf')) 
+               || file.type === 'application/pdf'
+               || (typeof file === 'string' && file.startsWith('data:application/pdf'));
+    
+    // FORCER 'auto' pour éviter le blocage strict des uploads 'raw' non signés par Cloudinary
+    const resourceType = 'auto';
+    formData.append('resource_type', resourceType);
 
     if (options.folder) {
         formData.append('folder', options.folder);
     }
 
-    // Utilisation de l'endpoint générique 'upload'
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
+    // Utilisation de l'endpoint avec le resourceType dans l'URL
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
         method: 'POST',
         body: formData
     });

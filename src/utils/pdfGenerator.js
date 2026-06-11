@@ -58,7 +58,7 @@ export const generateAttestationPdf = async (clientData) => {
         });
 
         const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
-        const companyName = clientData.company || extra.nomSociete || 'Société en cours de constitution';
+        const companyName = String(clientData.company || extra.nomSociete || 'Société en cours de constitution');
         const formeJuridique = extra.formeJuridique || 'EI / Société';
         const sirenText = extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution au Greffe';
         const clientAddress = clientData.address || extra.adressePerso || "Adresse personnelle non renseignée";
@@ -243,7 +243,7 @@ export const generateContratPdf = async (clientData) => {
         });
 
         const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
-        const companyName = clientData.company || extra.nomSociete || 'Société en cours de constitution';
+        const companyName = String(clientData.company || extra.nomSociete || 'Société en cours de constitution');
         const formeJuridique = extra.formeJuridique || 'EI / Société';
         const sirenText = extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution';
         const clientAddress = clientData.address || extra.adressePerso || "Adresse personnelle non renseignée";
@@ -413,11 +413,14 @@ export const generateContratPdf = async (clientData) => {
             doc.setFont("helvetica", "bold");
             doc.setFontSize(10.5);
             doc.text("Le Domiciliataire (Domiciliation Pas Cher)", 15, page2Y);
-            doc.text("Le Domicilié (Signature précédée de « Bon pour accord »)", 110, page2Y);
+            doc.text("Le Domicilié", 110, page2Y);
 
-            page2Y += 6;
+            page2Y += 5;
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
+            doc.text("(Signature précédée de « Bon pour accord »)", 110, page2Y);
+
+            page2Y += 6;
             doc.text("La Direction", 15, page2Y);
             doc.text(`Pour ${companyName.toUpperCase()}`, 110, page2Y);
 
@@ -479,7 +482,7 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
             const signedAtTime = signedNow.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
             const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
-            const companyName = clientData.company || extra.nomSociete || 'Société en cours de constitution';
+            const companyName = String(clientData.company || extra.nomSociete || 'Société en cours de constitution');
             const formeJuridique = extra.formeJuridique || 'EI / Société';
             const sirenText = extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution';
             const clientAddress = clientData.address || extra.adressePerso || 'Adresse personnelle non renseignée';
@@ -614,34 +617,37 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(10.5);
                 doc.setTextColor(15, 23, 42);
-                doc.text('Le Domiciliataire', 20, p2y);
-                doc.text('Le Domicilié', 120, p2y);
+                doc.text('Le Domiciliataire (Domiciliation Pas Cher)', 15, p2y);
+                doc.text('Le Domicilié', 110, p2y);
+
                 p2y += 5;
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(9);
                 doc.setTextColor(71, 85, 105);
-                doc.text('Domiciliation Pas Cher', 20, p2y);
-                doc.text(clientName, 120, p2y);
-                p2y += 3;
+                doc.text('(Signature précédée de « Bon pour accord »)', 110, p2y);
+
+                p2y += 6;
+                doc.text('La Direction', 15, p2y);
+                doc.text(`Pour ${companyName.toUpperCase()}`, 110, p2y);
 
                 // Tampon admin
                 doc.setDrawColor(37, 99, 235);
                 doc.setTextColor(37, 99, 235);
                 doc.setLineWidth(0.6);
-                doc.rect(15, p2y + 3, 52, 22);
+                doc.rect(15, p2y + 6, 45, 20);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(7.5);
-                doc.text('DOMICILIATION PAS CHER', 41, p2y + 10, { align: 'center' });
-                doc.text('CONTRAT SIGNÉ EN LIGNE', 41, p2y + 16, { align: 'center' });
-                doc.text('AGRÉÉ PRÉFECTURE 31', 41, p2y + 22, { align: 'center' });
+                doc.text('DOMICILIATION PAS CHER', 37.5, p2y + 12, { align: 'center' });
+                doc.text('CONTRAT SIGNÉ EN LIGNE', 37.5, p2y + 18, { align: 'center' });
+                doc.text('AGRÉÉ PRÉFECTURE 31', 37.5, p2y + 24, { align: 'center' });
 
                 // Signature du client (image)
                 if (sigImg) {
                     try {
-                        doc.addImage(sigImg, 'PNG', 110, p2y + 3, 80, 22);
+                        doc.addImage(sigImg, 'PNG', 110, p2y + 6, 80, 22);
                     } catch (e) {
                         doc.setDrawColor(200, 200, 200);
-                        doc.rect(110, p2y + 3, 80, 22);
+                        doc.rect(110, p2y + 6, 80, 22);
                     }
                 }
 
@@ -665,7 +671,18 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
                 doc.setTextColor(148, 163, 184);
                 doc.text('Page 2 sur 2', 105, 280, { align: 'center' });
 
-                return doc.output('blob');
+                const dataUrl = doc.output('datauristring');
+                
+                // Convertir la Data URL en un Blob natif 100% pur (compatible arrayBuffer)
+                const arr = dataUrl.split(',');
+                const mime = arr[0].match(/:(.*?);/)[1];
+                const bstr = atob(arr[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+                return new Blob([u8arr], { type: mime });
             };
 
             // Charger les images en parallèle

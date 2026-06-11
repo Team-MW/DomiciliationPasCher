@@ -11,6 +11,7 @@ export default function Docs({ documents, setDocuments, clientData }) {
     const [showSignModal, setShowSignModal] = useState(false);
     const [signStatus, setSignStatus] = useState(null); // null | 'loading' | 'done' | 'error'
     const [signedUrl, setSignedUrl] = useState(null);
+    const [localSignatureUrl, setLocalSignatureUrl] = useState(null);
 
     // Lire le statut de signature depuis extra_info
     const signatureInfo = useMemo(() => {
@@ -62,41 +63,47 @@ export default function Docs({ documents, setDocuments, clientData }) {
     const handleSigned = async (signatureDataUrl) => {
         setShowSignModal(false);
         setSignStatus('loading');
+        
+        // Petit délai pour laisser React afficher l'état de chargement avant le calcul lourd (évite le freeze)
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        let step = 'Démarrage';
         try {
-            // 1. Générer le PDF signé
-            const blob = await generateSignedContratBlob(clientData, signatureDataUrl);
+            // Au lieu d'uploader le PDF complet sur Cloudinary (qui le bloque), 
+            // on sauvegarde simplement l'image de la signature dans la DB du client.
+            // Le PDF complet sera généré dynamiquement à la volée quand le client ou l'admin cliquera sur "Voir/Télécharger".
+            step = 'Sauvegarde base de données';
+            
+            const extraInfo = {
+                contractSigned: true,
+                contractSignedAt: new Date().toISOString(),
+                contractSignatureUrl: signatureDataUrl, // On stocke uniquement la donnée de la signature dessinée (quelques Ko)
+                contractSignedUrl: '#local-signature' // Drapeau spécial
+            };
 
-            // 2. Uploader sur Cloudinary
-            const fileName = `Contrat_Signe_${(clientData.company || clientData.id).replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
-            const file = new File([blob], fileName, { type: 'application/pdf' });
-            const info = await uploadFile(file, { folder: `clients/${clientData.id}/Contrats` });
-            const url = info.secure_url;
+            await adminDataService.updateClientExtraInfo(clientData.id, extraInfo);
 
-            // 3. Enregistrer dans la DB comme document
+            // Enregistrer dans la DB comme document
+            step = 'Enregistrement BD document';
             await adminDataService.addDocument(clientData.id, {
-                name: '✅ Contrat signé électroniquement',
-                size: (blob.size / 1024).toFixed(0) + ' KB',
+                name: '✅ Contrat signé électroniquement.pdf',
+                size: 'Généré à la volée',
                 type: 'application/pdf',
                 owner: 'client',
                 folder: 'Contrats',
-                url
+                url: '#local-signature'
             });
 
-            // 4. Mettre à jour extra_info du client
-            await adminDataService.updateClientExtraInfo(clientData.id, {
-                contractSigned: true,
-                contractSignedAt: new Date().toISOString(),
-                contractSignedUrl: url,
-            });
-
-            // 5. Rafraîchir les documents
+            // Recharger localement
             const updatedDocs = await adminDataService.getDocuments(clientData.id);
             setDocuments(updatedDocs);
 
-            setSignedUrl(url);
+            setSignedUrl('#local-signature');
+            setLocalSignatureUrl(signatureDataUrl);
             setSignStatus('done');
         } catch (err) {
             console.error('Erreur signature:', err);
+            window.lastSignError = `[${step}] ` + (err.message || String(err));
             setSignStatus('error');
         }
     };
@@ -163,7 +170,7 @@ export default function Docs({ documents, setDocuments, clientData }) {
                             )}
                             {signStatus === 'error' && (
                                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
-                                    ❌ Une erreur est survenue. Veuillez réessayer.
+                                    ❌ Une erreur est survenue : {window.lastSignError || 'Erreur inconnue'}
                                 </div>
                             )}
                             {signStatus !== 'loading' && (
@@ -193,8 +200,35 @@ export default function Docs({ documents, setDocuments, clientData }) {
                             </div>
                             {contractUrl && (
                                 <a
-                                    href={contractUrl}
-                                    target="_blank"
+                                    href={contractUrl === '#local-signature' ? '#' : contractUrl}
+                                    onClick={async (e) => {
+                                        if (contractUrl === '#local-signature') {
+                                            e.preventDefault();
+                                            try {
+                                                console.log("Tentative de génération du PDF...");
+                                                const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
+                                                if (!sig) {
+                                                    throw new Error("Données de signature introuvables en mémoire.");
+                                                }
+                                                console.log("Génération du blob PDF...");
+                                                const blob = await generateSignedContratBlob(clientData, sig);
+                                                console.log("Blob généré:", blob);
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `Contrat_Signe_${clientData.company || clientData.id}.pdf`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                                URL.revokeObjectURL(url);
+                                                console.log("Téléchargement lancé.");
+                                            } catch (err) {
+                                                console.error("Erreur téléchargement PDF:", err);
+                                                alert("Erreur: " + err.message);
+                                            }
+                                        }
+                                    }}
+                                    target={contractUrl === '#local-signature' ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -324,8 +358,35 @@ export default function Docs({ documents, setDocuments, clientData }) {
                             return (
                                 <a
                                     key={doc.id}
-                                    href={doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\.pdf$/i, '.jpg') : doc.url}
-                                    target="_blank"
+                                    href={doc.url === '#local-signature' ? '#' : (doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\.pdf$/i, '.jpg') : doc.url)}
+                                    onClick={async (e) => {
+                                        if (doc.url === '#local-signature') {
+                                            e.preventDefault();
+                                            try {
+                                                console.log("DocumentsList: Tentative de génération du PDF...");
+                                                const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
+                                                if (!sig) {
+                                                    throw new Error("Données de signature introuvables en mémoire.");
+                                                }
+                                                console.log("DocumentsList: Génération du blob PDF...");
+                                                const blob = await generateSignedContratBlob(clientData, sig);
+                                                console.log("DocumentsList: Blob généré:", blob);
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `Contrat_Signe_${clientData.company || clientData.id}.pdf`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                                URL.revokeObjectURL(url);
+                                                console.log("DocumentsList: Téléchargement lancé.");
+                                            } catch (err) {
+                                                console.error("Erreur téléchargement PDF (DocsList):", err);
+                                                alert("Erreur: " + err.message);
+                                            }
+                                        }
+                                    }}
+                                    target={doc.url === '#local-signature' ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     className="ec-explorer-item file"
                                     style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }}

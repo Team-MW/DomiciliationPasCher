@@ -460,8 +460,25 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     {contractSigned && contractUrl && (
                                         <div style={{ background: 'white', padding: '12px 20px' }}>
                                             <a
-                                                href={contractUrl}
-                                                target="_blank"
+                                                href={contractUrl === '#local-signature' ? '#' : contractUrl}
+                                                onClick={async (e) => {
+                                                    if (contractUrl === '#local-signature') {
+                                                        e.preventDefault();
+                                                        if (extra?.contractSignatureUrl) {
+                                                            const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
+                                                            const blob = await generateSignedContratBlob(client, extra.contractSignatureUrl);
+                                                            const url = URL.createObjectURL(blob);
+                                                            const a = document.createElement('a');
+                                                            a.href = url;
+                                                            a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
+                                                            document.body.appendChild(a);
+                                                            a.click();
+                                                            document.body.removeChild(a);
+                                                            URL.revokeObjectURL(url);
+                                                        }
+                                                    }
+                                                }}
+                                                target={contractUrl === '#local-signature' ? '_self' : '_blank'}
                                                 rel="noopener noreferrer"
                                                 style={{
                                                     display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -514,8 +531,26 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             return (
                                                 <a
                                                     key={doc.id}
-                                                    href={doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\.pdf$/i, '.jpg') : doc.url}
-                                                    target="_blank"
+                                                    href={doc.url === '#local-signature' ? '#' : (doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\.pdf$/i, '.jpg') : doc.url)}
+                                                    onClick={async (e) => {
+                                                        if (doc.url === '#local-signature') {
+                                                            e.preventDefault();
+                                                            let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                                                            if (extraInfo?.contractSignatureUrl) {
+                                                                const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
+                                                                const blob = await generateSignedContratBlob(client, extraInfo.contractSignatureUrl);
+                                                                const url = URL.createObjectURL(blob);
+                                                                const a = document.createElement('a');
+                                                                a.href = url;
+                                                                a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
+                                                                document.body.appendChild(a);
+                                                                a.click();
+                                                                document.body.removeChild(a);
+                                                                URL.revokeObjectURL(url);
+                                                            }
+                                                        }
+                                                    }}
+                                                    target={doc.url === '#local-signature' ? '_self' : '_blank'}
                                                     rel="noopener noreferrer"
                                                     className="ec-explorer-item file"
                                                     style={{ border: '1px solid #E2E8F0', padding: '16px', borderRadius: '12px', background: 'white', textDecoration: 'none', display: 'block' }}
