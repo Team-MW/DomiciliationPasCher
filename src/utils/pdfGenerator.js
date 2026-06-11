@@ -368,7 +368,29 @@ export const generateContratPdf = async (clientData) => {
             doc.setLineWidth(0.5);
             doc.rect(8, 8, 194, 281);
 
-            let page2Y = 20;
+            // Logo Page 2
+            if (imgData) {
+                try {
+                    doc.addImage(imgData, 'PNG', 15, 15, 45, 15);
+                } catch (e) {
+                    console.error("Erreur addImage logo PNG Contrat P2", e);
+                }
+            }
+
+            // En-tête à droite Page 2
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text('CONTRAT DE DOMICILIATION', 135, 18);
+            doc.text('Référence : CONTRAT-' + clientData.id, 135, 22);
+            doc.text('Date de souscription : ' + dateDebut, 135, 26);
+            doc.text('Formule : Forfait ' + planDetails.name, 135, 30);
+
+            // Ligne séparatrice
+            doc.setDrawColor(203, 213, 225);
+            doc.line(15, 36, 195, 36);
+
+            let page2Y = 45;
 
             const articlesPage2 = [
                 {
@@ -584,7 +606,25 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
                 doc.setLineWidth(0.5);
                 doc.rect(8, 8, 194, 281);
 
-                let p2y = 20;
+                if (logoImg) {
+                    try { doc.addImage(logoImg, 'PNG', 15, 15, 45, 15); } catch (e) { console.error("Erreur logo P2 Signé", e); }
+                }
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(100, 116, 139);
+                doc.text('CONTRAT DE DOMICILIATION', 135, 18);
+                doc.text('Référence : CONTRAT-' + clientData.id, 135, 22);
+                doc.text('Date : ' + dateDebut, 135, 26);
+                doc.text('Formule : Forfait ' + planDetails.name, 135, 30);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(22, 163, 74);
+                doc.text('✔ SIGNÉ ÉLECTRONIQUEMENT', 135, 34);
+
+                doc.setDrawColor(203, 213, 225);
+                doc.line(15, 38, 195, 38);
+
+                let p2y = 45;
 
                 const articles2 = [
                     { title: 'ARTICLE 4 : OBLIGATIONS DU DOMICILIÉ', body: "Le Domicilié s'engage à informer le Domiciliataire de toute modification concernant sa forme juridique, son activité ou son identité. Il donne mandat au Domiciliataire de recevoir pour son compte tous les courriers et actes administratifs." },
