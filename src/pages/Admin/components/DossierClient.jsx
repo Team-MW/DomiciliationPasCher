@@ -427,6 +427,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             const contractUrl = extra?.contractSignedUrl;
                             const contractAt = extra?.contractSignedAt;
                             return (
+                                <>
                                 <div style={{
                                     borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
                                     border: contractSigned ? '2px solid #bbf7d0' : '2px solid #fde68a'
@@ -492,6 +493,69 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         </div>
                                     )}
                                 </div>
+
+                                {/* PROCURATION POSTALE */}
+                                <div style={{
+                                    borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
+                                    border: extra?.procurationSigned ? '2px solid #bbf7d0' : '2px solid #fde68a'
+                                }}>
+                                    <div style={{
+                                        background: extra?.procurationSigned
+                                            ? 'linear-gradient(135deg, #064e3b, #065f46)'
+                                            : 'linear-gradient(135deg, #78350f, #92400e)',
+                                        padding: '14px 20px', color: 'white',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{ fontSize: '22px' }}>{extra?.procurationSigned ? '✅' : '⏳'}</span>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                                                    {extra?.procurationSigned ? 'Procuration Postale signée' : 'En attente de signature de la procuration'}
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', marginTop: '2px' }}>
+                                                    {extra?.procurationSigned && extra?.procurationSignedAt
+                                                        ? `Signée le ${new Date(extra.procurationSignedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${new Date(extra.procurationSignedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                                                        : 'Le client n\'a pas encore signé sa procuration postale'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {extra?.procurationSigned && (
+                                            <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '99px' }}>
+                                                Validé ✔
+                                            </span>
+                                        )}
+                                    </div>
+                                    {extra?.procurationSigned && extra?.procurationSignedUrl && (
+                                        <div style={{ background: 'white', padding: '12px 20px' }}>
+                                            <a
+                                                href={extra.procurationSignedUrl === '#local-procuration' ? '#' : extra.procurationSignedUrl}
+                                                onClick={async (e) => {
+                                                    if (extra.procurationSignedUrl === '#local-procuration') {
+                                                        e.preventDefault();
+                                                        if (extra?.procurationSignatureUrl) {
+                                                            const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
+                                                            const blob = await generateSignedProcurationBlob(client, extra.procurationSignatureUrl, extra.procurationData);
+                                                            const url = URL.createObjectURL(blob);
+                                                            const a = document.createElement('a');
+                                                            a.href = url;
+                                                            a.download = `Procuration_${client.company || client.id}.pdf`;
+                                                            document.body.appendChild(a);
+                                                            a.click();
+                                                            document.body.removeChild(a);
+                                                            URL.revokeObjectURL(url);
+                                                        }
+                                                    }
+                                                }}
+                                                target={extra.procurationSignedUrl === '#local-procuration' ? '_self' : '_blank'}
+                                                rel="noopener noreferrer"
+                                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', textDecoration: 'none', background: '#f0fdf4', border: '1.5px solid #bbf7d0', color: '#15803d', fontWeight: 700, fontSize: '13px' }}
+                                            >
+                                                📥 Télécharger la procuration
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                                </>
                             );
                         })()}
 
@@ -548,9 +612,23 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                 document.body.removeChild(a);
                                                                 URL.revokeObjectURL(url);
                                                             }
+                                                        } else if (doc.url === '#local-procuration') {
+                                                            e.preventDefault();
+                                                            if (extraInfo?.procurationSignatureUrl) {
+                                                                const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
+                                                                const blob = await generateSignedProcurationBlob(client, extraInfo.procurationSignatureUrl, extraInfo.procurationData);
+                                                                const url = URL.createObjectURL(blob);
+                                                                const a = document.createElement('a');
+                                                                a.href = url;
+                                                                a.download = `Procuration_${client.company || client.id}.pdf`;
+                                                                document.body.appendChild(a);
+                                                                a.click();
+                                                                document.body.removeChild(a);
+                                                                URL.revokeObjectURL(url);
+                                                            }
                                                         }
                                                     }}
-                                                    target={doc.url === '#local-signature' ? '_self' : '_blank'}
+                                                    target={(doc.url === '#local-signature' || doc.url === '#local-procuration') ? '_self' : '_blank'}
                                                     rel="noopener noreferrer"
                                                     className="ec-explorer-item file"
                                                     style={{ border: '1px solid #E2E8F0', padding: '16px', borderRadius: '12px', background: 'white', textDecoration: 'none', display: 'block' }}

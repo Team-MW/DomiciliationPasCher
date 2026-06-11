@@ -3,7 +3,7 @@ import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
-import { generateAttestationPdf, generateContratPdf, generateSignedContratBlob } from '../../../utils/pdfGenerator';
+import { generateAttestationPdf, generateContratPdf, generateSignedContratBlob, generateSignedProcurationBlob } from '../../../utils/pdfGenerator';
 import SignatureModal from '../../../components/SignatureModal/SignatureModal';
 
 export default function Docs({ documents, setDocuments, clientData }) {
@@ -12,6 +12,29 @@ export default function Docs({ documents, setDocuments, clientData }) {
     const [signStatus, setSignStatus] = useState(null); // null | 'loading' | 'done' | 'error'
     const [signedUrl, setSignedUrl] = useState(null);
     const [localSignatureUrl, setLocalSignatureUrl] = useState(null);
+
+    // Procuration Postale States
+    const [localProcSignatureUrl, setLocalProcSignatureUrl] = useState(null);
+    const [showProcurationForm, setShowProcurationForm] = useState(false);
+    const [showProcurationSignModal, setShowProcurationSignModal] = useState(false);
+    const [procSignStatus, setProcSignStatus] = useState(null);
+    const [procurationFormData, setProcurationFormData] = useState({
+        lieuNaissance: '', dateNaissance: '', typePiece: "Carte d'Identité", numeroPiece: '', dateDelivrance: '', autoriteDelivrance: '',
+        pointRemise: '', complementAdresse: '', adresseVoie: '', lieuDit: '', codePostalVille: '', siret: ''
+    });
+
+    const procInfo = useMemo(() => {
+        try {
+            if (!clientData?.extra_info) return null;
+            const e = typeof clientData.extra_info === 'string'
+                ? JSON.parse(clientData.extra_info) : clientData.extra_info;
+            return e?.procurationSigned ? e : null;
+        } catch { return null; }
+    }, [clientData]);
+
+    const isProcSigned = !!(procInfo?.procurationSigned || localProcSignatureUrl);
+    const procUrl = procInfo?.procurationSignedUrl || (localProcSignatureUrl ? '#local-procuration' : null);
+    const procSignedAt = procInfo?.procurationSignedAt;
 
     // Lire le statut de signature depuis extra_info
     const signatureInfo = useMemo(() => {
@@ -105,6 +128,48 @@ export default function Docs({ documents, setDocuments, clientData }) {
             console.error('Erreur signature:', err);
             window.lastSignError = `[${step}] ` + (err.message || String(err));
             setSignStatus('error');
+        }
+    };
+
+    const handleSignProcuration = async (signatureDataUrl) => {
+        setProcSignStatus('loading');
+        setShowProcurationSignModal(false);
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        let step = 'Démarrage';
+        try {
+            step = 'Sauvegarde base de données procuration';
+            
+            const extraInfo = {
+                procurationSigned: true,
+                procurationSignedAt: new Date().toISOString(),
+                procurationSignatureUrl: signatureDataUrl,
+                procurationData: procurationFormData,
+                procurationSignedUrl: '#local-procuration'
+            };
+
+            await adminDataService.updateClientExtraInfo(clientData.id, extraInfo);
+
+            step = 'Enregistrement BD document procuration';
+            await adminDataService.addDocument(clientData.id, {
+                name: '✉️ Procuration Postale.pdf',
+                size: 'Généré à la volée',
+                type: 'application/pdf',
+                owner: 'client',
+                folder: 'Documents',
+                url: '#local-procuration'
+            });
+
+            const updatedDocs = await adminDataService.getDocuments(clientData.id);
+            setDocuments(updatedDocs);
+
+            setLocalProcSignatureUrl(signatureDataUrl);
+            setProcSignStatus('done');
+        } catch (err) {
+            console.error('Erreur signature procuration:', err);
+            window.lastProcSignError = `[${step}] ` + (err.message || String(err));
+            setProcSignStatus('error');
         }
     };
 
@@ -245,6 +310,130 @@ export default function Docs({ documents, setDocuments, clientData }) {
                 </div>
             </div>
 
+            {/* ── PROCURATION POSTALE ─────────────────────────────── */}
+            <div style={{
+                borderRadius: '20px', overflow: 'hidden',
+                border: isProcSigned ? '2px solid #bbf7d0' : '2px solid #e2e8f0',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.06)'
+            }}>
+                <div style={{
+                    background: isProcSigned
+                        ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
+                        : '#f8fafc',
+                    padding: '20px 24px', color: isProcSigned ? 'white' : '#0f172a',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    borderBottom: isProcSigned ? 'none' : '1px solid #e2e8f0'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '28px' }}>{isProcSigned ? '✅' : '📮'}</span>
+                        <div>
+                            <div style={{ fontWeight: 800, fontSize: '16px' }}>
+                                {isProcSigned ? 'Procuration Postale signée' : 'Procuration Postale'}
+                            </div>
+                            <div style={{ fontSize: '12px', color: isProcSigned ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: '2px' }}>
+                                {isProcSigned
+                                    ? `Signée le ${procSignedAt ? new Date(procSignedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}`
+                                    : 'Autorisez-nous à recevoir vos recommandés'}
+                            </div>
+                        </div>
+                    </div>
+                    {isProcSigned && (
+                        <span style={{
+                            background: '#dcfce7', color: '#15803d', fontSize: '11px',
+                            fontWeight: 700, padding: '4px 12px', borderRadius: '99px'
+                        }}>
+                            Validé ✔
+                        </span>
+                    )}
+                </div>
+
+                <div style={{ background: 'white', padding: '20px 24px' }}>
+                    {!isProcSigned ? (
+                        <>
+                            {procSignStatus === 'loading' && (
+                                <div style={{ textAlign: 'center', padding: '20px', color: '#1e40af' }}>
+                                    <div style={{
+                                        width: '32px', height: '32px', border: '3px solid #bfdbfe',
+                                        borderTopColor: '#1e40af', borderRadius: '50%',
+                                        animation: 'spin 0.8s linear infinite', margin: '0 auto 12px'
+                                    }} />
+                                    <p style={{ margin: 0, fontWeight: 600 }}>Génération et enregistrement de la procuration...</p>
+                                </div>
+                            )}
+                            {procSignStatus === 'error' && (
+                                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
+                                    ❌ Une erreur est survenue : {window.lastProcSignError || 'Erreur inconnue'}
+                                </div>
+                            )}
+                            {procSignStatus !== 'loading' && (
+                                <>
+                                    <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.6, margin: '0 0 16px' }}>
+                                        Afin que nous puissions réceptionner vos courriers recommandés et colis en votre nom, une <strong>Procuration Postale</strong> officielle est requise. Remplissez simplement les informations de votre pièce d'identité.
+                                    </p>
+                                    <button
+                                        onClick={() => setShowProcurationForm(true)}
+                                        style={{
+                                            width: '100%', padding: '13px', borderRadius: '12px', border: '1px solid #cbd5e1',
+                                            background: '#f8fafc',
+                                            color: '#0f172a', fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                                        }}
+                                    >
+                                        📝 Créer ma procuration
+                                    </button>
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#15803d', fontSize: '13px', fontWeight: 600 }}>
+                                <span style={{ fontSize: '18px' }}>🎉</span>
+                                Votre procuration a été générée et signée avec succès.
+                            </div>
+                            {procUrl && (
+                                <a
+                                    href={procUrl === '#local-procuration' ? '#' : procUrl}
+                                    onClick={async (e) => {
+                                        if (procUrl === '#local-procuration') {
+                                            e.preventDefault();
+                                            try {
+                                                console.log("Tentative de génération PDF Procuration...");
+                                                const sig = localProcSignatureUrl || procInfo?.procurationSignatureUrl;
+                                                const data = procInfo?.procurationData || procurationFormData;
+                                                if (!sig) throw new Error("Données de signature introuvables en mémoire.");
+                                                
+                                                const blob = await generateSignedProcurationBlob(clientData, sig, data);
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `Procuration_${clientData.company || clientData.id}.pdf`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                                URL.revokeObjectURL(url);
+                                            } catch (err) {
+                                                console.error("Erreur téléchargement Procuration PDF:", err);
+                                                alert("Erreur: " + err.message);
+                                            }
+                                        }
+                                    }}
+                                    target={procUrl === '#local-procuration' ? '_self' : '_blank'}
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                        padding: '12px', borderRadius: '10px', textDecoration: 'none',
+                                        background: '#f0fdf4', border: '1.5px solid #bbf7d0',
+                                        color: '#15803d', fontWeight: 700, fontSize: '13px'
+                                    }}
+                                >
+                                    📥 Télécharger ma procuration (PDF)
+                                </a>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* ── DOCUMENTS CONTRACTUELS ───────────────────────────── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                 <div className="ec-content-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid #E2E8F0', background: '#FFFFFF', borderRadius: '16px' }}>
@@ -358,19 +547,15 @@ export default function Docs({ documents, setDocuments, clientData }) {
                             return (
                                 <a
                                     key={doc.id}
-                                    href={doc.url === '#local-signature' ? '#' : (doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\.pdf$/i, '.jpg') : doc.url)}
+                                    href={(doc.url === '#local-signature' || doc.url === '#local-procuration') ? '#' : (doc.url && doc.url.toLowerCase().endsWith('.pdf') ? doc.url.replace(/\\.pdf$/i, '.jpg') : doc.url)}
                                     onClick={async (e) => {
                                         if (doc.url === '#local-signature') {
                                             e.preventDefault();
                                             try {
-                                                console.log("DocumentsList: Tentative de génération du PDF...");
+                                                console.log("DocumentsList: Tentative de génération du PDF (Contrat)...");
                                                 const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
-                                                if (!sig) {
-                                                    throw new Error("Données de signature introuvables en mémoire.");
-                                                }
-                                                console.log("DocumentsList: Génération du blob PDF...");
+                                                if (!sig) throw new Error("Données de signature introuvables en mémoire.");
                                                 const blob = await generateSignedContratBlob(clientData, sig);
-                                                console.log("DocumentsList: Blob généré:", blob);
                                                 const url = URL.createObjectURL(blob);
                                                 const a = document.createElement('a');
                                                 a.href = url;
@@ -379,14 +564,33 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                                 a.click();
                                                 document.body.removeChild(a);
                                                 URL.revokeObjectURL(url);
-                                                console.log("DocumentsList: Téléchargement lancé.");
                                             } catch (err) {
-                                                console.error("Erreur téléchargement PDF (DocsList):", err);
+                                                console.error("Erreur téléchargement PDF (Contrat):", err);
+                                                alert("Erreur: " + err.message);
+                                            }
+                                        } else if (doc.url === '#local-procuration') {
+                                            e.preventDefault();
+                                            try {
+                                                console.log("DocumentsList: Tentative de génération du PDF (Procuration)...");
+                                                const sig = localProcSignatureUrl || procInfo?.procurationSignatureUrl;
+                                                const data = procInfo?.procurationData || procurationFormData;
+                                                if (!sig) throw new Error("Données de signature de procuration introuvables.");
+                                                const blob = await generateSignedProcurationBlob(clientData, sig, data);
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `Procuration_${clientData.company || clientData.id}.pdf`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                                URL.revokeObjectURL(url);
+                                            } catch (err) {
+                                                console.error("Erreur téléchargement PDF (Procuration):", err);
                                                 alert("Erreur: " + err.message);
                                             }
                                         }
                                     }}
-                                    target={doc.url === '#local-signature' ? '_self' : '_blank'}
+                                    target={(doc.url === '#local-signature' || doc.url === '#local-procuration') ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     className="ec-explorer-item file"
                                     style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }}
@@ -438,6 +642,101 @@ export default function Docs({ documents, setDocuments, clientData }) {
                     onSigned={handleSigned}
                 />
             )}
+
+            {/* Modal de formulaire de procuration */}
+            {showProcurationForm && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div style={{ background: 'white', padding: '30px', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
+                            <span style={{ fontSize: '24px' }}>📝</span>
+                            <h2 style={{ margin: 0, fontSize: '20px', color: '#0f172a' }}>Informations de Procuration</h2>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div style={{ display: 'flex', gap: '16px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Date de naissance</label>
+                                    <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.dateNaissance} onChange={e => setProcurationFormData({...procurationFormData, dateNaissance: e.target.value})} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Lieu de naissance</label>
+                                    <input type="text" placeholder="Ex: Toulouse" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.lieuNaissance} onChange={e => setProcurationFormData({...procurationFormData, lieuNaissance: e.target.value})} />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Type de pièce d'identité</label>
+                                <select style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }} value={procurationFormData.typePiece} onChange={e => setProcurationFormData({...procurationFormData, typePiece: e.target.value})}>
+                                    <option>Carte d'Identité</option>
+                                    <option>Passeport</option>
+                                    <option>Titre de Séjour</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Numéro de la pièce</label>
+                                <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.numeroPiece} onChange={e => setProcurationFormData({...procurationFormData, numeroPiece: e.target.value})} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '16px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Délivrée le</label>
+                                    <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.dateDelivrance} onChange={e => setProcurationFormData({...procurationFormData, dateDelivrance: e.target.value})} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Par l'autorité</label>
+                                    <input type="text" placeholder="Ex: Préfecture" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.autoriteDelivrance} onChange={e => setProcurationFormData({...procurationFormData, autoriteDelivrance: e.target.value})} />
+                                </div>
+                            </div>
+                            
+                            {/* Nouveaux champs pour l'adresse d'expédition (optionnels) */}
+                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                                <h3 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#0f172a' }}>Adresse du destinataire (Optionnel)</h3>
+                                
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>N°, TYPE et NOM DE LA VOIE</label>
+                                    <input type="text" placeholder="Ex: 10 Rue de la Paix" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', marginBottom: '10px' }} value={procurationFormData.adresseVoie} onChange={e => setProcurationFormData({...procurationFormData, adresseVoie: e.target.value})} />
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '16px', marginBottom: '10px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Point de remise (appart, étage)</label>
+                                        <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.pointRemise} onChange={e => setProcurationFormData({...procurationFormData, pointRemise: e.target.value})} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Complément (bâtiment, résidence)</label>
+                                        <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.complementAdresse} onChange={e => setProcurationFormData({...procurationFormData, complementAdresse: e.target.value})} />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '16px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Code Postal & Ville</label>
+                                        <input type="text" placeholder="Ex: 75001 Paris" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.codePostalVille} onChange={e => setProcurationFormData({...procurationFormData, codePostalVille: e.target.value})} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Lieu dit (BP, etc.)</label>
+                                        <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.lieuDit} onChange={e => setProcurationFormData({...procurationFormData, lieuDit: e.target.value})} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px' }}>
+                            <button onClick={() => setShowProcurationForm(false)} style={{ padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: 600, color: '#475569' }}>Annuler</button>
+                            <button onClick={() => {
+                                setShowProcurationForm(false);
+                                setShowProcurationSignModal(true);
+                            }} style={{ padding: '12px 24px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #1e40af, #0f172a)', color: 'white', cursor: 'pointer', fontWeight: 700 }}>Suivant : Signer</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de signature pour la procuration */}
+            {showProcurationSignModal && (
+                <SignatureModal
+                    clientData={clientData}
+                    onClose={() => setShowProcurationSignModal(false)}
+                    onSigned={handleSignProcuration}
+                />
+            )}
+
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
     );
