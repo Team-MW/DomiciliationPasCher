@@ -24,6 +24,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [documents, setDocuments] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [currentFolder, setCurrentFolder] = useState(null);
+    const [downloadingDocId, setDownloadingDocId] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Dériver les dossiers depuis la liste des documents de manière sécurisée
     const folders = Array.from(new Set((documents || []).map(d => (d && d.folder) || 'Documents')));
@@ -139,7 +141,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         const originalFile = e.target.files[0];
         if (!originalFile) return;
 
-        setIsLoading(true);
+        setIsUploading(true);
         try {
             let fileToUpload = originalFile;
 
@@ -153,8 +155,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         } catch (err) {
             console.error("Erreur préparation fichier:", err);
             await showAlert("Erreur de préparation : " + err.message);
-        } finally {
-            setIsLoading(false);
+            setIsUploading(false);
         }
     };
 
@@ -179,7 +180,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             console.error("Error during upload:", err);
             await showAlert("Erreur critique : " + err.message);
         } finally {
-            setIsLoading(false);
+            setIsUploading(false);
         }
     };
 
@@ -376,16 +377,52 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
                                 <button
                                     className="btn-primary-sm"
-                                    style={{ background: '#0F172A', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
-                                    onClick={() => generateAttestationPdf(client)}
+                                    style={{ background: '#0F172A', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', opacity: downloadingDocId ? 0.7 : 1 }}
+                                    onClick={async () => {
+                                        if (downloadingDocId) return;
+                                        setDownloadingDocId('attestation');
+                                        try {
+                                            await generateAttestationPdf(client);
+                                        } catch (err) {
+                                            console.error(err);
+                                        } finally {
+                                            setDownloadingDocId(null);
+                                        }
+                                    }}
+                                    disabled={downloadingDocId !== null}
                                 >
-                                    <span>📥</span> Attestation de Domiciliation
+                                    {downloadingDocId === 'attestation' ? (
+                                        <>
+                                            <div style={{ width: '14px', height: '14px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                            Génération...
+                                        </>
+                                    ) : (
+                                        <><span>📥</span> Attestation de Domiciliation</>
+                                    )}
                                 </button>
                                 <button
-                                    style={{ background: 'white', color: '#0F172A', border: '1px solid #D1D5DB', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}
-                                    onClick={() => generateContratPdf(client)}
+                                    style={{ background: 'white', color: '#0F172A', border: '1px solid #D1D5DB', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', opacity: downloadingDocId ? 0.7 : 1 }}
+                                    onClick={async () => {
+                                        if (downloadingDocId) return;
+                                        setDownloadingDocId('contrat-vierge');
+                                        try {
+                                            await generateContratPdf(client);
+                                        } catch (err) {
+                                            console.error(err);
+                                        } finally {
+                                            setDownloadingDocId(null);
+                                        }
+                                    }}
+                                    disabled={downloadingDocId !== null}
                                 >
-                                    <span>📜</span> Contrat de Domiciliation
+                                    {downloadingDocId === 'contrat-vierge' ? (
+                                        <>
+                                            <div style={{ width: '14px', height: '14px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                            Génération...
+                                        </>
+                                    ) : (
+                                        <><span>📜</span> Contrat de Domiciliation</>
+                                    )}
                                 </button>
                             </div>
 
@@ -465,17 +502,25 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 onClick={async (e) => {
                                                     if (contractUrl === '#local-signature') {
                                                         e.preventDefault();
+                                                        if (downloadingDocId) return;
                                                         if (extra?.contractSignatureUrl) {
-                                                            const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
-                                                            const blob = await generateSignedContratBlob(client, extra.contractSignatureUrl);
-                                                            const url = URL.createObjectURL(blob);
-                                                            const a = document.createElement('a');
-                                                            a.href = url;
-                                                            a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
-                                                            document.body.appendChild(a);
-                                                            a.click();
-                                                            document.body.removeChild(a);
-                                                            URL.revokeObjectURL(url);
+                                                            setDownloadingDocId('contrat-signe');
+                                                            try {
+                                                                const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
+                                                                const blob = await generateSignedContratBlob(client, extra.contractSignatureUrl);
+                                                                const url = URL.createObjectURL(blob);
+                                                                const a = document.createElement('a');
+                                                                a.href = url;
+                                                                a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
+                                                                document.body.appendChild(a);
+                                                                a.click();
+                                                                document.body.removeChild(a);
+                                                                URL.revokeObjectURL(url);
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                            } finally {
+                                                                setDownloadingDocId(null);
+                                                            }
                                                         }
                                                     }
                                                 }}
@@ -485,10 +530,19 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                     display: 'inline-flex', alignItems: 'center', gap: '8px',
                                                     padding: '9px 16px', borderRadius: '8px', textDecoration: 'none',
                                                     background: '#f0fdf4', border: '1.5px solid #bbf7d0',
-                                                    color: '#15803d', fontWeight: 700, fontSize: '13px'
+                                                    color: '#15803d', fontWeight: 700, fontSize: '13px',
+                                                    pointerEvents: downloadingDocId ? 'none' : 'auto',
+                                                    opacity: downloadingDocId ? 0.7 : 1
                                                 }}
                                             >
-                                                📥 Télécharger le contrat signé (PDF)
+                                                {downloadingDocId === 'contrat-signe' ? (
+                                                    <>
+                                                        <div style={{ width: '14px', height: '14px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                        Génération du PDF...
+                                                    </>
+                                                ) : (
+                                                    <>📥 Télécharger le contrat signé (PDF)</>
+                                                )}
                                             </a>
                                         </div>
                                     )}
@@ -532,25 +586,47 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 onClick={async (e) => {
                                                     if (extra.procurationSignedUrl === '#local-procuration') {
                                                         e.preventDefault();
+                                                        if (downloadingDocId) return;
                                                         if (extra?.procurationSignatureUrl) {
-                                                            const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
-                                                            const blob = await generateSignedProcurationBlob(client, extra.procurationSignatureUrl, extra.procurationData);
-                                                            const url = URL.createObjectURL(blob);
-                                                            const a = document.createElement('a');
-                                                            a.href = url;
-                                                            a.download = `Procuration_${client.company || client.id}.pdf`;
-                                                            document.body.appendChild(a);
-                                                            a.click();
-                                                            document.body.removeChild(a);
-                                                            URL.revokeObjectURL(url);
+                                                            setDownloadingDocId('procuration-signe');
+                                                            try {
+                                                                const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
+                                                                const blob = await generateSignedProcurationBlob(client, extra.procurationSignatureUrl, extra.procurationData);
+                                                                const url = URL.createObjectURL(blob);
+                                                                const a = document.createElement('a');
+                                                                a.href = url;
+                                                                a.download = `Procuration_${client.company || client.id}.pdf`;
+                                                                document.body.appendChild(a);
+                                                                a.click();
+                                                                document.body.removeChild(a);
+                                                                URL.revokeObjectURL(url);
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                            } finally {
+                                                                setDownloadingDocId(null);
+                                                            }
                                                         }
                                                     }
                                                 }}
                                                 target={extra.procurationSignedUrl === '#local-procuration' ? '_self' : '_blank'}
                                                 rel="noopener noreferrer"
-                                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', textDecoration: 'none', background: '#f0fdf4', border: '1.5px solid #bbf7d0', color: '#15803d', fontWeight: 700, fontSize: '13px' }}
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '8px',
+                                                    padding: '10px 16px', borderRadius: '8px', textDecoration: 'none',
+                                                    background: '#f0fdf4', border: '1.5px solid #bbf7d0',
+                                                    color: '#15803d', fontWeight: 700, fontSize: '13px',
+                                                    pointerEvents: downloadingDocId ? 'none' : 'auto',
+                                                    opacity: downloadingDocId ? 0.7 : 1
+                                                }}
                                             >
-                                                📥 Télécharger la procuration
+                                                {downloadingDocId === 'procuration-signe' ? (
+                                                    <>
+                                                        <div style={{ width: '14px', height: '14px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                        Génération du PDF...
+                                                    </>
+                                                ) : (
+                                                    <>📥 Télécharger la procuration</>
+                                                )}
                                             </a>
                                         </div>
                                     )}
@@ -567,10 +643,10 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     id="admin-file-upload"
                                     style={{ display: 'none' }}
                                     onChange={handleFileChange}
-                                    disabled={isLoading}
+                                    disabled={isUploading}
                                 />
-                                <button className="btn-primary-sm" onClick={handleUploadClick} disabled={isLoading}>
-                                    {isLoading ? 'Envoi...' : 'Uploader'}
+                                <button className="btn-primary-sm" onClick={handleUploadClick} disabled={isUploading}>
+                                    {isUploading ? 'Envoi...' : 'Uploader'}
                                 </button>
                             </div>
                         </div>
@@ -578,12 +654,39 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             className="card-body"
                             onDragOver={onDragOver}
                             onDrop={onDrop}
-                            style={{ minHeight: '250px' }}
+                            style={{ minHeight: '250px', position: 'relative' }}
                         >
+                            {isUploading && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0, left: 0, right: 0, bottom: 0,
+                                    background: 'rgba(255, 255, 255, 0.8)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    zIndex: 10,
+                                    borderRadius: '12px',
+                                    backdropFilter: 'blur(2px)'
+                                }}>
+                                    <div style={{
+                                        width: '36px',
+                                        height: '36px',
+                                        border: '3.5px solid #e2e8f0',
+                                        borderTopColor: '#6366F1',
+                                        borderRadius: '50%',
+                                        animation: 'spin 0.8s linear infinite',
+                                        marginBottom: '12px'
+                                    }} />
+                                    <p style={{ margin: 0, fontWeight: 700, fontSize: '14px', color: '#1E293B' }}>
+                                        Traitement et envoi du document...
+                                    </p>
+                                </div>
+                            )}
                             {isLoading && (!documents || documents.length === 0) ? (
                                 <div className="empty-state-full"><p>Chargement...</p></div>
                             ) : (
-                                <div className="ec-explorer-grid" style={{ padding: '0px', border: 'none', background: 'transparent' }}>
+                                <div className="ec-explorer-grid" style={{ padding: '0px', border: 'none', background: 'transparent', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
                                     {!documents || documents.length === 0 ? (
                                         <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: '#64748B' }}>
                                             <Icons.File style={{ width: '48px', height: '48px', opacity: '0.4', marginBottom: '12px' }} />
@@ -599,51 +702,96 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                     onClick={async (e) => {
                                                         if (doc.url === '#local-signature') {
                                                             e.preventDefault();
+                                                            if (downloadingDocId) return;
                                                             let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
                                                             if (extraInfo?.contractSignatureUrl) {
-                                                                const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
-                                                                const blob = await generateSignedContratBlob(client, extraInfo.contractSignatureUrl);
-                                                                const url = URL.createObjectURL(blob);
-                                                                const a = document.createElement('a');
-                                                                a.href = url;
-                                                                a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
-                                                                document.body.appendChild(a);
-                                                                a.click();
-                                                                document.body.removeChild(a);
-                                                                URL.revokeObjectURL(url);
+                                                                setDownloadingDocId(doc.id);
+                                                                try {
+                                                                    const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
+                                                                    const blob = await generateSignedContratBlob(client, extraInfo.contractSignatureUrl);
+                                                                    const url = URL.createObjectURL(blob);
+                                                                    const a = document.createElement('a');
+                                                                    a.href = url;
+                                                                    a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
+                                                                    document.body.appendChild(a);
+                                                                    a.click();
+                                                                    document.body.removeChild(a);
+                                                                    URL.revokeObjectURL(url);
+                                                                } catch (err) {
+                                                                    console.error(err);
+                                                                } finally {
+                                                                    setDownloadingDocId(null);
+                                                                }
                                                             }
                                                         } else if (doc.url === '#local-procuration') {
                                                             e.preventDefault();
+                                                            if (downloadingDocId) return;
+                                                            let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
                                                             if (extraInfo?.procurationSignatureUrl) {
-                                                                const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
-                                                                const blob = await generateSignedProcurationBlob(client, extraInfo.procurationSignatureUrl, extraInfo.procurationData);
-                                                                const url = URL.createObjectURL(blob);
-                                                                const a = document.createElement('a');
-                                                                a.href = url;
-                                                                a.download = `Procuration_${client.company || client.id}.pdf`;
-                                                                document.body.appendChild(a);
-                                                                a.click();
-                                                                document.body.removeChild(a);
-                                                                URL.revokeObjectURL(url);
+                                                                setDownloadingDocId(doc.id);
+                                                                try {
+                                                                    const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
+                                                                    const blob = await generateSignedProcurationBlob(client, extraInfo.procurationSignatureUrl, extraInfo.procurationData);
+                                                                    const url = URL.createObjectURL(blob);
+                                                                    const a = document.createElement('a');
+                                                                    a.href = url;
+                                                                    a.download = `Procuration_${client.company || client.id}.pdf`;
+                                                                    document.body.appendChild(a);
+                                                                    a.click();
+                                                                    document.body.removeChild(a);
+                                                                    URL.revokeObjectURL(url);
+                                                                } catch (err) {
+                                                                    console.error(err);
+                                                                } finally {
+                                                                    setDownloadingDocId(null);
+                                                                }
                                                             }
                                                         }
                                                     }}
                                                     target={(doc.url === '#local-signature' || doc.url === '#local-procuration') ? '_self' : '_blank'}
                                                     rel="noopener noreferrer"
                                                     className="ec-explorer-item file"
-                                                    style={{ border: '1px solid #E2E8F0', padding: '16px', borderRadius: '12px', background: 'white', textDecoration: 'none', display: 'block' }}
+                                                    style={{ border: '1px solid #E2E8F0', padding: '20px 16px 16px', borderRadius: '16px', background: '#FFFFFF', textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative', gap: '8px', cursor: 'pointer' }}
                                                 >
-                                                    <div className="ec-explorer-icon"><Icons.File style={{ width: '24px', height: '24px', color: '#6366F1' }} /></div>
-                                                    <div className="ec-explorer-name" style={{ fontWeight: '600', fontSize: '14px', color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.name}</div>
-                                                    <div className="ec-explorer-meta" style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                                                    {downloadingDocId === doc.id && (
+                                                         <div style={{
+                                                             position: 'absolute',
+                                                             top: 0, left: 0, right: 0, bottom: 0,
+                                                             background: 'rgba(255, 255, 255, 0.85)',
+                                                             borderRadius: '16px',
+                                                             display: 'flex',
+                                                             alignItems: 'center',
+                                                             justifyContent: 'center',
+                                                             zIndex: 10
+                                                         }}>
+                                                             <div style={{
+                                                                 width: '20px',
+                                                                 height: '20px',
+                                                                 border: '2px solid #E2E8F0',
+                                                                 borderTopColor: '#6366F1',
+                                                                 borderRadius: '50%',
+                                                                 animation: 'spin 0.6s linear infinite'
+                                                             }} />
+                                                         </div>
+                                                    )}
+                                                    <div className="ec-explorer-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}><Icons.File style={{ width: '32px', height: '32px', color: '#6366F1' }} /></div>
+                                                    <div className="ec-explorer-name" style={{ fontWeight: '600', fontSize: '13px', color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'center' }}>{doc.name}</div>
+                                                    <div className="ec-explorer-meta" style={{ fontSize: '11px', color: '#64748B', marginTop: '0px', textAlign: 'center', width: '100%' }}>
                                                         {doc.size} · {doc.owner === 'admin' ? 'Déposé par vous' : 'Client'}
                                                     </div>
-                                                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px', width: '100%' }}>
                                                         <div
                                                             className="ec-explorer-dl"
-                                                            style={{ flex: 1, padding: '8px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', textAlign: 'center', fontWeight: '600', fontSize: '12px', color: '#0F172A' }}
+                                                            style={{ flex: 1, padding: '8px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', textAlign: 'center', fontWeight: '600', fontSize: '12px', color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: downloadingDocId ? 0.7 : 1, pointerEvents: downloadingDocId ? 'none' : 'auto' }}
                                                         >
-                                                            Ouvrir / Télécharger
+                                                            {downloadingDocId === doc.id ? (
+                                                                <>
+                                                                    <div style={{ width: '12px', height: '12px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                                    Génération...
+                                                                </>
+                                                            ) : (
+                                                                "Ouvrir / Télécharger"
+                                                            )}
                                                         </div>
                                                         <button
                                                             onClick={async (e) => {

@@ -527,9 +527,6 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
                 doc.text('Référence : CONTRAT-' + clientData.id, 135, 22);
                 doc.text('Date : ' + dateDebut, 135, 26);
                 doc.text('Formule : Forfait ' + planDetails.name, 135, 30);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(22, 163, 74);
-                doc.text('✔ SIGNÉ ÉLECTRONIQUEMENT', 135, 34);
 
                 doc.setDrawColor(203, 213, 225);
                 doc.line(15, 38, 195, 38);
@@ -617,9 +614,6 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
                 doc.text('Référence : CONTRAT-' + clientData.id, 135, 22);
                 doc.text('Date : ' + dateDebut, 135, 26);
                 doc.text('Formule : Forfait ' + planDetails.name, 135, 30);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(22, 163, 74);
-                doc.text('✔ SIGNÉ ÉLECTRONIQUEMENT', 135, 34);
 
                 doc.setDrawColor(203, 213, 225);
                 doc.line(15, 38, 195, 38);
@@ -691,20 +685,7 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
                     }
                 }
 
-                // Bandeau certification
-                p2y += 32;
-                doc.setFillColor(239, 246, 255);
-                doc.setDrawColor(191, 219, 254);
-                doc.roundedRect(15, p2y, 180, 26, 3, 3, 'FD');
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(9);
-                doc.setTextColor(30, 64, 175);
-                doc.text('✔ SIGNATURE ÉLECTRONIQUE CERTIFIÉE', 105, p2y + 8, { align: 'center' });
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8);
-                doc.setTextColor(71, 85, 105);
-                doc.text(`Signataire : ${clientName} — ${clientData.email || ''}`, 105, p2y + 14, { align: 'center' });
-                doc.text(`Date/heure : ${signedAtDate} à ${signedAtTime} (heure locale) — Conforme règlement eIDAS`, 105, p2y + 20, { align: 'center' });
+
 
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8);

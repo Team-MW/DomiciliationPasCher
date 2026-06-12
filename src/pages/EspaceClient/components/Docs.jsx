@@ -12,6 +12,7 @@ export default function Docs({ documents, setDocuments, clientData }) {
     const [signStatus, setSignStatus] = useState(null); // null | 'loading' | 'done' | 'error'
     const [signedUrl, setSignedUrl] = useState(null);
     const [localSignatureUrl, setLocalSignatureUrl] = useState(null);
+    const [downloadingDocId, setDownloadingDocId] = useState(null);
 
     // Procuration Postale States
     const [localProcSignatureUrl, setLocalProcSignatureUrl] = useState(null);
@@ -269,6 +270,8 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                     onClick={async (e) => {
                                         if (contractUrl === '#local-signature') {
                                             e.preventDefault();
+                                            if (downloadingDocId) return;
+                                            setDownloadingDocId('contrat-signe');
                                             try {
                                                 console.log("Tentative de génération du PDF...");
                                                 const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
@@ -290,6 +293,8 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                             } catch (err) {
                                                 console.error("Erreur téléchargement PDF:", err);
                                                 alert("Erreur: " + err.message);
+                                            } finally {
+                                                setDownloadingDocId(null);
                                             }
                                         }
                                     }}
@@ -299,10 +304,19 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                                         padding: '12px', borderRadius: '10px', textDecoration: 'none',
                                         background: '#f0fdf4', border: '1.5px solid #bbf7d0',
-                                        color: '#15803d', fontWeight: 700, fontSize: '13px'
+                                        color: '#15803d', fontWeight: 700, fontSize: '13px',
+                                        pointerEvents: downloadingDocId ? 'none' : 'auto',
+                                        opacity: downloadingDocId ? 0.7 : 1
                                     }}
                                 >
-                                    📥 Télécharger mon contrat signé (PDF)
+                                    {downloadingDocId === 'contrat-signe' ? (
+                                        <>
+                                            <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                            Génération du PDF...
+                                        </>
+                                    ) : (
+                                        <>📥 Télécharger mon contrat signé (PDF)</>
+                                    )}
                                 </a>
                             )}
                         </div>
@@ -396,6 +410,8 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                     onClick={async (e) => {
                                         if (procUrl === '#local-procuration') {
                                             e.preventDefault();
+                                            if (downloadingDocId) return;
+                                            setDownloadingDocId('procuration-signe');
                                             try {
                                                 console.log("Tentative de génération PDF Procuration...");
                                                 const sig = localProcSignatureUrl || procInfo?.procurationSignatureUrl;
@@ -414,6 +430,8 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                             } catch (err) {
                                                 console.error("Erreur téléchargement Procuration PDF:", err);
                                                 alert("Erreur: " + err.message);
+                                            } finally {
+                                                setDownloadingDocId(null);
                                             }
                                         }
                                     }}
@@ -423,10 +441,19 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                                         padding: '12px', borderRadius: '10px', textDecoration: 'none',
                                         background: '#f0fdf4', border: '1.5px solid #bbf7d0',
-                                        color: '#15803d', fontWeight: 700, fontSize: '13px'
+                                        color: '#15803d', fontWeight: 700, fontSize: '13px',
+                                        pointerEvents: downloadingDocId ? 'none' : 'auto',
+                                        opacity: downloadingDocId ? 0.7 : 1
                                     }}
                                 >
-                                    📥 Télécharger ma procuration (PDF)
+                                    {downloadingDocId === 'procuration-signe' ? (
+                                        <>
+                                            <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                            Génération du PDF...
+                                        </>
+                                    ) : (
+                                        <>📥 Télécharger ma procuration (PDF)</>
+                                    )}
                                 </a>
                             )}
                         </div>
@@ -447,11 +474,55 @@ export default function Docs({ documents, setDocuments, clientData }) {
                         </p>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <button className="ec-btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', borderRadius: '8px', cursor: 'pointer' }} onClick={() => generateAttestationPdf(clientData)}>
-                            <span>📥</span> Télécharger mon Attestation
+                        <button
+                            className="ec-btn-primary"
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', borderRadius: '8px', cursor: 'pointer', opacity: downloadingDocId ? 0.7 : 1 }}
+                            onClick={async () => {
+                                if (downloadingDocId) return;
+                                setDownloadingDocId('attestation');
+                                try {
+                                    await generateAttestationPdf(clientData);
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    setDownloadingDocId(null);
+                                }
+                            }}
+                            disabled={downloadingDocId !== null}
+                        >
+                            {downloadingDocId === 'attestation' ? (
+                                <>
+                                    <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                    Génération...
+                                </>
+                            ) : (
+                                <><span>📥</span> Télécharger mon Attestation</>
+                            )}
                         </button>
-                        <button className="ec-btn-secondary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#0F172A', fontWeight: '600', borderRadius: '8px', cursor: 'pointer' }} onClick={() => generateContratPdf(clientData)}>
-                            <span>📜</span> Télécharger mon Contrat (non signé)
+                        <button
+                            className="ec-btn-secondary"
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#0F172A', fontWeight: '600', borderRadius: '8px', cursor: 'pointer', opacity: downloadingDocId ? 0.7 : 1 }}
+                            onClick={async () => {
+                                if (downloadingDocId) return;
+                                setDownloadingDocId('contrat-vierge');
+                                try {
+                                    await generateContratPdf(clientData);
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    setDownloadingDocId(null);
+                                }
+                            }}
+                            disabled={downloadingDocId !== null}
+                        >
+                            {downloadingDocId === 'contrat-vierge' ? (
+                                <>
+                                    <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                    Génération...
+                                </>
+                            ) : (
+                                <><span>📜</span> Télécharger mon Contrat (non signé)</>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -551,6 +622,8 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                     onClick={async (e) => {
                                         if (doc.url === '#local-signature') {
                                             e.preventDefault();
+                                            if (downloadingDocId) return;
+                                            setDownloadingDocId(doc.id);
                                             try {
                                                 console.log("DocumentsList: Tentative de génération du PDF (Contrat)...");
                                                 const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
@@ -567,9 +640,13 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                             } catch (err) {
                                                 console.error("Erreur téléchargement PDF (Contrat):", err);
                                                 alert("Erreur: " + err.message);
+                                            } finally {
+                                                setDownloadingDocId(null);
                                             }
                                         } else if (doc.url === '#local-procuration') {
                                             e.preventDefault();
+                                            if (downloadingDocId) return;
+                                            setDownloadingDocId(doc.id);
                                             try {
                                                 console.log("DocumentsList: Tentative de génération du PDF (Procuration)...");
                                                 const sig = localProcSignatureUrl || procInfo?.procurationSignatureUrl;
@@ -587,6 +664,8 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                             } catch (err) {
                                                 console.error("Erreur téléchargement PDF (Procuration):", err);
                                                 alert("Erreur: " + err.message);
+                                            } finally {
+                                                setDownloadingDocId(null);
                                             }
                                         }
                                     }}
@@ -601,8 +680,12 @@ export default function Docs({ documents, setDocuments, clientData }) {
                                         {doc.size} · {doc.owner === 'admin' ? 'Transmis par Admin' : 'Déposé par moi'}
                                     </div>
                                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px', width: '100%' }}>
-                                        <div className="ec-explorer-dl" style={{ flex: 1, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Ouvrir / Télécharger">
-                                            <Icons.ArrowRight />
+                                        <div className="ec-explorer-dl" style={{ flex: 1, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: downloadingDocId ? 0.7 : 1, pointerEvents: downloadingDocId ? 'none' : 'auto' }} title="Ouvrir / Télécharger">
+                                            {downloadingDocId === doc.id ? (
+                                                <div style={{ width: '14px', height: '14px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                            ) : (
+                                                <Icons.ArrowRight />
+                                            )}
                                         </div>
                                         <button
                                             onClick={async (e) => {
