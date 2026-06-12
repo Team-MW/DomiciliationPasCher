@@ -370,7 +370,34 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 900px) {
+@media (max-width: 1366px) {
+    .navbar-inner {
+        gap: 16px;
+    }
+    .navbar-logo {
+        width: 220px;
+    }
+    .logo-img {
+        height: 110px;
+    }
+    .nav-link {
+        padding: 6px 10px;
+        font-size: 13.5px;
+    }
+    .navbar-actions {
+        gap: 6px;
+    }
+    .navbar-actions .btn-ghost {
+        padding: 7px 12px;
+        font-size: 13px;
+    }
+    .navbar-actions .btn-primary {
+        padding: 7px 14px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 1120px) {
     .navbar-nav {
         display: none;
     }
