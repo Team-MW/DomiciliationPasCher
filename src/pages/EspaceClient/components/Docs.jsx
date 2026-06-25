@@ -784,7 +784,15 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     Mes documents déposés
                                 </h3>
                                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                    {(documents || []).filter(doc => doc && doc.owner === 'client').map(doc => {
+                                    {(documents || []).filter(doc => {
+                                        if (!doc || doc.owner !== 'client') return false;
+                                        const name = doc.name?.toLowerCase() || '';
+                                        if (name.includes('kbis')) return false;
+                                        if (name.includes('contrat signé')) return false;
+                                        if (name.includes('procuration signée')) return false;
+                                        if (name.includes('procuration postale')) return false;
+                                        return true;
+                                    }).map(doc => {
                                         return (
                                             <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
                                                 {downloadingDocId === doc.id && (
@@ -879,7 +887,15 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             </div>
                                         );
                                     })}
-                                    {(documents || []).filter(doc => doc && doc.owner === 'client').length === 0 && (
+                                    {(documents || []).filter(doc => {
+                                        if (!doc || doc.owner !== 'client') return false;
+                                        const name = doc.name?.toLowerCase() || '';
+                                        if (name.includes('kbis')) return false;
+                                        if (name.includes('contrat signé')) return false;
+                                        if (name.includes('procuration signée')) return false;
+                                        if (name.includes('procuration postale')) return false;
+                                        return true;
+                                    }).length === 0 && (
                                         <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par vous.</div>
                                     )}
                                 </div>
