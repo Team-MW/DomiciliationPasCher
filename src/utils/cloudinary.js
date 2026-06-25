@@ -59,7 +59,7 @@ export const uploadFile = async (file, options = {}) => {
                || (typeof file === 'string' && file.startsWith('data:application/pdf'));
     
     // FORCER 'auto' pour éviter le blocage strict des uploads 'raw' non signés par Cloudinary
-    const resourceType = 'auto';
+    const resourceType = options.resourceType || 'auto';
     formData.append('resource_type', resourceType);
 
     if (options.folder) {

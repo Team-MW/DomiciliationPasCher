@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { handleCheckout } from '../../utils/stripe';
 import { adminDataService } from '../../services/adminDataService';
+import { uploadFile } from '../../utils/cloudinary';
+import { convertPdfToPng } from '../../utils/pdfConverter';
 import './Souscription.css';
 
 /* ─── Config des étapes ─── */
@@ -12,6 +14,7 @@ const STEPS = [
     { id: 'domiciliation', label: 'Domiciliation' },
     { id: 'courrier', label: 'Offre courrier' },
     { id: 'frequence', label: 'Fréquence' },
+    { id: 'documents', label: 'Documents justificatifs' },
     { id: 'recapitulatif', label: 'Récapitulatif & Paiement' },
 ];
 
@@ -57,6 +60,9 @@ export default function Souscription() {
         offre: planId === 'scan-plus' ? 'scan' : (planId === 'physique' ? 'reexpedition' : 'notification'),
         // Fréquence
         frequence: 'mensuel',
+        // Documents
+        justificatifDomicile: '',
+        pieceIdentite: '',
         // CGV
         cgv: false,
         adressePerso: '',
@@ -85,6 +91,10 @@ export default function Souscription() {
         if (step === 3) {
             if (!data.ville) e.ville = 'Veuillez choisir une ville';
         }
+        if (step === 6) {
+            if (!data.pieceIdentite) e.pieceIdentite = 'Requis';
+            if (!data.justificatifDomicile) e.justificatifDomicile = 'Requis';
+        }
         setErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -95,10 +105,15 @@ export default function Souscription() {
     const currentPlanName = data.offre === 'scan' ? 'Scan+' : (data.offre === 'reexpedition' ? 'Physique+' : 'Essentiel');
     const currentPlanPrice = data.offre === 'scan' ? '24' : (data.offre === 'reexpedition' ? '38' : '20');
 
-    const prixTotal = () => {
+    const getHT = () => {
         let base = parseInt(currentPlanPrice);
-        return data.frequence === 'annuel' ? (base * 10).toFixed(0) + '€/an' : base + '€/mois';
+        return data.frequence === 'annuel' ? base * 10 : base;
     };
+
+    const getTTC = () => getHT() * 1.2;
+
+    const prixTotal = () => data.frequence === 'annuel' ? `${getHT()}€/an` : `${getHT()}€/mois`;
+    const prixTotalTTC = () => data.frequence === 'annuel' ? `${getTTC().toFixed(2)}€/an` : `${getTTC().toFixed(2)}€/mois`;
 
     return (
         <div className="souscription-layout">
@@ -229,7 +244,16 @@ export default function Souscription() {
                                     <label className="sous-label">Téléphone *</label>
                                     <div className="phone-field">
                                         <span className="phone-flag">🇫🇷 +33</span>
-                                        <input className={`sous-input phone-input ${errors.telephone ? 'error' : ''}`} placeholder="06 XX XX XX XX" value={data.telephone} onChange={e => set('telephone', e.target.value)} />
+                                        <input 
+                                            className={`sous-input phone-input ${errors.telephone ? 'error' : ''}`} 
+                                            placeholder="06 XX XX XX XX" 
+                                            value={data.telephone} 
+                                            maxLength={10}
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, '');
+                                                if (val.length <= 10) set('telephone', val);
+                                            }} 
+                                        />
                                     </div>
                                     {errors.telephone && <div className="field-error">{errors.telephone}</div>}
                                 </div>
@@ -427,11 +451,60 @@ export default function Souscription() {
                         </div>
                     )}
 
-                    {/* ══ ÉTAPE 6 — Récapitulatif ══ */}
+                    {/* ══ ÉTAPE 6 — Documents ══ */}
                     {step === 6 && (
                         <div className="sous-step">
                             <div className="sous-step-header">
                                 <div className="sous-step-num">Étape 7 sur {STEPS.length}</div>
+                                <h2>Vos documents justificatifs</h2>
+                                <p>Veuillez télécharger les documents nécessaires pour votre dossier</p>
+                            </div>
+                            
+                            <div className="sous-form-grid">
+                                <div className="sous-field sous-field-full">
+                                    <label className="sous-label">Pièce d'identité (Recto/Verso) *</label>
+                                    <input 
+                                        type="file" 
+                                        className={`sous-input ${errors.pieceIdentite ? 'error' : ''}`} 
+                                        accept="image/*,.pdf"
+                                        onChange={e => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                set('pieceIdentiteFile', file);
+                                                set('pieceIdentite', file.name);
+                                            }
+                                        }} 
+                                    />
+                                    {data.pieceIdentite && <div className="field-hint" style={{color: '#10B981', marginTop: '4px'}}>Fichier sélectionné : {data.pieceIdentite}</div>}
+                                    {errors.pieceIdentite && <div className="field-error">{errors.pieceIdentite}</div>}
+                                </div>
+                                
+                                <div className="sous-field sous-field-full">
+                                    <label className="sous-label">Justificatif de domicile (de moins de 3 mois) *</label>
+                                    <input 
+                                        type="file" 
+                                        className={`sous-input ${errors.justificatifDomicile ? 'error' : ''}`} 
+                                        accept="image/*,.pdf"
+                                        onChange={e => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                set('justificatifDomicileFile', file);
+                                                set('justificatifDomicile', file.name);
+                                            }
+                                        }} 
+                                    />
+                                    {data.justificatifDomicile && <div className="field-hint" style={{color: '#10B981', marginTop: '4px'}}>Fichier sélectionné : {data.justificatifDomicile}</div>}
+                                    {errors.justificatifDomicile && <div className="field-error">{errors.justificatifDomicile}</div>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ══ ÉTAPE 7 — Récapitulatif ══ */}
+                    {step === 7 && (
+                        <div className="sous-step">
+                            <div className="sous-step-header">
+                                <div className="sous-step-num">Étape 8 sur {STEPS.length}</div>
                                 <h2>Vérifiez votre commande</h2>
                                 <p>Relisez vos informations avant de passer au paiement</p>
                             </div>
@@ -466,9 +539,19 @@ export default function Souscription() {
                                 </div>
                             </div>
 
-                            <div className="recap-total">
-                                <div className="rt-label">Total</div>
-                                <div className="rt-value">{prixTotal()} HT</div>
+                            <div className="recap-total" style={{ flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                    <div className="rt-label" style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}>Total HT</div>
+                                    <div className="rt-value" style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}>{prixTotal()}</div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                    <div className="rt-label" style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}>TVA (20%)</div>
+                                    <div className="rt-value" style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}>{(getHT() * 0.2).toFixed(2)}€{data.frequence === 'annuel' ? '/an' : '/mois'}</div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #E2E8F0' }}>
+                                    <div className="rt-label">Total TTC</div>
+                                    <div className="rt-value">{prixTotalTTC()}</div>
+                                </div>
                             </div>
 
                             <label className="cgv-field">
@@ -483,6 +566,35 @@ export default function Souscription() {
                                     onClick={async () => {
                                         setLoading(true);
                                         try {
+                                            let pieceUrl = '';
+                                            let justificatifUrl = '';
+
+                                            // Upload files to Cloudinary if they exist
+                                            if (data.pieceIdentiteFile) {
+                                                try {
+                                                    let fileToUpload = data.pieceIdentiteFile;
+                                                    if (fileToUpload.type === 'application/pdf' || fileToUpload.name.toLowerCase().endsWith('.pdf')) {
+                                                        fileToUpload = await convertPdfToPng(fileToUpload);
+                                                    }
+                                                    const res = await uploadFile(fileToUpload, { folder: 'demandes' });
+                                                    pieceUrl = res.secure_url;
+                                                } catch(e) { console.error('Upload pieceIdentite error', e); }
+                                            }
+                                            if (data.justificatifDomicileFile) {
+                                                try {
+                                                    let fileToUpload = data.justificatifDomicileFile;
+                                                    if (fileToUpload.type === 'application/pdf' || fileToUpload.name.toLowerCase().endsWith('.pdf')) {
+                                                        fileToUpload = await convertPdfToPng(fileToUpload);
+                                                    }
+                                                    const res = await uploadFile(fileToUpload, { folder: 'demandes' });
+                                                    justificatifUrl = res.secure_url;
+                                                } catch(e) { console.error('Upload justificatif error', e); }
+                                            }
+
+                                            const finalData = { ...data, pieceIdentiteUrl: pieceUrl, justificatifDomicileUrl: justificatifUrl };
+                                            delete finalData.pieceIdentiteFile;
+                                            delete finalData.justificatifDomicileFile;
+
                                             // Enregistrer la demande dans le service admin
                                             // On ajoute le numéro de téléphone pour que l'admin y ait accès dans son pannel
                                             const demande = await adminDataService.addDemande({
@@ -491,14 +603,13 @@ export default function Souscription() {
                                                 company: data.nomSociete || 'En cours de création',
                                                 city: data.ville,
                                                 plan: currentPlanName,
-                                                amount: parseFloat(prixTotal().split('€')[0]).toFixed(2),
-                                                extra_info: data
+                                                amount: getTTC().toFixed(2),
+                                                extra_info: finalData
                                             });
 
                                             // Stocker l'ID pour confirmation au retour de Stripe
                                             localStorage.setItem('pending_demande_id', demande.id);
 
-                                            const totalAmount = parseFloat(prixTotal().split('€')[0]);
                                             let productName = `Forfait ${currentPlanName} - ${data.ville} (${data.frequence})`;
 
                                             // Stocker les infos pour EmailJS sur la page de succès
@@ -508,7 +619,7 @@ export default function Souscription() {
                                             const actualPlanId = data.offre === 'scan' ? 'scan-plus' : (data.offre === 'reexpedition' ? 'physique' : 'essentiel');
                                             await handleCheckout(
                                                 actualPlanId,
-                                                totalAmount,
+                                                getTTC(),
                                                 productName,
                                                 data.frequence,
                                                 null,
@@ -522,7 +633,7 @@ export default function Souscription() {
                                         }
                                     }}
                                 >
-                                    {loading ? 'Redirection vers Stripe en cours...' : (!data.cgv ? 'Acceptez les CGV pour payer' : `Payer ${prixTotal()} HT de façon sécurisée ->`)}
+                                    {loading ? 'Redirection vers Stripe en cours...' : (!data.cgv ? 'Acceptez les CGV pour payer' : `Payer ${prixTotalTTC()} de façon sécurisée ->`)}
                                 </button>
                                 <div className="stripe-badge" style={{ justifyContent: 'center', marginTop: '1rem', borderTop: 'none' }}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>

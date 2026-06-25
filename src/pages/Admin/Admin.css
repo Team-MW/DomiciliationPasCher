@@ -955,7 +955,7 @@
     border-radius: 8px;
     font-size: 14px;
     font-weight: 700;
-    background: var(--admin-accent-gradient);
+    background: var(--admin-accent);
     color: white;
     border: none;
     cursor: pointer;

@@ -70,13 +70,17 @@ export default function Factures({ clientData }) {
     // Calculer uniquement les vraies factures payées à afficher (filtrage strict)
     const factures = realPayments
         .filter(p => p.status === 'payé')
-        .map(p => ({
-            id: p.id,
-            ref: p.invoice_ref,
-            dateStr: new Date(p.date).toLocaleDateString('fr-FR'),
-            amountHT: parseFloat(p.amount),           // prix stocké = HT
-            amountTTC: parseFloat(p.amount) * 1.2,    // TTC = HT + 20% TVA
-        }));
+        .map(p => {
+            const amountTTC = parseFloat(p.amount);
+            const amountHT = amountTTC / 1.2;
+            return {
+                id: p.id,
+                ref: p.invoice_ref,
+                dateStr: new Date(p.date).toLocaleDateString('fr-FR'),
+                amountTTC,
+                amountHT,
+            };
+        });
 
     const generatePdf = async (facture) => {
         try {
@@ -127,8 +131,8 @@ export default function Factures({ clientData }) {
                 doc.setFontSize(11);
                 doc.setTextColor(30, 41, 59);
                 doc.text('Description', 15, 88);
-                doc.text('Montant HT', 130, 88);
-                doc.text('Montant TTC', 170, 88);
+                doc.text('Prix unitaire HT', 130, 88);
+                doc.text('Total HT', 170, 88);
 
                 doc.line(15, 93, 195, 93);
 
@@ -136,12 +140,12 @@ export default function Factures({ clientData }) {
                 doc.setTextColor(100, 116, 139);
                 doc.text(`Forfait Domiciliation - ${clientData.plan || 'Standard'}`, 15, 102);
                 
-                const ht = facture.amountHT.toFixed(2);
-                const tva = (facture.amountHT * 0.2).toFixed(2);
                 const ttc = facture.amountTTC.toFixed(2);
+                const ht = facture.amountHT.toFixed(2);
+                const tva = (facture.amountTTC - facture.amountHT).toFixed(2);
 
                 doc.text(`${ht} €`, 130, 102);
-                doc.text(`${ttc} €`, 170, 102);
+                doc.text(`${ht} €`, 170, 102);
 
                 doc.line(15, 110, 195, 110);
 

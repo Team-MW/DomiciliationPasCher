@@ -300,6 +300,7 @@ export default function EspaceClient() {
                             documents={documents}
                             setDocuments={setDocuments}
                             clientData={clientData}
+                            setClientData={setClientData}
                         />
                     )}
                     {activeTab === 'meeting' && (
