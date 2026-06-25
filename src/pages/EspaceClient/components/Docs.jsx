@@ -38,6 +38,14 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     }, [clientData]);
     const hasKbis = !!(parsedExtraInfo.kbisUrl || localKbisUrl);
 
+    const checkApproval = () => {
+        if (clientData?.isTemporary || clientData?.status === 'en_attente_validation') {
+            alert("Vous n'avez pas encore été approuvé.\n\nVous serez approuvé sous 24h. Une fois approuvé, vous pourrez signer, télécharger et déposer vos documents.");
+            return false;
+        }
+        return true;
+    };
+
     const handleKbisUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -103,6 +111,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     const signedAt = signatureInfo?.contractSignedAt;
 
     const handleUploadClick = () => {
+        if (!checkApproval()) return;
         document.getElementById('file-upload').click();
     };
 
@@ -385,7 +394,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                         Votre contrat de domiciliation est prêt. Apposez votre <strong>signature électronique</strong> pour le valider officiellement. Le document signé sera immédiatement accessible par votre espace et par l'administration.
                                     </p>
                                     <button
-                                        onClick={() => setShowSignModal(true)}
+                                        onClick={() => {
+                                            if (!checkApproval()) return;
+                                            setShowSignModal(true);
+                                        }}
                                         style={{
                                             width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
                                             background: 'linear-gradient(135deg, #1e40af, #0f172a)',
@@ -408,6 +420,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 <a
                                     href={contractUrl === '#local-signature' ? '#' : contractUrl}
                                     onClick={async (e) => {
+                                        if (!checkApproval()) { e.preventDefault(); return; }
                                         if (contractUrl === '#local-signature') {
                                             e.preventDefault();
                                             if (downloadingDocId) return;
@@ -529,7 +542,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px', fontWeight: 600 }}>Déposez votre Extrait KBIS pour débloquer la procuration.</p>
                                             <input type="file" id="kbis-upload" style={{ display: 'none' }} onChange={handleKbisUpload} accept="application/pdf,image/*" />
                                             <button
-                                                onClick={() => document.getElementById('kbis-upload').click()}
+                                                onClick={() => {
+                                                    if (!checkApproval()) return;
+                                                    document.getElementById('kbis-upload').click();
+                                                }}
                                                 disabled={isUploadingKbis}
                                                 style={{ background: '#0f172a', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: isUploadingKbis ? 0.7 : 1 }}
                                             >
@@ -543,7 +559,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                         </div>
                                     ) : (
                                         <button
-                                            onClick={() => setShowProcurationForm(true)}
+                                            onClick={() => {
+                                                if (!checkApproval()) return;
+                                                setShowProcurationForm(true);
+                                            }}
                                             style={{
                                                 width: '100%', padding: '13px', borderRadius: '12px', border: '1px solid #cbd5e1',
                                                 background: '#f8fafc',
@@ -567,6 +586,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 <a
                                     href={procUrl === '#local-procuration' ? '#' : procUrl}
                                     onClick={async (e) => {
+                                        if (!checkApproval()) { e.preventDefault(); return; }
                                         if (procUrl === '#local-procuration') {
                                             e.preventDefault();
                                             if (downloadingDocId) return;
@@ -640,7 +660,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <button
                                 className="ec-btn-primary"
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', borderRadius: '8px', cursor: 'pointer', opacity: downloadingDocId ? 0.7 : 1 }}
-                                onClick={async () => {
+                                onClick={async (e) => {
+                                    if (!checkApproval()) { e.preventDefault(); return; }
                                     if (downloadingDocId) return;
                                     setDownloadingDocId('attestation');
                                     try {
@@ -665,7 +686,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <button
                                 className="ec-btn-secondary"
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#0F172A', fontWeight: '600', borderRadius: '8px', cursor: 'pointer', opacity: downloadingDocId ? 0.7 : 1 }}
-                                onClick={async () => {
+                                onClick={async (e) => {
+                                    if (!checkApproval()) { e.preventDefault(); return; }
                                     if (downloadingDocId) return;
                                     setDownloadingDocId('contrat-vierge');
                                     try {
@@ -803,6 +825,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 <a
                                                     href={(!doc.url || doc.url.startsWith('#')) ? '#' : doc.url}
                                                     onClick={async (e) => {
+                                                        if (!checkApproval()) { e.preventDefault(); return; }
                                                         if (doc.url === '#local-signature') {
                                                             e.preventDefault();
                                                             if (downloadingDocId) return;
@@ -917,6 +940,9 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 )}
                                                 <a
                                                     href={doc.url}
+                                                    onClick={(e) => {
+                                                        if (!checkApproval()) { e.preventDefault(); return; }
+                                                    }}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     style={{

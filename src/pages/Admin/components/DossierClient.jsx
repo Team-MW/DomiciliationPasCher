@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
@@ -1469,6 +1470,56 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     </div>
                 </div>
             </div>
+
+            {/* Custom Modal for Naming Documents */}
+            {fileToName && typeof document !== 'undefined' && createPortal(
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                    <div style={{ background: 'white', padding: '32px', borderRadius: '16px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: '#3B82F6' }}>
+                                📄
+                            </div>
+                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Nommer le document</h2>
+                        </div>
+                        <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '20px', lineHeight: 1.5 }}>
+                            Entrez un nom pour votre document ou laissez ce champ vide pour utiliser le nom d'origine.
+                        </p>
+                        <input
+                            type="text"
+                            value={customFileName}
+                            onChange={(e) => setCustomFileName(e.target.value)}
+                            placeholder={fileToName.name}
+                            style={{
+                                width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #CBD5E1',
+                                outline: 'none', marginBottom: '24px', fontSize: '14px', boxSizing: 'border-box',
+                                transition: 'border-color 0.2s'
+                            }}
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') confirmFileUpload();
+                            }}
+                        />
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => {
+                                    setFileToName(null);
+                                    setCustomFileName('');
+                                }}
+                                style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={confirmFileUpload}
+                                style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#3B82F6', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}
+                            >
+                                {isUploading ? 'Envoi...' : 'Valider'}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
