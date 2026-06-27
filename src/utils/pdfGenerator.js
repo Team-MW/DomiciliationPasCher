@@ -198,7 +198,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(8);
             doc.setTextColor(148, 163, 184); // slate-400
-            doc.text("DOMICILIATION PAS CHER - SIRET xxxxx - RCS Toulouse - Agrément Préfectoral CASSIN-DOM-2026-31", 105, 280, { align: 'center' });
+            doc.text("DOMICILIATION PAS CHER - SIREN 101 512 531 - RCS Toulouse - Agrément Préfectoral CASSIN-DOM-2026-31", 105, 280, { align: 'center' });
             doc.text("Document officiel généré automatiquement. Pour faire valoir ce que de droit.", 105, 284, { align: 'center' });
 
             doc.save(`Attestation_Domiciliation_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
