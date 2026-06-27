@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 export default function Factures({ clientData }) {
     const [realPayments, setRealPayments] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [downloadingDocId, setDownloadingDocId] = useState(null);
 
     useEffect(() => {
         if (clientData?.id) {
@@ -84,6 +85,7 @@ export default function Factures({ clientData }) {
 
     const generatePdf = async (facture) => {
         try {
+            setDownloadingDocId(facture.id);
             const { default: jsPDF } = await import('jspdf');
             const doc = new jsPDF();
 
@@ -112,18 +114,27 @@ export default function Factures({ clientData }) {
                 doc.setTextColor(100, 116, 139);
                 doc.text('150 Rue Nicolas Louis Vauquelin', 15, 54);
                 doc.text('31100 Toulouse, FRANCE', 15, 60);
-                doc.text('contact@domiciliation-pas-cher.fr', 15, 66);
+                doc.text('N° SIRET : 380 439 778 00035', 15, 66);
+                doc.text('contact@domiciliation-pas-cher.fr', 15, 72);
 
                 doc.setFontSize(12);
                 doc.setTextColor(30, 41, 59);
                 doc.text('Facturé à :', 120, 48);
                 doc.setFontSize(10);
+                
+                const sanitizePdfText = (str) => {
+                    if (!str) return '';
+                    // Supprime l'émoji téléphone et autres caractères non-Latin1 qui corrompent jsPDF
+                    let clean = str.replace(/ - 📞.*/, '');
+                    return clean.replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
+                };
+
                 const clientName = clientData.company ? clientData.company : clientData.name;
-                doc.text(clientName || 'Client', 120, 54);
+                doc.text(sanitizePdfText(clientName) || 'Client', 120, 54);
                 if (clientData.name && clientData.company) {
-                    doc.text(clientData.name, 120, 60);
+                    doc.text(sanitizePdfText(clientData.name), 120, 60);
                 }
-                doc.text(clientData.email || '', 120, 66);
+                doc.text(sanitizePdfText(clientData.email) || '', 120, 66);
 
                 doc.setDrawColor(226, 232, 240);
                 doc.line(15, 80, 195, 80);
@@ -168,6 +179,7 @@ export default function Factures({ clientData }) {
                 doc.text('Merci de votre confiance. Domiciliation Pas Cher', 105, 280, { align: 'center' });
 
                 doc.save(`${facture.ref}.pdf`);
+                setDownloadingDocId(null);
             };
 
             const img = new Image();
@@ -182,6 +194,7 @@ export default function Factures({ clientData }) {
         } catch (err) {
             console.error("Erreur lors de la génération PDF :", err);
             alert("Erreur de génération du PDF.");
+            setDownloadingDocId(null);
         }
     };
 
@@ -214,14 +227,26 @@ export default function Factures({ clientData }) {
                                 <button 
                                     className="ec-btn-primary" 
                                     onClick={() => generatePdf(fac)}
-                                    style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                    disabled={downloadingDocId === fac.id}
+                                    style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: downloadingDocId === fac.id ? 0.7 : 1, cursor: downloadingDocId === fac.id ? 'not-allowed' : 'pointer' }}
                                 >
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                        <polyline points="7 10 12 15 17 10"></polyline>
-                                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                                    </svg>
-                                    Télécharger
+                                    {downloadingDocId === fac.id ? (
+                                        <>
+                                            <svg className="spinner" viewBox="0 0 24 24" width="14" height="14" style={{ animation: 'spin 1s linear infinite' }}>
+                                                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="30" strokeLinecap="round" />
+                                            </svg>
+                                            Chargement...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            Télécharger
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -233,6 +258,7 @@ export default function Factures({ clientData }) {
                     <p style={{ color: 'var(--ec-text-sub)', fontSize: '16px', fontWeight: '600' }}>Aucune facture disponible pour le moment.</p>
                 </div>
             )}
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 }
