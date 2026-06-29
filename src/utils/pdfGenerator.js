@@ -809,7 +809,7 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
             
             // 1. Mandant details
             page.drawText(cleanForPdf(mandantNom), { x: 100, y: 362.3, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
-            page.drawText(cleanForPdf(mandantPrenoms), { x: 385, y: 362.3, size: 7.5, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+            page.drawText(cleanForPdf(mandantPrenoms), { x: 410, y: 362.3, size: 7.5, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
             page.drawText(cleanForPdf(clientAddress), { x: 110, y: 351.5, size: 7, font: helveticaFont, color: rgb(0, 0, 0) });
             
             // 2. À / Le
@@ -817,16 +817,25 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
             page.drawText(cleanForPdf(dateStr), { x: 230, y: 340.7, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
 
             // 3. Donne Pouvoir Checkbox (X)
-            page.drawText('X', { x: 174.6, y: 303.2, size: 8.5, font: helveticaBold, color: rgb(0, 0, 0) });
+            page.drawText('X', { x: 172.5, y: 303.2, size: 8.5, font: helveticaBold, color: rgb(0, 0, 0) });
 
             // 4. Mandataire details
-            page.drawText('MICRODIDACT / DOMICILIATION PAS CHER', { x: 100, y: 270.6, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
+            page.drawText('CASSIN', { x: 100, y: 270.6, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
+            page.drawText('LUDOVIC', { x: 410, y: 270.6, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
             page.drawText('150 RUE NICOLAS LOUIS VAUQUELIN, LOT 308 - 31100 TOULOUSE', { x: 110, y: 259.8, size: 7, font: helveticaFont, color: rgb(0, 0, 0) });
 
             // Checkbox: Retirer et recevoir les envois de La Poste (X)
             page.drawText('X', { x: 118.5, y: 234.0, size: 8.5, font: helveticaBold, color: rgb(0, 0, 0) });
 
-            // Signature section hidden for procuration
+            // 5. Signature du Client
+            if (signatureImage) {
+                page.drawImage(signatureImage, {
+                    x: 430,
+                    y: 312,
+                    width: 55,
+                    height: 18
+                });
+            }
         }
 
         // Fill La Poste section on Page 2 only

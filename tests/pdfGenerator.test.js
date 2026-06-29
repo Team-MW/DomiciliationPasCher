@@ -256,7 +256,7 @@ describe('PDF Generator Utility Functions', () => {
                 address: '14 rue de la Paix'
             };
             
-            const signatureDataUrl = 'data:image/png;base64,mockedsignature';
+            const signatureDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
             const procurationData = {
                 lieuNaissance: 'Toulouse',
                 dateNaissance: '1990-01-01',
