@@ -13,14 +13,15 @@ vi.mock('@clerk/clerk-react', () => ({
 }));
 
 vi.mock('../src/services/adminDataService', () => ({
-  adminDataService: new Proxy({}, {
-    get(_, prop) {
-      if (['getDocuments', 'getPayments', 'getInvoices', 'getMessages', 'syncStripePayments'].includes(prop)) {
-        return vi.fn().mockResolvedValue([]);
-      }
-      return vi.fn().mockResolvedValue({});
-    },
-  }),
+  adminDataService: {
+    getDocuments: vi.fn().mockResolvedValue([]),
+    getPayments: vi.fn().mockResolvedValue([]),
+    getInvoices: vi.fn().mockResolvedValue([]),
+    getMessages: vi.fn().mockResolvedValue([]),
+    syncStripePayments: vi.fn().mockResolvedValue([]),
+    addDocument: vi.fn().mockResolvedValue({ id: 'mock_doc_123' }),
+    deleteDocument: vi.fn().mockResolvedValue({}),
+  }
 }));
 
 vi.mock('../src/utils/pdfGenerator', () => ({
@@ -92,5 +93,65 @@ describe('Docs component download flow', () => {
 
     expect(appendSpy).toHaveBeenCalled();
     expect(removeSpy).toHaveBeenCalled();
+  });
+
+  test('should handle client PDF upload directly and append file extension to custom names', async () => {
+    const mockAddDocument = vi.fn().mockResolvedValue({ id: 'new_doc_999' });
+    const { adminDataService } = await import('../src/services/adminDataService');
+    adminDataService.addDocument = mockAddDocument;
+
+    const originalFileReader = global.FileReader;
+    const mockFR = class MockFileReader {
+      readAsDataURL(blob) {
+        this.result = 'data:application/pdf;base64,client_pdf_base64';
+        setTimeout(() => {
+          if (this.onloadend) this.onloadend();
+        }, 5);
+      }
+    };
+    global.FileReader = mockFR;
+    if (typeof window !== 'undefined') window.FileReader = mockFR;
+
+    await act(async () => {
+      render(
+        <Docs
+          documents={[]}
+          setDocuments={vi.fn()}
+          clientData={mockClient}
+          setClientData={vi.fn()}
+        />
+      );
+    });
+
+    const fileInput = document.getElementById('file-upload');
+    expect(fileInput).toBeDefined();
+
+    const pdfFile = new File(['%PDF-1.4...'], 'mes_justifs.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+    });
+
+    const inputName = screen.getByPlaceholderText('mes_justifs.pdf');
+    fireEvent.change(inputName, { target: { value: 'facture_edf' } });
+
+    const validerBtn = screen.getByText('Valider');
+    await act(async () => {
+      fireEvent.click(validerBtn);
+    });
+
+    await vi.waitFor(() => {
+      expect(mockAddDocument).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockAddDocument).toHaveBeenCalledWith(mockClient.id, expect.objectContaining({
+      name: 'facture_edf.pdf',
+      type: 'application/pdf',
+      owner: 'client',
+      url: 'data:application/pdf;base64,client_pdf_base64'
+    }));
+
+    global.FileReader = originalFileReader;
+    if (typeof window !== 'undefined') window.FileReader = originalFileReader;
   });
 });

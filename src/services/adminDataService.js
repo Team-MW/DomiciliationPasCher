@@ -289,7 +289,17 @@ export const adminDataService = {
         await conn.execute(
             `INSERT INTO documents (id, clientId, name, size, type, uploadedAt, owner, folder, url) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, clientId, fileInfo.name, fileInfo.size, fileInfo.type, uploadedAt, fileInfo.owner, fileInfo.folder || 'Documents', fileInfo.url || '#']
+            [
+                id, 
+                clientId, 
+                fileInfo.name || 'document', 
+                fileInfo.size || '0 KB', 
+                fileInfo.type || '', 
+                uploadedAt, 
+                fileInfo.owner || 'admin', 
+                fileInfo.folder || 'Documents', 
+                fileInfo.url || '#'
+            ]
         );
         return { id, clientId, uploadedAt, ...fileInfo };
     },

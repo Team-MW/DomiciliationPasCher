@@ -203,6 +203,98 @@ const localStripePlugin = {
         });
         return;
       }
+      if (req.url.startsWith('/api/list-payments')) {
+        const urlObj = new URL(req.url, `http://${req.headers.host}`);
+        const email = urlObj.searchParams.get('email');
+        const customerId = urlObj.searchParams.get('customerId');
+        const since = urlObj.searchParams.get('since');
+
+        try {
+          if (!email && !customerId) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Email or CustomerId is required' }));
+            return;
+          }
+
+          let sinceUnix = 0;
+          if (since) {
+            const sinceDate = new Date(since);
+            if (!isNaN(sinceDate.getTime())) {
+              sinceUnix = Math.floor(sinceDate.getTime() / 1000);
+            }
+          }
+
+          let secretKey = null;
+          if (fs.existsSync('.env.local')) {
+            const envContent = fs.readFileSync('.env.local', 'utf-8');
+            const match = envContent.match(/STRIPE_SECRET_KEY=(.*)/);
+            if (match) secretKey = match[1].trim();
+          }
+          if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
+
+          if (!secretKey || secretKey === 'sk_live_remplace_moi' || secretKey.startsWith('pk_')) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ payments: [] }));
+            return;
+          }
+
+          const stripe = new Stripe(secretKey);
+          let customerIds = [];
+
+          if (customerId) {
+            customerIds = [customerId];
+          } else if (email) {
+            const customers = await stripe.customers.list({ email: email.trim().toLowerCase(), limit: 100 });
+            customerIds = customers.data.map(c => c.id);
+          }
+
+          if (customerIds.length === 0) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ payments: [] }));
+            return;
+          }
+
+          const allPayments = [];
+          for (const cid of customerIds) {
+            const paymentIntents = await stripe.paymentIntents.list({
+              customer: cid,
+              limit: 100
+            });
+            allPayments.push(...paymentIntents.data);
+          }
+
+          const uniquePayments = new Map();
+          for (const pi of allPayments) {
+            if (pi.created < sinceUnix) continue;
+
+            if (!uniquePayments.has(pi.id)) {
+              uniquePayments.set(pi.id, {
+                id: pi.id,
+                amount: pi.amount / 100,
+                currency: pi.currency,
+                status: pi.status === 'succeeded' ? 'payé' : 'échec',
+                date: new Date(pi.created * 1000).toISOString().split('T')[0],
+                method: pi.payment_method_types[0] === 'card' ? 'Carte (Stripe)' : pi.payment_method_types[0],
+                invoice_ref: pi.description || `FAC-${new Date(pi.created * 1000).getFullYear()}${String(new Date(pi.created * 1000).getMonth() + 1).padStart(2, '0')}`
+              });
+            }
+          }
+
+          const payments = Array.from(uniquePayments.values());
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ payments }));
+        } catch (e) {
+          console.error("Vite Stripe Sync Error:", e);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
       next();
     });
   }

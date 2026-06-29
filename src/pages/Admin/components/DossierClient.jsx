@@ -173,7 +173,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         if (!fileToName) return;
         setIsUploading(true);
         const originalFile = fileToName;
-        const finalName = customFileName.trim() || originalFile.name;
+        
+        const originalExt = originalFile.name.includes('.') ? originalFile.name.substring(originalFile.name.lastIndexOf('.')) : '';
+        let finalName = customFileName.trim() || originalFile.name;
+        if (customFileName.trim() && originalExt && !finalName.toLowerCase().endsWith(originalExt.toLowerCase())) {
+            finalName += originalExt;
+        }
 
         setFileToName(null);
         setCustomFileName('');
@@ -203,8 +208,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             const docs = await adminDataService.getDocuments(client.id);
             setDocuments(Array.isArray(docs) ? docs : []);
         } catch (err) {
+            setIsUploading(false);
             console.error("Erreur préparation fichier:", err);
-            await showAlert("Erreur de préparation : " + err.message);
+            alert("Erreur de préparation : " + err.message);
         } finally {
             setIsUploading(false);
         }

@@ -156,7 +156,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         if (!fileToName) return;
         setIsUploading(true);
         const originalFile = fileToName;
-        const finalName = customFileName.trim() || originalFile.name;
+        
+        const originalExt = originalFile.name.includes('.') ? originalFile.name.substring(originalFile.name.lastIndexOf('.')) : '';
+        let finalName = customFileName.trim() || originalFile.name;
+        if (customFileName.trim() && originalExt && !finalName.toLowerCase().endsWith(originalExt.toLowerCase())) {
+            finalName += originalExt;
+        }
 
         setFileToName(null);
         setCustomFileName('');
