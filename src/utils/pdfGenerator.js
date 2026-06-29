@@ -1,9 +1,30 @@
 import logoUrl from '../assets/DomiciliationPasCher-Logo.png';
 
 /**
+ * Nettoie une chaîne de caractères pour s'assurer qu'elle n'induit pas d'erreur d'encodage WinAnsi dans pdf-lib (comme les Emojis)
+ */
+export const cleanForPdf = (str) => {
+    if (!str) return '';
+    return String(str)
+        .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '') // Supprime les paires de surrogates (emojis)
+        .replace(/[’‘]/g, "'") // Remplace les apostrophes typographiques par des apostrophes droites
+        .replace(/[“”]/g, '"') // Remplace les guillemets typographiques par des guillemets droits
+        .split('')
+        .filter(char => {
+            const code = char.charCodeAt(0);
+            return (code >= 32 && code <= 126) || 
+                   (code >= 160 && code <= 255) || 
+                   code === 8364 || // €
+                   code === 338 ||  // Œ
+                   code === 339;    // œ
+        })
+        .join('');
+};
+
+/**
  * Extrait de manière sécurisée les informations supplémentaires du client
  */
-const getClientExtraInfo = (clientData) => {
+export const getClientExtraInfo = (clientData) => {
     if (!clientData) return {};
     let extra = {};
     try {
@@ -21,7 +42,7 @@ const getClientExtraInfo = (clientData) => {
 /**
  * Calcule le tarif de l'abonnement en fonction du forfait du client
  */
-const getPlanTariff = (plan) => {
+export const getPlanTariff = (plan) => {
     const p = (plan || '').toLowerCase();
     // Les prix affichés sont HT. Le TTC = HT × 1.20 (TVA 20%)
     if (p.includes('scan')) return { ht: 24, ttc: (24 * 1.2).toFixed(2), tva: (24 * 0.2).toFixed(2), name: 'Scan+' };
@@ -57,12 +78,12 @@ export const generateAttestationPdf = async (clientData) => {
             year: 'numeric'
         });
 
-        const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
-        const companyName = String(clientData.company || extra.nomSociete || 'Société en cours de constitution');
-        const formeJuridique = extra.formeJuridique || 'EI / Société';
-        const sirenText = extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution au Greffe';
-        const clientAddress = clientData.address || extra.adressePerso || "Adresse personnelle non renseignée";
-        const clientActivity = extra.activite || "Activités de services et de conseil";
+        const clientName = cleanForPdf(extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant'));
+        const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || 'Société en cours de constitution'));
+        const formeJuridique = cleanForPdf(extra.formeJuridique || 'EI / Société');
+        const sirenText = cleanForPdf(extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution au Greffe');
+        const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || "Adresse personnelle non renseignée");
+        const clientActivity = cleanForPdf(extra.activite || "Activités de services et de conseil");
 
         const buildPdf = (imgData = null) => {
             // -- FOND & BORDURE DÉCORATIVE --
@@ -242,12 +263,12 @@ export const generateContratPdf = async (clientData) => {
             year: 'numeric'
         });
 
-        const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
-        const companyName = String(clientData.company || extra.nomSociete || 'Société en cours de constitution');
-        const formeJuridique = extra.formeJuridique || 'EI / Société';
-        const sirenText = extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution';
-        const clientAddress = clientData.address || extra.adressePerso || "Adresse personnelle non renseignée";
-        const clientActivity = extra.activite || "Activités de services et de conseil";
+        const clientName = cleanForPdf(extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant'));
+        const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || 'Société en cours de constitution'));
+        const formeJuridique = cleanForPdf(extra.formeJuridique || 'EI / Société');
+        const sirenText = cleanForPdf(extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution');
+        const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || "Adresse personnelle non renseignée");
+        const clientActivity = cleanForPdf(extra.activite || "Activités de services et de conseil");
         const isAnnuel = extra.frequence === 'annuel';
 
         const buildPdf = (imgData = null) => {
@@ -503,11 +524,11 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
             const signedAtDate = signedNow.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
             const signedAtTime = signedNow.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-            const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
-            const companyName = String(clientData.company || extra.nomSociete || 'Société en cours de constitution');
-            const formeJuridique = extra.formeJuridique || 'EI / Société';
-            const sirenText = extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution';
-            const clientAddress = clientData.address || extra.adressePerso || 'Adresse personnelle non renseignée';
+            const clientName = cleanForPdf(extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant'));
+            const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || 'Société en cours de constitution'));
+            const formeJuridique = cleanForPdf(extra.formeJuridique || 'EI / Société');
+            const sirenText = cleanForPdf(extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution');
+            const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || 'Adresse personnelle non renseignée');
             const isAnnuel = extra.frequence === 'annuel';
 
             const buildPdf = (logoImg, sigImg) => {
@@ -730,250 +751,102 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
  */
 export const generateSignedProcurationBlob = async (clientData, signatureDataUrl, procurationData) => {
     try {
-        const { default: jsPDF } = await import('jspdf');
-        const doc = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: 'a4'
-        });
+        const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
         
-        // Polices
-        doc.setFont("helvetica", "bold");
-        
-        // --- 1. En-tête ---
-        // Logo Officiel La Poste
-        const addLogo = () => {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.src = '/logo_laposte.png';
-                img.onload = () => {
-                    // Dimensionner proportionnellement
-                    const ratio = img.width / img.height;
-                    const h = 10;
-                    const w = h * ratio;
-                    doc.addImage(img, 'PNG', 15, 10, w, h);
-                    resolve();
-                };
-                img.onerror = () => {
-                    // Fallback texte si l'image ne charge pas
-                    doc.setFillColor(30, 58, 138);
-                    doc.rect(15, 12, 22, 6, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFontSize(8);
-                    doc.text("LA POSTE", 26, 16, { align: 'center' });
-                    resolve();
-                };
-            });
-        };
-        await addLogo();
-        
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(13);
-        doc.text("PROCURATION D'UN CLIENT DESTINATAIRE D'ENVOIS POSTAUX CONTRE SIGNATURE A UN PRESTATAIRE", 155, 16, { align: 'center' });
-        
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        const introText = "Les envois postaux à remettre contre signature (lettre recommandée...) doivent être distribués par La Poste, au destinataire ou à son mandataire/représentant muni d'une procuration régulière. Parmi les courriers destinés aux clients du Prestataire, peuvent se trouver des objets à remettre contre signature.";
-        const splitIntro = doc.splitTextToSize(introText, 270);
-        doc.text(splitIntro, 15, 26);
-        
-        // --- Fonction utilitaire pour dessiner les lignes de champs ---
-        const drawField = (label, y, value = '') => {
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(8);
-            doc.text(label, 15, y);
-            
-            const startX = 120; // Plus loin pour ne pas chevaucher les labels longs
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.3);
-            doc.line(startX, y + 1, 280, y + 1);
-            
-            if (value) {
-                doc.setFont("helvetica", "normal");
-                doc.setFontSize(9);
-                doc.text(value.toString().toUpperCase(), startX + 5, y - 0.5);
-            }
-        };
-
-        let currentY = 40;
-        
-        // --- SECTION 1 : LE CLIENT DESTINATAIRE ---
-        doc.setFillColor(0, 0, 0);
-        doc.rect(15, currentY - 3, 3, 3, 'F'); // Petit carré à la place de la flèche
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.text("LE CLIENT DESTINATAIRE ET SON ADRESSE DE DISTRIBUTION", 20, currentY);
-        
-        doc.setFontSize(8);
-        doc.text("N° SIRET :", 220, currentY);
-        if(clientData.siret) {
-            doc.setFont("helvetica", "normal");
-            doc.text(clientData.siret, 235, currentY);
-            doc.setFont("helvetica", "bold");
+        let existingPdfBytes;
+        if (typeof window === 'undefined' || (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test')) {
+            const fs = await import('fs');
+            existingPdfBytes = fs.readFileSync('public/Demande_de_procuration.pdf');
+        } else {
+            existingPdfBytes = await fetch('/Demande_de_procuration.pdf').then(res => res.arrayBuffer());
         }
+
+        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+        const pages = pdfDoc.getPages();
         
-        currentY += 8;
-        const nomMandant = procurationData.nom || clientData.name || '';
-        const companyMandant = clientData.company || nomMandant || '';
+        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        
+        const extra = getClientExtraInfo(clientData);
+        const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
+        
+        // Parse Mandant address fields
         const pRemise = procurationData.pointRemise || '';
         const pComplement = procurationData.complementAdresse || '';
         const pVoie = procurationData.adresseVoie || '';
         const pLieuDit = procurationData.lieuDit || '';
         const pCodePostalVille = procurationData.codePostalVille || '';
         
-        drawField("Raison sociale ou Nom d'Enseigne :", currentY, companyMandant); currentY += 6;
-        drawField("Point de remise du courrier : (n° appart. , étage, couloir, escalier)", currentY, pRemise); currentY += 6;
-        drawField("Complément d'adresse : (résidence, bâtiment, immeuble, tour, entrée,...)", currentY, pComplement); currentY += 6;
-        drawField("N°, TYPE (rue, avenue), et NOM DE LA VOIE :", currentY, pVoie); currentY += 6;
-        drawField("Lieu dit ou service particulier de distribution : (ex : BP, poste restante)", currentY, pLieuDit); currentY += 6;
-        drawField("CODE POSTAL et LOCALITÉ DE DESTINATION :", currentY, pCodePostalVille); currentY += 6;
-        drawField("Pays : (pour Andorre, Monaco, Collectivités d'Outre Mer, DOM)", currentY, "FRANCE"); currentY += 10;
+        const clientAddress = `${pRemise} ${pComplement} ${pVoie} ${pLieuDit} ${pCodePostalVille}`.trim().toUpperCase() || clientData.address || '';
         
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text("Représenté par :", 15, currentY);
-        doc.setFont("helvetica", "normal");
-        doc.text(nomMandant.toUpperCase(), 45, currentY);
-        doc.setDrawColor(200, 200, 200);
-        doc.line(40, currentY + 1, 100, currentY + 1);
+        // Prepare text values
+        const mandantNom = clientData.company ? clientData.company.toUpperCase() : (extra.nom || clientData.name || '').toUpperCase();
+        const mandantPrenoms = clientData.company ? `(REP. PAR ${clientName.toUpperCase()})` : (extra.prenom || '').toUpperCase();
         
-        doc.setFont("helvetica", "bold");
-        doc.text("Agissant en qualité de* :", 105, currentY);
-        doc.setFont("helvetica", "normal");
-        doc.text("DIRIGEANT", 145, currentY);
-        doc.line(140, currentY + 1, 190, currentY + 1);
-        
-        // Cases à cocher
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
-        doc.rect(200, currentY - 3, 3, 3);
-        doc.setFont("helvetica", "bold");
-        doc.text("X", 200.5, currentY - 0.5); // Coché
-        doc.text("Donne pouvoir", 205, currentY);
-        
-        doc.rect(240, currentY - 3, 3, 3);
-        doc.text("Annule le pouvoir donné", 245, currentY);
-        
-        currentY += 5;
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(6);
-        doc.setTextColor(100, 100, 100);
-        doc.text("* justifier le pouvoir par la présentation d'une pièce d'identité originale + document légal d'existence juridique si le Dossier de Société postal n'est pas encore constitué à La Poste.", 15, currentY);
-        
-        // --- SECTION 2 : AU PRESTATAIRE ---
-        currentY += 12;
-        doc.setTextColor(0, 0, 0);
-        doc.setFillColor(0, 0, 0);
-        doc.rect(15, currentY - 3, 3, 3, 'F');
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.text("AU PRESTATAIRE", 20, currentY);
-        
-        doc.setFontSize(8);
-        doc.text("N° SIRET :", 220, currentY);
-        doc.setFont("helvetica", "normal");
-        doc.text("380 439 778 00035", 235, currentY);
-        
-        currentY += 8;
-        drawField("Raison sociale ou Nom d'Enseigne :", currentY, "MICRODIDACT / DOMICILIATION PAS CHER"); currentY += 6;
-        drawField("Point de remise du courrier : (n° appart. , étage, couloir, escalier)", currentY); currentY += 6;
-        drawField("Complément d'adresse : (résidence, bâtiment, immeuble, tour, entrée,...)", currentY); currentY += 6;
-        drawField("N°, TYPE (rue, avenue), et NOM DE LA VOIE :", currentY, "15 RUE NICOLAS LOUIS VAUQUELIN"); currentY += 6;
-        drawField("Lieu dit ou service particulier de distribution : (ex : BP, poste restante)", currentY); currentY += 6;
-        drawField("CODE POSTAL et LOCALITÉ DE DESTINATION :", currentY, "31100 TOULOUSE"); currentY += 6;
-        drawField("Pays : (pour Andorre, Monaco, Collectivités d'Outre Mer, DOM)", currentY, "FRANCE"); currentY += 12;
+        const dateStr = new Date().toLocaleDateString('fr-FR');
+        const placeStr = (procurationData.lieuNaissance || 'TOULOUSE').toUpperCase();
 
-        // --- SECTION 3 : SIGNATURE ---
-        doc.setFillColor(0, 0, 0);
-        doc.rect(15, currentY - 3, 3, 3, 'F');
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.text("POUR RETIRER / RECEVOIR LES ENVOIS DE LA POSTE", 20, currentY);
-        
-        currentY += 10;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.text("À :", 15, currentY);
-        doc.setFont("helvetica", "normal");
-        doc.text("TOULOUSE", 25, currentY);
-        doc.setDrawColor(200, 200, 200);
-        doc.line(22, currentY + 1, 70, currentY + 1);
-        
-        doc.setFont("helvetica", "bold");
-        doc.text("Le :", 80, currentY);
-        const dateObj = new Date();
-        const dateStr = dateObj.toLocaleDateString('fr-FR');
-        doc.setFont("helvetica", "normal");
-        doc.text(dateStr, 90, currentY);
-        doc.line(88, currentY + 1, 130, currentY + 1);
-        
-        doc.setFont("helvetica", "bold");
-        doc.text("Signature du Client* :", 150, currentY);
-        doc.line(185, currentY + 1, 280, currentY + 1);
-        
+        // Signature image embedding
+        let signatureImage = null;
         if (signatureDataUrl) {
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(8);
-            doc.setTextColor(0, 0, 0);
-            doc.text("Bon pour procuration", 200, currentY - 8);
-            
-            const imgProps = doc.getImageProperties(signatureDataUrl);
-            const maxWidth = 50;
-            const maxHeight = 20;
-            const ratio = Math.min(maxWidth / imgProps.width, maxHeight / imgProps.height);
-            const w = imgProps.width * ratio;
-            const h = imgProps.height * ratio;
-            
-            doc.addImage(signatureDataUrl, 'PNG', 200, currentY - 6, w, h);
+            try {
+                const base64Data = signatureDataUrl.split(',')[1];
+                const binaryString = atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                signatureImage = await pdfDoc.embedPng(bytes);
+            } catch (sigErr) {
+                console.error("Error embedding signature image in procuration:", sigErr);
+            }
         }
-        
-        // --- SECTION 4 : PARTIE RÉSERVÉE LA POSTE ---
-        currentY += 15;
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(7);
-        doc.setTextColor(100, 100, 100);
-        doc.text("Partie à remplir par La Poste", 15, currentY);
-        
-        currentY += 2;
-        doc.setFillColor(240, 240, 240);
-        doc.rect(15, currentY, 265, 14, 'F');
-        
-        doc.setTextColor(0, 0, 0);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text("N° de Dossier de Société du CLIENT :", 20, currentY + 5);
-        doc.text("N° de Dossier de Société du PRESTATAIRE :", 150, currentY + 5);
-        
-        doc.setFont("helvetica", "normal");
-        const idP = procurationData.typePiece || '';
-        const idNum = procurationData.numeroPiece || '';
-        const idDelivrance = procurationData.dateDelivrance || '';
-        const idAuth = procurationData.autoriteDelivrance || '';
-        
-        doc.text(`Description de la pièce d'identité du représentant légal du Client : ${idP} N° ${idNum}`, 20, currentY + 10);
-        doc.text(`Délivrée le : ${idDelivrance}  Par : ${idAuth}`, 150, currentY + 10);
-        
-        // Footer eIDAS
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.setTextColor(150, 150, 150);
-        doc.text("* Signature électronique reconnue et certifiée conforme au règlement européen eIDAS.", 15, 206);
 
-        const dataUrl = doc.output('datauristring');
-        
-        // Convertir la Data URL en un Blob natif
-        const arr = dataUrl.split(',');
-        const mime = arr[0].match(/:(.*?);/)[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
+        // Overlay fields on Page 1 (exemplaire client) and Page 2 (exemplaire La Poste)
+        for (let i = 0; i < 2; i++) {
+            const page = pages[i];
+            
+            // 1. Mandant details
+            page.drawText(cleanForPdf(mandantNom), { x: 100, y: 362.3, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
+            page.drawText(cleanForPdf(mandantPrenoms), { x: 385, y: 362.3, size: 7.5, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
+            page.drawText(cleanForPdf(clientAddress), { x: 110, y: 351.5, size: 7, font: helveticaFont, color: rgb(0, 0, 0) });
+            
+            // 2. À / Le
+            page.drawText(cleanForPdf(placeStr), { x: 75, y: 340.7, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+            page.drawText(cleanForPdf(dateStr), { x: 230, y: 340.7, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+
+            // 3. Donne Pouvoir Checkbox (X)
+            page.drawText('X', { x: 174.6, y: 303.2, size: 8.5, font: helveticaBold, color: rgb(0, 0, 0) });
+
+            // 4. Mandataire details
+            page.drawText('MICRODIDACT / DOMICILIATION PAS CHER', { x: 100, y: 270.6, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
+            page.drawText('150 RUE NICOLAS LOUIS VAUQUELIN, LOT 308 - 31100 TOULOUSE', { x: 110, y: 259.8, size: 7, font: helveticaFont, color: rgb(0, 0, 0) });
+
+            // Checkbox: Retirer et recevoir les envois de La Poste (X)
+            page.drawText('X', { x: 118.5, y: 234.0, size: 8.5, font: helveticaBold, color: rgb(0, 0, 0) });
+
+            // Signature section hidden for procuration
         }
-        return new Blob([u8arr], { type: mime });
+
+        // Fill La Poste section on Page 2 only
+        const page2 = pages[1];
+        const idP = (procurationData.typePiece || "Carte d'Identité").toUpperCase();
+        const idNum = (procurationData.numeroPiece || '').toUpperCase();
+        const idDelivrance = (procurationData.dateDelivrance || '').toUpperCase();
+        const idAuth = (procurationData.autoriteDelivrance || '').toUpperCase();
+
+        page2.drawText(cleanForPdf(idP), { x: 175, y: 130.0, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page2.drawText(cleanForPdf(idNum), { x: 105, y: 119.2, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page2.drawText(cleanForPdf(clientName.toUpperCase()), { x: 150, y: 108.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page2.drawText(cleanForPdf(idDelivrance), { x: 115, y: 97.6, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page2.drawText(cleanForPdf(idAuth), { x: 80, y: 86.8, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+
+        const pdfBytes = await pdfDoc.save();
+        return new Blob([pdfBytes], { type: 'application/pdf' });
 
     } catch (err) {
-        console.error('Erreur generateSignedProcurationBlob jsPDF:', err);
+        console.error('Erreur generateSignedProcurationBlob:', err);
         throw err;
     }
 };

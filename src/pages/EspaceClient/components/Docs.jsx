@@ -2,10 +2,29 @@ import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
+import { fetchWithRetry } from '../../../utils/api';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { generateAttestationPdf, generateContratPdf, generateSignedContratBlob, generateSignedProcurationBlob } from '../../../utils/pdfGenerator';
 import SignatureModal from '../../../components/SignatureModal/SignatureModal';
+
+const blobToBase64 = (blob) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
+const handleDataUrlDownload = (url, filename) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 export default function Docs({ documents, setDocuments, clientData, setClientData }) {
     const [isUploading, setIsUploading] = useState(false);
@@ -14,6 +33,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     const [signedUrl, setSignedUrl] = useState(null);
     const [localSignatureUrl, setLocalSignatureUrl] = useState(null);
     const [downloadingDocId, setDownloadingDocId] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
     const [fileToName, setFileToName] = useState(null);
     const [customFileName, setCustomFileName] = useState('');
 
@@ -51,28 +71,34 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         if (!file) return;
         setIsUploadingKbis(true);
         try {
-            let fileToUpload = file;
-            if (fileToUpload.type === 'application/pdf' || fileToUpload.name.toLowerCase().endsWith('.pdf')) {
-                console.log("Conversion du KBIS en PNG...");
-                fileToUpload = await convertPdfToPng(fileToUpload);
+            const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+            let finalUrl = '';
+            let finalName = isPdf ? 'Extrait KBIS.pdf' : 'Extrait KBIS.png';
+            
+            if (isPdf) {
+                console.log("Traitement direct du KBIS PDF (sans Cloudinary)...");
+                finalUrl = await blobToBase64(file);
+            } else {
+                console.log("Upload du KBIS PNG vers Cloudinary...");
+                const res = await uploadFile(file, { folder: 'kbis' });
+                finalUrl = res.secure_url;
             }
 
-            const res = await uploadFile(fileToUpload, { folder: 'kbis' });
             const docData = await adminDataService.addDocument(clientData.id, {
-                name: 'Extrait KBIS.png',
-                size: (fileToUpload.size / 1024).toFixed(0) + ' KB',
-                type: fileToUpload.type,
+                name: finalName,
+                size: (file.size / 1024).toFixed(0) + ' KB',
+                type: file.type,
                 owner: 'client',
                 folder: 'Documents',
-                url: res.secure_url
+                url: finalUrl
             });
             const updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, {
-                kbisUrl: res.secure_url
+                kbisUrl: finalUrl
             });
             if (setClientData) {
                 setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
             }
-            setLocalKbisUrl(res.secure_url);
+            setLocalKbisUrl(finalUrl);
             setDocuments(prev => [docData, ...prev]);
         } catch (err) {
             console.error('KBIS upload error', err);
@@ -136,19 +162,25 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         setCustomFileName('');
 
         try {
-            let fileToUpload = originalFile;
-            if (originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf')) {
-                console.log("Conversion du PDF en PNG...");
-                fileToUpload = await convertPdfToPng(originalFile);
+            const isPdf = originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf');
+            let finalUrl = '';
+
+            if (isPdf) {
+                console.log("Traitement direct du PDF client (sans Cloudinary)...");
+                finalUrl = await blobToBase64(originalFile);
+            } else {
+                console.log("Upload du fichier image vers Cloudinary...");
+                const info = await uploadFile(originalFile, { folder: `clients/${clientData.id}/Documents` });
+                finalUrl = info.secure_url;
             }
-            const info = await uploadFile(fileToUpload, { folder: `clients/${clientData.id}/Documents` });
+
             await adminDataService.addDocument(clientData.id, {
                 name: finalName,
-                size: (fileToUpload.size / 1024).toFixed(0) + ' KB',
-                type: fileToUpload.type,
+                size: (originalFile.size / 1024).toFixed(0) + ' KB',
+                type: originalFile.type,
                 owner: 'client',
                 folder: 'Documents',
-                url: info.secure_url
+                url: finalUrl
             });
             const updatedDocs = await adminDataService.getDocuments(clientData.id);
             setDocuments(updatedDocs);
@@ -162,6 +194,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
     const handleSigned = async (signatureDataUrl) => {
         setShowSignModal(false);
+        setIsSaving(true);
         setSignStatus('loading');
 
         // Petit délai pour laisser React afficher l'état de chargement avant le calcul lourd (évite le freeze)
@@ -194,7 +227,14 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 contractSignedUrl: finalUrl
             };
 
-            const updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, extraInfo);
+            const response = await fetchWithRetry('/api/update-client-extra', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId: clientData.id, extraInfo })
+            });
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            const updatedExtra = await response.json();
+
             if (setClientData) {
                 setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
             }
@@ -217,25 +257,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             setLocalSignatureUrl(signatureDataUrl);
             setSignStatus('done');
 
-            // Auto-téléchargement du PDF
-            try {
-                console.log("Téléchargement automatique du contrat...");
-                const url = URL.createObjectURL(pdfBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Contrat_Signe_${clientData.company || clientData.id}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            } catch (autoDlErr) {
-                console.error("Erreur auto-téléchargement:", autoDlErr);
-            }
-
         } catch (err) {
             console.error('Erreur signature:', err);
             window.lastSignError = `[${step}] ` + (err.message || String(err));
             setSignStatus('error');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -273,7 +300,14 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 procurationSignedUrl: finalUrl
             };
 
-            const updatedExtraProc = await adminDataService.updateClientExtraInfo(clientData.id, extraInfo);
+            const response = await fetchWithRetry('/api/update-client-extra', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId: clientData.id, extraInfo })
+            });
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            const updatedExtraProc = await response.json();
+            
             if (setClientData) {
                 setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtraProc) }));
             }
@@ -396,16 +430,19 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     <button
                                         onClick={() => {
                                             if (!checkApproval()) return;
+                                            if (isSaving) return; // prevent duplicate clicks
                                             setShowSignModal(true);
                                         }}
+                                        disabled={isSaving || signStatus === 'loading'}
                                         style={{
                                             width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
-                                            background: 'linear-gradient(135deg, #1e40af, #0f172a)',
-                                            color: 'white', fontWeight: 700, fontSize: '14px', cursor: 'pointer',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                                            background: isSaving ? '#94a3b8' : 'linear-gradient(135deg, #1e40af, #0f172a)',
+                                            color: 'white', fontWeight: 700, fontSize: '14px', cursor: isSaving ? 'default' : 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                            opacity: isSaving ? 0.6 : 1
                                         }}
                                     >
-                                        ✍️ Signer mon contrat maintenant
+                                        {isSaving ? 'Enregistrement...' : '✍️ Signer mon contrat maintenant'}
                                     </button>
                                 </>
                             )}
@@ -416,6 +453,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 <span style={{ fontSize: '18px' }}>🎉</span>
                                 Votre contrat a été signé et enregistré avec succès.
                             </div>
+
+                            {/* Bouton téléchargement */}
                             {contractUrl && (
                                 <a
                                     href={contractUrl === '#local-signature' ? '#' : contractUrl}
@@ -429,11 +468,9 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 console.log("Tentative de génération du PDF...");
                                                 const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
                                                 if (!sig) {
-                                                    throw new Error("Données de signature introuvables en mémoire.");
+                                                    throw new Error("Données de signature introuvables en mémoire ou en base.");
                                                 }
-                                                console.log("Génération du blob PDF...");
                                                 const blob = await generateSignedContratBlob(clientData, sig);
-                                                console.log("Blob généré:", blob);
                                                 const url = URL.createObjectURL(blob);
                                                 const a = document.createElement('a');
                                                 a.href = url;
@@ -442,22 +479,24 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 a.click();
                                                 document.body.removeChild(a);
                                                 URL.revokeObjectURL(url);
-                                                console.log("Téléchargement lancé.");
                                             } catch (err) {
                                                 console.error("Erreur téléchargement PDF:", err);
                                                 alert("Erreur: " + err.message);
                                             } finally {
                                                 setDownloadingDocId(null);
                                             }
+                                        } else if (contractUrl.startsWith('data:')) {
+                                            e.preventDefault();
+                                            handleDataUrlDownload(contractUrl, `Contrat_Signe_${clientData.company || clientData.id}.pdf`);
                                         }
                                     }}
-                                    target={contractUrl === '#local-signature' ? '_self' : '_blank'}
+                                    target={contractUrl === '#local-signature' || contractUrl.startsWith('data:') ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                                         padding: '12px', borderRadius: '10px', textDecoration: 'none',
                                         background: '#f0fdf4', border: '1.5px solid #bbf7d0',
-                                        color: '#15803d', fontWeight: 700, fontSize: '13px',
+                                        color: '#15803d', fontWeight: 700, fontSize: '13px', width: '100%',
                                         pointerEvents: downloadingDocId ? 'none' : 'auto',
                                         opacity: downloadingDocId ? 0.7 : 1
                                     }}
@@ -582,6 +621,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 <span style={{ fontSize: '18px' }}>🎉</span>
                                 Votre procuration a été générée et signée avec succès.
                             </div>
+                            
+                            {/* Bouton téléchargement */}
                             {procUrl && (
                                 <a
                                     href={procUrl === '#local-procuration' ? '#' : procUrl}
@@ -592,11 +633,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             if (downloadingDocId) return;
                                             setDownloadingDocId('procuration-signe');
                                             try {
-                                                console.log("Tentative de génération PDF Procuration...");
+                                                console.log("Tentative de génération de la procuration...");
                                                 const sig = localProcSignatureUrl || procInfo?.procurationSignatureUrl;
                                                 const data = procInfo?.procurationData || procurationFormData;
-                                                if (!sig) throw new Error("Données de signature introuvables en mémoire.");
-
+                                                if (!sig) {
+                                                    throw new Error("Données de signature introuvables en mémoire ou en base.");
+                                                }
                                                 const blob = await generateSignedProcurationBlob(clientData, sig, data);
                                                 const url = URL.createObjectURL(blob);
                                                 const a = document.createElement('a');
@@ -607,20 +649,23 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 document.body.removeChild(a);
                                                 URL.revokeObjectURL(url);
                                             } catch (err) {
-                                                console.error("Erreur téléchargement Procuration PDF:", err);
+                                                console.error("Erreur téléchargement procuration:", err);
                                                 alert("Erreur: " + err.message);
                                             } finally {
                                                 setDownloadingDocId(null);
                                             }
+                                        } else if (procUrl.startsWith('data:')) {
+                                            e.preventDefault();
+                                            handleDataUrlDownload(procUrl, `Procuration_${clientData.company || clientData.id}.pdf`);
                                         }
                                     }}
-                                    target={procUrl === '#local-procuration' ? '_self' : '_blank'}
+                                    target={procUrl === '#local-procuration' || procUrl.startsWith('data:') ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                                         padding: '12px', borderRadius: '10px', textDecoration: 'none',
                                         background: '#f0fdf4', border: '1.5px solid #bbf7d0',
-                                        color: '#15803d', fontWeight: 700, fontSize: '13px',
+                                        color: '#15803d', fontWeight: 700, fontSize: '13px', width: '100%',
                                         pointerEvents: downloadingDocId ? 'none' : 'auto',
                                         opacity: downloadingDocId ? 0.7 : 1
                                     }}
@@ -631,7 +676,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             Génération du PDF...
                                         </>
                                     ) : (
-                                        <>📥 Télécharger ma procuration (PDF)</>
+                                        <>📥 Télécharger ma Procuration (PDF)</>
                                     )}
                                 </a>
                             )}
@@ -823,9 +868,14 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                     </div>
                                                 )}
                                                 <a
-                                                    href={(!doc.url || doc.url.startsWith('#')) ? '#' : doc.url}
+                                                    href={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? '#' : doc.url}
                                                     onClick={async (e) => {
                                                         if (!checkApproval()) { e.preventDefault(); return; }
+                                                        if (doc.url && doc.url.startsWith('data:')) {
+                                                            e.preventDefault();
+                                                            handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
+                                                            return;
+                                                        }
                                                         if (doc.url === '#local-signature') {
                                                             e.preventDefault();
                                                             if (downloadingDocId) return;
@@ -871,7 +921,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                             }
                                                         }
                                                     }}
-                                                    target={(!doc.url || doc.url.startsWith('#')) ? undefined : "_blank"}
+                                                    target={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? undefined : "_blank"}
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -939,11 +989,15 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                     </div>
                                                 )}
                                                 <a
-                                                    href={doc.url}
+                                                    href={(doc.url && doc.url.startsWith('data:')) ? '#' : doc.url}
                                                     onClick={(e) => {
                                                         if (!checkApproval()) { e.preventDefault(); return; }
+                                                        if (doc.url && doc.url.startsWith('data:')) {
+                                                            e.preventDefault();
+                                                            handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
+                                                        }
                                                     }}
-                                                    target="_blank"
+                                                    target={(doc.url && doc.url.startsWith('data:')) ? undefined : "_blank"}
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '8px',

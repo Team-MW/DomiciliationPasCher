@@ -24,8 +24,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
@@ -38,8 +37,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (typedName) {
             ctx.font = "italic 36px 'Georgia', serif";
             ctx.fillStyle = '#1e3a8a';
@@ -95,8 +93,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
     const clearCanvas = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         setHasSignature(false);
         if (mode === 'type') setTypedName('');
     };

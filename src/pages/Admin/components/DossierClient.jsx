@@ -21,6 +21,24 @@ const formatDateLong = (dateStr) => {
     return dateStr;
 };
 
+const handleDataUrlDownload = (url, filename) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const blobToBase64 = (blob) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
 export default function DossierClient({ client, onBack, onUpdate, showConfirm, showAlert }) {
     const [documents, setDocuments] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -161,24 +179,25 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         setCustomFileName('');
 
         try {
-            let fileToUpload = originalFile;
+            const isPdf = originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf');
+            let finalUrl = '';
 
-            // Si c'est un PDF, on le transforme en PNG avant l'envoi
-            if (originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf')) {
-                console.log("Conversion du PDF en PNG...");
-                fileToUpload = await convertPdfToPng(originalFile);
+            if (isPdf) {
+                console.log("Traitement direct du PDF admin (sans Cloudinary)...");
+                finalUrl = await blobToBase64(originalFile);
+            } else {
+                console.log("Upload du fichier image vers Cloudinary...");
+                const info = await uploadFile(originalFile, { folder: `clients/${client.id}/Documents` });
+                finalUrl = info.secure_url;
             }
-
-            console.log("Upload du document vers Cloudinary...");
-            const info = await uploadFile(fileToUpload, { folder: `clients/${client.id}/Documents` });
 
             await adminDataService.addDocument(client.id, {
                 name: finalName,
-                size: (fileToUpload.size / 1024).toFixed(0) + ' KB',
-                type: fileToUpload.type,
+                size: (originalFile.size / 1024).toFixed(0) + ' KB',
+                type: originalFile.type,
                 owner: 'admin',
                 folder: 'Documents',
-                url: info.secure_url
+                url: finalUrl
             });
 
             const docs = await adminDataService.getDocuments(client.id);
@@ -493,8 +512,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <div style={{ background: 'white', padding: '12px 20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                     {extra?.pieceIdentiteUrl && (
                                         <a
-                                            href={extra.pieceIdentiteUrl}
-                                            target="_blank"
+                                            href={extra.pieceIdentiteUrl.startsWith('data:') ? '#' : extra.pieceIdentiteUrl}
+                                            onClick={(e) => {
+                                                if (extra.pieceIdentiteUrl.startsWith('data:')) {
+                                                    e.preventDefault();
+                                                    handleDataUrlDownload(extra.pieceIdentiteUrl, 'Piece_Identite.pdf');
+                                                }
+                                            }}
+                                            target={extra.pieceIdentiteUrl.startsWith('data:') ? undefined : "_blank"}
                                             rel="noopener noreferrer"
                                             style={{
                                                 display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -508,8 +533,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     )}
                                     {extra?.justificatifDomicileUrl && (
                                         <a
-                                            href={extra.justificatifDomicileUrl}
-                                            target="_blank"
+                                            href={extra.justificatifDomicileUrl.startsWith('data:') ? '#' : extra.justificatifDomicileUrl}
+                                            onClick={(e) => {
+                                                if (extra.justificatifDomicileUrl.startsWith('data:')) {
+                                                    e.preventDefault();
+                                                    handleDataUrlDownload(extra.justificatifDomicileUrl, 'Justificatif_Domicile.pdf');
+                                                }
+                                            }}
+                                            target={extra.justificatifDomicileUrl.startsWith('data:') ? undefined : "_blank"}
                                             rel="noopener noreferrer"
                                             style={{
                                                 display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -523,8 +554,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     )}
                                     {extra?.kbisUrl && (
                                         <a
-                                            href={extra.kbisUrl}
-                                            target="_blank"
+                                            href={extra.kbisUrl.startsWith('data:') ? '#' : extra.kbisUrl}
+                                            onClick={(e) => {
+                                                if (extra.kbisUrl.startsWith('data:')) {
+                                                    e.preventDefault();
+                                                    handleDataUrlDownload(extra.kbisUrl, 'Extrait_KBIS.pdf');
+                                                }
+                                            }}
+                                            target={extra.kbisUrl.startsWith('data:') ? undefined : "_blank"}
                                             rel="noopener noreferrer"
                                             style={{
                                                 display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -538,9 +575,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     )}
                                     {extra?.contractSignedUrl && (
                                         <a
-                                            href={extra.contractSignedUrl === '#local-signature' ? '#' : extra.contractSignedUrl}
+                                            href={extra.contractSignedUrl === '#local-signature' || extra.contractSignedUrl.startsWith('data:') ? '#' : extra.contractSignedUrl}
                                             onClick={async (e) => {
-                                                if (extra.contractSignedUrl === '#local-signature') {
+                                                if (extra.contractSignedUrl.startsWith('data:')) {
+                                                    e.preventDefault();
+                                                    handleDataUrlDownload(extra.contractSignedUrl, `Contrat_Signe_${client.company || client.id}.pdf`);
+                                                } else if (extra.contractSignedUrl === '#local-signature') {
                                                     e.preventDefault();
                                                     if (downloadingDocId) return;
                                                     if (extra?.contractSignatureUrl) {
@@ -556,19 +596,23 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             a.click();
                                                             document.body.removeChild(a);
                                                             URL.revokeObjectURL(url);
-                                                        } catch (err) { console.error(err); } finally { setDownloadingDocId(null); }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        } finally {
+                                                            setDownloadingDocId(null);
+                                                        }
                                                     }
                                                 }
                                             }}
-                                            target={extra.contractSignedUrl === '#local-signature' ? '_self' : '_blank'}
+                                            target={extra.contractSignedUrl === '#local-signature' || extra.contractSignedUrl.startsWith('data:') ? '_self' : '_blank'}
                                             rel="noopener noreferrer"
                                             style={{
                                                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                                                 padding: '9px 16px', borderRadius: '8px', textDecoration: 'none',
                                                 background: '#f1f5f9', border: '1px solid #cbd5e1',
                                                 color: '#334155', fontWeight: 600, fontSize: '13px',
-                                                pointerEvents: downloadingDocId ? 'none' : 'auto',
-                                                opacity: downloadingDocId ? 0.7 : 1
+                                                opacity: downloadingDocId === 'contrat-signe' ? 0.6 : 1,
+                                                pointerEvents: downloadingDocId ? 'none' : 'auto'
                                             }}
                                         >
                                             {downloadingDocId === 'contrat-signe' ? 'Génération...' : '👁️ Voir le Contrat'}
@@ -576,9 +620,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     )}
                                     {extra?.procurationSignedUrl && (
                                         <a
-                                            href={extra.procurationSignedUrl === '#local-procuration' ? '#' : extra.procurationSignedUrl}
+                                            href={extra.procurationSignedUrl === '#local-procuration' || extra.procurationSignedUrl.startsWith('data:') ? '#' : extra.procurationSignedUrl}
                                             onClick={async (e) => {
-                                                if (extra.procurationSignedUrl === '#local-procuration') {
+                                                if (extra.procurationSignedUrl.startsWith('data:')) {
+                                                    e.preventDefault();
+                                                    handleDataUrlDownload(extra.procurationSignedUrl, `Procuration_${client.company || client.id}.pdf`);
+                                                } else if (extra.procurationSignedUrl === '#local-procuration') {
                                                     e.preventDefault();
                                                     if (downloadingDocId) return;
                                                     if (extra?.procurationSignatureUrl) {
@@ -594,19 +641,23 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             a.click();
                                                             document.body.removeChild(a);
                                                             URL.revokeObjectURL(url);
-                                                        } catch (err) { console.error(err); } finally { setDownloadingDocId(null); }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        } finally {
+                                                            setDownloadingDocId(null);
+                                                        }
                                                     }
                                                 }
                                             }}
-                                            target={extra.procurationSignedUrl === '#local-procuration' ? '_self' : '_blank'}
+                                            target={extra.procurationSignedUrl === '#local-procuration' || extra.procurationSignedUrl.startsWith('data:') ? '_self' : '_blank'}
                                             rel="noopener noreferrer"
                                             style={{
                                                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                                                 padding: '9px 16px', borderRadius: '8px', textDecoration: 'none',
                                                 background: '#f1f5f9', border: '1px solid #cbd5e1',
                                                 color: '#334155', fontWeight: 600, fontSize: '13px',
-                                                pointerEvents: downloadingDocId ? 'none' : 'auto',
-                                                opacity: downloadingDocId ? 0.7 : 1
+                                                opacity: downloadingDocId === 'procuration-signe' ? 0.6 : 1,
+                                                pointerEvents: downloadingDocId ? 'none' : 'auto'
                                             }}
                                         >
                                             {downloadingDocId === 'procuration-signe' ? 'Génération...' : '👁️ Voir la Procuration'}
@@ -656,8 +707,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         {contractSigned && contractUrl && (
                                             <div style={{ background: 'white', padding: '12px 20px' }}>
                                                 <a
-                                                    href={contractUrl === '#local-signature' ? '#' : contractUrl}
+                                                    href={contractUrl === '#local-signature' || contractUrl.startsWith('data:') ? '#' : contractUrl}
                                                     onClick={async (e) => {
+                                                        if (contractUrl && contractUrl.startsWith('data:')) {
+                                                            e.preventDefault();
+                                                            handleDataUrlDownload(contractUrl, `Contrat_Signe_${client.company || client.id}.pdf`);
+                                                            return;
+                                                        }
                                                         if (contractUrl === '#local-signature') {
                                                             e.preventDefault();
                                                             if (downloadingDocId) return;
@@ -682,7 +738,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             }
                                                         }
                                                     }}
-                                                    target={contractUrl === '#local-signature' ? '_self' : '_blank'}
+                                                    target={contractUrl === '#local-signature' || contractUrl.startsWith('data:') ? '_self' : '_blank'}
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -705,7 +761,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             </div>
                                         )}
                                     </div>
-
+ 
                                     {/* PROCURATION POSTALE */}
                                     <div style={{
                                         borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
@@ -740,8 +796,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         {extra?.procurationSigned && extra?.procurationSignedUrl && (
                                             <div style={{ background: 'white', padding: '12px 20px' }}>
                                                 <a
-                                                    href={extra.procurationSignedUrl === '#local-procuration' ? '#' : extra.procurationSignedUrl}
+                                                    href={extra.procurationSignedUrl === '#local-procuration' || extra.procurationSignedUrl.startsWith('data:') ? '#' : extra.procurationSignedUrl}
                                                     onClick={async (e) => {
+                                                        if (extra.procurationSignedUrl && extra.procurationSignedUrl.startsWith('data:')) {
+                                                            e.preventDefault();
+                                                            handleDataUrlDownload(extra.procurationSignedUrl, `Procuration_${client.company || client.id}.pdf`);
+                                                            return;
+                                                        }
                                                         if (extra.procurationSignedUrl === '#local-procuration') {
                                                             e.preventDefault();
                                                             if (downloadingDocId) return;
@@ -766,7 +827,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             }
                                                         }
                                                     }}
-                                                    target={extra.procurationSignedUrl === '#local-procuration' ? '_self' : '_blank'}
+                                                    target={extra.procurationSignedUrl === '#local-procuration' || extra.procurationSignedUrl.startsWith('data:') ? '_self' : '_blank'}
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -868,8 +929,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             </div>
                                                         )}
                                                         <a
-                                                            href={(doc.url === '#local-signature' || doc.url === '#local-procuration') ? '#' : doc.url}
+                                                            href={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '#' : doc.url}
                                                             onClick={async (e) => {
+                                                                if (doc.url && doc.url.startsWith('data:')) {
+                                                                    e.preventDefault();
+                                                                    handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
+                                                                    return;
+                                                                }
                                                                 if (doc.url === '#local-signature') {
                                                                     e.preventDefault();
                                                                     if (downloadingDocId) return;
@@ -918,7 +984,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                     }
                                                                 }
                                                             }}
-                                                            target={(doc.url === '#local-signature' || doc.url === '#local-procuration') ? '_self' : '_blank'}
+                                                            target={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '_self' : '_blank'}
                                                             rel="noopener noreferrer"
                                                             style={{
                                                                 display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -988,8 +1054,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             </div>
                                                         )}
                                                         <a
-                                                            href={doc.url}
-                                                            target="_blank"
+                                                            href={(doc.url && doc.url.startsWith('data:')) ? '#' : doc.url}
+                                                            onClick={(e) => {
+                                                                if (doc.url && doc.url.startsWith('data:')) {
+                                                                    e.preventDefault();
+                                                                    handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
+                                                                }
+                                                            }}
+                                                            target={(doc.url && doc.url.startsWith('data:')) ? undefined : "_blank"}
                                                             rel="noopener noreferrer"
                                                             style={{
                                                                 display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -1363,18 +1435,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
             <div style={{ display: 'inline-flex', padding: '4px', background: '#F1F5F9', borderRadius: '8px', marginBottom: '24px', gap: '4px' }}>
                 <button
+                    data-testid="tab-details"
                     onClick={() => setActiveDossierTab('details')}
                     style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'details' ? 'white' : 'transparent', color: activeDossierTab === 'details' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'details' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
                     Détails Client
                 </button>
+                <button data-testid="tab-docs" onClick={() => setActiveDossierTab('docs')} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'docs' ? 'white' : 'transparent', color: activeDossierTab === 'docs' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'docs' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Documents</button>
+                <button data-testid="tab-docs-hidden" style={{display:'none'}}>Documents</button>
+                
                 <button
-                    onClick={() => setActiveDossierTab('docs')}
-                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'docs' ? 'white' : 'transparent', color: activeDossierTab === 'docs' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'docs' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                >
-                    Documents
-                </button>
-                <button
+                    data-testid="tab-messages"
                     onClick={() => setActiveDossierTab('messages')}
                     style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'messages' ? 'white' : 'transparent', color: activeDossierTab === 'messages' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'messages' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >

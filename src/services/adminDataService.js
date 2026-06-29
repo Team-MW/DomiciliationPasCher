@@ -1,4 +1,5 @@
 import { conn } from '../lib/db';
+import { fetchWithRetry } from '../utils/api';
 
 /**
  * ADMIN DATA SERVICE - Version PlanetScale
@@ -103,7 +104,7 @@ export const adminDataService = {
         const client = await this.getClientById(id);
         if (client && client.clerkId && client.clerkId !== 'user_unknown') {
             try {
-                const resp = await fetch('/api/delete-user', {
+                const resp = await fetchWithRetry('/api/delete-user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ clerkId: client.clerkId })
@@ -246,7 +247,7 @@ export const adminDataService = {
         const clerkId = res.rows[0]?.clerkId;
         if (clerkId && clerkId !== 'user_unknown') {
             try {
-                await fetch('/api/delete-user', {
+                await fetchWithRetry('/api/delete-user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ clerkId })
@@ -300,22 +301,17 @@ export const adminDataService = {
 
     // --- BOOKINGS ---
     async getBookings() {
-        const res = await conn.execute('SELECT * FROM bookings ORDER BY date DESC');
-        return res.rows;
-    },
-
-    async getClientBookings(clientId) {
-        const res = await conn.execute('SELECT * FROM bookings WHERE clientId = ? ORDER BY `date` DESC', [clientId]);
-        return res.rows;
-    },
-
-    async getBookings() {
         const res = await conn.execute(`
             SELECT b.*, c.company as clientName 
             FROM bookings b 
             LEFT JOIN clients c ON b.clientId = c.id 
             ORDER BY b.createdAt DESC
         `);
+        return res.rows;
+    },
+
+    async getClientBookings(clientId) {
+        const res = await conn.execute('SELECT * FROM bookings WHERE clientId = ? ORDER BY `date` DESC', [clientId]);
         return res.rows;
     },
 
@@ -375,7 +371,7 @@ export const adminDataService = {
             if (sinceDate) {
                 url += `&since=${encodeURIComponent(sinceDate)}`;
             }
-            const res = await fetch(url);
+            const res = await fetchWithRetry(url);
             const data = await res.json();
             return data.payments || [];
         } catch (err) {

@@ -33,7 +33,7 @@ function LoadingFallback() {
 }
 
 /* Route protégée : redirige vers /connexion si non connecté */
-function ProtectedRoute({ children }) {
+export function ProtectedRoute({ children }) {
   const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
 
   if (isPreview) return children;
@@ -47,7 +47,7 @@ function ProtectedRoute({ children }) {
 }
 
 /* Route publique uniquement : redirige vers l'app si déjà connecté */
-function PublicOnlyRoute({ children }) {
+export function PublicOnlyRoute({ children }) {
   const { user, isLoaded } = useUser();
   
   if (isLoaded && user) {
