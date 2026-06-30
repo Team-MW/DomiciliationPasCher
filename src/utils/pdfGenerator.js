@@ -801,44 +801,61 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
                 console.error("Error embedding signature image in procuration:", sigErr);
             }
         }
-
+        
         const page1 = pages[0];
+        
+        const boxWidth = 12.853;
+        function drawInBoxes(text, startX, startY, fontObj, size, maxLen = 38) {
+            if (!text) return;
+            const cleaned = cleanForPdf(text.toString().toUpperCase());
+            for (let i = 0; i < cleaned.length && i < maxLen; i++) {
+                page1.drawText(cleaned[i], {
+                    x: startX + (i * boxWidth) + 2.5,
+                    y: startY + 3.5,
+                    size: size,
+                    font: fontObj,
+                    color: rgb(0, 0, 0)
+                });
+            }
+        }
             
-        // 1. Mandant details
-        page1.drawText(cleanForPdf(fullName), { x: 365, y: 497, size: 9, font: helveticaBold, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(pRemise), { x: 365, y: 476.6, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(pComplement), { x: 365, y: 456.0, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(pVoie), { x: 365, y: 435.9, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(pLieuDit), { x: 365, y: 415.4, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        // 1. Mandant details (Boxes start at X=360.4488)
+        drawInBoxes(fullName, 360.4488, 496.9791, helveticaBold, 9);
+        drawInBoxes(pRemise, 360.4488, 476.6271, helveticaFont, 9);
+        drawInBoxes(pComplement, 360.4488, 455.9871, helveticaFont, 9);
+        drawInBoxes(pVoie, 360.4488, 435.9071, helveticaFont, 9);
+        drawInBoxes(pLieuDit, 360.4488, 415.3631, helveticaFont, 9);
         
         const cp = pCodePostalVille.split(' ')[0] || '';
         const ville = pCodePostalVille.substring(cp.length).trim() || '';
-        page1.drawText(cleanForPdf(cp), { x: 365, y: 394.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(ville), { x: 442, y: 394.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        drawInBoxes(cp, 360.4488, 394.7551, helveticaFont, 9, 5);
+        drawInBoxes(ville, 437.3128, 394.7551, helveticaFont, 9, 32);
         
+        // Représenté par & Qualité
+        page1.drawText(cleanForPdf(clientName.toUpperCase()), { x: 110, y: 347, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText("DIRIGEANT", { x: 400, y: 347, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        // Donne pouvoir Checkbox
+        page1.drawText('X', { x: 582, y: 347, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
+
         // 2. Mandataire details
-        page1.drawText('MWCREA - CASSIN LUDOVIC', { x: 365, y: 287.9, size: 9, font: helveticaBold, color: rgb(0, 0, 0) });
-        page1.drawText('LOT 308', { x: 365, y: 246.9, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText('150', { x: 365, y: 226.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText('RUE NICOLAS LOUIS VAUQUELIN', { x: 400, y: 226.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText('31100', { x: 365, y: 185.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText('TOULOUSE', { x: 442, y: 185.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        drawInBoxes('MWCREA - CASSIN LUDOVIC', 360.4488, 287.8911, helveticaBold, 9);
+        // Point de remise empty
+        drawInBoxes('LOT 308', 360.4488, 246.8991, helveticaFont, 9);
+        drawInBoxes('150 RUE NICOLAS LOUIS VAUQUELIN', 360.4488, 226.8191, helveticaFont, 9);
+        drawInBoxes('31100', 360.4488, 185.6671, helveticaFont, 9, 5);
+        drawInBoxes('TOULOUSE', 437.3128, 185.6671, helveticaFont, 9, 32);
 
         // 3. À / Le
         page1.drawText(cleanForPdf(placeStr), { x: 55, y: 111.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText(cleanForPdf(dateStr), { x: 235, y: 111.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
 
-        // 4. Checkboxes (X)
-        page1.drawText('X', { x: 104.5, y: 130.0, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
-        page1.drawText('X', { x: 104.5, y: 308.0, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
-
         // 5. Signature du Client
         if (signatureImage) {
             page1.drawImage(signatureImage, {
-                x: 435,
-                y: 95,
-                width: 90,
-                height: 30
+                x: 520,
+                y: 85,
+                width: 120,
+                height: 35
             });
         }
 
@@ -848,13 +865,13 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         const idDelivrance = (procurationData.dateDelivrance || '').toUpperCase();
         const idAuth = (procurationData.autoriteDelivrance || '').toUpperCase();
 
-        page1.drawText(cleanForPdf(clientData.company || clientData.id || ''), { x: 200, y: 70.5, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText('MWCREA', { x: 620, y: 70.5, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        const clientIdVal = clientData.company || clientData.id || '';
+        drawInBoxes(clientIdVal, 215, 70, helveticaFont, 9, 15);
+        drawInBoxes('MWCREA', 655, 70, helveticaFont, 9, 15);
         
-        page1.drawText(cleanForPdf(idP), { x: 150, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(idNum), { x: 250, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(idDelivrance), { x: 460, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText(cleanForPdf(idAuth), { x: 640, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(idP + (idNum ? ' N° ' + idNum : '')), { x: 165, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(idDelivrance), { x: 465, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(idAuth), { x: 650, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
 
         const pdfBytes = await pdfDoc.save();
         return new Blob([pdfBytes], { type: 'application/pdf' });
