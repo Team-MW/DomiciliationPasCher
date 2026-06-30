@@ -1140,9 +1140,13 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     <input type="text" placeholder="Ex: Préfecture" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.autoriteDelivrance} onChange={e => setProcurationFormData({ ...procurationFormData, autoriteDelivrance: e.target.value })} />
                                 </div>
                             </div>
+                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Numéro SIRET (Optionnel si en cours d'immatriculation)</label>
+                                <input type="text" placeholder="Ex: 12345678900012" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.siret || ''} onChange={e => setProcurationFormData({ ...procurationFormData, siret: e.target.value })} />
+                            </div>
 
                             {/* Nouveaux champs pour l'adresse d'expédition (optionnels) */}
-                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed #cbd5e1' }}>
                                 <h3 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#0f172a' }}>Adresse du destinataire (Optionnel)</h3>
 
                                 <div>
