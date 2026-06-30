@@ -832,13 +832,13 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         drawInBoxes(ville, 437.3128, 394.7551, helveticaFont, 9, 32);
         
         // Représenté par & Qualité
-        page1.drawText(cleanForPdf(clientName.toUpperCase()), { x: 110, y: 347, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page1.drawText("DIRIGEANT", { x: 400, y: 347, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(clientName.toUpperCase()), { x: 110, y: 355, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText("DIRIGEANT", { x: 410, y: 355, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         // Donne pouvoir Checkbox
-        page1.drawText('X', { x: 582, y: 347, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
+        page1.drawText('X', { x: 596.5, y: 355, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
 
         // 2. Mandataire details
-        drawInBoxes('MWCREA - CASSIN LUDOVIC', 360.4488, 287.8911, helveticaBold, 9);
+        drawInBoxes('DOMICILIATION PAS CHER', 360.4488, 287.8911, helveticaBold, 9);
         // Point de remise empty
         drawInBoxes('LOT 308', 360.4488, 246.8991, helveticaFont, 9);
         drawInBoxes('150 RUE NICOLAS LOUIS VAUQUELIN', 360.4488, 226.8191, helveticaFont, 9);
@@ -853,7 +853,7 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         if (signatureImage) {
             page1.drawImage(signatureImage, {
                 x: 520,
-                y: 85,
+                y: 93, // Moved up slightly from 85
                 width: 120,
                 height: 35
             });
@@ -866,8 +866,31 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         const idAuth = (procurationData.autoriteDelivrance || '').toUpperCase();
 
         const clientIdVal = clientData.company || clientData.id || '';
-        drawInBoxes(clientIdVal, 215, 70, helveticaFont, 9, 15);
-        drawInBoxes('MWCREA', 655, 70, helveticaFont, 9, 15);
+        const clientSiret = (procurationData.siret || clientData.siret || '').replace(/\D/g, ''); // Extract only digits
+        
+        // Helper specifically for bottom boxes which are slightly wider
+        function drawInBottomBoxes(text, startX, startY, fontObj, size, maxLen = 15) {
+            if (!text) return;
+            const cleaned = cleanForPdf(text.toString().toUpperCase());
+            const bottomBoxWidth = 14.28; // Increased slightly from 14.1 for better spacing match
+            for (let i = 0; i < cleaned.length && i < maxLen; i++) {
+                page1.drawText(cleaned[i], {
+                    x: startX + (i * bottomBoxWidth) + 3,
+                    y: startY + 2.5, // Moved down slightly from 3.5 to center vertically
+                    size: size,
+                    font: fontObj,
+                    color: rgb(0, 0, 0)
+                });
+            }
+        }
+        
+        // N° Dossier
+        drawInBottomBoxes(clientIdVal, 211.5, 70, helveticaFont, 9, 15);
+        drawInBottomBoxes('MWCREA', 646.5, 70, helveticaFont, 9, 15);
+        
+        // N° SIRET
+        drawInBottomBoxes(clientSiret, 646.5, 517.5, helveticaFont, 9, 14); // Client SIRET
+        drawInBottomBoxes('10151253100018', 646.5, 308.5, helveticaFont, 9, 14); // Prestataire SIRET (DOMICILIATION PAS CHER)
         
         page1.drawText(cleanForPdf(idP + (idNum ? ' N° ' + idNum : '')), { x: 165, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText(cleanForPdf(idDelivrance), { x: 465, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
@@ -875,7 +898,6 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
 
         const pdfBytes = await pdfDoc.save();
         return new Blob([pdfBytes], { type: 'application/pdf' });
-
     } catch (err) {
         console.error('Erreur generateSignedProcurationBlob:', err);
         throw err;
