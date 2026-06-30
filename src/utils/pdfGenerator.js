@@ -756,9 +756,9 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         let existingPdfBytes;
         if (typeof window === 'undefined' || (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test')) {
             const fs = await import('fs');
-            existingPdfBytes = fs.readFileSync('public/Demande_de_procuration.pdf');
+            existingPdfBytes = fs.readFileSync('public/Formulaire-procuration-postale.pdf');
         } else {
-            existingPdfBytes = await fetch('/Demande_de_procuration.pdf').then(res => res.arrayBuffer());
+            existingPdfBytes = await fetch('/Formulaire-procuration-postale.pdf').then(res => res.arrayBuffer());
         }
 
         const pdfDoc = await PDFDocument.load(existingPdfBytes);
@@ -777,11 +777,10 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         const pLieuDit = procurationData.lieuDit || '';
         const pCodePostalVille = procurationData.codePostalVille || '';
         
-        const clientAddress = `${pRemise} ${pComplement} ${pVoie} ${pLieuDit} ${pCodePostalVille}`.trim().toUpperCase() || clientData.address || '';
-        
         // Prepare text values
         const mandantNom = clientData.company ? clientData.company.toUpperCase() : (extra.nom || clientData.name || '').toUpperCase();
         const mandantPrenoms = clientData.company ? `(REP. PAR ${clientName.toUpperCase()})` : (extra.prenom || '').toUpperCase();
+        const fullName = `${mandantNom} ${mandantPrenoms}`.trim();
         
         const dateStr = new Date().toLocaleDateString('fr-FR');
         const placeStr = (procurationData.lieuNaissance || 'TOULOUSE').toUpperCase();
@@ -803,53 +802,59 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
             }
         }
 
-        // Overlay fields on Page 1 (exemplaire client) and Page 2 (exemplaire La Poste)
-        for (let i = 0; i < 2; i++) {
-            const page = pages[i];
+        const page1 = pages[0];
             
-            // 1. Mandant details
-            page.drawText(cleanForPdf(mandantNom), { x: 100, y: 362.3, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
-            page.drawText(cleanForPdf(mandantPrenoms), { x: 410, y: 362.3, size: 7.5, font: helveticaFont, color: rgb(0.1, 0.1, 0.1) });
-            page.drawText(cleanForPdf(clientAddress), { x: 110, y: 351.5, size: 7, font: helveticaFont, color: rgb(0, 0, 0) });
-            
-            // 2. À / Le
-            page.drawText(cleanForPdf(placeStr), { x: 75, y: 340.7, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-            page.drawText(cleanForPdf(dateStr), { x: 230, y: 340.7, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        // 1. Mandant details
+        page1.drawText(cleanForPdf(fullName), { x: 365, y: 497, size: 9, font: helveticaBold, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(pRemise), { x: 365, y: 476.6, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(pComplement), { x: 365, y: 456.0, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(pVoie), { x: 365, y: 435.9, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(pLieuDit), { x: 365, y: 415.4, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        
+        const cp = pCodePostalVille.split(' ')[0] || '';
+        const ville = pCodePostalVille.substring(cp.length).trim() || '';
+        page1.drawText(cleanForPdf(cp), { x: 365, y: 394.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(ville), { x: 442, y: 394.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        
+        // 2. Mandataire details
+        page1.drawText('MWCREA - CASSIN LUDOVIC', { x: 365, y: 287.9, size: 9, font: helveticaBold, color: rgb(0, 0, 0) });
+        page1.drawText('LOT 308', { x: 365, y: 246.9, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText('150', { x: 365, y: 226.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText('RUE NICOLAS LOUIS VAUQUELIN', { x: 400, y: 226.8, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText('31100', { x: 365, y: 185.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText('TOULOUSE', { x: 442, y: 185.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
 
-            // 3. Donne Pouvoir Checkbox (X)
-            page.drawText('X', { x: 172.5, y: 303.2, size: 8.5, font: helveticaBold, color: rgb(0, 0, 0) });
+        // 3. À / Le
+        page1.drawText(cleanForPdf(placeStr), { x: 55, y: 111.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(dateStr), { x: 235, y: 111.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
 
-            // 4. Mandataire details
-            page.drawText('CASSIN', { x: 100, y: 270.6, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
-            page.drawText('LUDOVIC', { x: 410, y: 270.6, size: 8, font: helveticaBold, color: rgb(0, 0, 0) });
-            page.drawText('150 RUE NICOLAS LOUIS VAUQUELIN, LOT 308 - 31100 TOULOUSE', { x: 110, y: 259.8, size: 7, font: helveticaFont, color: rgb(0, 0, 0) });
+        // 4. Checkboxes (X)
+        page1.drawText('X', { x: 104.5, y: 130.0, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
+        page1.drawText('X', { x: 104.5, y: 308.0, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
 
-            // Checkbox: Retirer et recevoir les envois de La Poste (X)
-            page.drawText('X', { x: 118.5, y: 234.0, size: 8.5, font: helveticaBold, color: rgb(0, 0, 0) });
-
-            // 5. Signature du Client
-            if (signatureImage) {
-                page.drawImage(signatureImage, {
-                    x: 430,
-                    y: 312,
-                    width: 55,
-                    height: 18
-                });
-            }
+        // 5. Signature du Client
+        if (signatureImage) {
+            page1.drawImage(signatureImage, {
+                x: 435,
+                y: 95,
+                width: 90,
+                height: 30
+            });
         }
 
-        // Fill La Poste section on Page 2 only
-        const page2 = pages[1];
+        // 6. La Poste section (Partie à remplir par La Poste)
         const idP = (procurationData.typePiece || "Carte d'Identité").toUpperCase();
         const idNum = (procurationData.numeroPiece || '').toUpperCase();
         const idDelivrance = (procurationData.dateDelivrance || '').toUpperCase();
         const idAuth = (procurationData.autoriteDelivrance || '').toUpperCase();
 
-        page2.drawText(cleanForPdf(idP), { x: 175, y: 130.0, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page2.drawText(cleanForPdf(idNum), { x: 105, y: 119.2, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page2.drawText(cleanForPdf(clientName.toUpperCase()), { x: 150, y: 108.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page2.drawText(cleanForPdf(idDelivrance), { x: 115, y: 97.6, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
-        page2.drawText(cleanForPdf(idAuth), { x: 80, y: 86.8, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(clientData.company || clientData.id || ''), { x: 200, y: 70.5, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText('MWCREA', { x: 620, y: 70.5, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        
+        page1.drawText(cleanForPdf(idP), { x: 150, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(idNum), { x: 250, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(idDelivrance), { x: 460, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
+        page1.drawText(cleanForPdf(idAuth), { x: 640, y: 40.4, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
 
         const pdfBytes = await pdfDoc.save();
         return new Blob([pdfBytes], { type: 'application/pdf' });

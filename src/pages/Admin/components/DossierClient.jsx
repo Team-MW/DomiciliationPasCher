@@ -173,7 +173,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         if (!fileToName) return;
         setIsUploading(true);
         const originalFile = fileToName;
-        
+
         const originalExt = originalFile.name.includes('.') ? originalFile.name.substring(originalFile.name.lastIndexOf('.')) : '';
         let finalName = customFileName.trim() || originalFile.name;
         if (customFileName.trim() && originalExt && !finalName.toLowerCase().endsWith(originalExt.toLowerCase())) {
@@ -767,7 +767,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             </div>
                                         )}
                                     </div>
- 
+
                                     {/* PROCURATION POSTALE */}
                                     <div style={{
                                         borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
@@ -1040,8 +1040,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 if (name.includes('procuration postale')) return false;
                                                 return true;
                                             }).length === 0 && (
-                                                <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par le client.</div>
-                                            )}
+                                                    <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par le client.</div>
+                                                )}
                                         </div>
                                     </div>
 
@@ -1448,8 +1448,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     Détails Client
                 </button>
                 <button data-testid="tab-docs" onClick={() => setActiveDossierTab('docs')} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'docs' ? 'white' : 'transparent', color: activeDossierTab === 'docs' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'docs' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Documents</button>
-                <button data-testid="tab-docs-hidden" style={{display:'none'}}>Documents</button>
-                
+                <button data-testid="tab-docs-hidden" style={{ display: 'none' }}>Documents</button>
+
                 <button
                     data-testid="tab-messages"
                     onClick={() => setActiveDossierTab('messages')}
