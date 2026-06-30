@@ -888,9 +888,9 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         drawInBottomBoxes(clientIdVal, 211.5, 70, helveticaFont, 9, 15);
         drawInBottomBoxes('MWCREA', 646.5, 70, helveticaFont, 9, 15);
         
-        // N° SIRET (Utilise les petites cases standard)
-        drawInBoxes(clientSiret, 661, 511, helveticaFont, 9, 14); // Client SIRET
-        drawInBoxes('10151253100018', 661, 302, helveticaFont, 9, 14); // Prestataire SIRET (DOMICILIATION PAS CHER)
+        // N° SIRET (Utilise les petites cases standard, centrage parfait)
+        drawInBoxes(clientSiret, 654.5, 513, helveticaFont, 9, 14); // Client SIRET
+        drawInBoxes('10151253100018', 654.5, 304, helveticaFont, 9, 14); // Prestataire SIRET (DOMICILIATION PAS CHER)
         
         page1.drawText(cleanForPdf(idP + (idNum ? ' N° ' + idNum : '')), { x: 165, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText(cleanForPdf(idDelivrance), { x: 465, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });

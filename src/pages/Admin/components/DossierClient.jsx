@@ -389,6 +389,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             extra = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
             // Si c'est un objet vide, on le remet à null pour l'affichage du message d'aide
             if (extra && Object.keys(extra).length === 0) extra = null;
+            
+            // Force local PDF generation in the admin panel if signature data exists
+            // This ensures it behaves just like the client view and avoids Cloudinary URL issues
+            if (extra && extra.procurationSignatureUrl) {
+                extra.procurationSignedUrl = '#local-procuration';
+            }
+            if (extra && extra.contractSignatureUrl) {
+                extra.contractSignedUrl = '#local-signature';
+            }
         }
     } catch (e) {
         console.error("Error parsing extra_info", e);
