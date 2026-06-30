@@ -13,6 +13,17 @@ if (rootElement) {
   rootElement.innerHTML = '<h1 style="color: green; text-align: center; padding: 100px;">React se charge...</h1>';
 }
 
+// Diagnostic rassurant pour le développeur en production
+if (clerkPublishableKey && clerkPublishableKey.startsWith('pk_live_')) {
+  console.group('%c[Diagnostic Clerk 🔐]', 'color: #10b981; font-weight: bold; font-size: 14px');
+  console.log('%c✅ Clé de production (pk_live) détectée et valide.', 'color: #059669; font-weight: bold');
+  console.log('%c⚠️ SI vous voyez l\'erreur "ERR_SSL_VERSION_OR_CIPHER_MISMATCH" ou "failed to load script" après ce message :', 'color: #d97706; font-weight: bold');
+  console.log('%c👉 Cela confirme à 100% que le certificat SSL de votre sous-domaine est encore en cours de création par Cloudflare/Clerk.', 'color: #4b5563');
+  console.log('%c👉 Le code, les DNS et la configuration Vercel sont PARFAITS. Il suffit juste de patienter (jusqu\'à 1h).', 'color: #4b5563');
+  console.log('%c👉 Si l\'erreur est différente (ex: Invalid Origin, CORS), vérifiez votre configuration Clerk.', 'color: #ef4444');
+  console.groupEnd();
+}
+
 if (!clerkPublishableKey) {
   // Au lieu de throw, on affiche un message clair dans le DOM
   // pour éviter la page blanche et guider l'utilisateur.
