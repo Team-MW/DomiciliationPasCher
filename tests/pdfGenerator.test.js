@@ -277,5 +277,47 @@ describe('PDF Generator Utility Functions', () => {
             expect(blob).toBeInstanceOf(Blob);
             expect(blob.type).toBe('application/pdf');
         });
+
+        test('should place SIRET and Représenté par exactly at the correct coordinates', async () => {
+            const client = {
+                id: '123',
+                name: 'Bob Martin',
+                company: 'Bob Corp',
+                siret: '123456789'
+            };
+            
+            const signatureDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+            const procurationData = { siret: '123456789' };
+
+            // We use vitest's vi.spyOn on pdf-lib's PDFDocument
+            const { PDFDocument } = await import('pdf-lib');
+            const originalLoad = PDFDocument.load;
+            
+            let drawTextSpy;
+            vi.spyOn(PDFDocument, 'load').mockImplementationOnce(async (bytes) => {
+                const doc = await originalLoad(bytes);
+                const page = doc.getPages()[0];
+                drawTextSpy = vi.spyOn(page, 'drawText');
+                return doc;
+            });
+
+            await generateSignedProcurationBlob(client, signatureDataUrl, procurationData);
+            
+            // Verify "Représenté par" name is at X=125, Y=355
+            const representeParCall = drawTextSpy.mock.calls.find(call => call[0] === 'BOB MARTIN');
+            expect(representeParCall).toBeDefined();
+            expect(representeParCall[1].x).toBe(125);
+            expect(representeParCall[1].y).toBe(355);
+
+            // Verify first digit of Client SIRET ('1') is at expected exact coordinates
+            // StartX: 654.5 + 2.5 = 657
+            // StartY: 513 + 3.5 = 516.5
+            const siretFirstDigitCall = drawTextSpy.mock.calls.find(call => 
+                call[0] === '1' && Math.abs(call[1].y - 516.5) < 0.1
+            );
+            expect(siretFirstDigitCall).toBeDefined();
+            expect(siretFirstDigitCall[1].x).toBeCloseTo(657, 1);
+            expect(siretFirstDigitCall[1].y).toBeCloseTo(516.5, 1);
+        });
     });
 });
