@@ -46,7 +46,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     const [localKbisUrl, setLocalKbisUrl] = useState(null);
     const [procurationFormData, setProcurationFormData] = useState({
         lieuNaissance: '', dateNaissance: '', typePiece: "Carte d'Identité", numeroPiece: '', dateDelivrance: '', autoriteDelivrance: '',
-        pointRemise: '', complementAdresse: '', adresseVoie: '', lieuDit: '', codePostalVille: '', siret: ''
+        pointRemise: '', complementAdresse: '', adresseVoie: '', lieuDit: '', codePostalVille: '', siret: '', siren: ''
     });
 
     const parsedExtraInfo = useMemo(() => {
@@ -1143,6 +1143,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Numéro SIRET (Optionnel si en cours d'immatriculation)</label>
                                 <input type="text" placeholder="Ex: 12345678900012" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.siret || ''} onChange={e => setProcurationFormData({ ...procurationFormData, siret: e.target.value })} />
+                            </div>
+                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Numéro SIREN (Optionnel si en cours d'immatriculation)</label>
+                                <input type="text" placeholder="Ex: 123456789" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.siren || ''} onChange={e => setProcurationFormData({ ...procurationFormData, siren: e.target.value })} />
                             </div>
 
                             {/* Nouveaux champs pour l'adresse d'expédition (optionnels) */}

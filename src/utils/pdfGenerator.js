@@ -838,7 +838,7 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         page1.drawText('X', { x: 596.5, y: 355, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
 
         // 2. Mandataire details
-        drawInBoxes('DOMICILIATION PAS CHER', 360.4488, 287.8911, helveticaBold, 9);
+        drawInBoxes('LUDOVIC CASIN', 360.4488, 287.8911, helveticaBold, 9);
         // Point de remise empty
         drawInBoxes('LOT 308', 360.4488, 246.8991, helveticaFont, 9);
         drawInBoxes('150 RUE NICOLAS LOUIS VAUQUELIN', 360.4488, 226.8191, helveticaFont, 9);
@@ -867,6 +867,7 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
 
         const clientIdVal = clientData.company || clientData.id || '';
         const clientSiret = (procurationData.siret || clientData.siret || '').replace(/\D/g, ''); // Extract only digits
+        const clientSiren = (procurationData.siren || '').replace(/\D/g, ''); // Extract only digits
         
         // Helper specifically for bottom boxes which are slightly wider
         function drawInBottomBoxes(text, startX, startY, fontObj, size, maxLen = 15) {
@@ -885,12 +886,12 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         }
         
         // N° Dossier
-        drawInBottomBoxes(clientIdVal, 211.5, 70, helveticaFont, 9, 15);
-        drawInBottomBoxes('MWCREA', 646.5, 70, helveticaFont, 9, 15);
+        drawInBottomBoxes(clientSiren || clientIdVal, 211.5, 70, helveticaFont, 9, 15);
+        drawInBottomBoxes('101512531', 646.5, 70, helveticaFont, 9, 15);
         
-        // N° SIRET (Utilise les petites cases standard, centrage parfait)
+        // N° SIRET / SIREN (Utilise les petites cases standard, centrage parfait)
         drawInBoxes(clientSiret, 654.5, 513, helveticaFont, 9, 14); // Client SIRET
-        drawInBoxes('10151253100018', 654.5, 304, helveticaFont, 9, 14); // Prestataire SIRET (DOMICILIATION PAS CHER)
+        drawInBoxes('101512531', 654.5, 304, helveticaFont, 9, 14); // Prestataire SIREN (DOMICILIATION PAS CHER)
         
         page1.drawText(cleanForPdf(idP + (idNum ? ' N° ' + idNum : '')), { x: 165, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText(cleanForPdf(idDelivrance), { x: 465, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });

@@ -6,7 +6,7 @@ const conn = connect({ url: process.env.DATABASE_URL });
 
 async function resetDocs() {
     try {
-        const email = 'benilias757@gmail.com';
+        const email = 'mwcreationv2@gmail.com';
         const res = await conn.execute('SELECT * FROM clients WHERE email = ?', [email]);
         if (res.rows.length === 0) return;
         const client = res.rows[0];
