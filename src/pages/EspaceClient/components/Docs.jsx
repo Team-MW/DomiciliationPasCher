@@ -74,7 +74,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
             let finalUrl = '';
             let finalName = isPdf ? 'Extrait KBIS.pdf' : 'Extrait KBIS.png';
-            
+
             if (isPdf) {
                 console.log("Traitement direct du KBIS PDF (sans Cloudinary)...");
                 finalUrl = await blobToBase64(file);
@@ -156,7 +156,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         if (!fileToName) return;
         setIsUploading(true);
         const originalFile = fileToName;
-        
+
         const originalExt = originalFile.name.includes('.') ? originalFile.name.substring(originalFile.name.lastIndexOf('.')) : '';
         let finalName = customFileName.trim() || originalFile.name;
         if (customFileName.trim() && originalExt && !finalName.toLowerCase().endsWith(originalExt.toLowerCase())) {
@@ -211,10 +211,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             console.log("Génération du contrat...");
             const pdfBlob = await generateSignedContratBlob(clientData, signatureDataUrl);
             const pdfFile = new File([pdfBlob], `Contrat_Signe_${clientData.id}.pdf`, { type: 'application/pdf' });
-            
+
             let finalUrl = '#local-signature';
             let fileSizeStr = 'Généré à la volée';
-            
+
             try {
                 console.log("Upload du contrat sur Cloudinary...");
                 const uploadRes = await uploadFile(pdfFile, { folder: `clients/${clientData.id}/Contrats` });
@@ -283,10 +283,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             console.log("Génération de la procuration...");
             const pdfBlob = await generateSignedProcurationBlob(clientData, signatureDataUrl, procurationFormData);
             const pdfFile = new File([pdfBlob], `Procuration_${clientData.id}.pdf`, { type: 'application/pdf' });
-            
+
             let finalUrl = '#local-procuration';
             let fileSizeStr = 'Généré à la volée';
-            
+
             try {
                 console.log("Upload de la procuration sur Cloudinary...");
                 const uploadRes = await uploadFile(pdfFile, { folder: `clients/${clientData.id}/Documents` });
@@ -312,7 +312,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             });
             if (!response.ok) throw new Error(`API error: ${response.status}`);
             const updatedExtraProc = await response.json();
-            
+
             if (setClientData) {
                 setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtraProc) }));
             }
@@ -626,7 +626,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 <span style={{ fontSize: '18px' }}>🎉</span>
                                 Votre procuration a été générée et signée avec succès.
                             </div>
-                            
+
                             {/* Bouton téléchargement */}
                             {procUrl && (
                                 <a
@@ -974,8 +974,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                         if (name.includes('procuration postale')) return false;
                                         return true;
                                     }).length === 0 && (
-                                        <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par vous.</div>
-                                    )}
+                                            <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par vous.</div>
+                                        )}
                                 </div>
                             </div>
 
