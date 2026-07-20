@@ -11,7 +11,8 @@ Ce document récapitule les points névralgiques de l'application **Domiciliatio
 > - **Nom d'utilisateur** : `frefe`
 > - **E-mail** : `benilias757@gmail.com`
 > 
-> Tout nettoyage de documents, de contrats ou de signatures doit cibler **uniquement** cet utilisateur. Ne jamais vider globalement les tables en production ou impacter d'autres clients.
+> **Ne surtout pas supprimer les documents déjà signés par les vrais clients lors des tests.**
+> Tout nettoyage de documents, de contrats ou de signatures doit cibler **uniquement** cet utilisateur de test. Ne jamais vider globalement les tables en production ou impacter d'autres clients.
 
 ---
 
@@ -32,9 +33,10 @@ L'application repose sur trois piliers fondamentaux. Toute modification sur ces 
   - `ProtectedRoute` doit bloquer et rediriger vers `/connexion` tout utilisateur non authentifié (sauf si l'URL contient le paramètre `?preview=true` pour la prévisualisation admin).
   - `PublicOnlyRoute` doit empêcher un utilisateur connecté d'accéder aux pages de login/inscription/souscription, et le rediriger vers `/app/admin` (s'il s'agit d'un e-mail admin listé dans `VITE_ADMIN_EMAILS`) ou vers `/app/espace-client` (pour les clients normaux).
 
-### 3. La Génération de Documents PDF (jsPDF)
-- **Fonctionnement** : Les attestations, procurations et contrats signés sont générés en PDF côté client dans [pdfGenerator.js](file:///Users/elamine/Desktop/MWCREA/logiciel/domiciliation-pas-cher/src/utils/pdfGenerator.js) en important dynamiquement `jspdf`.
-- **Règles d'or** :
+### 3. La Génération de Documents PDF (jsPDF & Cloudinary)
+- **Fonctionnement** : Les attestations, procurations et contrats signés sont générés en PDF côté client dans [pdfGenerator.js](file:///Users/elamine/Desktop/MWCREA/logiciel/domiciliation-pas-cher/src/utils/pdfGenerator.js) en important dynamiquement `jspdf`. Certains éléments ou documents font appel à Cloudinary.
+- **Règles d'or (NE SURTOUT PAS CHANGER)** :
+  - **INTERDICTION FORMELLE DE MODIFIER LA GÉNÉRATION DE DOCUMENTS.** L'architecture actuelle avec Cloudinary et la génération directe de PDF est vitale et ne doit en aucun cas bouger.
   - Le logo est chargé de manière asynchrone via `new Image()`. Ne pas bloquer l'exécution si le logo échoue à charger, utiliser un fallback textuel.
   - La procuration postale utilise `doc.getImageProperties(signatureDataUrl)` pour conserver le ratio de la signature du client. Les dimensions et ratios de calcul de taille d'image doivent rester précis pour éviter les débordements sur le PDF.
 

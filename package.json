@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "prepare": "node scripts/install-hooks.js",
-    "db:clean-docs": "node scripts/cleanup-docs.js"
+    "db:clean-docs": "node scripts/reset-test-client.cjs"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.3",
