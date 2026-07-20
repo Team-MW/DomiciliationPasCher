@@ -318,14 +318,11 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
   },
   test: {
-    // Désactive le parallélisme pour éviter les crashs de workers (Timeout waiting for worker)
+    // Utilise les threads au lieu des forks pour éviter les blocages de processus sur macOS
+    pool: 'threads',
     fileParallelism: false,
-    poolOptions: {
-      forks: {
-        singleFork: true
-      }
-    },
-    testTimeout: 30000,
-    hookTimeout: 30000
+    testTimeout: 60000,
+    hookTimeout: 60000,
+    teardownTimeout: 10000
   }
 })
