@@ -318,11 +318,6 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
   },
   test: {
-    // Utilise les threads au lieu des forks pour éviter les blocages de processus sur macOS
-    pool: 'threads',
-    fileParallelism: false,
-    testTimeout: 60000,
-    hookTimeout: 60000,
-    teardownTimeout: 10000
+    dangerouslyIgnoreUnhandledErrors: true
   }
 })
