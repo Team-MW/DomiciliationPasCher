@@ -39,11 +39,36 @@ export const adminDataService = {
     },
 
     async addClient(clientData) {
-        const id = Date.now().toString();
-        const since = new Date().toISOString().split('T')[0];
+        let finalExtraInfo = clientData.extra_info ? (typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info) : {};
         const cleanEmail = clientData.email ? clientData.email.trim().toLowerCase() : '';
+        
+        // 1. S'assurer que le client a bien un compte Stripe
+        if (!finalExtraInfo.stripe_customer_id && cleanEmail) {
+            try {
+                const stripeRes = await fetchWithRetry('/api/ensure-stripe-customer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: cleanEmail, name: clientData.name })
+                });
+                
+                if (stripeRes.ok) {
+                    const data = await stripeRes.json();
+                    if (data.customerId) {
+                        finalExtraInfo.stripe_customer_id = data.customerId;
+                    }
+                }
+            } catch (e) {
+                console.error("Impossible de résoudre l'ID Stripe automatiquement :", e);
+            }
+        }
 
-        const extraInfoStr = clientData.extra_info ? (typeof clientData.extra_info === 'string' ? clientData.extra_info : JSON.stringify(clientData.extra_info)) : null;
+        const id = Date.now().toString();
+        const since = clientData.since || new Date().toISOString().split('T')[0];
+        const status = clientData.status || 'actif';
+        const clerkStatus = clientData.clerkStatus || 'invitation_sent';
+        const clerkId = clientData.clerkId || '';
+        const extraInfoStr = JSON.stringify(finalExtraInfo);
+        
         await conn.execute(
             `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -201,11 +226,28 @@ export const adminDataService = {
             let clientId;
             const since = new Date().toISOString().split('T')[0];
 
-            // On s'assure que extra_info est bien une chaîne JSON propre
-            let extraInfoStr = d.extra_info;
-            if (extraInfoStr && typeof extraInfoStr !== 'string') {
-                extraInfoStr = JSON.stringify(extraInfoStr);
+            // On s'assure que extra_info est un objet manipulable
+            let finalExtraInfo = d.extra_info ? (typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info) : {};
+
+            if (!finalExtraInfo.stripe_customer_id && d.email) {
+                try {
+                    const stripeRes = await fetchWithRetry('/api/ensure-stripe-customer', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: d.email, name: d.clientName })
+                    });
+                    if (stripeRes.ok) {
+                        const data = await stripeRes.json();
+                        if (data.customerId) {
+                            finalExtraInfo.stripe_customer_id = data.customerId;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Erreur résolution Stripe lors du traitement de la demande:", e);
+                }
             }
+
+            const extraInfoStr = JSON.stringify(finalExtraInfo);
 
             if (existingClientRes.rows.length > 0) {
                 // Mettre à jour le client existant avec TOUTES les nouvelles infos
@@ -225,12 +267,17 @@ export const adminDataService = {
                 );
             }
 
+            let isStripePayment = false;
+            if (extraInfoStr && extraInfoStr.includes('stripe_customer_id')) {
+                isStripePayment = true;
+            }
+
             // Créer le paiement initial
             await this.addPayment(clientId, {
                 amount: d.amount,
                 status: 'payé',
                 date: since,
-                method: 'Carte (Stripe)'
+                method: isStripePayment ? 'Carte (Stripe)' : 'Ajout Manuel'
             });
 
             // Transférer les messages de la demande vers le nouveau compte client
@@ -356,11 +403,11 @@ export const adminDataService = {
     },
 
     async addPayment(clientId, p) {
-        const id = 'pay_' + Date.now();
-        const date = p.date || new Date().toISOString().split('T')[0];
-        const status = p.status || 'payé';
-        const method = p.method || 'Carte (Stripe)';
+        const id = p.id || 'pay_' + Date.now() + Math.random().toString(36).substr(2, 5);
         const amount = p.amount || 0;
+        const status = p.status || 'payé';
+        const date = p.date || new Date().toISOString().split('T')[0];
+        const method = p.method || 'Ajout Manuel';
         const invoice_ref = p.invoice_ref || `FAC-${date.replace(/-/g, '').substring(0, 6)}-${clientId.substring(0, 4)}`;
 
         await conn.execute(

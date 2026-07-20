@@ -76,7 +76,7 @@ function clientToRow(client) {
         'Compte Clerk': client.clerkId ? 'Lié' : 'Non lié',
         'Statut Clerk': CLERK_STATUS_LABELS[client.clerkStatus] || client.clerkStatus || '',
         'ID Clerk': client.clerkId || '',
-        'ID Client Stripe': extra.stripe_customer_id || '',
+        'ID Client Stripe': extra.stripe_customer_id || extra.stripeCustomerId || client.stripeCustomerId || client.stripe_customer_id || '',
         'Messages non lus': parseInt(client.unreadCount, 10) || 0,
     };
 }
