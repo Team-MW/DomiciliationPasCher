@@ -316,5 +316,16 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 1000,
+  },
+  test: {
+    // Désactive le parallélisme pour éviter les crashs de workers (Timeout waiting for worker)
+    fileParallelism: false,
+    poolOptions: {
+      forks: {
+        singleFork: true
+      }
+    },
+    testTimeout: 30000,
+    hookTimeout: 30000
   }
 })
