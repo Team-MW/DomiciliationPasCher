@@ -1,5 +1,6 @@
 import { conn } from '../lib/db';
 import { fetchWithRetry } from '../utils/api';
+import { sendApprovalEmail } from './emailService';
 
 /**
  * ADMIN DATA SERVICE - Version PlanetScale
@@ -237,6 +238,12 @@ export const adminDataService = {
 
             // Supprimer la demande
             await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
+
+            // Envoyer l'email d'approbation au client
+            if (d.email) {
+                await sendApprovalEmail(d.email, d.clientName);
+            }
+
             return { id: clientId, ...d };
         }
     },

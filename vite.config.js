@@ -63,7 +63,7 @@ const localStripePlugin = {
                 priceData.recurring = { interval: body.interval || 'month' };
             }
 
-            const session = await stripe.checkout.sessions.create({
+            const sessionParams = {
               payment_method_types: ['card'],
               line_items: [
                 {
@@ -74,7 +74,13 @@ const localStripePlugin = {
               mode: isOneTime ? 'payment' : 'subscription',
               success_url: body.successUrl || `http://localhost:5173/?success=true`,
               cancel_url: body.cancelUrl || `http://localhost:5173/souscription`,
-            });
+            };
+
+            if (body.email) {
+              sessionParams.customer_email = body.email;
+            }
+
+            const session = await stripe.checkout.sessions.create(sessionParams);
 
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');

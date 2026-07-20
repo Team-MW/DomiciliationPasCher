@@ -1438,14 +1438,39 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
     return (
         <div className="dossier-animate">
-            <div className="dossier-header">
-                <button onClick={onBack} className="btn-back">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14 }}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    Retour
-                </button>
-                <div className="dossier-title">
-                    <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.025em' }}>{client.company}</h1>
+            <div className="dossier-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <button onClick={onBack} className="btn-back" style={{ marginBottom: 0 }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14 }}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Retour
+                    </button>
+                    <div className="dossier-title">
+                        <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.025em', margin: 0 }}>{client.company}</h1>
+                    </div>
                 </div>
+                <button 
+                    onClick={async () => {
+                        const confirmed = await showConfirm(`Renvoyer l'email de bienvenue à ${client.email} ?`);
+                        if (confirmed) {
+                            try {
+                                const { sendApprovalEmail } = await import('../../../services/emailService');
+                                const result = await sendApprovalEmail(client.email, client.company);
+                                if (result.success) {
+                                    await showAlert("Email de relance envoyé avec succès !");
+                                } else {
+                                    await showAlert(`Erreur EmailJS : ${result.error}`);
+                                }
+                            } catch(e) {
+                                console.error(e);
+                                await showAlert("Erreur inattendue lors de l'envoi.");
+                            }
+                        }
+                    }}
+                    style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)' }}
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16 }}><path d="M22 2L11 13"></path><path d="M22 2L15 22L11 13L2 9L22 2Z"></path></svg>
+                    Relancer Email Bienvenue
+                </button>
             </div>
 
             <div style={{ display: 'inline-flex', padding: '4px', background: '#F1F5F9', borderRadius: '8px', marginBottom: '24px', gap: '4px' }}>
