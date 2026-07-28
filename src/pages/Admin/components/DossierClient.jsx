@@ -80,7 +80,10 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         }
                     }
 
-                    const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+                    const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+                    const stripePayments = syncData.payments;
+                    const subStatus = syncData.subscriptionStatus;
+
                     if (stripePayments && stripePayments.length > 0) {
                         let addedCount = 0;
                         for (const sp of stripePayments) {
@@ -102,18 +105,22 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             finalPayments = await adminDataService.getPayments(client.id);
                             setPayments(finalPayments);
                         }
+                    }
 
-                        // Vérifier le statut de paiement le plus récent pour automatiser les statuts client
-                        const sortedPayments = [...finalPayments].sort((a, b) => new Date(b.date) - new Date(a.date));
-                        if (sortedPayments.length > 0) {
-                            const latestPayment = sortedPayments[0];
-                            if (latestPayment.status === 'échec' && client.status === 'actif') {
-                                await adminDataService.updateClientStatus(client.id, 'echec_paiement');
-                                onUpdate(); // Notification à Admin.jsx pour rafraîchir la liste générale
-                            } else if (latestPayment.status === 'payé' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
-                                await adminDataService.updateClientStatus(client.id, 'actif');
-                                onUpdate();
-                            }
+                    // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
+                    if (subStatus) {
+                        let newClientStatus = client.status;
+                        if (subStatus === 'canceled' && client.status !== 'résilié') {
+                            newClientStatus = 'résilié';
+                        } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
+                            newClientStatus = 'echec_paiement';
+                        } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
+                            newClientStatus = 'actif';
+                        }
+
+                        if (newClientStatus !== client.status) {
+                            await adminDataService.updateClientStatus(client.id, newClientStatus);
+                            onUpdate(); // Notification à Admin.jsx pour rafraîchir la liste générale
                         }
                     }
                 } catch (stripeErr) {
@@ -308,44 +315,46 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 console.error("Error parsing client.extra_info in handleSyncStripe:", e);
             }
 
-            const stripePayments = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+            const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+            const stripePayments = syncData.payments;
+            const subStatus = syncData.subscriptionStatus;
 
-            if (stripePayments.length === 0) {
-                await showAlert("Aucun paiement trouvé sur Stripe pour ce client.");
-                return;
-            }
-
-            // Sync : on ajoute ceux qui ne sont pas là
             let addedCount = 0;
-            const currentPayments = await adminDataService.getPayments(client.id);
-            for (const sp of stripePayments) {
-                // Vérifier si ce paiement Stripe existe déjà
-                const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
-                const alreadyExists = currentPayments.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
-                if (!alreadyExists) {
-                    await adminDataService.addPayment(client.id, {
-                        ...sp,
-                        invoice_ref: stripeRef
-                    });
-                    addedCount++;
+            if (stripePayments && stripePayments.length > 0) {
+                // Sync : on ajoute ceux qui ne sont pas là
+                const currentPayments = await adminDataService.getPayments(client.id);
+                for (const sp of stripePayments) {
+                    // Vérifier si ce paiement Stripe existe déjà
+                    const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
+                    const alreadyExists = currentPayments.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
+                    if (!alreadyExists) {
+                        await adminDataService.addPayment(client.id, {
+                            ...sp,
+                            invoice_ref: stripeRef
+                        });
+                        addedCount++;
+                    }
                 }
+
+                // Récupérer la liste finale à jour des paiements locaux
+                const finalPayments = await adminDataService.getPayments(client.id);
+                setPayments(finalPayments);
             }
 
-            // Récupérer la liste finale à jour des paiements locaux
-            const finalPayments = await adminDataService.getPayments(client.id);
-            setPayments(finalPayments);
-
-            // Vérifier le statut de paiement le plus récent pour automatiser les statuts client
-            const sortedPayments = [...finalPayments].sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
             let statusUpdated = false;
-            if (sortedPayments.length > 0) {
-                const latestPayment = sortedPayments[0];
-                if (latestPayment.status === 'échec' && client.status === 'actif') {
-                    await adminDataService.updateClientStatus(client.id, 'echec_paiement');
-                    statusUpdated = true;
-                    onUpdate();
-                } else if (latestPayment.status === 'payé' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
-                    await adminDataService.updateClientStatus(client.id, 'actif');
+            if (subStatus) {
+                let newClientStatus = client.status;
+                if (subStatus === 'canceled' && client.status !== 'résilié') {
+                    newClientStatus = 'résilié';
+                } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
+                    newClientStatus = 'echec_paiement';
+                } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
+                    newClientStatus = 'actif';
+                }
+
+                if (newClientStatus !== client.status) {
+                    await adminDataService.updateClientStatus(client.id, newClientStatus);
                     statusUpdated = true;
                     onUpdate();
                 }

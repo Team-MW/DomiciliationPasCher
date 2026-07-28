@@ -437,10 +437,13 @@ export const adminDataService = {
             }
             const res = await fetchWithRetry(url);
             const data = await res.json();
-            return data.payments || [];
+            return {
+                payments: data.payments || [],
+                subscriptionStatus: data.subscriptionStatus || 'active'
+            };
         } catch (err) {
             console.error("Erreur sync Stripe:", err);
-            return [];
+            return { payments: [], subscriptionStatus: 'active' };
         }
     },
 
@@ -490,6 +493,22 @@ export const adminDataService = {
         } catch (error) {
             console.error('Erreur cleanup doublons:', error);
             return { success: false, error: error.message };
+        }
+    },
+
+    async createStripePortalSession(customerId) {
+        if (!customerId) return null;
+        try {
+            const res = await fetchWithRetry('/api/create-portal-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customerId })
+            });
+            const data = await res.json();
+            return data.url;
+        } catch (err) {
+            console.error("Erreur création session portail Stripe:", err);
+            return null;
         }
     },
 

@@ -6,6 +6,7 @@ import Stripe from 'stripe';
 vi.mock('stripe', () => {
     const listCustomers = vi.fn();
     const listPaymentIntents = vi.fn();
+    const listSubscriptions = vi.fn();
     return {
         default: class {
             constructor() {
@@ -15,6 +16,9 @@ vi.mock('stripe', () => {
                     },
                     paymentIntents: {
                         list: listPaymentIntents,
+                    },
+                    subscriptions: {
+                        list: listSubscriptions,
                     }
                 };
             }
@@ -62,6 +66,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
         stripeMocks = {
             listCustomers: stripe.customers.list,
             listPaymentIntents: stripe.paymentIntents.list,
+            listSubscriptions: stripe.subscriptions.list,
         };
     });
 
@@ -93,7 +98,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
             limit: 100
         });
         expect(mockRes.status).toHaveBeenCalledWith(200);
-        expect(mockRes.json).toHaveBeenCalledWith({ payments: [] });
+        expect(mockRes.json).toHaveBeenCalledWith({ payments: [], subscriptionStatus: 'non_trouvé' });
     });
 
     test('should fetch and process payment intents correctly for matching customer', async () => {
@@ -122,6 +127,10 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
                     description: null
                 }
             ]
+        });
+
+        stripeMocks.listSubscriptions.mockResolvedValue({
+            data: [{ status: 'active' }]
         });
 
         await handler(mockReq, mockRes);
@@ -156,7 +165,8 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
                     method: 'Carte (Stripe)',
                     invoice_ref: expect.stringContaining('FAC-')
                 }
-            ]
+            ],
+            subscriptionStatus: 'active'
         });
     });
 
@@ -189,6 +199,10 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
                     payment_method_types: ['card'],
                 }
             ]
+        });
+
+        stripeMocks.listSubscriptions.mockResolvedValue({
+            data: [{ status: 'active' }]
         });
 
         await handler(mockReq, mockRes);

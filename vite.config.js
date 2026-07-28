@@ -259,8 +259,17 @@ const localStripePlugin = {
           if (customerIds.length === 0) {
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ payments: [] }));
+            res.end(JSON.stringify({ payments: [], subscriptionStatus: 'non_trouvé' }));
             return;
+          }
+
+          let subscriptionStatus = 'active'; // par défaut
+          for (const cid of customerIds) {
+            const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
+            if (subs.data.length > 0) {
+                subscriptionStatus = subs.data[0].status;
+                break;
+            }
           }
 
           const allPayments = [];
@@ -292,13 +301,63 @@ const localStripePlugin = {
           const payments = Array.from(uniquePayments.values());
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ payments }));
+          res.end(JSON.stringify({ payments, subscriptionStatus }));
         } catch (e) {
           console.error("Vite Stripe Sync Error:", e);
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ error: e.message }));
         }
+        return;
+      }
+      if (req.url === '/api/create-portal-session' && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString(); });
+        req.on('end', async () => {
+          try {
+            const body = JSON.parse(bodyStr || '{}');
+            const { customerId } = body;
+
+            if (!customerId) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Customer ID is required' }));
+              return;
+            }
+
+            let secretKey = null;
+            if (fs.existsSync('.env.local')) {
+              const envContent = fs.readFileSync('.env.local', 'utf-8');
+              const match = envContent.match(/STRIPE_SECRET_KEY=(.*)/);
+              if (match) secretKey = match[1].trim();
+            }
+            if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
+
+            if (!secretKey || secretKey === 'sk_live_remplace_moi' || secretKey.startsWith('pk_')) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Missing STRIPE_SECRET_KEY' }));
+              return;
+            }
+
+            const stripe = new Stripe(secretKey);
+            const returnUrl = req.headers.referer || `http://${req.headers.host}/espace-client`;
+
+            const session = await stripe.billingPortal.sessions.create({
+              customer: customerId,
+              return_url: returnUrl,
+            });
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ url: session.url }));
+          } catch (e) {
+            console.error("Vite Stripe Portal Error:", e);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
         return;
       }
       next();

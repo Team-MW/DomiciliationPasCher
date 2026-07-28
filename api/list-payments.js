@@ -44,7 +44,17 @@ export default async function handler(req, res) {
         }
 
         if (customerIds.length === 0) {
-            return res.status(200).json({ payments: [] });
+            return res.status(200).json({ payments: [], subscriptionStatus: 'non_trouvé' });
+        }
+
+        let subscriptionStatus = 'active'; // par défaut
+        // Trouver le statut d'abonnement le plus récent pour ce(s) client(s)
+        for (const cid of customerIds) {
+            const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
+            if (subs.data.length > 0) {
+                subscriptionStatus = subs.data[0].status;
+                break;
+            }
         }
 
         // Récupérer les paiements pour TOUS les customer IDs trouvés
@@ -77,7 +87,7 @@ export default async function handler(req, res) {
 
         const payments = Array.from(uniquePayments.values());
 
-        res.status(200).json({ payments });
+        res.status(200).json({ payments, subscriptionStatus });
     } catch (error) {
         console.error('Stripe sync error:', error);
         res.status(500).json({ error: error.message });

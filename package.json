@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --open",
-    "build": "vite build",
+    "dev": "npx vite --open",
+    "build": "npx vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "npx vite preview",
     "test": "vitest run",
     "prepare": "node scripts/install-hooks.js",
     "db:clean-docs": "node scripts/reset-test-client.cjs"

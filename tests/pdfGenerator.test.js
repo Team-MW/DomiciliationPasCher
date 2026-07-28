@@ -56,10 +56,14 @@ beforeEach(() => {
     
     // Mock alert and URL.createObjectURL/revokeObjectURL
     global.alert = vi.fn();
-    global.URL = {
-        createObjectURL: vi.fn().mockReturnValue('blob:mock-url'),
-        revokeObjectURL: vi.fn(),
-    };
+    // Mock URL.createObjectURL/revokeObjectURL without breaking the URL constructor
+    if (typeof global.URL.createObjectURL === 'undefined') {
+        global.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+        global.URL.revokeObjectURL = vi.fn();
+    } else {
+        vi.spyOn(global.URL, 'createObjectURL').mockReturnValue('blob:mock-url');
+        vi.spyOn(global.URL, 'revokeObjectURL').mockImplementation(() => {});
+    }
 });
 
 describe('PDF Generator Utility Functions', () => {
