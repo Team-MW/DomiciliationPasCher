@@ -19,7 +19,7 @@ ${colors.cyan}${colors.bold}====================================================
 =============================================================${colors.reset}
 `);
 
-// --- CHARGEMENT DES VARIABLES D'ENVIRONNEMENT ---
+// --- CHARGEMEddedNT DES VARIABLES D'ENVIRONNEMENT ---
 function loadEnv() {
     const env = {};
     for (const filename of ['.env', '.env.local']) {
@@ -83,7 +83,7 @@ async function runTests() {
     try {
         const tablesRes = await conn.execute("SHOW TABLES");
         const tables = tablesRes.rows.map(r => Object.values(r)[0]);
-        
+
         const required = ['demandes', 'clients', 'payments'];
         let allExist = true;
         required.forEach(t => {
@@ -118,7 +118,7 @@ async function runTests() {
         // 2. Mise à jour via notre requête SQL JSON_SET robuste
         const testSessionId = 'cs_test_' + Math.random().toString(36).substring(7);
         const testCustomerId = 'cus_test_' + Math.random().toString(36).substring(7);
-        
+
         await conn.execute(
             "UPDATE demandes SET status = 'en_attente', extra_info = JSON_SET(COALESCE(extra_info, '{}'), '$.stripe_session_id', ?, '$.stripe_customer_id', ?) WHERE id = ?",
             [testSessionId, testCustomerId, tempDemId]
@@ -128,12 +128,12 @@ async function runTests() {
         // 3. Lecture et vérification du contenu JSON
         const readRes = await conn.execute("SELECT * FROM demandes WHERE id = ?", [tempDemId]);
         const row = readRes.rows[0];
-        
+
         let extra = row.extra_info;
         if (extra && typeof extra === 'string') {
             extra = JSON.parse(extra);
         }
-        
+
         if (extra?.stripe_session_id === testSessionId && extra?.stripe_customer_id === testCustomerId) {
             console.log(`  ${colors.green}✔ Les IDs Stripe ont été correctement stockés et lus dans la colonne JSON !${colors.reset}`);
         } else {
@@ -149,7 +149,7 @@ async function runTests() {
         hasError = true;
         try {
             await conn.execute("DELETE FROM demandes WHERE id = ?", [tempDemId]);
-        } catch (_) {}
+        } catch (_) { }
     }
 
     // =========================================================================
@@ -223,7 +223,7 @@ async function runTests() {
 
         // 3. Récupérer la session et valider la présence des métadonnées de récupération (Anti-Perte localstorage)
         const retrieved = await stripe.checkout.sessions.retrieve(session.id);
-        
+
         if (retrieved.metadata?.demande_id === 'test_dem_12345' && retrieved.metadata?.email === 'stripe-test-link@mwcrea.com') {
             console.log(`  ${colors.green}✔ Système anti-perte Validé : Les métadonnées de récupération ('demande_id', 'email') sont parfaitement lisibles depuis Stripe !${colors.reset}`);
         } else {
@@ -240,7 +240,7 @@ async function runTests() {
         if (tempCustomer?.id) {
             try {
                 await stripe.customers.del(tempCustomer.id);
-            } catch (_) {}
+            } catch (_) { }
         }
     }
 
