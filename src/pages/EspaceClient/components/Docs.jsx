@@ -120,7 +120,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     }, [clientData]);
 
     const isProcSigned = !!(procInfo?.procurationSigned || localProcSignatureUrl);
-    const procUrl = procInfo?.procurationSignedUrl || (localProcSignatureUrl ? '#local-procuration' : null);
+    const procUrl = procInfo?.procurationSignedUrl || ((localProcSignatureUrl || procInfo?.procurationSignatureUrl) ? '#local-procuration' : null);
     const procSignedAt = procInfo?.procurationSignedAt;
 
     // Lire le statut de signature depuis extra_info
@@ -134,7 +134,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     }, [clientData]);
 
     const isSigned = !!(signatureInfo?.contractSigned || signedUrl);
-    const contractUrl = signedUrl || signatureInfo?.contractSignedUrl;
+    const contractUrl = signedUrl || signatureInfo?.contractSignedUrl || (signatureInfo?.contractSignatureUrl ? '#local-signature' : null);
     const signedAt = signatureInfo?.contractSignedAt;
 
     const handleUploadClick = () => {
