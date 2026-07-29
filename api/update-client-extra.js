@@ -1,14 +1,5 @@
-// src/pages/api/update-client-extra.js
-import { adminDataService } from '../src/services/adminDataService';
-import { acquireLock, releaseLock } from '../src/utils/updateMutex';
+import { connect } from '@planetscale/database';
 
-/**
- * API route to safely update a client's extra_info with retry logic.
- * Called from the front-end when signing the contract.
- * NOTE: In dev, this is NOT used directly - vite.config.js handles /api/update-client-extra
- *       with inline Node.js DB logic to avoid import.meta.env issues.
- *       This file is used in production (Vercel serverless) and in unit tests.
- */
 export default async function handler(req, res) {
   console.log('[API] /api/update-client-extra called, method:', req.method);
 
@@ -23,34 +14,42 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing parameters: clientId and extraInfo are required' });
   }
 
-  if (!acquireLock()) {
-    console.warn('[API] Update already in progress, rejecting');
-    return res.status(429).json({ error: 'Update already in progress' });
+  const dbHost = process.env.VITE_DATABASE_HOST;
+  const dbUsername = process.env.VITE_DATABASE_USERNAME;
+  const dbPassword = process.env.VITE_DATABASE_PASSWORD;
+
+  if (!dbHost || !dbUsername || !dbPassword) {
+    console.error('[API] Configuration DB manquante');
+    return res.status(500).json({ error: 'Configuration DB manquante' });
   }
 
   try {
-    // Strip large data-URLs that violate DB TEXT pattern constraints
+    const conn = connect({ host: dbHost, username: dbUsername, password: dbPassword });
+    
+    // Fetch existing extra_info
+    const selectRes = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId]);
+    const row = selectRes.rows[0];
+    let existing = {};
+    if (row && row.extra_info) {
+      try {
+        existing = typeof row.extra_info === 'string' ? JSON.parse(row.extra_info) : row.extra_info;
+      } catch (_) {}
+    }
+    
+    // Strip large data-URLs
     const cleanExtra = { ...extraInfo };
     delete cleanExtra.contractSignatureUrl;
     delete cleanExtra.contractSignedUrl;
 
-    const maxAttempts = 5;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const updated = await adminDataService.updateClientExtraInfo(clientId, cleanExtra);
-        console.log('[API] Update successful on attempt', attempt);
-        return res.status(200).json(updated);
-      } catch (err) {
-        console.error('[API] Update attempt', attempt, 'failed:', err.message);
-        const isRateLimit = err.message && err.message.includes('429');
-        if (!isRateLimit || attempt === maxAttempts) {
-          return res.status(500).json({ error: err.message || 'Internal error' });
-        }
-        const delay = Math.pow(2, attempt) * 100;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  } finally {
-    releaseLock();
+    const merged = { ...existing, ...cleanExtra };
+    const mergedStr = JSON.stringify(merged);
+    
+    await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [mergedStr, clientId]);
+    
+    console.log('[API] Update successful for', clientId);
+    return res.status(200).json({ success: true, merged });
+  } catch (error) {
+    console.error('[API] Error:', error);
+    return res.status(500).json({ error: error.message || 'Internal error' });
   }
 }
