@@ -117,9 +117,9 @@ describe('update-client-extra API handler', () => {
     const res = makeMockRes();
     await handler(req, res);
 
-    // The handler should strip contractSignatureUrl before calling updateClientExtraInfo
+    // The handler should NOT strip contractSignatureUrl anymore (to allow PDF generation fallback)
     const callArg = adminDataService.updateClientExtraInfo.mock.calls[0][1];
-    expect(callArg.contractSignatureUrl).toBeUndefined();
+    expect(callArg.contractSignatureUrl).toBe('data:image/png;base64,VERYLONGSTRING');
     expect(callArg.contractSigned).toBe(true);
   });
 });
