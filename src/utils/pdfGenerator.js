@@ -469,6 +469,22 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
                 width: 120,
                 height: 35
             });
+            
+            // Encart preuve de signature
+            if (signProof) {
+                const dateObj = new Date(signProof.signedAt);
+                const pDate = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const pTime = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                const proofText = `Signé électroniquement par ${cleanForPdf(signProof.signeeName || fullName)} le ${pDate} à ${pTime} depuis l'IP ${signProof.ipAddress}`;
+                
+                page1.drawText(proofText, {
+                    x: 430,
+                    y: 80,
+                    size: 6,
+                    font: helveticaFont,
+                    color: rgb(0.2, 0.2, 0.2)
+                });
+            }
         }
 
         // 6. La Poste section (Partie à remplir par La Poste)

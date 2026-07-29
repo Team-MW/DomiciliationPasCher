@@ -36,6 +36,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     const [isSaving, setIsSaving] = useState(false);
     const [fileToName, setFileToName] = useState(null);
     const [customFileName, setCustomFileName] = useState('');
+    const [pendingFileName, setPendingFileName] = useState('');
 
     // Procuration Postale States
     const [localProcSignatureUrl, setLocalProcSignatureUrl] = useState(null);
@@ -138,6 +139,13 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
     const handleUploadClick = () => {
         if (!checkApproval()) return;
+        setPendingFileName('');
+        document.getElementById('file-upload').click();
+    };
+
+    const handleSpecificUploadClick = (name) => {
+        if (!checkApproval()) return;
+        setPendingFileName(name);
         document.getElementById('file-upload').click();
     };
 
@@ -149,7 +157,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         if (e.target.value !== undefined) e.target.value = '';
 
         setFileToName(originalFile);
-        setCustomFileName('');
+        setCustomFileName(pendingFileName);
+        setPendingFileName('');
     };
 
     const confirmFileUpload = async () => {
@@ -207,9 +216,23 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
         let step = 'Démarrage';
         try {
+            step = 'Preuve de signature';
+            const logRes = await fetchWithRetry('/api/log-signature', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId: clientData.id,
+                    contractRef: 'contrat_domiciliation',
+                    signeeName: clientData.representant?.nom || clientData.nom || 'Client',
+                    signeeEmail: clientData.email || 'client@example.com'
+                })
+            });
+            if (!logRes.ok) throw new Error(`Erreur logs de signature: ${logRes.status}`);
+            const signProof = await logRes.json();
+
             step = 'Génération et Upload du Contrat PDF';
             console.log("Génération du contrat...");
-            const pdfBlob = await generateSignedContratBlob(clientData, signatureDataUrl);
+            const pdfBlob = await generateSignedContratBlob(clientData, signatureDataUrl, signProof);
             const pdfFile = new File([pdfBlob], `Contrat_Signe_${clientData.id}.pdf`, { type: 'application/pdf' });
 
             let finalUrl = '#local-signature';
@@ -262,6 +285,21 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             setLocalSignatureUrl(signatureDataUrl);
             setSignStatus('done');
 
+            // Envoi de l'email post-signature
+            try {
+                await fetch('/api/emailjs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: clientData.email,
+                        nom: clientData.representant?.nom || clientData.nom || 'Client',
+                        type: 'post_signature'
+                    })
+                });
+            } catch(e) {
+                console.warn("Erreur email post-signature", e);
+            }
+
         } catch (err) {
             console.error('Erreur signature:', err);
             window.lastSignError = `[${step}] ` + (err.message || String(err));
@@ -279,9 +317,23 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
         let step = 'Démarrage';
         try {
+            step = 'Preuve de signature';
+            const logRes = await fetchWithRetry('/api/log-signature', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId: clientData.id,
+                    contractRef: 'procuration_postale',
+                    signeeName: clientData.representant?.nom || clientData.nom || 'Client',
+                    signeeEmail: clientData.email || 'client@example.com'
+                })
+            });
+            if (!logRes.ok) throw new Error(`Erreur logs de signature: ${logRes.status}`);
+            const signProof = await logRes.json();
+
             step = 'Génération et Upload de la Procuration';
             console.log("Génération de la procuration...");
-            const pdfBlob = await generateSignedProcurationBlob(clientData, signatureDataUrl, procurationFormData);
+            const pdfBlob = await generateSignedProcurationBlob(clientData, signatureDataUrl, procurationFormData, signProof);
             const pdfFile = new File([pdfBlob], `Procuration_${clientData.id}.pdf`, { type: 'application/pdf' });
 
             let finalUrl = '#local-procuration';
@@ -348,6 +400,21 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 console.error("Erreur auto-téléchargement:", autoDlErr);
             }
 
+            // Envoi de l'email procuration
+            try {
+                await fetch('/api/emailjs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: clientData.email,
+                        nom: clientData.representant?.nom || clientData.nom || 'Client',
+                        type: 'procuration_postale'
+                    })
+                });
+            } catch(e) {
+                console.warn("Erreur email procuration", e);
+            }
+
         } catch (err) {
             console.error('Erreur signature procuration:', err);
             window.lastProcSignError = `[${step}] ` + (err.message || String(err));
@@ -395,7 +462,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
                                 {isSigned
                                     ? `Signé le ${signedAt ? new Date(signedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}`
-                                    : 'Signature électronique · Valeur juridique eIDAS'}
+                                    : 'Signature électronique simple · Valeur juridique (art. 1367 du Code civil)'}
                             </div>
                         </div>
                     </div>
@@ -424,7 +491,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             )}
                             {signStatus === 'error' && (
                                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
-                                    ❌ Une erreur est survenue : {window.lastSignError || 'Erreur inconnue'}
+                                    ❌ Une erreur est survenue, veuillez réessayer dans quelques instants.
                                 </div>
                             )}
                             {signStatus !== 'loading' && (
@@ -573,7 +640,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             )}
                             {procSignStatus === 'error' && (
                                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
-                                    ❌ Une erreur est survenue : {window.lastProcSignError || 'Erreur inconnue'}
+                                    ❌ Une erreur est survenue, veuillez réessayer dans quelques instants.
                                 </div>
                             )}
                             {procSignStatus !== 'loading' && (
@@ -842,19 +909,54 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 </div>
 
                 <div style={{ padding: '24px', minHeight: '300px' }} onDragOver={onDragOver} onDrop={onDrop}>
-                    {!documents || documents.length === 0 ? (
-                        <div className="ec-empty" style={{ textAlign: 'center', padding: '60px 0' }}>
-                            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📂</div>
-                            <p style={{ color: '#64748B', fontSize: '15px' }}>Aucun document déposé pour le moment.</p>
-                            <p style={{ color: '#94A3B8', fontSize: '13px', marginTop: '4px' }}>Glissez-déposez un fichier ici pour l'envoyer.</p>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            {/* Documents from Client */}
-                            <div>
-                                <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                                    Mes documents déposés
-                                </h3>
+                    {(() => {
+                        const hasId = documents?.some(d => d.name.toLowerCase().match(/identit|séjour|passeport|cni/));
+                        const hasDomicile = documents?.some(d => d.name.toLowerCase().match(/domicile|justificatif/));
+                        const hasStatut = documents?.some(d => d.name.toLowerCase().match(/statut|kbis/));
+                        
+                        const missingDocs = [];
+                        if (!hasStatut) missingDocs.push({ name: "Projet Statut (et KBIS lorsque reçu)", label: "Projet Statut" });
+                        if (!hasId) missingDocs.push({ name: "Pièce d'identité (Carte d'identité, Titre de séjour, Passeport)", label: "Pièce d'identité" });
+                        if (!hasDomicile) missingDocs.push({ name: "Justificatif de domicile de moins de 3 mois", label: "Justificatif de domicile" });
+
+                        return (
+                            <>
+                                {missingDocs.length > 0 && (
+                                    <div style={{ marginBottom: '32px' }}>
+                                        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#DC2626', marginBottom: '12px', borderBottom: '1px solid #fecaca', paddingBottom: '8px' }}>
+                                            ⚠️ Pièces obligatoires à joindre
+                                        </h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {missingDocs.map((doc, idx) => (
+                                                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fef2f2', padding: '12px 16px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                                                    <span style={{ fontSize: '14px', color: '#991B1B', fontWeight: 500 }}>• Joindre {doc.name.replace('Joindre ', '')}</span>
+                                                    <button 
+                                                        onClick={() => handleSpecificUploadClick(doc.label)}
+                                                        style={{ padding: '6px 12px', background: 'white', border: '1px solid #fca5a5', borderRadius: '6px', color: '#DC2626', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                                                        onMouseEnter={(e) => e.target.style.background = '#fee2e2'}
+                                                        onMouseLeave={(e) => e.target.style.background = 'white'}
+                                                    >
+                                                        Joindre
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!documents || documents.length === 0 ? (
+                                    <div className="ec-empty" style={{ textAlign: 'center', padding: '20px 0 60px' }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📂</div>
+                                        <p style={{ color: '#64748B', fontSize: '15px' }}>Aucun document déposé pour le moment.</p>
+                                        <p style={{ color: '#94A3B8', fontSize: '13px', marginTop: '4px' }}>Glissez-déposez un fichier ici pour l'envoyer.</p>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                        {/* Documents from Client */}
+                                        <div>
+                                            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                                                Mes documents déposés
+                                            </h3>
                                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                     {(documents || []).filter(doc => {
                                         if (!doc || doc.owner !== 'client') return false;
@@ -1023,6 +1125,9 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             </div>
                         </div>
                     )}
+                            </>
+                        );
+                    })()}
                 </div>
             </div>
 

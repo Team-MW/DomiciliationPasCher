@@ -1,6 +1,6 @@
 import { cleanForPdf } from './pdfGenerator';
 
-export const buildContractContent = (doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData) => {
+export const buildContractContent = (doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof = null) => {
     let currentY = 45;
     let pageCount = 1;
 
@@ -410,6 +410,19 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     doc.text("Le Domicilié", 110, currentY);
     if (isSigned && signatureImage) {
         try { doc.addImage(signatureImage, 'PNG', 110, currentY + 5, 70, 20); } catch (e) {}
+        
+        if (signProof) {
+            const dateObj = new Date(signProof.signedAt);
+            const pDate = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const pTime = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            const proofText = `Signé électroniquement par ${cleanForPdf(signProof.signeeName || clientName)} le ${pDate} à ${pTime} depuis l'IP ${signProof.ipAddress}`;
+            
+            doc.setFontSize(6);
+            doc.setTextColor(100, 100, 100);
+            doc.text(proofText, 110, currentY + 30);
+            doc.setTextColor(0, 0, 0); // Reset
+            doc.setFontSize(10);
+        }
     }
     
     // Fix all page footers that were added

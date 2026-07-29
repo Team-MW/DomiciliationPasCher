@@ -210,6 +210,83 @@ const localStripePlugin = {
         });
         return;
       }
+
+      // Handle log-signature endpoint
+      if ((req.url === '/api/log-signature' || req.url.startsWith('/api/log-signature?')) && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString(); });
+        req.on('end', async () => {
+          console.log('[log-signature] Request received');
+          try {
+            const body = JSON.parse(bodyStr || '{}');
+            const { clientId, contractRef, signeeName, signeeEmail } = body;
+
+            if (!clientId || !contractRef || !signeeName || !signeeEmail) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Missing parameters' }));
+              return;
+            }
+
+            const readEnvVar = (file, key) => {
+              try {
+                if (fs.existsSync(file)) {
+                  const content = fs.readFileSync(file, 'utf-8');
+                  const match = content.match(new RegExp(`^${key}=(.*)`, 'm'));
+                  if (match) {
+                    return match[1].trim().replace(/^['"]|['"]$/g, '');
+                  }
+                }
+              } catch (_) {}
+              return null;
+            };
+
+            const dbHost     = readEnvVar('.env.local', 'VITE_DATABASE_HOST')     || readEnvVar('.env', 'VITE_DATABASE_HOST');
+            const dbUsername = readEnvVar('.env.local', 'VITE_DATABASE_USERNAME') || readEnvVar('.env', 'VITE_DATABASE_USERNAME');
+            const dbPassword = readEnvVar('.env.local', 'VITE_DATABASE_PASSWORD') || readEnvVar('.env', 'VITE_DATABASE_PASSWORD');
+
+            if (!dbHost || !dbUsername || !dbPassword) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Configuration DB manquante' }));
+              return;
+            }
+
+            const { connect } = await import('@planetscale/database');
+            const conn = connect({ host: dbHost, username: dbUsername, password: dbPassword });
+
+            let ipAddress = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
+            if (ipAddress.includes(',')) ipAddress = ipAddress.split(',')[0].trim();
+
+            const sql = `
+                INSERT INTO signature_logs 
+                (client_id, contract_ref, signee_name, signee_email, ip_address)
+                VALUES (?, ?, ?, ?, ?)
+            `;
+            const result = await conn.execute(sql, [clientId, contractRef, signeeName, signeeEmail, ipAddress]);
+            
+            const selectSql = `SELECT signed_at FROM signature_logs WHERE id = ?`;
+            const selectResult = await conn.execute(selectSql, [result.insertId]);
+            let signedAt = new Date().toISOString();
+            if (selectResult.rows && selectResult.rows.length > 0) {
+                signedAt = selectResult.rows[0].signed_at;
+            }
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, logId: result.insertId, ipAddress, signedAt }));
+          } catch (e) {
+            console.error('[log-signature] ❌ Error:', e.message);
+            if (!res.headersSent) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: e.message || 'Internal server error' }));
+            }
+          }
+        });
+        return;
+      }
+
       if (req.url.startsWith('/api/list-payments')) {
         const urlObj = new URL(req.url, `http://${req.headers.host}`);
         const email = urlObj.searchParams.get('email');

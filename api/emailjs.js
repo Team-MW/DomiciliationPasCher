@@ -38,6 +38,10 @@ export default async function handler(req, res) {
         let message = "Votre paiement a été validé avec succès. Merci de créer votre compte Espace Client et de déposer vos pièces justificatives.";
         if (type === 'payment_failed') {
             message = "⚠️ Attention : Votre dernier prélèvement ou paiement de domiciliation a échoué ou a été bloqué. Votre accès à l'Espace Client Sécurisé est momentanément restreint. Veuillez régulariser votre paiement au plus vite afin de réactiver votre adresse professionnelle et conserver l'accès à vos courriers.";
+        } else if (type === 'post_signature') {
+            message = `Bonjour ${nom || 'Client'},\n\nVotre contrat de domiciliation a bien été signé électroniquement. Il est désormais disponible dans votre Espace Client.\n\nMerci de vous connecter pour y déposer les documents obligatoires (Kbis/Statuts, CNI, Justificatif de domicile de moins de 3 mois) via l'onglet "Mes Documents".\n\nLien de l'espace client : https://domiciliation-pas-cher.com/espace-client\n\nCordialement,\nL'équipe Domiciliation-Pas-Cher`;
+        } else if (type === 'procuration_postale') {
+            message = `Bonjour ${nom || 'Client'},\n\nPour que nous puissions réceptionner vos courriers recommandés, il est impératif d'établir une procuration postale officielle auprès de La Poste.\n\nVeuillez effectuer cette démarche en ligne sur le site de La Poste via ce lien sécurisé :\nhttps://www.laposte.fr/donner-procuration/informations-mandant\n\nCordialement,\nL'équipe Domiciliation-Pas-Cher`;
         }
 
         // 2. Appel à l'API EmailJS côté serveur (La clé privée reste protégée !)
