@@ -26,14 +26,14 @@ export default async function handler(req, res) {
         // Extraire le public_id
         const parts = url.split('/upload/');
         if (parts.length < 2) throw new Error("URL Cloudinary invalide");
-        
+
         let publicIdWithExt = parts[1].split('/').slice(1).join('/');
         if (!publicIdWithExt.includes('/')) publicIdWithExt = parts[1];
         const publicId = publicIdWithExt.replace(/\.[^/.]+$/, "");
 
         cloudinary.config({ cloud_name, api_key, api_secret, secure: true });
 
-        // Générer une URL signée officielle
+        // Générer une URL sigdezdnée officielle
         const signedUrl = cloudinary.url(publicId, {
             sign_url: true,
             resource_type: 'image',
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
         // Télécharger le fichier depuis le serveur
         const response = await fetch(signedUrl);
-        
+
         if (!response.ok) {
             throw new Error(`Cloudinary a répondu ${response.status}`);
         }
