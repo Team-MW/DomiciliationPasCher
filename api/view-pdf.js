@@ -11,16 +11,23 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Charger les clés depuis .env de manière sécurisée
-        let cloud_name, api_key, api_secret;
-        const envFile = fs.existsSync('.env') ? '.env' : '.env.local';
-        const envContent = fs.readFileSync(envFile, 'utf-8');
-        cloud_name = envContent.match(/VITE_CLOUDINARY_CLOUD_NAME=(.*)/)?.[1]?.trim();
-        api_key = envContent.match(/VITE_CLOUDINARY_API_KEY=(.*)/)?.[1]?.trim();
-        api_secret = envContent.match(/VITE_CLOUDINARY_API_SECRET=(.*)/)?.[1]?.trim();
+        // Charger les clés depuis process.env (Vercel) ou .env (Local)
+        let cloud_name = process.env.VITE_CLOUDINARY_CLOUD_NAME;
+        let api_key = process.env.VITE_CLOUDINARY_API_KEY;
+        let api_secret = process.env.VITE_CLOUDINARY_API_SECRET;
 
         if (!api_secret) {
-            throw new Error("Clés Cloudinary manquantes dans le .env");
+            const envFile = fs.existsSync('.env') ? '.env' : (fs.existsSync('.env.local') ? '.env.local' : null);
+            if (envFile) {
+                const envContent = fs.readFileSync(envFile, 'utf-8');
+                cloud_name = envContent.match(/VITE_CLOUDINARY_CLOUD_NAME=(.*)/)?.[1]?.trim();
+                api_key = envContent.match(/VITE_CLOUDINARY_API_KEY=(.*)/)?.[1]?.trim();
+                api_secret = envContent.match(/VITE_CLOUDINARY_API_SECRET=(.*)/)?.[1]?.trim();
+            }
+        }
+
+        if (!api_secret) {
+            throw new Error("Clés Cloudinary manquantes");
         }
 
         // Extraire le public_id
@@ -33,7 +40,7 @@ export default async function handler(req, res) {
 
         cloudinary.config({ cloud_name, api_key, api_secret, secure: true });
 
-        // Générer une URL sigdezdnée officielle
+        // Générer une URL signée officielle
         const signedUrl = cloudinary.url(publicId, {
             sign_url: true,
             resource_type: 'image',
