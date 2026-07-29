@@ -122,17 +122,18 @@ describe('Checkout API Handler (api/checkout.js)', () => {
 
         await handler(mockReq, mockRes);
 
-        // Check customer search called with normalized email
+        // 1. Vérifie qu'on a bien cherché le client par son email (Liaison ID Stripe)
         expect(stripeMocks.list).toHaveBeenCalledWith({
             email: 'test@example.com',
             limit: 1
         });
         
-        // Existing customer was found, so no update or create should be called
+        // 2. Le client existait, on vérifie qu'on n'a pas créé de doublon
         expect(stripeMocks.create).not.toHaveBeenCalled();
         expect(stripeMocks.update).not.toHaveBeenCalled();
 
-        // Check checkout session creation options
+        // 3. Vérifie que la session de paiement est créée avec les bonnes options
+        // et SURTOUT que le bon ID client Stripe y est bien attaché (cus_existing123)
         expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith({
             payment_method_types: ['card'],
             line_items: [
@@ -195,15 +196,17 @@ describe('Checkout API Handler (api/checkout.js)', () => {
 
         await handler(mockReq, mockRes);
 
+        // 1. On vérifie que le client a bien été créé sur Stripe avec ses infos
         expect(stripeMocks.create).toHaveBeenCalledWith({
             email: 'new-client@example.com',
             name: 'Bob Client',
             metadata: {}
         });
 
+        // 2. On vérifie que la session de paiement est bien liée au NOUVEL ID Stripe généré (cus_new999)
         expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith(
             expect.objectContaining({
-                customer: 'cus_new999',
+                customer: 'cus_new999', // <-- C'est ici que la liaison est vérifiée
                 mode: 'subscription',
                 allow_promotion_codes: false,
                 line_items: [
