@@ -134,6 +134,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
 
         // 3. Vérifie que la session de paiement est créée avec les bonnes options
         // et SURTOUT que le bon ID client Stripe y est bien attaché (cus_existing123)
+        // et que l'option des CODES PROMOS est bien ACTIVEE pour les forfaits mensuels
         expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith({
             payment_method_types: ['card'],
             line_items: [
@@ -148,7 +149,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
                 }
             ],
             mode: 'subscription',
-            allow_promotion_codes: true,
+            allow_promotion_codes: true, // <-- Vérification stricte : Les codes promos DOIVENT marcher en mensuel
             success_url: 'http://localhost/success',
             cancel_url: 'http://localhost/cancel',
             customer: 'cus_existing123',
@@ -204,11 +205,12 @@ describe('Checkout API Handler (api/checkout.js)', () => {
         });
 
         // 2. On vérifie que la session de paiement est bien liée au NOUVEL ID Stripe généré (cus_new999)
+        // et que les CODES PROMOS sont bien DESACTIVES pour les abonnements annuels (protection)
         expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith(
             expect.objectContaining({
                 customer: 'cus_new999', // <-- C'est ici que la liaison est vérifiée
                 mode: 'subscription',
-                allow_promotion_codes: false,
+                allow_promotion_codes: false, // <-- Vérification stricte : PAS de codes promos en annuel
                 line_items: [
                     {
                         price_data: {
