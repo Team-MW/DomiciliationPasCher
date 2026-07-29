@@ -36,11 +36,9 @@ export default async function handler(req, res) {
       } catch (_) {}
     }
     
-    // Strip large data-URLs
+    // Les URLs de signature (base64) et de document signé (Cloudinary)
+    // DOIVENT être conservées pour permettre le téléchargement et la regénération.
     const cleanExtra = { ...extraInfo };
-    delete cleanExtra.contractSignatureUrl;
-    delete cleanExtra.contractSignedUrl;
-
     const merged = { ...existing, ...cleanExtra };
     const mergedStr = JSON.stringify(merged);
     

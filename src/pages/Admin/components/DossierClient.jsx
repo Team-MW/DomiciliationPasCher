@@ -694,8 +694,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         {/* ── STATUT SIGNATURE ÉLECTRONIQUE ─────────────────────── */}
                         {(() => {
                             const contractSigned = extra?.contractSigned;
-                            const contractUrl = extra?.contractSignedUrl;
+                            const contractUrl = extra?.contractSignedUrl || (extra?.contractSignatureUrl ? '#local-signature' : null);
                             const contractAt = extra?.contractSignedAt;
+                            const procUrl = extra?.procurationSignedUrl || (extra?.procurationSignatureUrl ? '#local-procuration' : null);
                             return (
                                 <>
                                     <div style={{
@@ -817,17 +818,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 </span>
                                             )}
                                         </div>
-                                        {extra?.procurationSigned && extra?.procurationSignedUrl && (
+                                        {extra?.procurationSigned && procUrl && (
                                             <div style={{ background: 'white', padding: '12px 20px' }}>
                                                 <a
-                                                    href={extra.procurationSignedUrl === '#local-procuration' || extra.procurationSignedUrl.startsWith('data:') ? '#' : extra.procurationSignedUrl}
+                                                    href={procUrl === '#local-procuration' || procUrl.startsWith('data:') ? '#' : procUrl}
                                                     onClick={async (e) => {
-                                                        if (extra.procurationSignedUrl && extra.procurationSignedUrl.startsWith('data:')) {
+                                                        if (procUrl && procUrl.startsWith('data:')) {
                                                             e.preventDefault();
-                                                            handleDataUrlDownload(extra.procurationSignedUrl, `Procuration_${client.company || client.id}.pdf`);
+                                                            handleDataUrlDownload(procUrl, `Procuration_${client.company || client.id}.pdf`);
                                                             return;
                                                         }
-                                                        if (extra.procurationSignedUrl === '#local-procuration') {
+                                                        if (procUrl === '#local-procuration') {
                                                             e.preventDefault();
                                                             if (downloadingDocId) return;
                                                             if (extra?.procurationSignatureUrl) {
@@ -851,7 +852,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             }
                                                         }
                                                     }}
-                                                    target={extra.procurationSignedUrl === '#local-procuration' || extra.procurationSignedUrl.startsWith('data:') ? '_self' : '_blank'}
+                                                    target={procUrl === '#local-procuration' || procUrl.startsWith('data:') ? '_self' : '_blank'}
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '8px',

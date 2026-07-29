@@ -29,10 +29,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Strip large data-URLs that violate DB TEXT pattern constraints
+    // Les URLs de signature (base64) et de document signé (Cloudinary)
+    // DOIVENT être conservées pour permettre le téléchargement et la regénération.
     const cleanExtra = { ...extraInfo };
-    delete cleanExtra.contractSignatureUrl;
-    delete cleanExtra.contractSignedUrl;
 
     const maxAttempts = 5;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
