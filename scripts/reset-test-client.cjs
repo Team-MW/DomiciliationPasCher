@@ -23,7 +23,12 @@ if (!host || !username || !password) {
 import('@planetscale/database').then(async ({ connect }) => {
   const conn = connect({ host, username, password });
   
-  const testEmail = 'benilias757@gmail.com';
+  const testEmail = process.argv[2];
+  if (!testEmail) {
+    console.error("❌ ERREUR: Veuillez fournir l'email du client à réinitialiser.");
+    console.error("Exemple: node scripts/reset-test-client.cjs david.cassin7@gmail.com");
+    process.exit(1);
+  }
   console.log(`\n🔄 Réinitialisation sécurisée du client de test (${testEmail})...`);
 
   const res = await conn.execute('SELECT id, extra_info FROM clients WHERE email = ?', [testEmail]);
