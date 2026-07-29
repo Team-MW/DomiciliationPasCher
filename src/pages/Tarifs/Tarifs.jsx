@@ -93,7 +93,7 @@ export default function Tarifs() {
                     <div className="pricing-payment-trust">
                         <span>{tr.tarifs.trust.payment}</span>
                         <div className="pricing-payment-logos">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" loading="lazy" />
+                            <img src="/visa-logo.png" alt="Visa" loading="lazy" />
                             <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" loading="lazy" />
                             <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" loading="lazy" />
                             <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" loading="lazy" />

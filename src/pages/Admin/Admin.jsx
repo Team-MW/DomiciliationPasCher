@@ -23,6 +23,7 @@ export default function Admin() {
 
     // Data State
     const [activeTab, setActiveTab] = useState('overview');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [clients, setClients] = useState([]);
     const [mail, setMail] = useState([]);
     const [demandes, setDemandes] = useState([]);
@@ -199,34 +200,35 @@ export default function Admin() {
 
     return (
         <div className="admin-layout">
-            <aside className="admin-sidebar">
+            <div className={`admin-mobile-backdrop ${isMobileMenuOpen ? 'open' : ''}`} onClick={() => setIsMobileMenuOpen(false)}></div>
+            <aside className={`admin-sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div className="admin-logo">
                     <img src={logoSvg} alt="DPC" className="admin-logo-img" />
                 </div>
 
                 <nav className="admin-menu">
                     <div className="sidebar-section-title">Analytiques</div>
-                    <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setSelectedClientId(null); }}>
+                    <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
                         <span className="menu-icon"><Icons.Overview /></span> Dashboard
                     </button>
 
                     <div className="sidebar-section-title">Demandes</div>
-                    <button className={`menu-item ${activeTab === 'demandes' ? 'active' : ''}`} onClick={() => { setActiveTab('demandes'); setSelectedClientId(null); }}>
+                    <button className={`menu-item ${activeTab === 'demandes' ? 'active' : ''}`} onClick={() => { setActiveTab('demandes'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
                         <span className="menu-icon"><Icons.Demandes /></span> Demandes 
                         {stats.pendingDemandes > 0 && <span className="menu-badge" style={{ background: '#EF4444' }}>{stats.pendingDemandes}</span>}
                         {hasNewDemande && <span className="red-dot"></span>}
                     </button>
 
                     <div className="sidebar-section-title">Gestion</div>
-                    <button className={`menu-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); setSelectedClientId(null); }}>
+                    <button className={`menu-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
                         <span className="menu-icon"><Icons.Clients /></span> Gestion Clients 
                         {stats.pendingMessages > 0 && <span className="menu-badge" style={{ background: '#6366F1' }}>{stats.pendingMessages}</span>}
                         {stats.pendingMessages > 0 && activeTab !== 'clients' && <span className="red-dot"></span>}
                     </button>
-                    <button className={`menu-item ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => { setActiveTab('billing'); setSelectedClientId(null); }}>
+                    <button className={`menu-item ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => { setActiveTab('billing'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
                         <span className="menu-icon"><Icons.Billing /></span> Facturation
                     </button>
-                    <button className={`menu-item ${activeTab === 'meeting' ? 'active' : ''}`} onClick={() => { setActiveTab('meeting'); setSelectedClientId(null); }}>
+                    <button className={`menu-item ${activeTab === 'meeting' ? 'active' : ''}`} onClick={() => { setActiveTab('meeting'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
                         <span className="menu-icon"><Icons.Calendar /></span> Salles & Bureaux
                         {hasNewBooking && <span className="red-dot"></span>}
                     </button>
@@ -241,6 +243,9 @@ export default function Admin() {
 
             <main className="admin-content">
                 <header className="admin-header">
+                    <button className="admin-mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
                     <div className="header-search">
                         <span className="search-icon"><Icons.Search /></span>
                         <input

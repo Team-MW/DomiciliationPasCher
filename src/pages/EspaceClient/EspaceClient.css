@@ -1070,3 +1070,143 @@ select.ec-input {
     color: #b45309;
     border-color: #fde68a;
 }
+
+/* ==========================================================================
+   RESPONSIVE MOBILE STYLES (Max-width 768px)
+   ========================================================================== */
+
+.ec-mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--ec-text-main);
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 12px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.ec-mobile-menu-btn:hover {
+    background: var(--ec-bg-main);
+}
+
+.ec-mobile-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.ec-mobile-backdrop.open {
+    display: block;
+    opacity: 1;
+}
+
+@media (max-width: 992px) {
+    .ec-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .ec-mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ec-layout {
+        flex-direction: column;
+    }
+
+    .ec-sidebar-wrapper {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        bottom: 0;
+        width: 280px;
+        z-index: 100;
+        transition: left 0.3s ease;
+        background: white;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .ec-sidebar-wrapper.open {
+        left: 0;
+    }
+
+    .ec-sidebar {
+        width: 100%;
+        border-right: none;
+    }
+
+    .ec-main {
+        padding: 16px;
+        width: 100%;
+    }
+
+    .ec-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .ec-header-left {
+        width: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    .ec-header-titles {
+        flex: 1;
+    }
+
+    .ec-welcome-title {
+        font-size: 20px;
+    }
+
+    .ec-header-right {
+        width: 100%;
+    }
+
+    .ec-status-tag {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .ec-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ec-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ec-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ec-table {
+        min-width: 600px; /* Force scroll on small screens */
+    }
+
+    .ec-settings-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ec-factures-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ec-docs-grid {
+        grid-template-columns: 1fr;
+    }
+}

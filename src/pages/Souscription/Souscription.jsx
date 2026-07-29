@@ -53,7 +53,7 @@ export default function Souscription() {
         nom: '', prenom: '', email: '', telephone: '',
         dateNaissance: '', lieuNaissance: '',
         // Entreprise
-        nomSociete: '', siren: '', activite: '', nationalite: 'Française',
+        nomSociete: '', siren: '', activite: '', nationalite: 'Française', qualite: 'Gérant',
         // Domiciliation
         ville: '',
         // Courrier
@@ -83,6 +83,8 @@ export default function Souscription() {
             if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) e.email = 'Email invalide';
             if (!data.telephone.trim()) e.telephone = 'Requis';
             if (!data.adressePerso.trim()) e.adressePerso = 'Requis';
+            if (!data.dateNaissance) e.dateNaissance = 'Requis';
+            if (!data.lieuNaissance.trim()) e.lieuNaissance = 'Requis';
         }
         if (step === 2) {
             if (!data.nomSociete.trim() && data.typeProjet !== 'creation') e.nomSociete = 'Requis';
@@ -258,12 +260,33 @@ export default function Souscription() {
                                     {errors.telephone && <div className="field-error">{errors.telephone}</div>}
                                 </div>
                                 <div className="sous-field">
-                                    <label className="sous-label">Date de naissance</label>
-                                    <input className="sous-input" type="date" value={data.dateNaissance} onChange={e => set('dateNaissance', e.target.value)} />
+                                    <label className="sous-label">Date de naissance *</label>
+                                    <input className={`sous-input ${errors.dateNaissance ? 'error' : ''}`} type="date" value={data.dateNaissance} onChange={e => set('dateNaissance', e.target.value)} />
+                                    {errors.dateNaissance && <div className="field-error">{errors.dateNaissance}</div>}
                                 </div>
                                 <div className="sous-field">
-                                    <label className="sous-label">Lieu de naissance</label>
-                                    <input className="sous-input" placeholder="Ville, Pays" value={data.lieuNaissance} onChange={e => set('lieuNaissance', e.target.value)} />
+                                    <label className="sous-label">Lieu de naissance *</label>
+                                    <input className={`sous-input ${errors.lieuNaissance ? 'error' : ''}`} placeholder="Ville, Pays" value={data.lieuNaissance} onChange={e => set('lieuNaissance', e.target.value)} />
+                                    {errors.lieuNaissance && <div className="field-error">{errors.lieuNaissance}</div>}
+                                </div>
+                                <div className="sous-field">
+                                    <label className="sous-label">Nationalité *</label>
+                                    <select className="sous-input" value={data.nationalite} onChange={e => set('nationalite', e.target.value)}>
+                                        <option>Française</option>
+                                        <option>Autre (UE)</option>
+                                        <option>Hors UE</option>
+                                    </select>
+                                </div>
+                                <div className="sous-field">
+                                    <label className="sous-label">Qualité *</label>
+                                    <select className="sous-input" value={data.qualite} onChange={e => set('qualite', e.target.value)}>
+                                        <option>Gérant</option>
+                                        <option>Président</option>
+                                        <option>Auto-entrepreneur</option>
+                                        <option>Fondateur</option>
+                                        <option>Directeur Général</option>
+                                        <option>Autre</option>
+                                    </select>
                                 </div>
                                 <div className="sous-field sous-field-full">
                                     <label className="sous-label">Adresse personnelle *</label>
@@ -323,14 +346,6 @@ export default function Souscription() {
                                     {errors.activite && <div className="field-error">{errors.activite}</div>}
                                 </div>
 
-                                <div className="sous-field">
-                                    <label className="sous-label">Nationalité du dirigeant</label>
-                                    <select className="sous-input" value={data.nationalite} onChange={e => set('nationalite', e.target.value)}>
-                                        <option>Française</option>
-                                        <option>Autre (UE)</option>
-                                        <option>Hors UE</option>
-                                    </select>
-                                </div>
 
                                 <div className="sous-field">
                                     <label className="sous-label">Forme juridique</label>

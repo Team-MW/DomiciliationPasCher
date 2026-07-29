@@ -101,7 +101,7 @@ export default function Footer() {
                     {/* Payment Methods */}
                     <div className="footer-payments">
                         <div className="payment-badge" title="Visa">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" loading="lazy" />
+                            <img src="/visa-logo.png" alt="Visa" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="Mastercard">
                             <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" loading="lazy" />

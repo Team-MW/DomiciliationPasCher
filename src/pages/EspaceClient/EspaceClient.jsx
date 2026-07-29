@@ -20,6 +20,7 @@ export default function EspaceClient() {
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState('overview');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [clientData, setClientData] = useState(null);
     const [mail, setMail] = useState([]);
     const [documents, setDocuments] = useState([]);
@@ -247,35 +248,42 @@ export default function EspaceClient() {
 
     return (
         <div className="ec-layout">
-            <Sidebar
-                activeTab={activeTab}
-                setActiveTab={(tab) => {
-                    setActiveTab(tab);
-                    if (tab === 'messages') setUnreadMsgsCount(0);
-                    if (tab === 'docs' && clientData) {
-                        setHasNewDocs(false);
-                        localStorage.setItem(`client_seen_docs_${clientData.id}`, documents.length.toString());
-                    }
-                    if (tab === 'factures' && clientData) {
-                        setHasNewFactures(false);
-                        // On ne connaît pas le count ici mais Factures le connaît. 
-                        // On peut juste le mettre à un grand nombre ou l'update plus tard.
-                    }
-                }}
-                mailCount={mail.filter(m => m.status === 'non lu').length}
-                unreadMsgsCount={unreadMsgsCount}
-                hasNewDocs={hasNewDocs}
-                hasNewFactures={hasNewFactures}
-                user={user}
-                clientData={clientData}
-                onLogout={handleLogout}
-            />
+            <div className={`ec-mobile-backdrop ${isMobileMenuOpen ? 'open' : ''}`} onClick={() => setIsMobileMenuOpen(false)}></div>
+            <div className={`ec-sidebar-wrapper ${isMobileMenuOpen ? 'open' : ''}`}>
+                <Sidebar
+                    activeTab={activeTab}
+                    setActiveTab={(tab) => {
+                        setActiveTab(tab);
+                        setIsMobileMenuOpen(false);
+                        if (tab === 'messages') setUnreadMsgsCount(0);
+                        if (tab === 'docs' && clientData) {
+                            setHasNewDocs(false);
+                            localStorage.setItem(`client_seen_docs_${clientData.id}`, documents.length.toString());
+                        }
+                        if (tab === 'factures' && clientData) {
+                            setHasNewFactures(false);
+                        }
+                    }}
+                    mailCount={mail.filter(m => m.status === 'non lu').length}
+                    unreadMsgsCount={unreadMsgsCount}
+                    hasNewDocs={hasNewDocs}
+                    hasNewFactures={hasNewFactures}
+                    user={user}
+                    clientData={clientData}
+                    onLogout={handleLogout}
+                />
+            </div>
 
             <main className="ec-main">
                 <header className="ec-header">
                     <div className="ec-header-left">
-                        <h1 className="ec-welcome-title">Bienvenue, {user?.firstName || 'Propriétaire'}</h1>
-                        <p className="ec-welcome-sub">Gérez votre domiciliation et vos courriers pour <strong>{clientData?.company}</strong></p>
+                        <button className="ec-mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                        </button>
+                        <div className="ec-header-titles">
+                            <h1 className="ec-welcome-title">Bienvenue, {user?.firstName || 'Propriétaire'}</h1>
+                            <p className="ec-welcome-sub">Gérez votre domiciliation et vos courriers pour <strong>{clientData?.company}</strong></p>
+                        </div>
                     </div>
                     <div className="ec-header-right">
                         {clientData?.status === 'en_attente_validation' ? (

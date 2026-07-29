@@ -8,7 +8,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     const clientName = cleanForPdf(extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || '[NOM, PRÉNOM]'));
     const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || '[DÉNOMINATION SOCIALE DU DOMICILIÉ]'));
     const siretValue = extra.siret || clientData.siret || extra.siren || clientData.siren || '';
-    const sirenText = cleanForPdf(siretValue ? `immatriculée sous le n° ${siretValue.replace(/\s/g, '')}` : 'en cours de formation');
+    const sirenText = cleanForPdf(siretValue ? `immatriculée sous le n° ${siretValue.replace(/\s/g, '')}` : 'en cours d\'immatriculation');
     const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || '[ADRESSE PERSONNELLE]');
     const lieuNaissance = cleanForPdf(extra.lieuNaissance || '');
     const dateNaissance = cleanForPdf(extra.dateNaissance ? new Date(extra.dateNaissance).toLocaleDateString('fr-FR') : '');
@@ -106,7 +106,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(15, 23, 42);
-    doc.text('Contrat de domiciliation — Modèle', 105, 50, { align: 'center' });
+    doc.text('Contrat de domiciliation', 105, 50, { align: 'center' });
     currentY = 62;
 
     addTitle("Entre les soussignés :");

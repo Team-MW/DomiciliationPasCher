@@ -72,6 +72,7 @@ const localStripePlugin = {
                 },
               ],
               mode: isOneTime ? 'payment' : 'subscription',
+              allow_promotion_codes: body.interval === 'month',
               success_url: body.successUrl || `http://localhost:5173/?success=true`,
               cancel_url: body.cancelUrl || `http://localhost:5173/souscription`,
             };
@@ -131,7 +132,7 @@ const localStripePlugin = {
         return;
       }
       // Handle update-client-extra endpoint
-      if (req.url === '/api/update-client-extra' && req.method === 'POST') {
+      if ((req.url === '/api/update-client-extra' || req.url.startsWith('/api/update-client-extra?')) && req.method === 'POST') {
         let bodyStr = '';
         req.on('data', chunk => { bodyStr += chunk.toString(); });
         req.on('end', async () => {

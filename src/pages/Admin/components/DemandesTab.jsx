@@ -160,6 +160,7 @@ export function DemandeDetailsModal({ demande, onClose, onAccept, onReject, load
                                 <div className="info-group"><label>Nom complet</label><span>{extra?.prenom} {extra?.nom}</span></div>
                                 <div className="info-group"><label>Téléphone</label><span>{extra?.telephone}</span></div>
                                 <div className="info-group"><label>E-mail</label><span>{demande.email}</span></div>
+                                <div className="info-group"><label>Qualité</label><span>{extra?.qualite || 'Gérant'}</span></div>
                                 <div className="info-group"><label>Nationalité</label><span>{extra?.nationalite || 'Française'}</span></div>
                                 <div className="info-group" style={{ gridColumn: 'span 2' }}><label>Naissance</label><span>{extra?.dateNaissance} à {extra?.lieuNaissance}</span></div>
                             </div>

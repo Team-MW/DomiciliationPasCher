@@ -124,6 +124,10 @@ export default function Settings({ clientData, setClientData }) {
                                     <input value={extra.nationalite || 'Non renseigné'} readOnly style={readOnlyInputStyle} />
                                 </div>
                                 <div className="ec-form-group">
+                                    <label style={labelStyle}>Qualité du signataire</label>
+                                    <input value={extra.qualite || 'Non renseigné'} readOnly style={readOnlyInputStyle} />
+                                </div>
+                                <div className="ec-form-group">
                                     <label style={labelStyle}>Date de naissance</label>
                                     <input value={extra.dateNaissance ? new Date(extra.dateNaissance).toLocaleDateString('fr-FR') : 'Non renseigné'} readOnly style={readOnlyInputStyle} />
                                 </div>

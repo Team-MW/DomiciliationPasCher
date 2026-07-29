@@ -1390,6 +1390,18 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Naissance</div>
                                             <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.dateNaissance} ({extra.lieuNaissance})</div>
                                         </div>
+                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Nationalité</div>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.nationalite || 'N/A'}</div>
+                                        </div>
+                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Qualité</div>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.qualite || 'N/A'}</div>
+                                        </div>
+                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', gridColumn: '1 / -1' }}>
+                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Adresse Personnelle</div>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.adressePerso || 'N/A'}</div>
+                                        </div>
                                     </div>
 
                                     {/* Section Entreprise */}

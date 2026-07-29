@@ -1405,5 +1405,141 @@
 
 @keyframes spin {
     0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   RESPONSIVE MOBILE STYLES (Max-width 768px & 992px)
+   ========================================================================== */
+
+.admin-mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--admin-text-main);
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 12px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.admin-mobile-menu-btn:hover {
+    background: var(--admin-bg-alt);
+}
+
+.admin-mobile-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.admin-mobile-backdrop.open {
+    display: block;
+    opacity: 1;
+}
+
+@media (max-width: 992px) {
+    .admin-overview-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .admin-layout {
+        flex-direction: column;
+    }
+
+    .admin-sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        bottom: 0;
+        width: 280px;
+        z-index: 100;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .admin-sidebar.open {
+        left: 0;
+    }
+
+    .admin-content {
+        padding: 16px;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .admin-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        height: auto;
+        padding: 16px;
+    }
+
+    .header-search {
+        max-width: 100%;
+    }
+
+    .header-profile {
+        justify-content: flex-end;
+    }
+
+    .admin-overview-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-table {
+        min-width: 800px;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 20px auto;
+        height: auto;
+        max-height: 90vh;
+    }
+
+    .dossier-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dossier-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .dossier-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .modal-footer {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .modal-footer button {
+        width: 100%;
+    }
 }
