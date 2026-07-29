@@ -147,6 +147,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
                 }
             ],
             mode: 'subscription',
+            allow_promotion_codes: true,
             success_url: 'http://localhost/success',
             cancel_url: 'http://localhost/cancel',
             customer: 'cus_existing123',
@@ -204,6 +205,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
             expect.objectContaining({
                 customer: 'cus_new999',
                 mode: 'subscription',
+                allow_promotion_codes: false,
                 line_items: [
                     {
                         price_data: {
@@ -251,6 +253,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
                 }
             ],
             mode: 'payment',
+            allow_promotion_codes: false,
             success_url: 'http://localhost?success=true&session_id={CHECKOUT_SESSION_ID}',
             cancel_url: 'http://localhost/souscription',
             customer: 'cus_charlie',

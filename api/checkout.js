@@ -79,6 +79,7 @@ export default async function handler(req, res) {
                 },
             ],
             mode: isOneTime ? 'payment' : 'subscription',
+            allow_promotion_codes: interval === 'month', // Actif UNIQUEMENT pour les abonnements mensuels
             success_url: successUrl || `${req.headers.origin}?success=true&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: cancelUrl || `${req.headers.origin}/souscription`,
             metadata: {
