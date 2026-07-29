@@ -65,6 +65,10 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         fireEvent.change(screen.getByPlaceholderText('Camille'), { target: { value: 'John' } });
         fireEvent.change(screen.getByPlaceholderText('exemple@gmail.com'), { target: { value: 'john@example.com' } });
         fireEvent.change(screen.getByPlaceholderText('06 XX XX XX XX'), { target: { value: '0612345678' } });
+        // Use container query selector for date since no placeholder
+        const dateInput = document.querySelector('input[type="date"]');
+        if (dateInput) fireEvent.change(dateInput, { target: { value: '1990-01-01' } });
+        fireEvent.change(screen.getByPlaceholderText('Ville, Pays'), { target: { value: 'Paris, France' } });
         fireEvent.change(screen.getByPlaceholderText('Votre adresse complète (Rue, CP, Ville)'), { target: { value: '1 Main St' } });
         fireEvent.click(screen.getByText('Suivant'));
 
