@@ -380,7 +380,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     doc.rect(col1, startY, 180, currentY - startY);
 
     currentY += 8;
-    addParagraph("Durée d'engagement légale : conformément à l'article R123-168 du Code de commerce, la durée minimale de tout contrat de domiciliation est de trois (3) mois, quelle que soit la formule souscrite. La mention commerciale du site est « sans engagement au-delà de la durée légale de 3 mois », conforme à cette obligation.");
+    addParagraph("Durée d'engagement légale : conformément à l'article R123-168 du Code de commerce, la durée minimale de tout contrat de domiciliation est de trois (3) mois, quelle que soit la formule souscrite. La mention commerciale du site est « Résiliation à tout moment au delà de la durée légale de 3 mois », conforme à cette obligation.");
 
     currentY += 8;
     addTitle("Offre souscrite");

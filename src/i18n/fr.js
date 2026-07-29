@@ -105,7 +105,7 @@ export default {
     },
 
     guarantees: [
-      'Sans engagement',
+      'Résiliation à tout moment au delà de la durée légale de 3 mois',
       '100 % légal',
       'Attestation 24h',
       'Déductible fiscalement',
@@ -225,7 +225,7 @@ export default {
       descHighlight: 'À partir de 20 € HT/mois',
       descSuffix: ', résiliable à tout moment.',
       cta: 'Découvrir toutes nos offres',
-      trust: ['Sans engagement', 'Activation sous 24h', 'Satisfait ou remboursé'],
+      trust: ['Résiliation à tout moment au delà de la durée légale de 3 mois', 'Activation sous 24h', 'Satisfait ou remboursé'],
       plans: [
         {
           name: 'Essentiel',
@@ -338,7 +338,7 @@ export default {
       subtitle: 'Rejoignez plus de 3 000 entrepreneurs. Démarrez en 5 minutes, dès 20 € HT/mois.',
       ctaPrimary: 'Commencer maintenant',
       ctaSecondary: 'Découvrir nos services →',
-      badges: ['Sans engagement', 'Attestation 24h', 'Support réactif', '100 % légal'],
+      badges: ['Résiliation à tout moment au delà de la durée légale de 3 mois', 'Attestation 24h', 'Support réactif', '100 % légal'],
     },
 
     successModal: {
@@ -371,7 +371,7 @@ export default {
         period: 'HT/mois',
         subtitle: 'La domiciliation simple et efficace',
         cta: 'Choisir Essentiel',
-        note: 'Sans engagement · Résiliation à tout moment',
+        note: 'Résiliation à tout moment au delà de la durée légale de 3 mois',
         features: [
           { ok: true, text: 'Adresse juridique officielle' },
           { ok: true, text: 'Réception du courrier' },
@@ -392,7 +392,7 @@ export default {
         period: 'HT/mois',
         subtitle: "Gérez votre courrier de n'importe où",
         cta: 'Choisir Scan+',
-        note: 'Sans engagement · Résiliation à tout moment',
+        note: 'Résiliation à tout moment au delà de la durée légale de 3 mois',
         features: [
           { ok: true, text: 'Adresse juridique officielle' },
           { ok: true, text: 'Réception du courrier' },
@@ -412,7 +412,7 @@ export default {
         period: 'HT/mois',
         subtitle: 'Courrier transféré directement chez vous',
         cta: 'Choisir Physique+',
-        note: 'Sans engagement · Résiliation à tout moment',
+        note: 'Résiliation à tout moment au delà de la durée légale de 3 mois',
         features: [
           { ok: true, text: 'Adresse juridique officielle' },
           { ok: true, text: 'Réception du courrier' },
@@ -749,7 +749,7 @@ export default {
           'Inscription 100% en ligne',
           'Attestation sous 24h',
           'Centre agréé loi Dutreil',
-          'Sans engagement',
+          'Résiliation à tout moment au delà de la durée légale de 3 mois',
           'Dès 20€ HT/mois',
         ],
         cta: 'Commencer maintenant →',
