@@ -151,29 +151,30 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
         });
 
         expect(mockRes.status).toHaveBeenCalledWith(200);
-        expect(mockRes.json).toHaveBeenCalledWith({
+        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
             payments: [
                 {
                     id: 'pi_1',
                     amount: 24,
                     currency: 'eur',
                     status: 'payé',
-                    date: expect.any(String),
                     method: 'Carte (Stripe)',
-                    invoice_ref: 'Invoice #10'
+                    invoice_ref: 'Invoice #10',
+                    date: expect.any(String)
                 },
                 {
                     id: 'pi_2',
                     amount: 15.5,
                     currency: 'eur',
                     status: 'échec',
-                    date: expect.any(String),
                     method: 'Carte (Stripe)',
-                    invoice_ref: expect.stringContaining('PAIEMENT-')
+                    invoice_ref: expect.stringContaining('PAIEMENT-'),
+                    date: expect.any(String)
                 }
             ],
-            subscriptionStatus: 'active'
-        });
+            subscriptionStatus: 'active',
+            foundCustomerId: 'cus_test_123'
+        }));
     });
 
     test('should filter out payment intents created before the since date parameter', async () => {

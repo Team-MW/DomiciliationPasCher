@@ -115,7 +115,11 @@ export default async function handler(req, res) {
 
         const payments = Array.from(uniquePayments.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        res.status(200).json({ payments, subscriptionStatus });
+        res.status(200).json({ 
+            payments, 
+            subscriptionStatus,
+            foundCustomerId: customerIds.length > 0 ? customerIds[0] : null
+        });
     } catch (error) {
         console.error('Stripe sync error:', error);
         res.status(500).json({ error: error.message });

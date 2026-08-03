@@ -318,6 +318,16 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             }
 
             const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+
+            if (!stripeCustomerId && syncData.foundCustomerId) {
+                try {
+                    const updatedExtra = await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: syncData.foundCustomerId });
+                    setClient(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
+                } catch (e) {
+                    console.error("Erreur auto-save stripeCustomerId in admin:", e);
+                }
+            }
+            
             const stripePayments = syncData.payments;
             const subStatus = syncData.subscriptionStatus;
 

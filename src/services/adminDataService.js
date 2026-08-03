@@ -443,11 +443,12 @@ export const adminDataService = {
             const data = await res.json();
             return {
                 payments: data.payments || [],
-                subscriptionStatus: data.subscriptionStatus || 'active'
+                subscriptionStatus: data.subscriptionStatus || 'active',
+                foundCustomerId: data.foundCustomerId || null
             };
         } catch (err) {
             console.error("Erreur sync Stripe:", err);
-            return { payments: [], subscriptionStatus: 'active' };
+            return { payments: [], subscriptionStatus: 'active', foundCustomerId: null };
         }
     },
 

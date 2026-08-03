@@ -3,7 +3,7 @@ import logoUrl from '../../../assets/DomiciliationPasCher-Logo.png';
 // import jsPDF from 'jspdf';
 import { useState, useEffect } from 'react';
 
-export default function Factures({ clientData }) {
+export default function Factures({ clientData, setClientData }) {
     const [realPayments, setRealPayments] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [downloadingDocId, setDownloadingDocId] = useState(null);
@@ -62,6 +62,17 @@ export default function Factures({ clientData }) {
 
                     const syncData = await adminDataService.syncStripePayments(clientData.email, stripeCustomerId, clientData.since);
                     const stripePayments = syncData.payments;
+
+                    // Sauvegarde automatique de l'ID Stripe s'il était manquant mais trouvé via l'email
+                    if (!stripeCustomerId && syncData.foundCustomerId && setClientData) {
+                        try {
+                            const updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, { stripe_customer_id: syncData.foundCustomerId });
+                            setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
+                        } catch (e) {
+                            console.error("Erreur auto-save stripeCustomerId:", e);
+                        }
+                    }
+
                     if (stripePayments && stripePayments.length > 0) {
                         let addedCount = 0;
                         for (const sp of stripePayments) {

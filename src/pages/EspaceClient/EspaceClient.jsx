@@ -321,7 +321,7 @@ export default function EspaceClient() {
                         <Messages clientData={clientData} />
                     )}
                     {activeTab === 'factures' && (
-                        <Factures clientData={clientData} />
+                        <Factures clientData={clientData} setClientData={setClientData} />
                     )}
                     {activeTab === 'settings' && (
                         <Settings clientData={clientData} setClientData={setClientData} />
