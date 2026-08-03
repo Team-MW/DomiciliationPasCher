@@ -73,7 +73,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     let stripeCustomerId = null;
                     if (client.extra_info) {
                         try {
-                            const extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                            let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                            if (typeof extraInfo === 'string') extraInfo = JSON.parse(extraInfo);
                             stripeCustomerId = extraInfo?.stripe_customer_id || null;
                         } catch (e) {
                             console.error("Error parsing client.extra_info:", e);
@@ -308,7 +309,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             let stripeCustomerId = null;
             try {
                 if (client.extra_info) {
-                    const extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                    let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                    if (typeof extraInfo === 'string') extraInfo = JSON.parse(extraInfo);
                     stripeCustomerId = extraInfo?.stripe_customer_id || null;
                 }
             } catch (e) {
@@ -403,6 +405,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     try {
         if (client.extra_info) {
             extra = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+            if (typeof extra === 'string') extra = JSON.parse(extra);
             // Si c'est un objet vide, on le remet à null pour l'affichage du message d'aide
             if (extra && Object.keys(extra).length === 0) extra = null;
             
