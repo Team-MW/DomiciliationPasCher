@@ -19,13 +19,42 @@ export default function Factures({ clientData, setClientData }) {
     }
 
     const handleManagePaymentMethods = async () => {
-        if (!stripeCustomerId) {
-            alert("Aucun compte Stripe associé trouvé. Veuillez contacter le support.");
+        let currentStripeId = stripeCustomerId;
+        setIsPortalLoading(true);
+
+        if (!currentStripeId) {
+            try {
+                // Essayer de créer un client Stripe à la volée s'il n'existe pas encore
+                const res = await fetch('/api/ensure-stripe-customer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: clientData.email,
+                        name: clientData.name || clientData.company,
+                        company: clientData.company
+                    })
+                });
+                const data = await res.json();
+                if (data.customerId) {
+                    currentStripeId = data.customerId;
+                    const updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, { stripe_customer_id: currentStripeId });
+                    if (setClientData) {
+                        setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
+                    }
+                }
+            } catch (err) {
+                console.error("Erreur création client Stripe:", err);
+            }
+        }
+
+        if (!currentStripeId) {
+            setIsPortalLoading(false);
+            alert("Impossible de configurer le compte Stripe. Veuillez contacter le support.");
             return;
         }
-        setIsPortalLoading(true);
+
         try {
-            const url = await adminDataService.createStripePortalSession(stripeCustomerId);
+            const url = await adminDataService.createStripePortalSession(currentStripeId);
             if (url) {
                 window.location.href = url;
             } else {
@@ -269,31 +298,29 @@ export default function Factures({ clientData, setClientData }) {
                     <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--ec-text-main)' }}>Vos Factures</h2>
                     <p style={{ color: 'var(--ec-text-sub)', fontSize: '14px', marginTop: '4px' }}>Téléchargez vos justificatifs de paiement.</p>
                 </div>
-                {stripeCustomerId && (
-                    <button 
-                        className="ec-btn-primary" 
-                        onClick={handleManagePaymentMethods}
-                        disabled={isPortalLoading}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', opacity: isPortalLoading ? 0.7 : 1, cursor: isPortalLoading ? 'not-allowed' : 'pointer', padding: '10px 16px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)' }}
-                    >
-                        {isPortalLoading ? (
-                            <>
-                                <svg className="spinner" viewBox="0 0 24 24" width="16" height="16" style={{ animation: 'spin 1s linear infinite' }}>
-                                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="30" strokeLinecap="round" />
-                                </svg>
-                                Chargement...
-                            </>
-                        ) : (
-                            <>
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                                    <line x1="1" y1="10" x2="23" y2="10"></line>
-                                </svg>
-                                Gérer mes moyens de paiement
-                            </>
-                        )}
-                    </button>
-                )}
+                <button 
+                    className="ec-btn-primary" 
+                    onClick={handleManagePaymentMethods}
+                    disabled={isPortalLoading}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', opacity: isPortalLoading ? 0.7 : 1, cursor: isPortalLoading ? 'not-allowed' : 'pointer', padding: '10px 16px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)' }}
+                >
+                    {isPortalLoading ? (
+                        <>
+                            <svg className="spinner" viewBox="0 0 24 24" width="16" height="16" style={{ animation: 'spin 1s linear infinite' }}>
+                                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="30" strokeLinecap="round" />
+                            </svg>
+                            Chargement...
+                        </>
+                    ) : (
+                        <>
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                                <line x1="1" y1="10" x2="23" y2="10"></line>
+                            </svg>
+                            Gérer mes moyens de paiement
+                        </>
+                    )}
+                </button>
             </div>
 
             {factures.length > 0 ? (
