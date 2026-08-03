@@ -355,7 +355,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
         doc.text(row[2], col3 + 17, currentY + 5, { align: 'center' });
         doc.text(row[3], col4 + 17, currentY + 5, { align: 'center' });
 
-        // Highlight vvctive plan cffolumn faintly
+        // Highlight vvctive plan cffoluccmn faintly
         if (planDetails.name === 'Essentiel') { doc.setFillColor(239, 246, 255); doc.rect(col2, currentY, 35, rowHeight, 'F'); }
         if (planDetails.name === 'Scan+') { doc.setFillColor(239, 246, 255); doc.rect(col3, currentY, 35, rowHeight, 'F'); }
         if (planDetails.name === 'Physique+') { doc.setFillColor(239, 246, 255); doc.rect(col4, currentY, 35, rowHeight, 'F'); }
