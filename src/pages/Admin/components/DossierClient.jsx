@@ -45,6 +45,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [currentFolder, setCurrentFolder] = useState(null);
     const [downloadingDocId, setDownloadingDocId] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [syncDebugText, setSyncDebugText] = useState(null);
 
     // Dériver les dossiers depuis la liste des documents de manière sécurisée
     const folders = Array.from(new Set((documents || []).map(d => (d && d.folder) || 'Documents')));
@@ -331,7 +332,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             const stripePayments = syncData.payments;
             const subStatus = syncData.subscriptionStatus;
 
-            alert(`DEBUG SYNC:\nURL params:\nEmail: ${client.email}\nCustomerID: ${stripeCustomerId}\nSince: ${client.since}\n\nResponse:\n${JSON.stringify(syncData, null, 2)}`);
+            setSyncDebugText(`DEBUG SYNC:\nURL params:\nEmail: ${client.email}\nCustomerID: ${stripeCustomerId}\nSince: ${client.since}\n\nResponse:\n${JSON.stringify(syncData, null, 2)}`);
             let addedCount = 0;
             if (stripePayments && stripePayments.length > 0) {
                 // Sync : on ajoute ceux qui ne sont pas là
@@ -349,7 +350,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             });
                             addedCount++;
                         } catch (e) {
-                            alert('AddPayment failed: ' + e.message);
+                            console.error('AddPayment failed: ', e);
+                            showAlert('Erreur lors de l\'ajout du paiement: ' + e.message);
                         }
                     }
                 }
