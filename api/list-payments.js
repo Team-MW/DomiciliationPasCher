@@ -78,7 +78,13 @@ export default async function handler(req, res) {
 
             let status = 'échec';
             if (inv.status === 'paid') status = 'payé';
-            else if (inv.status === 'open') status = 'en attente';
+            else if (inv.status === 'open') {
+                if (inv.attempt_count > 0 && !inv.paid) {
+                    status = 'échec';
+                } else {
+                    status = 'en attente';
+                }
+            }
             else if (inv.status === 'uncollectible') status = 'échec';
 
             uniquePayments.set(inv.id, {

@@ -105,12 +105,16 @@ export default function Factures({ clientData, setClientData }) {
                     if (stripePayments && stripePayments.length > 0) {
                         let addedCount = 0;
                         for (const sp of stripePayments) {
-                            const alreadyExists = pay.some(p => p.amount == sp.amount && p.date == sp.date);
-                            if (!alreadyExists) {
+                            const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
+                            const existingPayment = pay.find(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
+                            if (!existingPayment) {
                                 await adminDataService.addPayment(clientData.id, {
                                     ...sp,
-                                    invoice_ref: `STRIPE-${sp.id.substring(3, 10)}`
+                                    invoice_ref: stripeRef
                                 });
+                                addedCount++;
+                            } else if (existingPayment.status !== sp.status) {
+                                await adminDataService.updatePaymentStatus(existingPayment.id, sp.status);
                                 addedCount++;
                             }
                         }

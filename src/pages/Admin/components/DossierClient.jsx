@@ -335,14 +335,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             setSyncDebugText(`DEBUG SYNC:\nURL params:\nEmail: ${client.email}\nCustomerID: ${stripeCustomerId}\nSince: ${client.since}\n\nResponse:\n${JSON.stringify(syncData, null, 2)}`);
             let addedCount = 0;
             if (stripePayments && stripePayments.length > 0) {
-                // Sync : on ajoute ceux qui ne sont pas là
+                // Sync : on ajoute ceux qui ne sont pas là ou on met à jour le statut
                 const currentPayments = await adminDataService.getPayments(client.id);
                 for (const sp of stripePayments) {
-                    // Vérifier si ce paiement Stripe existe déjà
                     const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
-                    const alreadyExists = currentPayments.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
+                    const existingPayment = currentPayments.find(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
                     
-                    if (!alreadyExists) {
+                    if (!existingPayment) {
                         try {
                             await adminDataService.addPayment(client.id, {
                                 ...sp,
@@ -352,6 +351,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         } catch (e) {
                             console.error('AddPayment failed: ', e);
                             showAlert('Erreur lors de l\'ajout du paiement: ' + e.message);
+                        }
+                    } else if (existingPayment.status !== sp.status) {
+                        try {
+                            await adminDataService.updatePaymentStatus(existingPayment.id, sp.status);
+                            addedCount++;
+                        } catch (e) {
+                            console.error('UpdatePaymentStatus failed: ', e);
                         }
                     }
                 }
