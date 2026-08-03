@@ -305,7 +305,9 @@ const localStripePlugin = {
           if (since) {
             const sinceDate = new Date(since);
             if (!isNaN(sinceDate.getTime())) {
-              sinceUnix = Math.floor(sinceDate.getTime() / 1000);
+              // On soustrait 2 jours pour éviter les problèmes de fuseaux horaires 
+              // ou si le paiement a été fait juste avant l'enregistrement en base
+              sinceUnix = Math.floor(sinceDate.getTime() / 1000) - (2 * 24 * 60 * 60);
             }
           }
 
@@ -350,30 +352,49 @@ const localStripePlugin = {
             }
           }
 
-          const allPayments = [];
+          const allInvoices = [];
+          const allPIs = [];
           for (const cid of customerIds) {
-            const paymentIntents = await stripe.paymentIntents.list({
-              customer: cid,
-              limit: 100
-            });
-            allPayments.push(...paymentIntents.data);
+            const paymentIntents = await stripe.paymentIntents.list({ customer: cid, limit: 100 });
+            allPIs.push(...paymentIntents.data);
+
+            const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
+            allInvoices.push(...invoices.data);
           }
 
           const uniquePayments = new Map();
-          for (const pi of allPayments) {
-            if (pi.created < sinceUnix) continue;
+          const invoicePiIds = new Set();
 
-            if (!uniquePayments.has(pi.id)) {
-              uniquePayments.set(pi.id, {
+          for (const inv of allInvoices) {
+            if (inv.created < sinceUnix) continue;
+            if (inv.status === 'draft' || inv.status === 'void') continue;
+
+            if (inv.payment_intent) invoicePiIds.add(typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent.id);
+
+            uniquePayments.set(inv.id, {
+                id: inv.id,
+                amount: inv.amount_paid / 100,
+                currency: inv.currency,
+                status: inv.status === 'paid' ? 'payé' : 'échec',
+                date: new Date(inv.created * 1000).toISOString().split('T')[0],
+                method: 'Carte (Stripe)',
+                invoice_ref: inv.number || `FAC-${new Date(inv.created * 1000).getFullYear()}${String(new Date(inv.created * 1000).getMonth() + 1).padStart(2, '0')}`
+            });
+          }
+
+          for (const pi of allPIs) {
+            if (pi.created < sinceUnix) continue;
+            if (invoicePiIds.has(pi.id)) continue;
+
+            uniquePayments.set(pi.id, {
                 id: pi.id,
                 amount: pi.amount / 100,
                 currency: pi.currency,
                 status: pi.status === 'succeeded' ? 'payé' : 'échec',
                 date: new Date(pi.created * 1000).toISOString().split('T')[0],
-                method: pi.payment_method_types[0] === 'card' ? 'Carte (Stripe)' : pi.payment_method_types[0],
+                method: pi.payment_method_types?.[0] === 'card' ? 'Carte (Stripe)' : (pi.payment_method_types?.[0] || 'Stripe'),
                 invoice_ref: pi.description || `FAC-${new Date(pi.created * 1000).getFullYear()}${String(new Date(pi.created * 1000).getMonth() + 1).padStart(2, '0')}`
-              });
-            }
+            });
           }
 
           const payments = Array.from(uniquePayments.values());

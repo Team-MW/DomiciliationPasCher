@@ -272,13 +272,16 @@ export const adminDataService = {
                 isStripePayment = true;
             }
 
-            // Créer le paiement initial
-            await this.addPayment(clientId, {
-                amount: d.amount,
-                status: 'payé',
-                date: since,
-                method: isStripePayment ? 'Carte (Stripe)' : 'Ajout Manuel'
-            });
+            // Créer le paiement initial UNIQUEMENT s'il s'agit d'un ajout manuel
+            // Si c'est un client Stripe, la synchronisation récupérera le VRAI paiement (ex: 0€ avec un code promo)
+            if (!isStripePayment) {
+                await this.addPayment(clientId, {
+                    amount: d.amount,
+                    status: 'payé',
+                    date: since,
+                    method: 'Ajout Manuel'
+                });
+            }
 
             // Transférer les messages de la demande vers le nouveau compte client
             await conn.execute('UPDATE messages SET clientId = ? WHERE clientId = ?', [clientId, id]);
@@ -435,6 +438,7 @@ export const adminDataService = {
             if (sinceDate) {
                 url += `&since=${encodeURIComponent(sinceDate)}`;
             }
+            url += `&_t=${Date.now()}`; // Anti-cache
             const res = await fetchWithRetry(url);
             const data = await res.json();
             return {

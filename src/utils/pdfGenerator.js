@@ -47,7 +47,7 @@ export const getPlanTariff = (plan) => {
     // Les prix affichés sont HT. Le TTC = HT × 1.20 (TVA 20%)
     if (p.includes('scan')) return { ht: 24, ttc: (24 * 1.2).toFixed(2), tva: (24 * 0.2).toFixed(2), name: 'Scan+' };
     if (p.includes('physique') || p.includes('reexpedition')) return { ht: 38, ttc: (38 * 1.2).toFixed(2), tva: (38 * 0.2).toFixed(2), name: 'Physique+' };
-    return { ht: 20, ttc: (20 * 1.2).toFixed(2), tva: (20 * 0.2).toFixed(2), name: 'Notification' };
+    return { ht: 20, ttc: (20 * 1.2).toFixed(2), tva: (20 * 0.2).toFixed(2), name: 'Essentiel' };
 };
 
 /**
@@ -59,7 +59,8 @@ export const generateAttestationPdf = async (clientData) => {
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            compress: true
         });
 
         const extra = getClientExtraInfo(clientData);
@@ -250,7 +251,8 @@ export const generateContratPdf = async (clientData) => {
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            compress: true
         });
 
         const extra = getClientExtraInfo(clientData);
@@ -304,7 +306,7 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
     return new Promise(async (resolve, reject) => {
         try {
             const { default: jsPDF } = await import('jspdf');
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
 
             const extra = getClientExtraInfo(clientData);
             const planDetails = getPlanTariff(clientData.plan);

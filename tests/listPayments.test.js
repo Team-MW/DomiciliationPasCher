@@ -7,6 +7,7 @@ vi.mock('stripe', () => {
     const listCustomers = vi.fn();
     const listPaymentIntents = vi.fn();
     const listSubscriptions = vi.fn();
+    const listInvoices = vi.fn();
     return {
         default: class {
             constructor() {
@@ -19,6 +20,9 @@ vi.mock('stripe', () => {
                     },
                     subscriptions: {
                         list: listSubscriptions,
+                    },
+                    invoices: {
+                        list: listInvoices,
                     }
                 };
             }
@@ -67,6 +71,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
             listCustomers: stripe.customers.list,
             listPaymentIntents: stripe.paymentIntents.list,
             listSubscriptions: stripe.subscriptions.list,
+            listInvoices: stripe.invoices.list,
         };
     });
 
@@ -132,6 +137,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
         stripeMocks.listSubscriptions.mockResolvedValue({
             data: [{ status: 'active' }]
         });
+        stripeMocks.listInvoices.mockResolvedValue({ data: [] });
 
         await handler(mockReq, mockRes);
 
@@ -163,7 +169,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
                     status: 'échec',
                     date: expect.any(String),
                     method: 'Carte (Stripe)',
-                    invoice_ref: expect.stringContaining('FAC-')
+                    invoice_ref: expect.stringContaining('PAIEMENT-')
                 }
             ],
             subscriptionStatus: 'active'
@@ -204,6 +210,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
         stripeMocks.listSubscriptions.mockResolvedValue({
             data: [{ status: 'active' }]
         });
+        stripeMocks.listInvoices.mockResolvedValue({ data: [] });
 
         await handler(mockReq, mockRes);
 

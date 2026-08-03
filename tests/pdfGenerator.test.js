@@ -145,18 +145,18 @@ describe('PDF Generator Utility Functions', () => {
             });
         });
 
-        test('should return default Notification plan for unrecognized plans', () => {
+        test('should return default Essentiel plan for unrecognized plans', () => {
             expect(getPlanTariff('Unknown Plan')).toEqual({
                 ht: 20,
                 ttc: '24.00',
                 tva: '4.00',
-                name: 'Notification'
+                name: 'Essentiel'
             });
             expect(getPlanTariff(null)).toEqual({
                 ht: 20,
                 ttc: '24.00',
                 tva: '4.00',
-                name: 'Notification'
+                name: 'Essentiel'
             });
         });
     });

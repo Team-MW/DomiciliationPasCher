@@ -319,6 +319,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             const stripePayments = syncData.payments;
             const subStatus = syncData.subscriptionStatus;
 
+            alert(`DEBUG SYNC:\nURL params:\nEmail: ${client.email}\nCustomerID: ${stripeCustomerId}\nSince: ${client.since}\n\nResponse:\n${JSON.stringify(syncData, null, 2)}`);
             let addedCount = 0;
             if (stripePayments && stripePayments.length > 0) {
                 // Sync : on ajoute ceux qui ne sont pas là
@@ -327,12 +328,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     // Vérifier si ce paiement Stripe existe déjà
                     const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
                     const alreadyExists = currentPayments.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
+                    
                     if (!alreadyExists) {
-                        await adminDataService.addPayment(client.id, {
-                            ...sp,
-                            invoice_ref: stripeRef
-                        });
-                        addedCount++;
+                        try {
+                            await adminDataService.addPayment(client.id, {
+                                ...sp,
+                                invoice_ref: stripeRef
+                            });
+                            addedCount++;
+                        } catch (e) {
+                            alert('AddPayment failed: ' + e.message);
+                        }
                     }
                 }
 
@@ -340,6 +346,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 const finalPayments = await adminDataService.getPayments(client.id);
                 setPayments(finalPayments);
             }
+            alert(`Added ${addedCount} new payments`);
 
             // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
             let statusUpdated = false;

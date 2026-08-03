@@ -19,7 +19,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     const dateNaissanceText = dateNaissance ? dateNaissance : '[DATE]';
     const lieuNaissanceText = lieuNaissance ? lieuNaissance : '[LIEU DE NAISSANCE]';
     const nationaliteText = nationalite ? nationalite : '[NATIONALITÉ]';
-    
+
     const textNaissance = `, né(e) le ${dateNaissanceText} à ${lieuNaissanceText}, de nationalité ${nationaliteText}`;
 
     const drawHeaderFooter = () => {
@@ -50,7 +50,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(148, 163, 184);
-        
+
         if (!isSigned) {
             doc.text("Paraphe Domiciliataire : _________                        Paraphe Domicilié : _________", 15, 275);
         }
@@ -69,10 +69,10 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
         doc.setFont("helvetica", isBold ? "bold" : "normal");
         doc.setFontSize(size);
         doc.setTextColor(color[0], color[1], color[2]);
-        
+
         const lines = doc.splitTextToSize(cleanForPdf(text), 195 - indent - 15);
         checkPageBreak(lines.length * (size / 2.5) + 5);
-        
+
         doc.text(lines, indent, currentY, { align: align === 'center' ? 'center' : 'left' });
         currentY += lines.length * (size / 2.2) + 2;
     };
@@ -110,7 +110,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     currentY = 62;
 
     addTitle("Entre les soussignés :");
-    
+
     addParagraph("La société CASSIN LUDOVIC, exerçant sous le nom commercial domiciliation-pas-chere.com, au capital social de 2 000,00 € immatriculée au Registre du Commerce et des Sociétés de Toulouse sous le numéro 101512531 et dont l'établissement (SIRET : 10151253100019) est autorisé à exercer l'activité de domiciliation sous le numéro AG/DOM/2026/06 à l'adresse de domiciliation : 150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse, représentée par CASSIN Ludovic agissant en qualité de Président, ci-après dénommée (« le Domiciliataire »)");
     addText("D'UNE PART,", 9.5, true, [15, 23, 42]);
     currentY += 4;
@@ -264,10 +264,10 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
         doc.text('AGRÉÉ PRÉFECTURE 31', 37.5, currentY + 23, { align: 'center' });
 
         if (signatureImage) {
-            try { doc.addImage(signatureImage, 'PNG', 110, currentY + 7, 70, 20); } catch (e) {}
+            try { doc.addImage(signatureImage, 'PNG', 110, currentY + 7, 70, 20); } catch (e) { }
         }
     }
-    
+
     // --- ANNEXE 1 ---
     doc.addPage();
     pageCount++;
@@ -293,7 +293,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     doc.text(`Dénomination :`, 20, currentY + 8);
     doc.setFont("helvetica", "normal");
     doc.text(companyName, 60, currentY + 8);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text(`Immatricul. :`, 20, currentY + 15);
     doc.setFont("helvetica", "normal");
@@ -303,23 +303,23 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     doc.text(`Adresse exp. :`, 20, currentY + 22);
     doc.setFont("helvetica", "normal");
     doc.text(clientAddress, 60, currentY + 22);
-    
+
     currentY += 35;
 
     // Tableau des Offres (Dessin manuel simple)
     addTitle("Grille des offres (référence catalogue)");
-    
+
     const startY = currentY;
     const col1 = 15;
     const col2 = 90;
     const col3 = 125;
     const col4 = 160;
     const rowHeight = 7;
-    
+
     doc.setFillColor(241, 245, 249);
     doc.rect(col1, currentY, 180, rowHeight * 2, 'FD'); // Header bg
     doc.setDrawColor(203, 213, 225);
-    
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
@@ -354,9 +354,9 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
         doc.text(row[1], col2 + 17, currentY + 5, { align: 'center' });
         doc.text(row[2], col3 + 17, currentY + 5, { align: 'center' });
         doc.text(row[3], col4 + 17, currentY + 5, { align: 'center' });
-        
-        // Highlight active plan column faintly
-        if (planDetails.name === 'Notification') { doc.setFillColor(239, 246, 255); doc.rect(col2, currentY, 35, rowHeight, 'F'); }
+
+        // Highlight vvctive plan column faintly
+        if (planDetails.name === 'Essentiel') { doc.setFillColor(239, 246, 255); doc.rect(col2, currentY, 35, rowHeight, 'F'); }
         if (planDetails.name === 'Scan+') { doc.setFillColor(239, 246, 255); doc.rect(col3, currentY, 35, rowHeight, 'F'); }
         if (planDetails.name === 'Physique+') { doc.setFillColor(239, 246, 255); doc.rect(col4, currentY, 35, rowHeight, 'F'); }
 
@@ -364,13 +364,13 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
         doc.line(col2, currentY, col2, currentY + rowHeight);
         doc.line(col3, currentY, col3, currentY + rowHeight);
         doc.line(col4, currentY, col4, currentY + rowHeight);
-        
+
         // Re-write text over highlight
         doc.text(row[0], col1 + 5, currentY + 5);
         doc.text(row[1], col2 + 17, currentY + 5, { align: 'center' });
         doc.text(row[2], col3 + 17, currentY + 5, { align: 'center' });
         doc.text(row[3], col4 + 17, currentY + 5, { align: 'center' });
-        
+
         currentY += rowHeight;
     });
 
@@ -384,7 +384,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
 
     currentY += 8;
     addTitle("Offre souscrite");
-    
+
     doc.setFillColor(239, 246, 255); // blue-50
     doc.setDrawColor(191, 219, 254);
     doc.roundedRect(15, currentY, 180, 20, 2, 2, 'FD');
@@ -395,7 +395,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(`Tarif : ${parseFloat(planDetails.ht).toFixed(2)} € HT / ${isAnnuel ? 'An' : 'Mois'}`, 20, currentY + 15);
-    
+
     currentY += 35;
     checkPageBreak(30);
 
@@ -405,18 +405,18 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     doc.setTextColor(15, 23, 42);
     doc.text(`Fait à Toulouse, le ${isSigned ? signedAtDate : dateDebut}`, 15, currentY);
     currentY += 10;
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Le Domicilié", 110, currentY);
     if (isSigned && signatureImage) {
-        try { doc.addImage(signatureImage, 'PNG', 110, currentY + 5, 70, 20); } catch (e) {}
-        
+        try { doc.addImage(signatureImage, 'PNG', 110, currentY + 5, 70, 20); } catch (e) { }
+
         if (signProof) {
             const dateObj = new Date(signProof.signedAt);
             const pDate = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const pTime = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
             const proofText = `Signé électroniquement par ${cleanForPdf(signProof.signeeName || clientName)} le ${pDate} à ${pTime} depuis l'IP ${signProof.ipAddress}`;
-            
+
             doc.setFontSize(6);
             doc.setTextColor(100, 100, 100);
             doc.text(proofText, 110, currentY + 30);
@@ -424,7 +424,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
             doc.setFontSize(10);
         }
     }
-    
+
     // Fix all page footers that were added
     // (Page numbers removed per user request)
 };
