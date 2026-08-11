@@ -154,4 +154,33 @@ describe('Docs component download flow', () => {
     global.FileReader = originalFileReader;
     if (typeof window !== 'undefined') window.FileReader = originalFileReader;
   });
+
+  test('should prioritize local generation over Cloudinary URL to prevent 401 errors on download', async () => {
+    const clientWithSignature = {
+      ...mockClient,
+      extra_info: JSON.stringify({
+        contractSigned: true,
+        contractSignatureUrl: 'data:image/png;base64,fake_signature_data',
+        contractSignedUrl: 'https://res.cloudinary.com/test-401-unauthorized.pdf' // Cloudinary URL that could cause 401
+      })
+    };
+
+    await act(async () => {
+      render(
+        <Docs
+          documents={[]}
+          setDocuments={vi.fn()}
+          clientData={clientWithSignature}
+          setClientData={vi.fn()}
+        />
+      );
+    });
+
+    const downloadBtn = screen.getByText(/Télécharger mon contrat signé/i);
+    expect(downloadBtn).toBeDefined();
+
+    // The href should be '#' because it uses local generation, NOT the Cloudinary URL
+    expect(downloadBtn.getAttribute('href')).toBe('#');
+    expect(downloadBtn.getAttribute('href')).not.toBe('https://res.cloudinary.com/test-401-unauthorized.pdf');
+  });
 });

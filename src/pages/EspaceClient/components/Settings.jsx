@@ -9,7 +9,8 @@ export default function Settings({ clientData, setClientData }) {
         address: clientData?.address || '',
         phone: clientData?.phone || ''
     });
-    
+    const [extraFormData, setExtraFormData] = useState({});
+
     // Mettre à jour le formulaire quand les données arrivent
     React.useEffect(() => {
         if (clientData) {
@@ -19,6 +20,24 @@ export default function Settings({ clientData, setClientData }) {
                 company: clientData.company || '',
                 address: clientData.address || '',
                 phone: clientData.phone || ''
+            });
+
+            let extraInfos = {};
+            if (clientData.extra_info) {
+                try {
+                    extraInfos = typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info;
+                } catch (e) {}
+            }
+            setExtraFormData({
+                formeJuridique: extraInfos.formeJuridique || '',
+                siren: extraInfos.siren || '',
+                siret: extraInfos.siret || '',
+                typeProjet: extraInfos.typeProjet || '',
+                nationalite: extraInfos.nationalite || '',
+                qualite: extraInfos.qualite || '',
+                dateNaissance: extraInfos.dateNaissance || '',
+                lieuNaissance: extraInfos.lieuNaissance || '',
+                activite: extraInfos.activite || ''
             });
         }
     }, [clientData]);
@@ -37,6 +56,10 @@ export default function Settings({ clientData, setClientData }) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const handleChangeExtra = (e) => {
+        setExtraFormData({ ...extraFormData, [e.target.name]: e.target.value });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -44,8 +67,22 @@ export default function Settings({ clientData, setClientData }) {
         
         try {
             const updatedClient = await adminDataService.updateClientProfile(clientData.id, formData);
+            
+            // Collect only changed extra info
+            const extraToUpdate = {};
+            for (const key in extraFormData) {
+                if (extraFormData[key] && !extra[key]) {
+                    extraToUpdate[key] = extraFormData[key];
+                }
+            }
+
+            let updatedExtra = extra;
+            if (Object.keys(extraToUpdate).length > 0) {
+                updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, extraToUpdate);
+            }
+
             if (setClientData) {
-                setClientData(prev => ({ ...prev, ...updatedClient }));
+                setClientData(prev => ({ ...prev, ...updatedClient, extra_info: JSON.stringify(updatedExtra) }));
             }
             setMessage({ type: 'success', text: 'Profil mis à jour avec succès.' });
         } catch (error) {
@@ -103,45 +140,82 @@ export default function Settings({ clientData, setClientData }) {
                             <textarea name="address" value={formData.address} onChange={handleChange} placeholder="Votre adresse personnelle..." style={{...inputStyle, minHeight: '100px', resize: 'vertical'}} />
                         </div>
 
-                        {/* Informations Légales (Lecture seule) */}
+                        {/* Informations Légales */}
                         <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--ec-border)', marginBottom: '32px' }}>
-                            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px', color: '#0F172A' }}>Informations de l'entreprise & Dirigeant (Lecture seule)</h3>
+                            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px', color: '#0F172A' }}>Informations de l'entreprise & Dirigeant</h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Forme juridique</label>
-                                    <input value={extra.formeJuridique || 'Non renseigné'} readOnly style={readOnlyInputStyle} />
+                                    {extra.formeJuridique ? (
+                                        <input value={extra.formeJuridique} readOnly style={readOnlyInputStyle} />
+                                    ) : (
+                                        <input name="formeJuridique" value={extraFormData.formeJuridique} onChange={handleChangeExtra} style={inputStyle} placeholder="Ex: SAS, SASU, EURL..." />
+                                    )}
                                 </div>
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Numéro SIREN</label>
-                                    <input value={extra.siren || 'En cours d\'immatriculation'} readOnly style={readOnlyInputStyle} />
+                                    {extra.siren || extra.siret ? (
+                                        <input value={extra.siren || extra.siret} readOnly style={readOnlyInputStyle} />
+                                    ) : (
+                                        <input name="siren" value={extraFormData.siren} onChange={handleChangeExtra} style={inputStyle} placeholder="Votre SIREN" />
+                                    )}
                                 </div>
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Type de projet</label>
-                                    <input value={extra.typeProjet === 'creation' ? 'Création d\'entreprise' : (extra.typeProjet === 'transfert' ? 'Transfert de siège' : (extra.typeProjet === 'domiciliation' ? 'Domiciliation seule' : 'Non renseigné'))} readOnly style={readOnlyInputStyle} />
+                                    {extra.typeProjet ? (
+                                        <input value={extra.typeProjet === 'creation' ? 'Création d\'entreprise' : (extra.typeProjet === 'transfert' ? 'Transfert de siège' : (extra.typeProjet === 'domiciliation' ? 'Domiciliation seule' : extra.typeProjet))} readOnly style={readOnlyInputStyle} />
+                                    ) : (
+                                        <select name="typeProjet" value={extraFormData.typeProjet} onChange={handleChangeExtra} style={inputStyle}>
+                                            <option value="">Sélectionnez un projet</option>
+                                            <option value="creation">Création d'entreprise</option>
+                                            <option value="transfert">Transfert de siège</option>
+                                            <option value="domiciliation">Domiciliation seule</option>
+                                        </select>
+                                    )}
                                 </div>
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Nationalité du dirigeant</label>
-                                    <input value={extra.nationalite || 'Non renseigné'} readOnly style={readOnlyInputStyle} />
+                                    {extra.nationalite ? (
+                                        <input value={extra.nationalite} readOnly style={readOnlyInputStyle} />
+                                    ) : (
+                                        <input name="nationalite" value={extraFormData.nationalite} onChange={handleChangeExtra} style={inputStyle} placeholder="Ex: Française" />
+                                    )}
                                 </div>
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Qualité du signataire</label>
-                                    <input value={extra.qualite || 'Non renseigné'} readOnly style={readOnlyInputStyle} />
+                                    {extra.qualite ? (
+                                        <input value={extra.qualite} readOnly style={readOnlyInputStyle} />
+                                    ) : (
+                                        <input name="qualite" value={extraFormData.qualite} onChange={handleChangeExtra} style={inputStyle} placeholder="Ex: Président, Gérant..." />
+                                    )}
                                 </div>
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Date de naissance</label>
-                                    <input value={extra.dateNaissance ? new Date(extra.dateNaissance).toLocaleDateString('fr-FR') : 'Non renseigné'} readOnly style={readOnlyInputStyle} />
+                                    {extra.dateNaissance ? (
+                                        <input value={new Date(extra.dateNaissance).toLocaleDateString('fr-FR')} readOnly style={readOnlyInputStyle} />
+                                    ) : (
+                                        <input type="date" name="dateNaissance" value={extraFormData.dateNaissance} onChange={handleChangeExtra} style={inputStyle} />
+                                    )}
                                 </div>
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Lieu de naissance</label>
-                                    <input value={extra.lieuNaissance || 'Non renseigné'} readOnly style={readOnlyInputStyle} />
+                                    {extra.lieuNaissance ? (
+                                        <input value={extra.lieuNaissance} readOnly style={readOnlyInputStyle} />
+                                    ) : (
+                                        <input name="lieuNaissance" value={extraFormData.lieuNaissance} onChange={handleChangeExtra} style={inputStyle} placeholder="Ville (et Pays si étranger)" />
+                                    )}
                                 </div>
                             </div>
                             <div className="ec-form-group" style={{ marginTop: '24px' }}>
                                 <label style={labelStyle}>Activité principale</label>
-                                <textarea value={extra.activite || 'Non renseigné'} readOnly style={{...readOnlyInputStyle, minHeight: '80px', resize: 'vertical'}} />
+                                {extra.activite ? (
+                                    <textarea value={extra.activite} readOnly style={{...readOnlyInputStyle, minHeight: '80px', resize: 'vertical'}} />
+                                ) : (
+                                    <textarea name="activite" value={extraFormData.activite} onChange={handleChangeExtra} style={{...inputStyle, minHeight: '80px', resize: 'vertical'}} placeholder="Description de l'activité..." />
+                                )}
                             </div>
                             <p style={{ fontSize: '13px', color: '#64748B', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>ℹ️</span> Ces informations sont utilisées pour vos documents légaux. Pour les modifier, veuillez nous contacter.
+                                <span>ℹ️</span> Complétez ces informations pour vos documents légaux. Une fois enregistrées, elles ne seront modifiables que par le support.
                             </p>
                         </div>
 

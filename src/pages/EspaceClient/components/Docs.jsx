@@ -120,7 +120,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     }, [clientData]);
 
     const isProcSigned = !!(procInfo?.procurationSigned || localProcSignatureUrl);
-    const procUrl = procInfo?.procurationSignedUrl || ((localProcSignatureUrl || procInfo?.procurationSignatureUrl) ? '#local-procuration' : null);
+    // Prioritize local generation over Cloudinary URL to avoid 401 HTTP issues
+    const procUrl = (localProcSignatureUrl || procInfo?.procurationSignatureUrl) ? '#local-procuration' : procInfo?.procurationSignedUrl;
     const procSignedAt = procInfo?.procurationSignedAt;
 
     // Lire le statut de signature depuis extra_info
@@ -134,7 +135,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     }, [clientData]);
 
     const isSigned = !!(signatureInfo?.contractSigned || signedUrl);
-    const contractUrl = signedUrl || signatureInfo?.contractSignedUrl || (signatureInfo?.contractSignatureUrl ? '#local-signature' : null);
+    // Prioritize local generation over Cloudinary URL to avoid 401 HTTP issues
+    const contractUrl = (signedUrl === '#local-signature' || localSignatureUrl || signatureInfo?.contractSignatureUrl) ? '#local-signature' : (signedUrl || signatureInfo?.contractSignedUrl);
     const signedAt = signatureInfo?.contractSignedAt;
 
     const handleUploadClick = () => {
@@ -264,7 +266,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             const updatedExtra = await response.json();
 
             if (setClientData) {
-                setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
+                setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra.merged || updatedExtra) }));
             }
 
             step = 'Enregistrement BD document';
@@ -366,7 +368,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             const updatedExtraProc = await response.json();
 
             if (setClientData) {
-                setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtraProc) }));
+                setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtraProc.merged || updatedExtraProc) }));
             }
 
             step = 'Enregistrement BD document procuration';
@@ -502,6 +504,23 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     <button
                                         onClick={() => {
                                             if (!checkApproval()) return;
+                                            
+                                            const extra = parsedExtraInfo || {};
+                                            const isCreation = (clientData?.company || extra.nomSociete || '').toLowerCase().includes('en cours de création');
+                                            const cName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData?.name || '').trim();
+                                            const compName = (clientData?.company || extra.nomSociete || '').trim();
+                                            const address = (clientData?.address || extra.adressePerso || '').trim();
+                                            const siretValue = extra.siret || clientData?.siret || extra.siren || clientData?.siren || '';
+                                            const nationalite = (extra.nationalite || '').trim();
+                                            const qualite = (extra.qualite || '').trim();
+                                            const dateNaissance = (extra.dateNaissance || '').trim();
+                                            const lieuNaissance = (extra.lieuNaissance || '').trim();
+
+                                            if (!cName || !compName || !address || (!isCreation && !siretValue) || !nationalite || !qualite || !dateNaissance || !lieuNaissance) {
+                                                alert("⚠️ Vos informations sont incomplètes.\n\nVeuillez vérifier et compléter toutes vos informations légales dans l'onglet 'Paramètres' (Nom, Société, Nationalité, Date/Lieu de naissance, Qualité, etc.) afin que votre contrat soit juridiquement valide et complet.");
+                                                return;
+                                            }
+
                                             if (isSaving) return; // prevent duplicate clicks
                                             setShowSignModal(true);
                                         }}
@@ -532,7 +551,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     href={contractUrl === '#local-signature' ? '#' : contractUrl}
                                     onClick={async (e) => {
                                         if (!checkApproval()) { e.preventDefault(); return; }
-                                        if (contractUrl === '#local-signature') {
+                                        if (e.target.href.includes('#local-signature') || contractUrl === '#local-signature') {
                                             e.preventDefault();
                                             if (downloadingDocId) return;
                                             setDownloadingDocId('contrat-signe');
@@ -557,12 +576,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             } finally {
                                                 setDownloadingDocId(null);
                                             }
-                                        } else if (contractUrl.startsWith('data:')) {
+                                        } else if (contractUrl && contractUrl.startsWith('data:')) {
                                             e.preventDefault();
                                             handleDataUrlDownload(contractUrl, `Contrat_Signe_${clientData.company || clientData.id}.pdf`);
                                         }
                                     }}
-                                    target={contractUrl === '#local-signature' || contractUrl.startsWith('data:') ? '_self' : '_blank'}
+                                    target={(contractUrl === '#local-signature' || (contractUrl && contractUrl.startsWith('data:'))) ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -700,7 +719,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     href={procUrl === '#local-procuration' ? '#' : procUrl}
                                     onClick={async (e) => {
                                         if (!checkApproval()) { e.preventDefault(); return; }
-                                        if (procUrl === '#local-procuration') {
+                                        if (e.target.href.includes('#local-procuration') || procUrl === '#local-procuration') {
                                             e.preventDefault();
                                             if (downloadingDocId) return;
                                             setDownloadingDocId('procuration-signe');
@@ -726,12 +745,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             } finally {
                                                 setDownloadingDocId(null);
                                             }
-                                        } else if (procUrl.startsWith('data:')) {
+                                        } else if (procUrl && procUrl.startsWith('data:')) {
                                             e.preventDefault();
                                             handleDataUrlDownload(procUrl, `Procuration_${clientData.company || clientData.id}.pdf`);
                                         }
                                     }}
-                                    target={procUrl === '#local-procuration' || procUrl.startsWith('data:') ? '_self' : '_blank'}
+                                    target={(procUrl === '#local-procuration' || (procUrl && procUrl.startsWith('data:'))) ? '_self' : '_blank'}
                                     rel="noopener noreferrer"
                                     style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
