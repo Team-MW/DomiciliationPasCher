@@ -485,5 +485,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.js'],
     globals: true,
+    fileParallelism: false,
   }
 })
