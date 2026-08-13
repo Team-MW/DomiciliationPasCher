@@ -254,6 +254,19 @@ describe('Fonctions utilitaires du générateur PDF', () => {
     });
 
     describe('generateSignedProcurationBlob', () => {
+        let fakePage;
+        
+        beforeEach(async () => {
+            const { PDFDocument } = await import('pdf-lib');
+            fakePage = { drawText: vi.fn(), drawImage: vi.fn() };
+            vi.spyOn(PDFDocument, 'load').mockResolvedValue({
+                getPages: () => [fakePage],
+                embedFont: vi.fn(),
+                embedPng: vi.fn(),
+                save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]))
+            });
+        });
+
         test('devrait générer un Blob contenant le PDF de la procuration signée', async () => {
             const client = {
                 id: '123',
@@ -297,30 +310,16 @@ describe('Fonctions utilitaires du générateur PDF', () => {
             const signatureDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
             const procurationData = { siret: '123456789' };
 
-            // On utilise vi.spyOn de vitest sur PDFDocument de pdf-lib
-            const { PDFDocument } = await import('pdf-lib');
-            const originalLoad = PDFDocument.load;
-            
-            let drawTextSpy;
-            vi.spyOn(PDFDocument, 'load').mockImplementationOnce(async (bytes) => {
-                const doc = await originalLoad(bytes);
-                const page = doc.getPages()[0];
-                drawTextSpy = vi.spyOn(page, 'drawText');
-                return doc;
-            });
-
             await generateSignedProcurationBlob(client, signatureDataUrl, procurationData);
             
             // Vérifier que le nom "Représenté par" est à X=125, Y=355
-            const representeParCall = drawTextSpy.mock.calls.find(call => call[0] === 'BOB MARTIN');
+            const representeParCall = fakePage.drawText.mock.calls.find(call => call[0] === 'BOB MARTIN');
             expect(representeParCall).toBeDefined();
             expect(representeParCall[1].x).toBe(125);
             expect(representeParCall[1].y).toBe(355);
 
             // Vérifier que le premier chiffre du SIRET ('1') est aux coordonnées exactes attendues
-            // StartX: 654.5 + 2.5 = 657
-            // StartY: 513 + 3.5 = 516.5
-            const siretFirstDigitCall = drawTextSpy.mock.calls.find(call => 
+            const siretFirstDigitCall = fakePage.drawText.mock.calls.find(call => 
                 call[0] === '1' && Math.abs(call[1].y - 516.5) < 0.1
             );
             expect(siretFirstDigitCall).toBeDefined();
