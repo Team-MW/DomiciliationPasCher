@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { getClientExtraInfo, getPlanTariff, generateAttestationPdf, generateContratPdf, generateSignedContratBlob, generateSignedProcurationBlob, cleanForPdf } from '../src/utils/pdfGenerator.js';
 
-// Mock dynamic import of jsPDF
+// Simulation (mock) de l'import dynamique de jsPDF
 const mockJsPdfMethods = {
     setFont: vi.fn().mockReturnThis(),
     setFontSize: vi.fn().mockReturnThis(),
@@ -18,10 +18,10 @@ const mockJsPdfMethods = {
     addImage: vi.fn().mockReturnThis(),
     getImageProperties: vi.fn().mockReturnValue({ width: 100, height: 50 }),
     output: vi.fn().mockReturnValue('data:application/pdf;base64,mockedbase64content'),
-    splitTextToSize: vi.fn().mockReturnValue(['Mocked split line 1', 'Mocked split line 2']),
+    splitTextToSize: vi.fn().mockReturnValue(['Ligne découpée 1', 'Ligne découpée 2']),
 };
 
-// Use constructible class to mock new jsPDF() calls
+// Utilisation d'une classe constructible pour simuler les appels à new jsPDF()
 vi.mock('jspdf', () => {
     return {
         default: class {
@@ -32,31 +32,35 @@ vi.mock('jspdf', () => {
     };
 });
 
-// Mock Image and browser environment globals needed by pdfGenerator
+// Simulation de l'objet Image et des variables globales du navigateur nécessaires au générateur PDF
 beforeEach(() => {
     vi.clearAllMocks();
     
-    // Mock the global Image object if it doesn't exist
-    if (typeof global.Image === 'undefined') {
-        global.Image = class {
-            constructor() {
-                this._src = '';
-            }
-            set src(value) {
-                this._src = value;
-                setTimeout(() => {
-                    if (this.onload) this.onload();
-                }, 0);
-            }
-            get src() {
-                return this._src;
-            }
-        };
+    // Simulation inconditionnelle de l'objet global Image pour ces tests
+    global.Image = class {
+        constructor() {
+            this._src = '';
+        }
+        set src(value) {
+            this._src = value;
+            setTimeout(() => {
+                if (this.onload) this.onload();
+            }, 0);
+        }
+        get src() {
+            return this._src;
+        }
+    };
+    if (typeof window !== 'undefined') window.Image = global.Image;
+
+    // Empêche l'erreur 'Not implemented: navigation' de jsdom lorsque jsPDF appelle save()
+    if (typeof window !== 'undefined' && window.HTMLAnchorElement) {
+        window.HTMLAnchorElement.prototype.click = vi.fn();
     }
     
-    // Mock alert and URL.createObjectURL/revokeObjectURL
+    // Simulation de alert et de la gestion des URLs
     global.alert = vi.fn();
-    // Mock URL.createObjectURL/revokeObjectURL without breaking the URL constructor
+    // Simulation de createObjectURL/revokeObjectURL sans casser le constructeur URL
     if (typeof global.URL.createObjectURL === 'undefined') {
         global.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
         global.URL.revokeObjectURL = vi.fn();
@@ -66,53 +70,53 @@ beforeEach(() => {
     }
 });
 
-describe('PDF Generator Utility Functions', () => {
+describe('Fonctions utilitaires du générateur PDF', () => {
     
     describe('cleanForPdf', () => {
-        test('should return empty string if input is empty or null', () => {
+        test('devrait retourner une chaîne vide si l\'entrée est vide ou nulle', () => {
             expect(cleanForPdf(null)).toBe('');
             expect(cleanForPdf(undefined)).toBe('');
             expect(cleanForPdf('')).toBe('');
         });
 
-        test('should preserve standard alphanumeric text, spaces, and punctuation', () => {
+        test('devrait préserver le texte alphanumérique standard, les espaces et la ponctuation', () => {
             const input = ' ML Consulting - 123 Rue de la Paix! ';
             expect(cleanForPdf(input)).toBe(input);
         });
 
-        test('should preserve French accents, ligatures, and euro symbol, and normalize curly quotes', () => {
+        test('devrait préserver les accents français, les ligatures, le symbole euro et normaliser les guillemets typographiques', () => {
             const input = 'Élise à côté d’un cœur œuf à 5€';
             expect(cleanForPdf(input)).toBe("Élise à côté d'un cœur œuf à 5€");
         });
 
-        test('should filter out emojis and non-standard characters', () => {
+        test('devrait filtrer les émojis et les caractères non standards', () => {
             const input = 'Appelez au 📞 0600000000 ✉️ ou visitez 💻!';
             expect(cleanForPdf(input)).toBe('Appelez au  0600000000  ou visitez !');
         });
     });
     
     describe('getClientExtraInfo', () => {
-        test('should return empty object if clientData is null or undefined', () => {
+        test('devrait retourner un objet vide si clientData est null ou undefined', () => {
             expect(getClientExtraInfo(null)).toEqual({});
             expect(getClientExtraInfo(undefined)).toEqual({});
         });
 
-        test('should return empty object if clientData has no extra_info', () => {
+        test('devrait retourner un objet vide si clientData n\'a pas d\'extra_info', () => {
             expect(getClientExtraInfo({ name: 'Alice' })).toEqual({});
         });
 
-        test('should parse and return object when extra_info is a JSON string', () => {
+        test('devrait parser et retourner l\'objet quand extra_info est une chaîne JSON', () => {
             const client = { extra_info: JSON.stringify({ siret: '123456', nom: 'Doe' }) };
             expect(getClientExtraInfo(client)).toEqual({ siret: '123456', nom: 'Doe' });
         });
 
-        test('should return object directly if extra_info is already an object', () => {
+        test('devrait retourner l\'objet directement si extra_info est déjà un objet', () => {
             const client = { extra_info: { siret: '123456', nom: 'Doe' } };
             expect(getClientExtraInfo(client)).toEqual({ siret: '123456', nom: 'Doe' });
         });
 
-        test('should handle invalid JSON strings gracefully and return empty object', () => {
-            // Mock console.error to avoid log pollution in test output
+        test('devrait gérer gracieusement les chaînes JSON invalides et retourner un objet vide', () => {
+            // Simulation de console.error pour éviter de polluer les logs pendant le test
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
             const client = { extra_info: '{invalid_json' };
             expect(getClientExtraInfo(client)).toEqual({});
@@ -121,7 +125,7 @@ describe('PDF Generator Utility Functions', () => {
     });
 
     describe('getPlanTariff', () => {
-        test('should return correct tariff for Scan+ plan', () => {
+        test('devrait retourner le tarif correct pour le forfait Scan+', () => {
             expect(getPlanTariff('Plan Scan+')).toEqual({
                 ht: 24,
                 ttc: '28.80',
@@ -130,7 +134,7 @@ describe('PDF Generator Utility Functions', () => {
             });
         });
 
-        test('should return correct tariff for Physique+ plan', () => {
+        test('devrait retourner le tarif correct pour le forfait Physique+', () => {
             expect(getPlanTariff('Plan Physique+')).toEqual({
                 ht: 38,
                 ttc: '45.60',
@@ -145,8 +149,8 @@ describe('PDF Generator Utility Functions', () => {
             });
         });
 
-        test('should return default Essentiel plan for unrecognized plans', () => {
-            expect(getPlanTariff('Unknown Plan')).toEqual({
+        test('devrait retourner le forfait Essentiel par défaut pour les forfaits non reconnus', () => {
+            expect(getPlanTariff('Forfait Inconnu')).toEqual({
                 ht: 20,
                 ttc: '24.00',
                 tva: '4.00',
@@ -162,7 +166,7 @@ describe('PDF Generator Utility Functions', () => {
     });
 
     describe('generateAttestationPdf', () => {
-        test('should invoke jsPDF methods and trigger pdf save', async () => {
+        test('devrait appeler les méthodes de jsPDF et déclencher la sauvegarde du PDF', async () => {
             const client = {
                 id: '123',
                 name: 'Alice Martin',
@@ -174,7 +178,7 @@ describe('PDF Generator Utility Functions', () => {
             
             await generateAttestationPdf(client);
             
-            // Wait slightly for dynamic onload Image loading mock
+            // Attente légère pour simuler le chargement dynamique de l'image
             await new Promise(resolve => setTimeout(resolve, 50));
             
             expect(mockJsPdfMethods.save).toHaveBeenCalled();
@@ -186,7 +190,7 @@ describe('PDF Generator Utility Functions', () => {
             );
         });
 
-        test('should clean client name containing emojis (e.g. 📞) before calling jsPDF text', async () => {
+        test('devrait nettoyer le nom du client contenant des émojis (ex: 📞) avant d\'appeler jsPDF text', async () => {
             const client = {
                 id: '123',
                 name: 'Alice Martin 📞 787878787',
@@ -210,7 +214,7 @@ describe('PDF Generator Utility Functions', () => {
     });
 
     describe('generateContratPdf', () => {
-        test('should invoke jsPDF methods and trigger pdf save with multiple pages', async () => {
+        test('devrait appeler les méthodes de jsPDF et déclencher la sauvegarde du PDF avec plusieurs pages', async () => {
             const client = {
                 id: '123',
                 name: 'Bob Martin',
@@ -230,7 +234,7 @@ describe('PDF Generator Utility Functions', () => {
     });
 
     describe('generateSignedContratBlob', () => {
-        test('should output a Blob containing the signed contract PDF', async () => {
+        test('devrait générer un Blob contenant le PDF du contrat signé', async () => {
             const client = {
                 id: '123',
                 name: 'Bob Martin',
@@ -250,7 +254,7 @@ describe('PDF Generator Utility Functions', () => {
     });
 
     describe('generateSignedProcurationBlob', () => {
-        test.skip('should output a Blob containing the signed procuration PDF', async () => {
+        test('devrait générer un Blob contenant le PDF de la procuration signée', async () => {
             const client = {
                 id: '123',
                 name: 'Bob Martin',
@@ -282,7 +286,7 @@ describe('PDF Generator Utility Functions', () => {
             expect(blob.type).toBe('application/pdf');
         });
 
-        test.skip('should place SIRET and Représenté par exactly at the correct coordinates', async () => {
+        test('devrait placer le SIRET et Représenté par exactement aux coordonnées attendues', async () => {
             const client = {
                 id: '123',
                 name: 'Bob Martin',
@@ -293,7 +297,7 @@ describe('PDF Generator Utility Functions', () => {
             const signatureDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
             const procurationData = { siret: '123456789' };
 
-            // We use vitest's vi.spyOn on pdf-lib's PDFDocument
+            // On utilise vi.spyOn de vitest sur PDFDocument de pdf-lib
             const { PDFDocument } = await import('pdf-lib');
             const originalLoad = PDFDocument.load;
             
@@ -307,13 +311,13 @@ describe('PDF Generator Utility Functions', () => {
 
             await generateSignedProcurationBlob(client, signatureDataUrl, procurationData);
             
-            // Verify "Représenté par" name is at X=125, Y=355
+            // Vérifier que le nom "Représenté par" est à X=125, Y=355
             const representeParCall = drawTextSpy.mock.calls.find(call => call[0] === 'BOB MARTIN');
             expect(representeParCall).toBeDefined();
             expect(representeParCall[1].x).toBe(125);
             expect(representeParCall[1].y).toBe(355);
 
-            // Verify first digit of Client SIRET ('1') is at expected exact coordinates
+            // Vérifier que le premier chiffre du SIRET ('1') est aux coordonnées exactes attendues
             // StartX: 654.5 + 2.5 = 657
             // StartY: 513 + 3.5 = 516.5
             const siretFirstDigitCall = drawTextSpy.mock.calls.find(call => 
