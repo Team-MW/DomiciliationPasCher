@@ -506,7 +506,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             if (!checkApproval()) return;
                                             
                                             const extra = parsedExtraInfo || {};
-                                            const isCreation = (clientData?.company || extra.nomSociete || '').toLowerCase().includes('en cours de création');
+                                            const isCreation = extra.typeProjet === 'creation' || (clientData?.company || extra.nomSociete || '').toLowerCase().includes('en cours de création');
                                             const cName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData?.name || '').trim();
                                             const compName = (clientData?.company || extra.nomSociete || '').trim();
                                             const address = (clientData?.address || extra.adressePerso || '').trim();
@@ -516,7 +516,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             const dateNaissance = (extra.dateNaissance || '').trim();
                                             const lieuNaissance = (extra.lieuNaissance || '').trim();
 
-                                            if (!cName || !compName || !address || (!isCreation && !siretValue) || !nationalite || !qualite || !dateNaissance || !lieuNaissance) {
+                                            if (!cName || !compName || !address || !nationalite || !qualite || !dateNaissance || !lieuNaissance) {
                                                 alert("⚠️ Vos informations sont incomplètes.\n\nVeuillez vérifier et compléter toutes vos informations légales dans l'onglet 'Paramètres' (Nom, Société, Nationalité, Date/Lieu de naissance, Qualité, etc.) afin que votre contrat soit juridiquement valide et complet.");
                                                 return;
                                             }

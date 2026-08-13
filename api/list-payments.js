@@ -55,7 +55,6 @@ export default async function handler(req, res) {
             }
         }
 
-        // Récupérer les paiements (PaymentIntents) et Factures (Invoices)
         const allInvoices = [];
         const allPIs = [];
         for (const cid of customerIds) {
@@ -64,6 +63,19 @@ export default async function handler(req, res) {
 
             const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
             allInvoices.push(...invoices.data);
+        }
+
+        // Récupérer aussi les paiements invités (guest checkouts/payment links) liés à cet email
+        if (email) {
+            try {
+                const searchPIs = await stripe.paymentIntents.search({
+                    query: `receipt_email:'${email.trim()}'`,
+                    limit: 100
+                });
+                allPIs.push(...searchPIs.data);
+            } catch (searchErr) {
+                console.warn("Stripe search API not available or failed:", searchErr.message);
+            }
         }
 
         const uniquePayments = new Map();
@@ -102,11 +114,14 @@ export default async function handler(req, res) {
         for (const pi of allPIs) {
             if (pi.created < sinceUnix) continue;
             if (invoicePiIds.has(pi.id)) continue; // Déjà traité via sa facture
+            
+            // Ignorer les tentatives de paiement abandonnées (évite les fausses alertes 'Impayé')
+            if (pi.status === 'requires_payment_method' || pi.status === 'canceled') continue;
 
             let status = 'échec';
             if (pi.status === 'succeeded') status = 'payé';
-            else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) status = 'en attente';
-            else if (['canceled', 'requires_capture'].includes(pi.status)) status = 'échec';
+            else if (['requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) status = 'en attente';
+            else if (['requires_capture'].includes(pi.status)) status = 'échec';
 
             uniquePayments.set(pi.id, {
                 id: pi.id,

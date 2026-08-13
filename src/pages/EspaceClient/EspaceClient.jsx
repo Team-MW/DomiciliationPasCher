@@ -37,6 +37,8 @@ export default function EspaceClient() {
     }, [activeTab]);
 
     useEffect(() => {
+        let isMounted = true;
+
         async function fetchData() {
             const params = new URLSearchParams(window.location.search);
             const isPreview = params.get('preview') === 'true';
@@ -49,16 +51,18 @@ export default function EspaceClient() {
                     status: "actif",
                     since: "2024-12-01"
                 };
-                setClientData(previewClient);
                 const [m, d, b] = await Promise.all([
                     adminDataService.getMail(),
                     adminDataService.getDocuments('1'),
                     adminDataService.getClientBookings('1')
                 ]);
-                setMail(m.slice(0, 5));
-                setDocuments(d);
-                setBookings(b);
-                setIsLoading(false);
+                if (isMounted) {
+                    setClientData(previewClient);
+                    setMail(m.slice(0, 5));
+                    setDocuments(d);
+                    setBookings(b);
+                    setIsLoading(false);
+                }
                 return;
             }
 
@@ -74,6 +78,7 @@ export default function EspaceClient() {
                 // Fallback : Recherche par Session ID pour les clients déjà approuvés
                 if (!data && savedSessionId) {
                     data = await adminDataService.getClientBySessionId(savedSessionId);
+                    if (data) localStorage.removeItem('last_successful_session');
                 }
 
                 // NOUVEAU : Si toujours pas de client, on regarde dans les demandes
@@ -84,6 +89,7 @@ export default function EspaceClient() {
                     // Fallback par Session ID pour les demandes
                     if (!maDemande && savedSessionId) {
                         maDemande = await adminDataService.getDemandeBySessionId(savedSessionId);
+                        if (maDemande) localStorage.removeItem('last_successful_session');
                     }
 
                     if (maDemande) {
@@ -127,6 +133,8 @@ export default function EspaceClient() {
                     return;
                 }
 
+                if (!isMounted) return;
+
                 if (data) {
                     // LIEN DÉFINITIF : Lier le Clerk ID au compte trouvé
                     if (!data.clerkId || data.clerkId === '') {
@@ -149,26 +157,34 @@ export default function EspaceClient() {
                             adminDataService.getClientBookings(data.id),
                             adminDataService.getMessages(data.id)
                         ]);
-                        setMail(m);
-                        setDocuments(d);
-                        setBookings(b);
-                        const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
-                        setUnreadMsgsCount(unread);
+                        if (isMounted) {
+                            setMail(m);
+                            setDocuments(d);
+                            setBookings(b);
+                            const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
+                            setUnreadMsgsCount(unread);
+                        }
                     } else {
                         // Pour une demande temporaire, on met des listes vides
-                        setMail([]);
-                        setDocuments([]);
-                        setBookings([]);
-                        setUnreadMsgsCount(0);
+                        if (isMounted) {
+                            setMail([]);
+                            setDocuments([]);
+                            setBookings([]);
+                            setUnreadMsgsCount(0);
+                        }
                     }
                 } else {
-                    setClientData(null);
+                    if (isMounted) setClientData(null);
                 }
-                setIsLoading(false);
+                if (isMounted) setIsLoading(false);
             }
         }
 
         fetchData();
+
+        return () => {
+            isMounted = false;
+        };
     }, [isLoaded, user]);
 
     const handleLogout = async () => {

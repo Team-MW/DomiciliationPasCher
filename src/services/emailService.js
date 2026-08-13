@@ -1,5 +1,5 @@
 export const sendApprovalEmail = async (clientEmail, clientName) => {
-    const serviceId = 'service_rlofvjj';
+    const serviceId = 'service_wbvb925';
     const templateId = 'template_h70fvsh';
     const publicKey = '6YILUpK9_xU_iVDvR';
     
