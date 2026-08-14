@@ -459,6 +459,67 @@ const localStripePlugin = {
         });
         return;
       }
+      if (req.url === '/api/ensure-stripe-customer' && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString(); });
+        req.on('end', async () => {
+          try {
+            const body = JSON.parse(bodyStr || '{}');
+            const { email, name } = body;
+
+            if (!email) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Email is required' }));
+              return;
+            }
+
+            let secretKey = null;
+            if (fs.existsSync('.env.local')) {
+              const envContent = fs.readFileSync('.env.local', 'utf-8');
+              const match = envContent.match(/STRIPE_SECRET_KEY=(.*)/);
+              if (match) secretKey = match[1].trim();
+            }
+            if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
+
+            if (!secretKey || secretKey === 'sk_live_remplace_moi' || secretKey.startsWith('pk_')) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Missing STRIPE_SECRET_KEY' }));
+              return;
+            }
+
+            const stripe = new Stripe(secretKey);
+            const cleanEmail = email.trim().toLowerCase();
+            const customers = await stripe.customers.list({ email: cleanEmail, limit: 1 });
+
+            let customerId;
+            if (customers.data.length > 0) {
+                customerId = customers.data[0].id;
+                if (name && !customers.data[0].name) {
+                    await stripe.customers.update(customerId, { name });
+                }
+            } else {
+                const newCustomer = await stripe.customers.create({
+                    email: cleanEmail,
+                    name: name || undefined,
+                    metadata: { source: 'auto_ensure_customer' }
+                });
+                customerId = newCustomer.id;
+            }
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ customerId }));
+          } catch (e) {
+            console.error("Vite Stripe Ensure Customer Error:", e);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+        return;
+      }
       next();
     });
   }

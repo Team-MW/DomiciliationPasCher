@@ -1,0 +1,75 @@
+// @vitest-environment node
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import viteConfig from '../vite.config.js';
+
+vi.mock('stripe', () => {
+    return {
+        default: class {
+            constructor() {
+                return {
+                    customers: {
+                        list: vi.fn().mockResolvedValue({ data: [] }),
+                        create: vi.fn().mockResolvedValue({ id: 'cus_mock_local_123' })
+                    }
+                };
+            }
+        }
+    };
+});
+
+describe('Vite Local Stripe Plugin', () => {
+    let plugin;
+
+    beforeEach(() => {
+        // Le plugin est le deuxième dans le tableau plugins de viteConfig
+        plugin = viteConfig.plugins.find(p => p && p.name === 'local-stripe-api');
+    });
+
+    it('should have local-stripe-api plugin', () => {
+        expect(plugin).toBeDefined();
+    });
+
+    it('should mock /api/ensure-stripe-customer correctly', async () => {
+        const middlewares = [];
+        const mockServer = {
+            middlewares: {
+                use: (mw) => middlewares.push(mw)
+            }
+        };
+
+        process.env.STRIPE_SECRET_KEY = 'sk_test_123';
+        
+        plugin.configureServer(mockServer);
+        const middleware = middlewares[0]; // C'est l'unique middleware utilisé
+
+        let responseData = '';
+        let statusCode = 0;
+
+        const req = {
+            url: '/api/ensure-stripe-customer',
+            method: 'POST',
+            on: (event, cb) => {
+                if (event === 'data') cb(Buffer.from(JSON.stringify({ email: 'test@local.dev' })));
+                if (event === 'end') cb();
+            }
+        };
+
+        const next = vi.fn();
+        await new Promise((resolve) => {
+            const res = {
+                setHeader: vi.fn(),
+                end: (data) => { 
+                    responseData = data; 
+                    resolve();
+                },
+                set statusCode(code) { statusCode = code; }
+            };
+
+            middleware(req, res, next);
+        });
+
+        expect(next).not.toHaveBeenCalled();
+        expect(statusCode).toBe(200);
+        expect(JSON.parse(responseData)).toHaveProperty('customerId', 'cus_mock_local_123');
+    });
+});
