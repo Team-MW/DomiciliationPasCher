@@ -12,11 +12,11 @@ export const cleanForPdf = (str) => {
         .split('')
         .filter(char => {
             const code = char.charCodeAt(0);
-            return (code >= 32 && code <= 126) || 
-                   (code >= 160 && code <= 255) || 
-                   code === 8364 || // €
-                   code === 338 ||  // Œ
-                   code === 339;    // œ
+            return (code >= 32 && code <= 126) ||
+                (code >= 160 && code <= 255) ||
+                code === 8364 || // €
+                code === 338 ||  // Œ
+                code === 339;    // œ
         })
         .join('');
 };
@@ -29,8 +29,8 @@ export const getClientExtraInfo = (clientData) => {
     let extra = {};
     try {
         if (clientData.extra_info) {
-            extra = typeof clientData.extra_info === 'string' 
-                ? JSON.parse(clientData.extra_info) 
+            extra = typeof clientData.extra_info === 'string'
+                ? JSON.parse(clientData.extra_info)
                 : clientData.extra_info;
         }
     } catch (e) {
@@ -65,7 +65,7 @@ export const generateAttestationPdf = async (clientData) => {
 
         const extra = getClientExtraInfo(clientData);
         const planDetails = getPlanTariff(clientData.plan);
-        
+
         // Coordonnées et dates
         const rawDate = clientData.since || new Date().toISOString().split('T')[0];
         const dateSignature = new Date(rawDate).toLocaleDateString('fr-FR', {
@@ -120,7 +120,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFontSize(18);
             doc.setTextColor(15, 23, 42); // slate-900
             doc.text("ATTESTATION DE DOMICILIATION", 105, 55, { align: 'center' });
-            
+
             doc.setFont("helvetica", "italic");
             doc.setFontSize(9);
             doc.setTextColor(71, 85, 105); // slate-600
@@ -130,7 +130,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(11);
             doc.setTextColor(30, 41, 59); // slate-800
-            
+
             let currentY = 75;
 
             // Paragraphe d'introduction
@@ -148,14 +148,14 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFontSize(13);
             doc.setTextColor(15, 23, 42);
             doc.text(companyName, 22, currentY + 8);
-            
+
             doc.setFont("helvetica", "normal");
             doc.setFontSize(10);
             doc.setTextColor(71, 85, 105);
             doc.text(`Forme juridique : ${formeJuridique}`, 22, currentY + 16);
             doc.text(`Statut d'immatriculation : ${sirenText}`, 22, currentY + 22);
             doc.text(`Représentant légal : M./Mme ${clientName}`, 22, currentY + 28);
-            
+
             const splitAddressPerso = doc.splitTextToSize(`Adresse personnelle du gérant : ${clientAddress}`, 165);
             doc.text(splitAddressPerso, 22, currentY + 34);
 
@@ -184,7 +184,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(11);
             doc.setTextColor(30, 41, 59);
-            
+
             const textConcl = `Cette domiciliation est accordée pour l'exercice de son activité de « ${clientActivity} », dans le cadre du contrat de domiciliation commerciale conclu le ${dateSignature} pour une durée indéterminée.`;
             const splitConcl = doc.splitTextToSize(textConcl, 175);
             doc.text(splitConcl, 15, currentY);
@@ -363,10 +363,10 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
 /**
  * Génère le blob PDF d'une Procuration Postale signée en remplissant le document officiel
  */
-export const generateSignedProcurationBlob = async (clientData, signatureDataUrl, procurationData) => {
+export const generateSignedProcurationBlob = async (clientData, signatureDataUrl, procurationData, signProof) => {
     try {
         const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
-        
+
         let existingPdfBytes;
         if (typeof window === 'undefined' || (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test')) {
             const fs = await import('fs');
@@ -377,25 +377,25 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
 
         const pdfDoc = await PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
-        
+
         const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-        
+
         const extra = getClientExtraInfo(clientData);
         const clientName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || 'Le Dirigeant');
-        
+
         // Parse Mandant address fields
         const pRemise = procurationData.pointRemise || '';
         const pComplement = procurationData.complementAdresse || '';
         const pVoie = procurationData.adresseVoie || '';
         const pLieuDit = procurationData.lieuDit || '';
         const pCodePostalVille = procurationData.codePostalVille || '';
-        
+
         // Prepare text values
         const mandantNom = clientData.company ? clientData.company.toUpperCase() : (extra.nom || clientData.name || '').toUpperCase();
         const mandantPrenoms = clientData.company ? `(REP. PAR ${clientName.toUpperCase()})` : (extra.prenom || '').toUpperCase();
         const fullName = `${mandantNom} ${mandantPrenoms}`.trim();
-        
+
         const dateStr = new Date().toLocaleDateString('fr-FR');
         const placeStr = (procurationData.lieuNaissance || 'TOULOUSE').toUpperCase();
 
@@ -415,9 +415,9 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
                 console.error("Error embedding signature image in procuration:", sigErr);
             }
         }
-        
+
         const page1 = pages[0];
-        
+
         const boxWidth = 12.853;
         function drawInBoxes(text, startX, startY, fontObj, size, maxLen = 38) {
             if (!text) return;
@@ -432,19 +432,19 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
                 });
             }
         }
-            
+
         // 1. Mandant details (Boxes start at X=360.4488)
         drawInBoxes(fullName, 360.4488, 496.9791, helveticaBold, 9);
         drawInBoxes(pRemise, 360.4488, 476.6271, helveticaFont, 9);
         drawInBoxes(pComplement, 360.4488, 455.9871, helveticaFont, 9);
         drawInBoxes(pVoie, 360.4488, 435.9071, helveticaFont, 9);
         drawInBoxes(pLieuDit, 360.4488, 415.3631, helveticaFont, 9);
-        
+
         const cp = pCodePostalVille.split(' ')[0] || '';
         const ville = pCodePostalVille.substring(cp.length).trim() || '';
         drawInBoxes(cp, 360.4488, 394.7551, helveticaFont, 9, 5);
         drawInBoxes(ville, 437.3128, 394.7551, helveticaFont, 9, 32);
-        
+
         // Représenté par & Qualité
         page1.drawText(cleanForPdf(clientName.toUpperCase()), { x: 125, y: 355, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText("DIRIGEANT", { x: 410, y: 355, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
@@ -471,14 +471,14 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
                 width: 120,
                 height: 35
             });
-            
+
             // Encart preuve de signature
             if (signProof) {
                 const dateObj = new Date(signProof.signedAt);
                 const pDate = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const pTime = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                 const proofText = `Signé électroniquement par ${cleanForPdf(signProof.signeeName || fullName)} le ${pDate} à ${pTime} depuis l'IP ${signProof.ipAddress}`;
-                
+
                 page1.drawText(proofText, {
                     x: 430,
                     y: 80,
@@ -498,7 +498,7 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         const clientIdVal = clientData.company || clientData.id || '';
         const clientSiret = (procurationData.siret || clientData.siret || '').replace(/\D/g, ''); // Extract only digits
         const clientSiren = (procurationData.siren || '').replace(/\D/g, ''); // Extract only digits
-        
+
         // Helper specifically for bottom boxes which are slightly wider
         function drawInBottomBoxes(text, startX, startY, fontObj, size, maxLen = 15) {
             if (!text) return;
@@ -514,15 +514,15 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
                 });
             }
         }
-        
+
         // N° Dossier
         drawInBottomBoxes(clientSiren || clientIdVal, 211.5, 70, helveticaFont, 9, 15);
         drawInBottomBoxes('101512531', 646.5, 70, helveticaFont, 9, 15);
-        
+
         // N° SIRET / SIREN (Utilise les petites cases standard, centrage parfait)
         drawInBoxes(clientSiret, 654.5, 513, helveticaFont, 9, 14); // Client SIRET
         drawInBoxes('101512531', 654.5, 304, helveticaFont, 9, 14); // Prestataire SIREN (DOMICILIATION PAS CHER)
-        
+
         page1.drawText(cleanForPdf(idP + (idNum ? ' N° ' + idNum : '')), { x: 165, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText(cleanForPdf(idDelivrance), { x: 465, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText(cleanForPdf(idAuth), { x: 650, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });

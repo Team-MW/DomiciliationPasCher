@@ -659,7 +659,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             )}
                             {procSignStatus === 'error' && (
                                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
-                                    ❌ Une erreur est survenue, veuillez réessayer dans quelques instants.
+                                    ❌ Une erreur est survenue : {window.lastProcSignError || 'Erreur inconnue'}
                                 </div>
                             )}
                             {procSignStatus !== 'loading' && (

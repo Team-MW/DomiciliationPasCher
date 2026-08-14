@@ -262,7 +262,7 @@ describe('Fonctions utilitaires du générateur PDF', () => {
             vi.spyOn(PDFDocument, 'load').mockResolvedValue({
                 getPages: () => [fakePage],
                 embedFont: vi.fn(),
-                embedPng: vi.fn(),
+                embedPng: vi.fn().mockResolvedValue({}),
                 save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]))
             });
         });
@@ -299,7 +299,7 @@ describe('Fonctions utilitaires du générateur PDF', () => {
             expect(blob.type).toBe('application/pdf');
         });
 
-        test('devrait placer le SIRET et Représenté par exactement aux coordonnées attendues', async () => {
+        test('devrait placer le SIRET, Représenté par et Preuve de signature exactement aux coordonnées attendues', async () => {
             const client = {
                 id: '123',
                 name: 'Bob Martin',
@@ -309,8 +309,13 @@ describe('Fonctions utilitaires du générateur PDF', () => {
             
             const signatureDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
             const procurationData = { siret: '123456789' };
+            const signProof = {
+                signedAt: '2026-08-14T12:00:00Z',
+                signeeName: 'Bob Martin',
+                ipAddress: '192.168.1.1'
+            };
 
-            await generateSignedProcurationBlob(client, signatureDataUrl, procurationData);
+            await generateSignedProcurationBlob(client, signatureDataUrl, procurationData, signProof);
             
             // Vérifier que le nom "Représenté par" est à X=125, Y=355
             const representeParCall = fakePage.drawText.mock.calls.find(call => call[0] === 'BOB MARTIN');
@@ -325,6 +330,14 @@ describe('Fonctions utilitaires du générateur PDF', () => {
             expect(siretFirstDigitCall).toBeDefined();
             expect(siretFirstDigitCall[1].x).toBeCloseTo(657, 1);
             expect(siretFirstDigitCall[1].y).toBeCloseTo(516.5, 1);
+
+            // Vérifier que la preuve de signature est bien insérée (comme la fausse image est passée)
+            const signProofCall = fakePage.drawText.mock.calls.find(call => 
+                call[0].includes('Signé électroniquement par Bob Martin') && call[0].includes('depuis l\'IP 192.168.1.1')
+            );
+            expect(signProofCall).toBeDefined();
+            expect(signProofCall[1].x).toBe(430);
+            expect(signProofCall[1].y).toBe(80);
         });
     });
 });
