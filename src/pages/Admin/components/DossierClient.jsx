@@ -1249,6 +1249,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     <>
                         <div className="card-header" style={{ borderBottom: '1px solid #F1F5F9', paddingBottom: '16px' }}>
                             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Historique de facturation ({client.name})</h2>
+                            {extra?.stripe_customer_id && (
+                                <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: '#F1F5F9', borderRadius: '6px', fontSize: '12px', color: '#475569', border: '1px solid #E2E8F0' }}>
+                                    <span style={{ fontWeight: 600 }}>ID Stripe:</span>
+                                    <code style={{ fontFamily: 'monospace', color: '#0F172A' }}>{extra.stripe_customer_id}</code>
+                                </div>
+                            )}
                         </div>
                         <div className="card-body" style={{ minHeight: '250px', padding: '24px', background: '#FFFFFF' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>

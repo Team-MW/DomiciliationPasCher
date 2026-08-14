@@ -62,7 +62,19 @@ export default function Factures({ clientData, setClientData }) {
             }
         } catch (err) {
             console.error(err);
-            alert(`Erreur lors de la connexion à Stripe: ${err.message}`);
+            if (err.message && err.message.includes('No such customer')) {
+                alert("L'identifiant Stripe enregistré est obsolète (ex: changement de mode test/live). Il va être réinitialisé, veuillez cliquer à nouveau sur le bouton.");
+                try {
+                    const updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, { stripe_customer_id: null });
+                    if (setClientData) {
+                        setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
+                    }
+                } catch(e) {
+                    console.error("Erreur réinitialisation Stripe ID:", e);
+                }
+            } else {
+                alert(`Erreur lors de la connexion à Stripe: ${err.message}`);
+            }
         } finally {
             setIsPortalLoading(false);
         }
