@@ -268,7 +268,7 @@ export const adminDataService = {
             }
 
             let isStripePayment = false;
-            if (extraInfoStr && extraInfoStr.includes('stripe_customer_id')) {
+            if (extraInfoStr && (extraInfoStr.includes('stripe_customer_id') || extraInfoStr.includes('stripe_session_id'))) {
                 isStripePayment = true;
             }
 
@@ -510,10 +510,13 @@ export const adminDataService = {
                 body: JSON.stringify({ customerId })
             });
             const data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || 'Erreur inconnue de Stripe');
+            }
             return data.url;
         } catch (err) {
             console.error("Erreur création session portail Stripe:", err);
-            return null;
+            throw err;
         }
     },
 

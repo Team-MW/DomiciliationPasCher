@@ -62,7 +62,7 @@ export default function Factures({ clientData, setClientData }) {
             }
         } catch (err) {
             console.error(err);
-            alert("Erreur lors de la connexion à Stripe.");
+            alert(`Erreur lors de la connexion à Stripe: ${err.message}`);
         } finally {
             setIsPortalLoading(false);
         }
