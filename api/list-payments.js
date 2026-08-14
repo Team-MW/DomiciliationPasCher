@@ -48,21 +48,29 @@ export default async function handler(req, res) {
         let subscriptionStatus = 'active'; // par défaut
         // Trouver le statut d'abonnement le plus récent pour ce(s) client(s)
         for (const cid of customerIds) {
-            const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
-            if (subs.data.length > 0) {
-                subscriptionStatus = subs.data[0].status;
-                break;
+            try {
+                const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
+                if (subs.data.length > 0) {
+                    subscriptionStatus = subs.data[0].status;
+                    break;
+                }
+            } catch (err) {
+                console.warn(`Could not fetch subscriptions for ${cid}:`, err.message);
             }
         }
 
         const allInvoices = [];
         const allPIs = [];
         for (const cid of customerIds) {
-            const paymentIntents = await stripe.paymentIntents.list({ customer: cid, limit: 100 });
-            allPIs.push(...paymentIntents.data);
+            try {
+                const paymentIntents = await stripe.paymentIntents.list({ customer: cid, limit: 100 });
+                allPIs.push(...paymentIntents.data);
 
-            const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
-            allInvoices.push(...invoices.data);
+                const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
+                allInvoices.push(...invoices.data);
+            } catch (err) {
+                console.warn(`Could not fetch payments for ${cid}:`, err.message);
+            }
         }
 
         // Récupérer aussi les paiements invités (guest checkouts/payment links) liés à cet email
