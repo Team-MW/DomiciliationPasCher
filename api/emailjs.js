@@ -29,7 +29,7 @@ export default async function handler(req, res) {
             } catch (e) { console.error(e) }
         }
 
-        const { email, nom, type } = req.body;
+        const { email, nom, type, amount, paymentLink } = req.body;
 
         if (!email) {
             return res.status(400).json({ error: "L'email est requis." });
@@ -43,6 +43,23 @@ export default async function handler(req, res) {
         } else if (type === 'procuration_postale') {
             message = `Bonjour ${nom || 'Client'},\n\nAfin que notre centre puisse réceptionner vos courriers recommandés, la mise en place d'une procuration postale est requise.\n\nNous vous invitons à réaliser cette démarche sur le site officiel de La Poste :\nhttps://www.laposte.fr/donner-procuration/informations-mandant\n\nBien cordialement,\nLe service administratif`;
         }
+        
+        let finalTemplateId = templateId;
+        if (type === 'payment_reminder' || type === 'payment_failed') {
+            finalTemplateId = 'template_717kmpr';
+        }
+
+        const templateParams = {
+            to_email: email,
+            to_name: nom || "Client",
+            message: message
+        };
+
+        if (type === 'payment_reminder' || type === 'payment_failed') {
+            templateParams.name = nom || "Client";
+            templateParams.amount = amount || "le montant dû";
+            templateParams.paymentLink = paymentLink || "https://domiciliation-pas-cher.fr/espace-client";
+        }
 
         // 2. Appel à l'API EmailJS côté serveur (La clé privée reste protégée !)
         const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
@@ -50,14 +67,10 @@ export default async function handler(req, res) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 service_id: serviceId,
-                template_id: templateId,
+                template_id: finalTemplateId,
                 user_id: publicKey,
                 accessToken: privateKey, // C'est ici que la clé privée est utilisée de manière ultra-sécurisée
-                template_params: {
-                    to_email: email,
-                    to_name: nom || "Client",
-                    message: message
-                }
+                template_params: templateParams
             })
         });
 

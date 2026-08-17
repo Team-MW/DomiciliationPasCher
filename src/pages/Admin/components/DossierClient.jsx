@@ -57,6 +57,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [fileToName, setFileToName] = useState(null);
     const [customFileName, setCustomFileName] = useState('');
 
+    const [isEditingDetails, setIsEditingDetails] = useState(false);
+    const [editFormData, setEditFormData] = useState({});
+    const [isSavingDetails, setIsSavingDetails] = useState(false);
+
+    const [isStripeSearchOpen, setIsStripeSearchOpen] = useState(false);
+    const [stripeSearchQuery, setStripeSearchQuery] = useState('');
+    const [stripeSearchResults, setStripeSearchResults] = useState([]);
+    const [isStripeSearching, setIsStripeSearching] = useState(false);
+
     useEffect(() => {
         if (client) {
             const fetchData = async () => {
@@ -323,7 +332,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             if (!stripeCustomerId && syncData.foundCustomerId) {
                 try {
                     const updatedExtra = await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: syncData.foundCustomerId });
-                    setClient(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
+                    onUpdate();
                 } catch (e) {
                     console.error("Erreur auto-save stripeCustomerId in admin:", e);
                 }
@@ -400,14 +409,39 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         }
     };
 
+    const handleMarkImpaye = async () => {
+        const confirmed = await showConfirm(`Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé' et un email d'avertissement lui sera envoyé.`, { isDanger: true });
+        if (confirmed) {
+            setIsLoading(true);
+            try {
+                await adminDataService.updateClientStatus(client.id, 'impayé');
+                try {
+                    await sendFailedPaymentEmail(client.email, client.name);
+                    await showAlert("Le statut du client a été mis à jour avec succès (Impayé) et l'email a été envoyé !");
+                } catch (mailErr) {
+                    console.error("Erreur d'envoi d'email impayé :", mailErr);
+                    await showAlert(`Le statut a été mis à jour, mais l'envoi de l'email a échoué.\nErreur: ${mailErr.message || mailErr}`);
+                }
+                onUpdate();
+            } catch (e) {
+                console.error("Erreur updateClientStatus:", e);
+                await showAlert("Erreur de mise à jour du statut");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
     const handleDelete = async () => {
-        const confirmed = await showConfirm(`Êtes-vous sûr de vouloir supprimer définitivement le compte de ${client.company} ?\n\nCela révoquera instantanément son accès à l'Espace Client.`, { isDanger: true });
+        const nameOrCompany = client.company || client.name || "ce client";
+        const confirmed = await showConfirm(`Êtes-vous sûr de vouloir supprimer définitivement le compte de ${nameOrCompany} ?\n\nCela révoquera instantanément son accès à l'Espace Client.`, { isDanger: true });
         if (confirmed) {
             setIsLoading(true);
             try {
                 await adminDataService.deleteClient(client.id);
-                onUpdate(); // Refresh the list
-                onBack(); // Go back to the client list
+                onUpdate();
+                await showAlert("Profil supprimé avec succès.");
+                onBack();
             } catch (err) {
                 console.error("Error deleting client:", err);
                 await showAlert("Erreur lors de la suppression du client.");
@@ -418,6 +452,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     };
 
     if (!client) return null;
+
 
     let extra = null;
     try {
@@ -439,6 +474,78 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     } catch (e) {
         console.error("Error parsing extra_info", e);
     }
+
+    
+    
+    const handleSearchStripeCustomers = async () => {
+        if (!stripeSearchQuery.trim()) return;
+        setIsStripeSearching(true);
+        try {
+            const res = await fetch(`/api/stripe-customers?query=${encodeURIComponent(stripeSearchQuery)}`);
+            if (res.ok) {
+                const data = await res.json();
+                setStripeSearchResults(data.customers || []);
+            } else {
+                showAlert("Erreur lors de la recherche Stripe");
+            }
+        } catch (e) {
+            console.error(e);
+            showAlert("Erreur réseau");
+        } finally {
+            setIsStripeSearching(false);
+        }
+    };
+
+    const handleLinkStripeCustomer = async (customerId) => {
+        try {
+            await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: customerId });
+            showAlert(customerId ? "Client Stripe lié avec succès !" : "Compte Stripe délié avec succès.");
+            setIsStripeSearchOpen(false);
+            onUpdate();
+        } catch (e) {
+            showAlert("Erreur lors de l'opération");
+        }
+    };
+
+    const handleSendClerkInvitation = async () => {
+        try {
+            const confirmed = await showConfirm(`Envoyer une invitation Clerk à ${client.email} ?`);
+            if (!confirmed) return;
+            setIsLoading(true);
+            const res = await fetch('/api/clerk-invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: client.email })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showAlert('Invitation Clerk envoyée avec succès !');
+            } else {
+                showAlert(`Erreur: ${data.error}`);
+            }
+        } catch (e) {
+            console.error(e);
+            showAlert("Erreur réseau lors de l'envoi de l'invitation.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSaveDetails = async () => {
+        setIsSavingDetails(true);
+        try {
+            await adminDataService.updateClientExtraInfo(client.id, editFormData);
+            onUpdate();
+            setIsEditingDetails(false);
+            showAlert("Informations mises à jour avec succès.");
+        } catch (e) {
+            console.error(e);
+            showAlert("Erreur lors de la sauvegarde.");
+        } finally {
+            setIsSavingDetails(false);
+        }
+    };
+
 
     const renderTabContent = () => {
         switch (activeDossierTab) {
@@ -1247,12 +1354,83 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             case 'facturation':
                 return (
                     <>
-                        <div className="card-header" style={{ borderBottom: '1px solid #F1F5F9', paddingBottom: '16px' }}>
-                            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Historique de facturation ({client.name})</h2>
-                            {extra?.stripe_customer_id && (
-                                <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: '#F1F5F9', borderRadius: '6px', fontSize: '12px', color: '#475569', border: '1px solid #E2E8F0' }}>
-                                    <span style={{ fontWeight: 600 }}>ID Stripe:</span>
-                                    <code style={{ fontFamily: 'monospace', color: '#0F172A' }}>{extra.stripe_customer_id}</code>
+                        <div className="card-header" style={{ display: 'block', borderBottom: '1px solid #F1F5F9', paddingBottom: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Historique de facturation ({client.name})</h2>
+                                {extra?.stripe_customer_id ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ padding: '4px 10px', background: '#F1F5F9', borderRadius: '6px', fontSize: '12px', color: '#475569', border: '1px solid #E2E8F0' }}>
+                                            <span style={{ fontWeight: 600 }}>ID Stripe:</span>
+                                            <code style={{ fontFamily: 'monospace', color: '#0F172A', marginLeft: '4px' }}>{extra.stripe_customer_id}</code>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsStripeSearchOpen(!isStripeSearchOpen)}
+                                            style={{ padding: '4px 8px', fontSize: '11px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer' }}
+                                        >
+                                            Modifier
+                                        </button>
+                                        <button 
+                                            onClick={async () => {
+                                                const confirmed = await showConfirm('Voulez-vous vraiment délier ce compte Stripe ?', { isDanger: true });
+                                                if (confirmed) handleLinkStripeCustomer(null);
+                                            }}
+                                            style={{ padding: '4px 8px', fontSize: '11px', background: '#FEF2F2', color: '#EF4444', border: '1px solid #FCA5A5', borderRadius: '4px', cursor: 'pointer' }}
+                                        >
+                                            Délier
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => setIsStripeSearchOpen(!isStripeSearchOpen)}
+                                        style={{ padding: '6px 12px', fontSize: '12px', background: '#6366F1', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                                    >
+                                        🔗 Lier un compte Stripe
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {isStripeSearchOpen && (
+                                <div style={{ marginTop: '16px', padding: '16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                    <h4 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Rechercher un client Stripe</h4>
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Nom ou Email" 
+                                            value={stripeSearchQuery}
+                                            onChange={e => setStripeSearchQuery(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleSearchStripeCustomers()}
+                                            style={{ flex: 1, padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                                        />
+                                        <button 
+                                            onClick={handleSearchStripeCustomers}
+                                            disabled={isStripeSearching}
+                                            style={{ padding: '8px 16px', background: '#0F172A', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                                        >
+                                            {isStripeSearching ? 'Recherche...' : 'Rechercher'}
+                                        </button>
+                                    </div>
+                                    {stripeSearchResults.length > 0 ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {stripeSearchResults.map(sc => (
+                                                <div key={sc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+                                                    <div>
+                                                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{sc.name || 'Sans nom'}</div>
+                                                        <div style={{ fontSize: '11px', color: '#64748B' }}>{sc.email || 'Sans email'} • {sc.id}</div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => handleLinkStripeCustomer(sc.id)}
+                                                        style={{ padding: '6px 12px', fontSize: '11px', background: '#10B981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
+                                                    >
+                                                        Sélectionner
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', padding: '10px' }}>
+                                            Aucun résultat
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1400,8 +1578,36 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             default:
                 return (
                     <>
-                        <div className="card-header" style={{ borderBottom: '1px solid #F1F5F9', paddingBottom: '16px', marginBottom: '24px' }}>
+                        <div className="card-header" style={{ borderBottom: '1px solid #F1F5F9', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Fiche Client Détaillée</h2>
+                            {extra && (
+                                <div>
+                                    {!isEditingDetails ? (
+                                        <button 
+                                            onClick={() => { setEditFormData(extra || {}); setIsEditingDetails(true); }}
+                                            style={{ padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                                        >
+                                            ✏️ Modifier les infos
+                                        </button>
+                                    ) : (
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button 
+                                                onClick={() => setIsEditingDetails(false)}
+                                                style={{ padding: '6px 12px', background: 'white', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                                            >
+                                                Annuler
+                                            </button>
+                                            <button 
+                                                onClick={handleSaveDetails}
+                                                disabled={isSavingDetails}
+                                                style={{ padding: '6px 12px', background: '#10b981', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                                            >
+                                                {isSavingDetails ? 'Sauvegarde...' : '💾 Sauvegarder'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div className="card-body" style={{ padding: '0 24px 24px 24px' }}>
                             {extra ? (
@@ -1409,57 +1615,70 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     {/* Section Dirigeant */}
                                     <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>👤 Coordonnées du Dirigeant</h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Nom Complet</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.nom} {extra.prenom}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Email</div>
-                                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', wordBreak: 'break-all' }}>{extra.email || 'N/A'}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Téléphone</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.telephone || 'N/A'}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Naissance</div>
-                                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.dateNaissance} ({extra.lieuNaissance})</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Nationalité</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.nationalite || 'N/A'}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Qualité</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.qualite || 'N/A'}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', gridColumn: '1 / -1' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Adresse Personnelle</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.adressePerso || 'N/A'}</div>
-                                        </div>
+                                        {[
+                                            { key: 'nom', label: 'Nom' },
+                                            { key: 'prenom', label: 'Prénom' },
+                                            { key: 'email', label: 'Email', isEmail: true },
+                                            { key: 'telephone', label: 'Téléphone', fallbackKey: 'phone' },
+                                            { key: 'dateNaissance', label: 'Date Naissance' },
+                                            { key: 'lieuNaissance', label: 'Lieu Naissance' },
+                                            { key: 'nationalite', label: 'Nationalité' },
+                                            { key: 'qualite', label: 'Qualité' },
+                                            { key: 'adressePerso', label: 'Adresse Personnelle', fullWidth: true, fallbackKey: 'address' }
+                                        ].map(field => (
+                                            <div key={field.key} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', gridColumn: field.fullWidth ? '1 / -1' : 'auto' }}>
+                                                <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>{field.label}</div>
+                                                {isEditingDetails ? (
+                                                    <input 
+                                                        type="text" 
+                                                        value={editFormData[field.key] || ''} 
+                                                        onChange={e => setEditFormData({...editFormData, [field.key]: e.target.value})}
+                                                        style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                    />
+                                                ) : (
+                                                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', wordBreak: 'break-word' }}>{extra[field.key] || (field.fallbackKey ? extra[field.fallbackKey] : null) || (field.isEmail ? client.email : null) || 'N/A'}</div>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
 
                                     {/* Section Entreprise */}
                                     <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>🏢 Informations Entreprise</h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Nom Société</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.nomSociete || 'En cours de création'}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>SIREN</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.siren || 'N/A'}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Forme Juridique</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.formeJuridique || 'N/A'}</div>
-                                        </div>
-                                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Type Projet</div>
-                                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>
-                                                {extra.typeProjet === 'creation' ? "Création" : extra.typeProjet === 'transfert' ? "Transfert" : "Domiciliation"}
+                                        {[
+                                            { key: 'nomSociete', label: 'Nom Société', fallbackKey: 'company' },
+                                            { key: 'siren', label: 'SIREN / SIRET', fallbackKey: 'siret' },
+                                            { key: 'formeJuridique', label: 'Forme Juridique' },
+                                            { key: 'typeProjet', label: 'Type Projet', isSelect: true, options: [{v:'creation', l:'Création'}, {v:'transfert', l:'Transfert'}, {v:'domiciliation', l:'Domiciliation'}] },
+                                            { key: 'activite', label: 'Activité', fullWidth: true }
+                                        ].map(field => (
+                                            <div key={field.key} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', gridColumn: field.fullWidth ? '1 / -1' : 'auto' }}>
+                                                <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>{field.label}</div>
+                                                {isEditingDetails ? (
+                                                    field.isSelect ? (
+                                                        <select
+                                                            value={editFormData[field.key] || ''}
+                                                            onChange={e => setEditFormData({...editFormData, [field.key]: e.target.value})}
+                                                            style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                        >
+                                                            <option value="">Sélectionner</option>
+                                                            {field.options.map(opt => <option key={opt.v} value={opt.v}>{opt.l}</option>)}
+                                                        </select>
+                                                    ) : (
+                                                        <input 
+                                                            type="text" 
+                                                            value={editFormData[field.key] || ''} 
+                                                            onChange={e => setEditFormData({...editFormData, [field.key]: e.target.value})}
+                                                            style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                                                        />
+                                                    )
+                                                ) : (
+                                                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', wordBreak: 'break-word' }}>
+                                                        {field.isSelect ? (field.options.find(o => o.v === extra[field.key])?.l || extra[field.key] || 'N/A') : (extra[field.key] || 'N/A')}
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
 
                                     {/* Section Domiciliation */}
@@ -1467,23 +1686,65 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Adresse choisie</div>
-                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.ville || 'Toulouse'}</div>
+                                            {isEditingDetails ? (
+                                                <input type="text" value={editFormData.ville || ''} onChange={e => setEditFormData({...editFormData, ville: e.target.value})} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                            ) : (
+                                                <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.ville || 'Toulouse'}</div>
+                                            )}
                                         </div>
                                         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Offre Courrier</div>
-                                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#2563EB' }}>
-                                                {extra.offre === 'scan' ? 'Scan numérique' : (extra.offre === 'reexpedition' ? 'Physique (+38€)' : 'Notification')}
-                                            </div>
+                                            {isEditingDetails ? (
+                                                <select value={editFormData.offre || ''} onChange={e => setEditFormData({...editFormData, offre: e.target.value})} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                                                    <option value="scan">Scan numérique</option>
+                                                    <option value="reexpedition">Physique (+38€)</option>
+                                                    <option value="notification">Notification</option>
+                                                </select>
+                                            ) : (
+                                                <div style={{ fontSize: '14px', fontWeight: '700', color: '#2563EB' }}>
+                                                    {extra.offre === 'scan' ? 'Scan numérique' : (extra.offre === 'reexpedition' ? 'Physique (+38€)' : 'Notification')}
+                                                </div>
+                                            )}
                                         </div>
                                         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Fréquence</div>
-                                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.frequence === 'annuel' ? 'Annuelle (2 mois off.)' : 'Mensuelle'}</div>
+                                            {isEditingDetails ? (
+                                                <select value={editFormData.frequence || ''} onChange={e => setEditFormData({...editFormData, frequence: e.target.value})} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                                                    <option value="annuel">Annuelle</option>
+                                                    <option value="mensuel">Mensuelle</option>
+                                                </select>
+                                            ) : (
+                                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.frequence === 'annuel' ? 'Annuelle (2 mois off.)' : 'Mensuelle'}</div>
+                                            )}
                                         </div>
                                     </div>
                                 </>
                             ) : (
                                 <div style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>
-                                    <p>Aucune information détaillée d'inscription disponible pour ce client (créé manuellement ou données anciennes).</p>
+                                    <p>Aucune information détaillée d'inscription disponible pour ce client.</p>
+                                    {!isEditingDetails && (
+                                        <button 
+                                            onClick={() => { setEditFormData({}); setIsEditingDetails(true); }}
+                                            style={{ marginTop: '10px', padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                                        >
+                                            ➕ Ajouter des informations
+                                        </button>
+                                    )}
+                                    {isEditingDetails && (
+                                        <div style={{ marginTop: '20px', textAlign: 'left' }}>
+                                            <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Nouveau profil</h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <input placeholder="Prénom" value={editFormData.prenom || ''} onChange={e => setEditFormData({...editFormData, prenom: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input placeholder="Nom" value={editFormData.nom || ''} onChange={e => setEditFormData({...editFormData, nom: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input placeholder="Téléphone" value={editFormData.telephone || ''} onChange={e => setEditFormData({...editFormData, telephone: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input placeholder="SIRET" value={editFormData.siret || ''} onChange={e => setEditFormData({...editFormData, siret: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                                    <button onClick={() => setIsEditingDetails(false)} style={{ padding: '8px 16px' }}>Annuler</button>
+                                                    <button onClick={handleSaveDetails} style={{ padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px' }}>{isSavingDetails ? 'Sauvegarde...' : 'Sauvegarder'}</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1582,6 +1843,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>CLERK USER ID</span>
                                 <code style={{ fontSize: '11px', background: '#F8FAFC', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', wordBreak: 'break-all', color: '#334155' }}>{client.clerkId || "user_unknown"}</code>
+                                {(!client.clerkId || client.clerkId === "user_unknown") && (
+                                    <button
+                                        onClick={handleSendClerkInvitation}
+                                        style={{ marginTop: '8px', padding: '6px 12px', fontSize: '11px', background: '#6366F1', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+                                    >
+                                        ✉️ Envoyer Invitation Clerk
+                                    </button>
+                                )}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>GÉRANT</span>
@@ -1599,31 +1868,47 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>DATE D'ENTRÉE</span>
                                 <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{formatDateLong(client.since)}</span>
                             </div>
+                            
+                            {/* --- NOUVELLES INFOS (extra_info) --- */}
+                            {extra?.prenom && extra?.nom && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #E2E8F0' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>IDENTITÉ COMPLÈTE</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.prenom} {extra.nom}</span>
+                                </div>
+                            )}
+                            {(extra?.telephone || extra?.phone) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>TÉLÉPHONE</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.telephone || extra.phone}</span>
+                                </div>
+                            )}
+                            {(extra?.adressePerso || extra?.address) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>ADRESSE PERSO.</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.adressePerso || extra.address}</span>
+                                </div>
+                            )}
+                            {(extra?.siren || extra?.siret) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>SIRET</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.siren || extra.siret}</span>
+                                </div>
+                            )}
+                            {extra?.activite && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>ACTIVITÉ</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.activite}</span>
+                                </div>
+                            )}
                         </div>
                         <div className="info-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <button
                                 className="btn-danger-outline"
-                                onClick={async () => {
-                                    const confirmed = await showConfirm("Alerte: Déclarer ce client en défaut de paiement ? Son statut passera à 'impayé' et un email d'avertissement lui sera envoyé.", { isDanger: true });
-                                    if (confirmed) {
-                                        try {
-                                            await adminDataService.updateClientStatus(client.id, 'impayé');
-                                            try {
-                                                await sendFailedPaymentEmail(client.email, client.name);
-                                            } catch (mailErr) {
-                                                console.error("Erreur d'envoi d'email impayé :", mailErr);
-                                            }
-                                            onUpdate();
-                                            onBack();
-                                        } catch (e) {
-                                            await showAlert("Erreur de mise à jour");
-                                        }
-                                    }
-                                }}
+                                onClick={handleMarkImpaye}
                                 disabled={isLoading}
                                 style={{ background: '#fff1f2', color: '#9f1239', borderColor: '#fda4af', borderStyle: 'solid', borderWidth: '1px', padding: '10px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', width: '100%' }}
                             >
-                                Le client a un impayé
+                                {isLoading ? 'Chargement...' : 'Le client a un impayé'}
                             </button>
                             <button
                                 className="btn-danger-outline"

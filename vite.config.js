@@ -24,6 +24,156 @@ const localStripePlugin = {
         return;
       }
 
+      if (req.url === '/api/clerk-invite' && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString(); });
+        req.on('end', async () => {
+          try {
+            const body = JSON.parse(bodyStr || '{}');
+            req.body = body;
+
+            // Charger la clé secrète Clerk
+            if (!process.env.CLERK_SECRET_KEY) {
+              const fs = await import('fs');
+              let sk = null;
+              if (fs.existsSync('.env.local')) {
+                const match = fs.readFileSync('.env.local', 'utf-8').match(/CLERK_SECRET_KEY=(.*)/);
+                if (match) sk = match[1].trim();
+              }
+              if (!sk && fs.existsSync('.env')) {
+                const match = fs.readFileSync('.env', 'utf-8').match(/CLERK_SECRET_KEY=(.*)/);
+                if (match) sk = match[1].trim();
+              }
+              if (sk) process.env.CLERK_SECRET_KEY = sk;
+            }
+
+            const { default: handler } = await import('./api/clerk-invite.js');
+            
+            const resMock = {
+              status: (code) => {
+                res.statusCode = code;
+                return resMock;
+              },
+              json: (data) => {
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(data));
+              }
+            };
+
+            await handler(req, resMock);
+          } catch (e) {
+            console.error(e);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+        return;
+      }
+
+      if (req.url === '/api/emailjs' && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString(); });
+        req.on('end', async () => {
+          try {
+            const body = JSON.parse(bodyStr || '{}');
+            const { email, nom, type, amount, paymentLink } = body;
+            
+            if (!email) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: "L'email est requis." }));
+              return;
+            }
+
+            let serviceId = null;
+            let templateId = null;
+            let publicKey = null;
+            let privateKey = null;
+
+            if (fs.existsSync('.env.local')) {
+                const content = fs.readFileSync('.env.local', 'utf-8');
+                const getEnv = (key) => {
+                    const match = content.match(new RegExp(`${key}=(.*)`));
+                    return match ? match[1].trim() : null;
+                };
+                serviceId = getEnv('EMAILJS_SERVICE_ID');
+                templateId = getEnv('EMAILJS_TEMPLATE_ID');
+                publicKey = getEnv('VITE_EMAILJS_PUBLIC_KEY');
+                privateKey = getEnv('EMAILJS_PRIVATE_KEY');
+            }
+            if (!serviceId) serviceId = process.env.EMAILJS_SERVICE_ID;
+            if (!templateId) templateId = process.env.EMAILJS_TEMPLATE_ID;
+            if (!publicKey) publicKey = process.env.VITE_EMAILJS_PUBLIC_KEY;
+            if (!privateKey) privateKey = process.env.EMAILJS_PRIVATE_KEY;
+
+            let message = "Votre paiement a été validé avec succès. Merci de créer votre compte Espace Client et de déposer vos pièces justificatives.";
+            if (type === 'payment_failed') {
+                message = "Bonjour,\n\nNous vous informons qu'un incident est survenu lors de votre dernier règlement.\n\nAfin de maintenir la continuité de vos services et l'accès à votre courrier, nous vous invitons à mettre à jour vos informations de facturation depuis votre espace personnel.\n\nVous pouvez régulariser la situation en vous connectant ici : https://domiciliation-pas-cher.fr/espace-client\n\nBien cordialement,\nLe service comptabilité";
+            } else if (type === 'post_signature') {
+                message = `Bonjour ${nom || 'Client'},\n\nNous vous confirmons la signature de votre contrat. Ce document est dès à présent disponible dans votre espace sécurisé.\n\nAfin de finaliser l'ouverture de votre dossier, nous vous invitons à nous transmettre vos pièces justificatives (Pièce d'identité, justificatif de domicile, extrait Kbis) directement depuis l'onglet "Mes Documents".\n\nAccédez à votre portail ici : https://domiciliation-pas-cher.fr/espace-client\n\nBien cordialement,\nLe service client`;
+            } else if (type === 'procuration_postale') {
+                message = `Bonjour ${nom || 'Client'},\n\nAfin que notre centre puisse réceptionner vos courriers recommandés, la mise en place d'une procuration postale est requise.\n\nNous vous invitons à réaliser cette démarche sur le site officiel de La Poste :\nhttps://www.laposte.fr/donner-procuration/informations-mandant\n\nBien cordialement,\nLe service administratif`;
+            }
+            
+            let finalTemplateId = templateId;
+            if (type === 'payment_reminder' || type === 'payment_failed') {
+                finalTemplateId = 'template_717kmpr';
+            }
+
+            const templateParams = {
+                to_email: email,
+                to_name: nom || "Client",
+                message: message
+            };
+
+            if (type === 'payment_reminder' || type === 'payment_failed') {
+                templateParams.name = nom || "Client";
+                templateParams.amount = amount || "le montant dû";
+                templateParams.paymentLink = paymentLink || "https://domiciliation-pas-cher.fr/espace-client";
+            }
+
+            // Fallback for vite when offline/no keys
+            if (!serviceId || !publicKey) {
+               console.warn("MOCK EMAILJS SEND (Keys missing):", templateParams);
+               res.statusCode = 200;
+               res.setHeader('Content-Type', 'application/json');
+               res.end(JSON.stringify({ success: true, mock: true }));
+               return;
+            }
+
+            const fetchRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    service_id: serviceId,
+                    template_id: finalTemplateId,
+                    user_id: publicKey,
+                    accessToken: privateKey,
+                    template_params: templateParams
+                })
+            });
+
+            if (fetchRes.ok) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: true }));
+            } else {
+                const errTxt = await fetchRes.text();
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: errTxt }));
+            }
+          } catch (e) {
+            console.error("Vite EmailJS Error:", e);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+        return;
+      }
+
+
       if (req.url === '/api/checkout' && req.method === 'POST') {
         let bodyStr = '';
         req.on('data', chunk => { bodyStr += chunk.toString() });
@@ -345,21 +495,31 @@ const localStripePlugin = {
 
           let subscriptionStatus = 'active'; // par défaut
           for (const cid of customerIds) {
-            const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
-            if (subs.data.length > 0) {
-                subscriptionStatus = subs.data[0].status;
-                break;
+            try {
+              const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
+              if (subs.data.length > 0) {
+                  subscriptionStatus = subs.data[0].status;
+                  break;
+              }
+            } catch (err) {
+              if (err.code === 'resource_missing') {
+                  console.warn(`[Stripe] Customer ${cid} introuvable (probablement supprimé).`);
+              }
             }
           }
 
           const allInvoices = [];
           const allPIs = [];
           for (const cid of customerIds) {
-            const paymentIntents = await stripe.paymentIntents.list({ customer: cid, limit: 100 });
-            allPIs.push(...paymentIntents.data);
+            try {
+              const paymentIntents = await stripe.paymentIntents.list({ customer: cid, limit: 100 });
+              allPIs.push(...paymentIntents.data);
 
-            const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
-            allInvoices.push(...invoices.data);
+              const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
+              allInvoices.push(...invoices.data);
+            } catch (err) {
+              if (err.code !== 'resource_missing') throw err;
+            }
           }
 
           const uniquePayments = new Map();

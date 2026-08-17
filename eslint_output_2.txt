@@ -1,0 +1,6 @@
+
+/Users/elamine/Desktop/MWCREA/logiciel/domiciliation-pas-cher/src/pages/Admin/components/DossierClient.jsx
+  501:11  error  Parsing error: Identifier 'handleSaveDetails' has already been declared
+
+✖ 1 problem (1 error, 0 warnings)
+
