@@ -92,8 +92,8 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
 
             onCreated();
         } catch (err) {
-            console.error(err);
-            await showAlert('Erreur lors de la création');
+            console.error("Erreur de création:", err);
+            await showAlert(`Erreur lors de la création : ${err.message || err}`);
         } finally {
             setLoading(false);
             setProgress('');
