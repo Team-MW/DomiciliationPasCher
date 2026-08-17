@@ -93,7 +93,12 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
             onCreated();
         } catch (err) {
             console.error("Erreur de création:", err);
-            await showAlert(`Erreur lors de la création : ${err.message || err}`);
+            const errorMessage = err.message || err;
+            if (errorMessage.includes("Duplicate entry") && errorMessage.includes("clients.email")) {
+                await showAlert("Erreur : Cette adresse email est déjà utilisée par un autre client. Veuillez utiliser une adresse email différente.");
+            } else {
+                await showAlert(`Erreur lors de la création : ${errorMessage}`);
+            }
         } finally {
             setLoading(false);
             setProgress('');
