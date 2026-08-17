@@ -680,6 +680,29 @@ const localStripePlugin = {
         });
         return;
       }
+      if (req.url === '/api/stripe-stats' && req.method === 'GET') {
+        try {
+          const { default: handler } = await import('./api/stripe-stats.js');
+          
+          const customRes = {
+            status: (code) => {
+              res.statusCode = code;
+              return customRes;
+            },
+            json: (data) => {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(data));
+            }
+          };
+          
+          await handler(req, customRes);
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
       next();
     });
   }

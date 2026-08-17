@@ -528,69 +528,53 @@ export const adminDataService = {
 
     // --- STATS ---
     async getGlobalStats() {
-        const [clients, mails, demandes, unreadMsgs, paymentsRes] = await Promise.all([
+        const [clients, mails, demandes, unreadMsgs] = await Promise.all([
             conn.execute('SELECT COUNT(*) as total FROM clients WHERE status = ?', ['actif']),
             conn.execute("SELECT COUNT(*) as total FROM mail WHERE status = 'non lu'"),
             conn.execute("SELECT COUNT(*) as total FROM demandes WHERE status = 'en_attente'"),
-            conn.execute("SELECT COUNT(*) as total FROM messages WHERE status = 'sent' AND sender = 'client'"),
-            conn.execute("SELECT amount, date FROM payments WHERE status = 'payé'")
+            conn.execute("SELECT COUNT(*) as total FROM messages WHERE status = 'sent' AND sender = 'client'")
         ]);
 
-        const revenueRes = await conn.execute("SELECT plan FROM clients WHERE status = 'actif'");
-        const monthlyRevenue = revenueRes.rows.reduce((acc, c) => {
-            if (c.plan === 'Scan+') return acc + 24;
-            if (c.plan === 'Physique+') return acc + 38;
-            return acc + 20;
-        }, 0);
-
-        // Calculer l'historique des revenus réels des 6 derniers mois
-        const monthlyData = {};
-        const monthNamesShort = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+        let monthlyRevenue = 0;
+        let revenueHistory = [];
         
-        const now = new Date();
-        const last6Months = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const key = `${yyyy}-${mm}`;
-            last6Months.push({
-                key,
-                label: `${monthNamesShort[d.getMonth()]} ${yyyy}`
-            });
-            monthlyData[key] = 0;
+        // --- NOUVEAU: Récupérer les vraies données depuis Stripe via l'API ---
+        try {
+            const apiBaseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+                ? 'http://localhost:5173'
+                : '';
+                
+            const res = await fetch(`${apiBaseUrl}/api/stripe-stats`);
+            if (res.ok) {
+                const data = await res.json();
+                monthlyRevenue = data.monthlyRevenue || 0;
+                revenueHistory = data.revenueHistory || [];
+            } else {
+                console.warn("Impossible de récupérer les statistiques Stripe");
+            }
+        } catch (err) {
+            console.error("Erreur lors de l'appel à /api/stripe-stats:", err);
         }
 
-        paymentsRes.rows.forEach(p => {
-            if (p.date) {
-                const monthKey = p.date.substring(0, 7); // "YYYY-MM"
-                if (monthlyData[monthKey] !== undefined) {
-                    monthlyData[monthKey] += parseFloat(p.amount);
-                }
+        // --- Fallback au cas où l'API échoue ou retourne un historique vide ---
+        if (revenueHistory.length === 0) {
+            const now = new Date();
+            const monthNamesShort = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                revenueHistory.push({
+                    label: `${monthNamesShort[d.getMonth()]} ${d.getFullYear()}`,
+                    revenue: 0
+                });
             }
-        });
-
-        // Si l'historique est entièrement vide (nouveaux comptes de test),
-        // on génère une courbe fictive progressive pour que le graphique soit esthétique
-        const historySum = Object.values(monthlyData).reduce((sum, v) => sum + v, 0);
-        let revenueHistory = last6Months.map(m => ({
-            label: m.label,
-            revenue: Math.round(monthlyData[m.key])
-        }));
-
-        if (historySum === 0) {
-            revenueHistory = last6Months.map((m, i) => ({
-                label: m.label,
-                revenue: Math.round(monthlyRevenue * (0.2 + i * 0.16)) // Courbe progressive de test
-            }));
         }
 
         return {
-            activeClients: parseInt(clients.rows[0].total),
-            pendingMails: parseInt(mails.rows[0].total),
-            pendingDemandes: parseInt(demandes.rows[0].total),
-            pendingMessages: parseInt(unreadMsgs.rows[0].total),
-            monthlyRevenue,
+            activeClients: parseInt(clients.rows[0]?.total || 0),
+            pendingDemandes: parseInt(demandes.rows[0]?.total || 0),
+            pendingMessages: parseInt(unreadMsgs.rows[0]?.total || 0),
+            unreadMail: parseInt(mails.rows[0]?.total || 0),
+            monthlyRevenue: monthlyRevenue,
             revenueHistory
         };
     },
