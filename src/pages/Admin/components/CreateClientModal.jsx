@@ -23,22 +23,8 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
         typeProjet: 'creation'
     });
     
-    const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState('');
-
-    const handleFileChange = (e) => {
-        if (e.target.files) {
-            const newFiles = Array.from(e.target.files);
-            setFiles(prev => [...prev, ...newFiles]);
-            // Reset l'input pour permettre de resélectionner le même fichier si on l'a supprimé par erreur
-            e.target.value = '';
-        }
-    };
-
-    const removeFile = (indexToRemove) => {
-        setFiles(prev => prev.filter((_, index) => index !== indexToRemove));
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -67,28 +53,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
             };
             
             // 1. Ajouter le client en base
-            const newClient = await adminDataService.addClient(clientData);
-
-            // 2. Uploader les fichiers si présents
-            if (files.length > 0) {
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    setProgress(`Upload du document ${i + 1}/${files.length} : ${file.name}...`);
-                    
-                    // Upload Cloudinary
-                    const cloudinaryRes = await uploadFile(file);
-                    
-                    // Enregistrement en base dans la table documents
-                    await adminDataService.addDocument(newClient.id, {
-                        name: file.name,
-                        size: (file.size / 1024).toFixed(0) + ' KB',
-                        type: file.type.includes('pdf') ? 'pdf' : 'image',
-                        url: cloudinaryRes.secure_url || cloudinaryRes.url,
-                        owner: 'admin',
-                        folder: 'Documents Client'
-                    });
-                }
-            }
+            await adminDataService.addClient(clientData);
 
             onCreated();
         } catch (err) {
@@ -289,34 +254,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                         </div>
                     </div>
 
-                    <h3 style={{ fontSize: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginTop: '24px', marginBottom: '16px', color: '#1e293b' }}>
-                        4. Documents (Pièce d'identité, KBIS, etc.)
-                    </h3>
-                    <div className="form-group full">
-                        <input 
-                            type="file" 
-                            multiple 
-                            onChange={handleFileChange}
-                            accept="application/pdf,image/png,image/jpeg,image/jpg"
-                            style={{ padding: '10px', border: '2px dashed #cbd5e1', borderRadius: '8px', width: '100%', cursor: 'pointer', background: '#f8fafc' }}
-                        />
-                        {files.length > 0 && (
-                            <ul style={{ marginTop: '12px', fontSize: '13px', color: '#475569', paddingLeft: '0', listStyle: 'none' }}>
-                                {files.map((f, i) => (
-                                    <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', background: '#e2e8f0', padding: '6px 12px', borderRadius: '6px' }}>
-                                        📄 {f.name} ({(f.size/1024).toFixed(0)} KB)
-                                        <button 
-                                            type="button" 
-                                            onClick={() => removeFile(i)}
-                                            style={{ marginLeft: 'auto', color: '#ef4444', background: 'white', border: '1px solid #fca5a5', cursor: 'pointer', fontSize: '11px', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}
-                                        >
-                                            Retirer
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+
 
                     {progress && (
                         <div style={{ marginTop: '16px', padding: '10px', background: '#eff6ff', color: '#1e40af', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold' }}>
