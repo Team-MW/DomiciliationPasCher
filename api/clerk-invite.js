@@ -20,10 +20,15 @@ export default async function handler(req, res) {
     try {
         const clerk = createClerkClient({ secretKey: clerkSecretKey });
         
+        // Obtenir l'URL de base dynamiquement
+        const protocol = req.headers['x-forwarded-proto'] || 'https';
+        const host = req.headers.host;
+        const baseUrl = host ? `${protocol}://${host}` : 'https://domiciliation-pas-cher.fr';
+        
         // Créer une invitation via l'API Clerk
         const invitation = await clerk.invitations.createInvitation({
             emailAddress: email,
-            redirectUrl: 'https://domiciliation-pas-cher.fr/espace-client',
+            redirectUrl: `${baseUrl}/inscription`,
             publicMetadata: { role: 'client' },
             ignoreExisting: true // Si une invitation existe déjà pour cet email, ça renvoie l'existante
         });

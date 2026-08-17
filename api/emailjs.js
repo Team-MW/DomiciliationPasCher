@@ -35,11 +35,15 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: "L'email est requis." });
         }
 
+        const protocol = req.headers['x-forwarded-proto'] || 'https';
+        const host = req.headers.host;
+        const baseUrl = host ? `${protocol}://${host}` : 'https://domiciliation-pas-cher.fr';
+
         let message = "Votre paiement a été validé avec succès. Merci de créer votre compte Espace Client et de déposer vos pièces justificatives.";
         if (type === 'payment_failed') {
-            message = "Bonjour,\n\nNous vous informons qu'un incident est survenu lors de votre dernier règlement.\n\nAfin de maintenir la continuité de vos services et l'accès à votre courrier, nous vous invitons à mettre à jour vos informations de facturation depuis votre espace personnel.\n\nVous pouvez régulariser la situation en vous connectant ici : https://domiciliation-pas-cher.fr/espace-client\n\nBien cordialement,\nLe service comptabilité";
+            message = `Bonjour,\n\nNous vous informons qu'un incident est survenu lors de votre dernier règlement.\n\nAfin de maintenir la continuité de vos services et l'accès à votre courrier, nous vous invitons à mettre à jour vos informations de facturation depuis votre espace personnel.\n\nVous pouvez régulariser la situation en vous connectant ici : ${baseUrl}/connexion\n\nBien cordialement,\nLe service comptabilité`;
         } else if (type === 'post_signature') {
-            message = `Bonjour ${nom || 'Client'},\n\nNous vous confirmons la signature de votre contrat. Ce document est dès à présent disponible dans votre espace sécurisé.\n\nAfin de finaliser l'ouverture de votre dossier, nous vous invitons à nous transmettre vos pièces justificatives (Pièce d'identité, justificatif de domicile, extrait Kbis) directement depuis l'onglet "Mes Documents".\n\nAccédez à votre portail ici : https://domiciliation-pas-cher.fr/espace-client\n\nBien cordialement,\nLe service client`;
+            message = `Bonjour ${nom || 'Client'},\n\nNous vous confirmons la signature de votre contrat. Ce document est dès à présent disponible dans votre espace sécurisé.\n\nAfin de finaliser l'ouverture de votre dossier, nous vous invitons à nous transmettre vos pièces justificatives (Pièce d'identité, justificatif de domicile, extrait Kbis) directement depuis l'onglet "Mes Documents".\n\nAccédez à votre portail ici : ${baseUrl}/connexion\n\nBien cordialement,\nLe service client`;
         } else if (type === 'procuration_postale') {
             message = `Bonjour ${nom || 'Client'},\n\nAfin que notre centre puisse réceptionner vos courriers recommandés, la mise en place d'une procuration postale est requise.\n\nNous vous invitons à réaliser cette démarche sur le site officiel de La Poste :\nhttps://www.laposte.fr/donner-procuration/informations-mandant\n\nBien cordialement,\nLe service administratif`;
         }
