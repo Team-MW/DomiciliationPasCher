@@ -13,8 +13,11 @@ export default function InscriptionPage() {
     const [isChecking, setIsChecking] = useState(false);
 
     useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasTicket = urlParams.has('__clerk_ticket');
         const canRegister = localStorage.getItem('allow_registration');
-        if (canRegister === 'true') {
+        
+        if (canRegister === 'true' || hasTicket) {
             setIsAllowed(true);
         }
     }, []);

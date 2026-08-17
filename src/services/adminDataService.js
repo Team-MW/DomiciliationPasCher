@@ -210,11 +210,17 @@ export const adminDataService = {
     async checkPaymentStatus(email) {
         if (!email) return false;
         const cleanEmail = email.trim().toLowerCase();
-        const res = await conn.execute(
+        const resDemandes = await conn.execute(
             "SELECT id FROM demandes WHERE email = ? AND status = 'en_attente' LIMIT 1",
             [cleanEmail]
         );
-        return res.rows.length > 0;
+        if (resDemandes.rows.length > 0) return true;
+
+        const resClients = await conn.execute(
+            "SELECT id FROM clients WHERE email = ? LIMIT 1",
+            [cleanEmail]
+        );
+        return resClients.rows.length > 0;
     },
 
     async traiterDemande(id) {
