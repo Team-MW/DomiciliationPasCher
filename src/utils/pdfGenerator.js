@@ -109,7 +109,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.text('150 Rue Nicolas Louis Vauquelin', 135, 22);
             doc.text('3ème étage, Lot 308 - 31100 Toulouse', 135, 26);
             doc.text('Agrément Préfectoral : CASSIN-DOM-2026-31', 135, 30);
-            doc.text('contact@domiciliation-pas-cher.fr', 135, 34);
+            doc.text('contact@domiciliation-pas-cher.com', 135, 34);
 
             // Ligne séparatrice
             doc.setDrawColor(203, 213, 225); // slate-300

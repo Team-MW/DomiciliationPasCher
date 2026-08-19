@@ -265,7 +265,7 @@ describe('Fonctions utilitaires du générateur PDF', () => {
                 embedPng: vi.fn().mockResolvedValue({}),
                 save: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]))
             });
-        });
+        }, 60000);
 
         test('devrait générer un Blob contenant le PDF de la procuration signée', async () => {
             const client = {

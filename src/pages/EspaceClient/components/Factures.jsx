@@ -224,7 +224,7 @@ export default function Factures({ clientData, setClientData }) {
                 doc.text('150 Rue Nicolas Louis Vauquelin', 15, 54);
                 doc.text('31100 Toulouse, FRANCE', 15, 60);
                 doc.text('N° SIREN : 101 512 531', 15, 66);
-                doc.text('contact@domiciliation-pas-cher.fr', 15, 72);
+                doc.text('contact@domiciliation-pas-cher.com', 15, 72);
 
                 doc.setFontSize(12);
                 doc.setTextColor(30, 41, 59);
