@@ -116,9 +116,9 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                                 value={formData.plan}
                                 onChange={e => setFormData({ ...formData, plan: e.target.value })}
                             >
-                                <option value="Essentiel">Essentiel (20€)</option>
-                                <option value="Scan+">Scan+ (24€)</option>
-                                <option value="Physique+">Physique+ (38€)</option>
+                                <option value="Essentiel">Essentiel (20€ HT / 24€ TTC)</option>
+                                <option value="Scan+">Scan+ (24€ HT / 28.80€ TTC)</option>
+                                <option value="Physique+">Physique+ (38€ HT / 45.60€ TTC)</option>
                             </select>
                         </div>
                     </div>
