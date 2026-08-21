@@ -5,7 +5,7 @@ import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { sendFailedPaymentEmail } from '../../../utils/emailService';
-import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
+import { generateAttestationPdf, generateContratPdf, generateLocalInvoicePdf } from '../../../utils/pdfGenerator';
 
 const formatDateLong = (dateStr) => {
     if (!dateStr) return 'Non définie';
@@ -1520,6 +1520,48 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                         }}>
                                                             {p.status}
                                                         </span>
+                                                        {(p.invoice_url || p.receipt_url) ? (
+                                                            <button
+                                                                onClick={() => window.open(p.invoice_url || p.receipt_url, '_blank')}
+                                                                style={{
+                                                                    marginLeft: '12px',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: '600',
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '6px',
+                                                                    background: '#F1F5F9',
+                                                                    color: '#334155',
+                                                                    border: '1px solid #E2E8F0',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                Voir la Facture
+                                                            </button>
+                                                        ) : (p.status === 'payé' && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await generateLocalInvoicePdf(client, p);
+                                                                    } catch (err) {
+                                                                        console.error("Erreur PDF:", err);
+                                                                        await showAlert("Erreur lors de la génération de la facture.");
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    marginLeft: '12px',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: '600',
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '6px',
+                                                                    background: '#F1F5F9',
+                                                                    color: '#334155',
+                                                                    border: '1px solid #E2E8F0',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                Générer PDF (Local)
+                                                            </button>
+                                                        ))}
                                                         <button
                                                             onClick={async () => {
                                                                 const confirmed = await showConfirm(`Supprimer le paiement ${p.invoice_ref} ?`);
