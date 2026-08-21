@@ -5,7 +5,7 @@ import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { sendFailedPaymentEmail } from '../../../utils/emailService';
-import { generateAttestationPdf, generateContratPdf, generateLocalInvoicePdf } from '../../../utils/pdfGenerator';
+import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
 
 const formatDateLong = (dateStr) => {
     if (!dateStr) return 'Non définie';
@@ -91,40 +91,38 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         }
                     }
 
-                    if (stripeCustomerId) {
-                        const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
-                        const stripePayments = syncData.payments;
-                        const subStatus = syncData.subscriptionStatus;
+                    const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+                    const stripePayments = syncData.payments;
+                    const subStatus = syncData.subscriptionStatus;
 
-                        if (stripePayments) {
-                            // "le payement doit être pri de stripe et non de la db tout le temp"
-                            // On garde uniquement les ajouts manuels de la DB locale
-                            const manualPayments = pay.filter(p => p.method === 'Ajout Manuel');
-                            
-                            const formattedStripe = stripePayments.map(sp => ({
-                                ...sp,
-                                invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
-                            }));
+                    if (stripePayments) {
+                        // "le payement doit être pri de stripe et non de la db tout le temp"
+                        // On garde uniquement les ajouts manuels de la DB locale
+                        const manualPayments = pay.filter(p => p.method === 'Ajout Manuel');
 
-                            // On met à jour l'affichage en combinant Stripe (en direct) + Manuel
-                            setPayments([...formattedStripe, ...manualPayments].sort((a, b) => new Date(b.date) - new Date(a.date)));
+                        const formattedStripe = stripePayments.map(sp => ({
+                            ...sp,
+                            invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
+                        }));
+
+                        // On met à jour l'affichage en combinant Stripe (en direct) + Manuel
+                        setPayments([...formattedStripe, ...manualPayments].sort((a, b) => new Date(b.date) - new Date(a.date)));
+                    }
+
+                    // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
+                    if (subStatus) {
+                        let newClientStatus = client.status;
+                        if (subStatus === 'canceled' && client.status !== 'résilié') {
+                            newClientStatus = 'résilié';
+                        } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
+                            newClientStatus = 'echec_paiement';
+                        } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
+                            newClientStatus = 'actif';
                         }
 
-                        // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
-                        if (subStatus) {
-                            let newClientStatus = client.status;
-                            if (subStatus === 'canceled' && client.status !== 'résilié') {
-                                newClientStatus = 'résilié';
-                            } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
-                                newClientStatus = 'echec_paiement';
-                            } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
-                                newClientStatus = 'actif';
-                            }
-
-                            if (newClientStatus !== client.status) {
-                                await adminDataService.updateClientStatus(client.id, newClientStatus);
-                                onUpdate(); // Notification à Admin.jsx pour rafraîchir la liste générale
-                            }
+                        if (newClientStatus !== client.status) {
+                            await adminDataService.updateClientStatus(client.id, newClientStatus);
+                            onUpdate(); // Notification à Admin.jsx pour rafraîchir la liste générale
                         }
                     }
                 } catch (stripeErr) {
@@ -330,7 +328,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     console.error("Erreur auto-save stripeCustomerId in admin:", e);
                 }
             }
-            
+
             const stripePayments = syncData.payments;
             const subStatus = syncData.subscriptionStatus;
 
@@ -434,7 +432,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             if (typeof extra === 'string') extra = JSON.parse(extra);
             // Si c'est un objet vide, on le remet à null pour l'affichage du message d'aide
             if (extra && Object.keys(extra).length === 0) extra = null;
-            
+
             // Force local PDF generation in the admin panel if signature data exists
             // This ensures it behaves just like the client view and avoids Cloudinary URL issues
             if (extra && extra.procurationSignatureUrl) {
@@ -448,8 +446,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         console.error("Error parsing extra_info", e);
     }
 
-    
-    
+
+
     const handleSearchStripeCustomers = async () => {
         if (!stripeSearchQuery.trim()) return;
         setIsStripeSearching(true);
@@ -472,7 +470,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const handleLinkStripeCustomer = async (customerId) => {
         try {
             await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: customerId });
-            
+
             if (customerId) {
                 // L'utilisateur lie le compte Stripe : on supprime tous les anciens paiements locaux/manuels
                 // pour que la prochaine synchronisation ne récupère QUE l'historique propre de Stripe.
@@ -1346,13 +1344,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             <span style={{ fontWeight: 600 }}>ID Stripe:</span>
                                             <code style={{ fontFamily: 'monospace', color: '#0F172A', marginLeft: '4px' }}>{extra.stripe_customer_id}</code>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => setIsStripeSearchOpen(!isStripeSearchOpen)}
                                             style={{ padding: '4px 8px', fontSize: '11px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer' }}
                                         >
                                             Modifier
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={async () => {
                                                 const confirmed = await showConfirm('Voulez-vous vraiment délier ce compte Stripe ?', { isDanger: true });
                                                 if (confirmed) handleLinkStripeCustomer(null);
@@ -1363,7 +1361,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         </button>
                                     </div>
                                 ) : (
-                                    <button 
+                                    <button
                                         onClick={() => setIsStripeSearchOpen(!isStripeSearchOpen)}
                                         style={{ padding: '6px 12px', fontSize: '12px', background: '#6366F1', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
                                     >
@@ -1371,20 +1369,20 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     </button>
                                 )}
                             </div>
-                            
+
                             {isStripeSearchOpen && (
                                 <div style={{ marginTop: '16px', padding: '16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                                     <h4 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Rechercher un client Stripe</h4>
                                     <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Nom ou Email" 
+                                        <input
+                                            type="text"
+                                            placeholder="Nom ou Email"
                                             value={stripeSearchQuery}
                                             onChange={e => setStripeSearchQuery(e.target.value)}
                                             onKeyDown={e => e.key === 'Enter' && handleSearchStripeCustomers()}
                                             style={{ flex: 1, padding: '8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
                                         />
-                                        <button 
+                                        <button
                                             onClick={handleSearchStripeCustomers}
                                             disabled={isStripeSearching}
                                             style={{ padding: '8px 16px', background: '#0F172A', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
@@ -1400,7 +1398,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                         <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{sc.name || 'Sans nom'}</div>
                                                         <div style={{ fontSize: '11px', color: '#64748B' }}>{sc.email || 'Sans email'} • {sc.id}</div>
                                                     </div>
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleLinkStripeCustomer(sc.id)}
                                                         style={{ padding: '6px 12px', fontSize: '11px', background: '#10B981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
                                                     >
@@ -1522,32 +1520,6 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                         }}>
                                                             {p.status}
                                                         </span>
-                                                        {(p.invoice_url || p.receipt_url) ? (
-                                                            <a
-                                                                href={p.invoice_url || p.receipt_url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                style={{ marginLeft: '12px', fontSize: '14px', textDecoration: 'none' }}
-                                                                title="Voir la facture Stripe"
-                                                            >
-                                                                📄
-                                                            </a>
-                                                        ) : (p.status === 'payé' && (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        await generateLocalInvoicePdf(client, p);
-                                                                    } catch (err) {
-                                                                        console.error("Erreur PDF:", err);
-                                                                        await showAlert("Erreur lors de la génération de la facture.");
-                                                                    }
-                                                                }}
-                                                                style={{ background: 'transparent', border: 'none', marginLeft: '12px', fontSize: '14px', cursor: 'pointer' }}
-                                                                title="Télécharger la facture"
-                                                            >
-                                                                📄
-                                                            </button>
-                                                        ))}
                                                         <button
                                                             onClick={async () => {
                                                                 const confirmed = await showConfirm(`Supprimer le paiement ${p.invoice_ref} ?`);
@@ -1592,7 +1564,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             {extra && (
                                 <div>
                                     {!isEditingDetails ? (
-                                        <button 
+                                        <button
                                             onClick={() => { setEditFormData(extra || {}); setIsEditingDetails(true); }}
                                             style={{ padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                                         >
@@ -1600,13 +1572,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         </button>
                                     ) : (
                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button 
+                                            <button
                                                 onClick={() => setIsEditingDetails(false)}
                                                 style={{ padding: '6px 12px', background: 'white', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                                             >
                                                 Annuler
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={handleSaveDetails}
                                                 disabled={isSavingDetails}
                                                 style={{ padding: '6px 12px', background: '#10b981', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
@@ -1638,10 +1610,10 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             <div key={field.key} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', gridColumn: field.fullWidth ? '1 / -1' : 'auto' }}>
                                                 <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>{field.label}</div>
                                                 {isEditingDetails ? (
-                                                    <input 
-                                                        type="text" 
-                                                        value={editFormData[field.key] || ''} 
-                                                        onChange={e => setEditFormData({...editFormData, [field.key]: e.target.value})}
+                                                    <input
+                                                        type="text"
+                                                        value={editFormData[field.key] || ''}
+                                                        onChange={e => setEditFormData({ ...editFormData, [field.key]: e.target.value })}
                                                         style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                     />
                                                 ) : (
@@ -1658,7 +1630,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             { key: 'nomSociete', label: 'Nom Société', fallbackKey: 'company' },
                                             { key: 'siren', label: 'SIREN / SIRET', fallbackKey: 'siret' },
                                             { key: 'formeJuridique', label: 'Forme Juridique' },
-                                            { key: 'typeProjet', label: 'Type Projet', isSelect: true, options: [{v:'creation', l:'Création'}, {v:'transfert', l:'Transfert'}, {v:'domiciliation', l:'Domiciliation'}] },
+                                            { key: 'typeProjet', label: 'Type Projet', isSelect: true, options: [{ v: 'creation', l: 'Création' }, { v: 'transfert', l: 'Transfert' }, { v: 'domiciliation', l: 'Domiciliation' }] },
                                             { key: 'activite', label: 'Activité', fullWidth: true }
                                         ].map(field => (
                                             <div key={field.key} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', gridColumn: field.fullWidth ? '1 / -1' : 'auto' }}>
@@ -1667,17 +1639,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                     field.isSelect ? (
                                                         <select
                                                             value={editFormData[field.key] || ''}
-                                                            onChange={e => setEditFormData({...editFormData, [field.key]: e.target.value})}
+                                                            onChange={e => setEditFormData({ ...editFormData, [field.key]: e.target.value })}
                                                             style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                         >
                                                             <option value="">Sélectionner</option>
                                                             {field.options.map(opt => <option key={opt.v} value={opt.v}>{opt.l}</option>)}
                                                         </select>
                                                     ) : (
-                                                        <input 
-                                                            type="text" 
-                                                            value={editFormData[field.key] || ''} 
-                                                            onChange={e => setEditFormData({...editFormData, [field.key]: e.target.value})}
+                                                        <input
+                                                            type="text"
+                                                            value={editFormData[field.key] || ''}
+                                                            onChange={e => setEditFormData({ ...editFormData, [field.key]: e.target.value })}
                                                             style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
                                                         />
                                                     )
@@ -1696,7 +1668,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Adresse choisie</div>
                                             {isEditingDetails ? (
-                                                <input type="text" value={editFormData.ville || ''} onChange={e => setEditFormData({...editFormData, ville: e.target.value})} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input type="text" value={editFormData.ville || ''} onChange={e => setEditFormData({ ...editFormData, ville: e.target.value })} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
                                             ) : (
                                                 <div style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>{extra.ville || 'Toulouse'}</div>
                                             )}
@@ -1704,7 +1676,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Offre Courrier</div>
                                             {isEditingDetails ? (
-                                                <select value={editFormData.offre || ''} onChange={e => setEditFormData({...editFormData, offre: e.target.value})} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                                                <select value={editFormData.offre || ''} onChange={e => setEditFormData({ ...editFormData, offre: e.target.value })} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
                                                     <option value="scan">Scan numérique</option>
                                                     <option value="reexpedition">Physique (+38€)</option>
                                                     <option value="notification">Notification</option>
@@ -1718,7 +1690,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Fréquence</div>
                                             {isEditingDetails ? (
-                                                <select value={editFormData.frequence || ''} onChange={e => setEditFormData({...editFormData, frequence: e.target.value})} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                                                <select value={editFormData.frequence || ''} onChange={e => setEditFormData({ ...editFormData, frequence: e.target.value })} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
                                                     <option value="annuel">Annuelle</option>
                                                     <option value="mensuel">Mensuelle</option>
                                                 </select>
@@ -1732,7 +1704,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <div style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>
                                     <p>Aucune information détaillée d'inscription disponible pour ce client.</p>
                                     {!isEditingDetails && (
-                                        <button 
+                                        <button
                                             onClick={() => { setEditFormData({}); setIsEditingDetails(true); }}
                                             style={{ marginTop: '10px', padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                                         >
@@ -1743,10 +1715,10 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         <div style={{ marginTop: '20px', textAlign: 'left' }}>
                                             <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Nouveau profil</h3>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                <input placeholder="Prénom" value={editFormData.prenom || ''} onChange={e => setEditFormData({...editFormData, prenom: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-                                                <input placeholder="Nom" value={editFormData.nom || ''} onChange={e => setEditFormData({...editFormData, nom: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-                                                <input placeholder="Téléphone" value={editFormData.telephone || ''} onChange={e => setEditFormData({...editFormData, telephone: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-                                                <input placeholder="SIRET" value={editFormData.siret || ''} onChange={e => setEditFormData({...editFormData, siret: e.target.value})} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input placeholder="Prénom" value={editFormData.prenom || ''} onChange={e => setEditFormData({ ...editFormData, prenom: e.target.value })} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input placeholder="Nom" value={editFormData.nom || ''} onChange={e => setEditFormData({ ...editFormData, nom: e.target.value })} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input placeholder="Téléphone" value={editFormData.telephone || ''} onChange={e => setEditFormData({ ...editFormData, telephone: e.target.value })} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
+                                                <input placeholder="SIRET" value={editFormData.siret || ''} onChange={e => setEditFormData({ ...editFormData, siret: e.target.value })} style={{ padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
                                                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                                                     <button onClick={() => setIsEditingDetails(false)} style={{ padding: '8px 16px' }}>Annuler</button>
                                                     <button onClick={handleSaveDetails} style={{ padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px' }}>{isSavingDetails ? 'Sauvegarde...' : 'Sauvegarder'}</button>
@@ -1774,7 +1746,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.025em', margin: 0 }}>{client.company}</h1>
                     </div>
                 </div>
-                <button 
+                <button
                     onClick={async () => {
                         const confirmed = await showConfirm(`Renvoyer l'email de bienvenue à ${client.email} ?`);
                         if (confirmed) {
@@ -1786,7 +1758,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 } else {
                                     await showAlert(`Erreur EmailJS : ${result.error}`);
                                 }
-                            } catch(e) {
+                            } catch (e) {
                                 console.error(e);
                                 await showAlert("Erreur inattendue lors de l'envoi.");
                             }
@@ -1877,7 +1849,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>DATE D'ENTRÉE</span>
                                 <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{formatDateLong(client.since)}</span>
                             </div>
-                            
+
                             {/* --- NOUVELLES INFOS (extra_info) --- */}
                             {extra?.prenom && extra?.nom && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #E2E8F0' }}>
