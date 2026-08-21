@@ -176,48 +176,4 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
             foundCustomerId: 'cus_test_123'
         }));
     });
-
-    test('should filter out payment intents created before the since date parameter', async () => {
-        mockReq.query = {
-            email: 'test@example.com',
-            since: '2026-06-29' // Unix time is approx 1782747000
-        };
-
-        stripeMocks.listCustomers.mockResolvedValue({
-            data: [{ id: 'cus_test_123' }]
-        });
-
-        stripeMocks.listPaymentIntents.mockResolvedValue({
-            data: [
-                {
-                    id: 'pi_old',
-                    amount: 2400,
-                    currency: 'eur',
-                    status: 'succeeded',
-                    created: 1750000000, // old payment before 2026-06-29
-                    payment_method_types: ['card'],
-                },
-                {
-                    id: 'pi_new',
-                    amount: 2400,
-                    currency: 'eur',
-                    status: 'succeeded',
-                    created: 1782750000, // new payment after 2026-06-29
-                    payment_method_types: ['card'],
-                }
-            ]
-        });
-
-        stripeMocks.listSubscriptions.mockResolvedValue({
-            data: [{ status: 'active' }]
-        });
-        stripeMocks.listInvoices.mockResolvedValue({ data: [] });
-
-        await handler(mockReq, mockRes);
-
-        expect(mockRes.status).toHaveBeenCalledWith(200);
-        const responseJson = mockRes.json.mock.calls[0][0];
-        expect(responseJson.payments).toHaveLength(1);
-        expect(responseJson.payments[0].id).toBe('pi_new');
-    });
 });

@@ -92,7 +92,6 @@ export default async function handler(req, res) {
 
         // 1. Ajouter d'abord les factures (qui gèrent les abonnements et les montants à 0€)
         for (const inv of allInvoices) {
-            if (inv.created < sinceUnix) continue;
             if (inv.status === 'draft' || inv.status === 'void') continue;
 
             if (inv.payment_intent) invoicePiIds.add(typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent.id);
@@ -122,7 +121,6 @@ export default async function handler(req, res) {
 
         // 2. Ajouter les PaymentIntents uniques (ex: paiements initiaux non liés à une facture récurrente)
         for (const pi of allPIs) {
-            if (pi.created < sinceUnix) continue;
             if (invoicePiIds.has(pi.id)) continue; // Déjà traité via sa facture
             
             // Ignorer les tentatives de paiement abandonnées (évite les fausses alertes 'Impayé')
