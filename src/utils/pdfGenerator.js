@@ -108,7 +108,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.text('DOMICILIATION PAS CHER', 135, 18);
             doc.text('150 Rue Nicolas Louis Vauquelin', 135, 22);
             doc.text('3ème étage, Lot 308 - 31100 Toulouse', 135, 26);
-            doc.text('Agrément Préfectoral : CASSIN-DOM-2026-31', 135, 30);
+            doc.text('Agrément Préfectoral : AG/DOM/2026/06', 135, 30);
             doc.text('contact@domiciliation-pas-cher.com', 135, 34);
 
             // Ligne séparatrice
@@ -134,7 +134,7 @@ export const generateAttestationPdf = async (clientData) => {
             let currentY = 75;
 
             // Paragraphe d'introduction
-            const textIntro = "Nous soussignés, la société DOMICILIATION PAS CHER, titulaire de l'Agrément Préfectoral de Domiciliation Commerciale n° CASSIN-DOM-2026-31 délivré par la Préfecture de la Haute-Garonne, certifions par la présente accorder la domiciliation juridique et administrative à :";
+            const textIntro = "Nous soussignés, la société DOMICILIATION PAS CHER, titulaire de l'Agrément Préfectoral de Domiciliation Commerciale n° AG/DOM/2026/06 délivré par la Préfecture de la Haute-Garonne, certifions par la présente accorder la domiciliation juridique et administrative à :";
             const splitIntro = doc.splitTextToSize(textIntro, 175);
             doc.text(splitIntro, 15, currentY);
             currentY += splitIntro.length * 5.5 + 8;
@@ -220,7 +220,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(8);
             doc.setTextColor(148, 163, 184); // slate-400
-            doc.text("DOMICILIATION PAS CHER - SIREN 101 512 531 - RCS Toulouse - Agrément Préfectoral CASSIN-DOM-2026-31", 105, 280, { align: 'center' });
+            doc.text("DOMICILIATION PAS CHER - SIREN 101 512 531 - RCS Toulouse - Agrément Préfectoral AG/DOM/2026/06", 105, 280, { align: 'center' });
             doc.text("Document officiel généré automatiquement. Pour faire valoir ce que de droit.", 105, 284, { align: 'center' });
 
             doc.save(`Attestation_Domiciliation_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
