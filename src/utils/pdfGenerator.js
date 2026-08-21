@@ -534,3 +534,120 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         throw err;
     }
 };
+
+export const generateLocalInvoicePdf = async (clientData, facture) => {
+    try {
+        const { default: jsPDF } = await import('jspdf');
+        const doc = new jsPDF();
+
+        const buildPdfContent = (imgData = null) => {
+            if (imgData) {
+                try {
+                    doc.addImage(imgData, 'PNG', 15, 15, 45, 15);
+                } catch (e) {
+                    console.error("Erreur addImage logo PNG", e);
+                }
+            }
+
+            doc.setFontSize(22);
+            doc.setTextColor(30, 41, 59);
+            doc.text('FACTURE', 140, 25);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139);
+            
+            const ref = facture.ref || facture.invoice_ref || `FAC-${facture.id}`;
+            const dateStr = facture.dateStr || new Date(facture.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+            
+            doc.text(`Réf : ${ref}`, 140, 32);
+            doc.text(`Date : ${dateStr}`, 140, 38);
+
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Domiciliation Pas Cher', 15, 48);
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139);
+            doc.text('150 Rue Nicolas Louis Vauquelin', 15, 54);
+            doc.text('31100 Toulouse, FRANCE', 15, 60);
+            doc.text('N° SIREN : 101 512 531', 15, 66);
+            doc.text('contact@domiciliation-pas-cher.com', 15, 72);
+
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Facturé à :', 120, 48);
+            doc.setFontSize(10);
+            
+            const sanitizePdfText = (str) => {
+                if (!str) return '';
+                let clean = String(str).replace(/ - 📞.*/, '');
+                return clean.replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
+            };
+
+            const clientName = clientData.company ? clientData.company : clientData.name;
+            doc.text(sanitizePdfText(clientName) || 'Client', 120, 54);
+            if (clientData.name && clientData.company) {
+                doc.text(sanitizePdfText(clientData.name), 120, 60);
+            }
+            doc.text(sanitizePdfText(clientData.email) || '', 120, 66);
+
+            doc.setDrawColor(226, 232, 240);
+            doc.line(15, 80, 195, 80);
+            
+            doc.setFontSize(11);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Description', 15, 88);
+            doc.text('Prix unitaire HT', 130, 88);
+            doc.text('Total HT', 170, 88);
+
+            doc.line(15, 93, 195, 93);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`Forfait Domiciliation - ${clientData.plan || 'Standard'}`, 15, 102);
+            
+            const amountTTC = typeof facture.amount === 'number' ? facture.amount : parseFloat(facture.amount);
+            const amountHT = amountTTC / 1.20;
+            const ttc = amountTTC.toFixed(2);
+            const ht = amountHT.toFixed(2);
+            const tva = (amountTTC - amountHT).toFixed(2);
+
+            doc.text(`${ht} €`, 130, 102);
+            doc.text(`${ht} €`, 170, 102);
+
+            doc.line(15, 110, 195, 110);
+
+            doc.setFontSize(10);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Total HT :', 130, 120);
+            doc.text(`${ht} €`, 170, 120);
+
+            doc.text('TVA (20%) :', 130, 128);
+            doc.text(`${tva} €`, 170, 128);
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text('Total TTC :', 130, 138);
+            doc.text(`${ttc} €`, 170, 138);
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(150, 160, 170);
+            doc.text('Merci de votre confiance. Domiciliation Pas Cher', 105, 280, { align: 'center' });
+
+            doc.save(`${ref}.pdf`);
+        };
+
+        const img = new Image();
+        img.src = logoUrl;
+        img.onload = () => {
+            buildPdfContent(img);
+        };
+        img.onerror = () => {
+            console.error("Erreur de chargement de l'image du logo");
+            buildPdfContent(null);
+        };
+    } catch (err) {
+        console.error("Erreur lors de la génération PDF :", err);
+        throw err;
+    }
+};

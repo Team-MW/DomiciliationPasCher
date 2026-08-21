@@ -5,7 +5,7 @@ import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { sendFailedPaymentEmail } from '../../../utils/emailService';
-import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
+import { generateAttestationPdf, generateContratPdf, generateLocalInvoicePdf } from '../../../utils/pdfGenerator';
 
 const formatDateLong = (dateStr) => {
     if (!dateStr) return 'Non définie';
@@ -1522,6 +1522,32 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                         }}>
                                                             {p.status}
                                                         </span>
+                                                        {(p.invoice_url || p.receipt_url) ? (
+                                                            <a
+                                                                href={p.invoice_url || p.receipt_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                style={{ marginLeft: '12px', fontSize: '14px', textDecoration: 'none' }}
+                                                                title="Voir la facture Stripe"
+                                                            >
+                                                                📄
+                                                            </a>
+                                                        ) : (p.status === 'payé' && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await generateLocalInvoicePdf(client, p);
+                                                                    } catch (err) {
+                                                                        console.error("Erreur PDF:", err);
+                                                                        await showAlert("Erreur lors de la génération de la facture.");
+                                                                    }
+                                                                }}
+                                                                style={{ background: 'transparent', border: 'none', marginLeft: '12px', fontSize: '14px', cursor: 'pointer' }}
+                                                                title="Télécharger la facture"
+                                                            >
+                                                                📄
+                                                            </button>
+                                                        ))}
                                                         <button
                                                             onClick={async () => {
                                                                 const confirmed = await showConfirm(`Supprimer le paiement ${p.invoice_ref} ?`);
