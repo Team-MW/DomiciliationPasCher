@@ -1529,13 +1529,18 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                     fontWeight: '600',
                                                                     padding: '4px 10px',
                                                                     borderRadius: '6px',
-                                                                    background: '#F1F5F9',
-                                                                    color: '#334155',
-                                                                    border: '1px solid #E2E8F0',
-                                                                    cursor: 'pointer'
+                                                                    background: '#3B82F6',
+                                                                    color: 'white',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px'
                                                                 }}
+                                                                title="Télécharger la facture officielle Stripe"
                                                             >
-                                                                Voir la Facture
+                                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                                                Stripe
                                                             </button>
                                                         ) : (p.status === 'payé' && (
                                                             <button
@@ -1556,10 +1561,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                     background: '#F1F5F9',
                                                                     color: '#334155',
                                                                     border: '1px solid #E2E8F0',
-                                                                    cursor: 'pointer'
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px'
                                                                 }}
+                                                                title="Télécharger la facture locale"
                                                             >
-                                                                Générer PDF (Local)
+                                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                                                Facture
                                                             </button>
                                                         ))}
                                                         <button
