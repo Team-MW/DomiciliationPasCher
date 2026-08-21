@@ -34,8 +34,9 @@ export default async function handler(req, res) {
         const stripe = new Stripe(secretKey);
 
         const customerIdsSet = new Set();
-        if (customerId) customerIdsSet.add(customerId);
-        if (email) {
+        if (customerId) {
+            customerIdsSet.add(customerId);
+        } else if (email) {
             const customers = await stripe.customers.list({ email: email.trim().toLowerCase(), limit: 100 });
             customers.data.forEach(c => customerIdsSet.add(c.id));
         }
