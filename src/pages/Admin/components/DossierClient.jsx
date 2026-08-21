@@ -98,15 +98,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
                         if (stripePayments && stripePayments.length > 0) {
                             let addedCount = 0;
+                            const currentLocalPayments = [...pay]; // Copie locale mutable
                             for (const sp of stripePayments) {
                                 // Vérifier si ce paiement Stripe existe déjà (par référence OU par montant+date pour éviter doublons avec le paiement initial manuel)
                                 const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
-                                const alreadyExists = pay.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
+                                const alreadyExists = currentLocalPayments.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
                                 if (!alreadyExists) {
                                     await adminDataService.addPayment(client.id, {
                                         ...sp,
                                         invoice_ref: stripeRef
                                     });
+                                    currentLocalPayments.push({ amount: sp.amount, date: sp.date, invoice_ref: stripeRef });
                                     addedCount++;
                                 }
                             }
@@ -358,6 +360,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 ...sp,
                                 invoice_ref: stripeRef
                             });
+                            currentPayments.push({ amount: sp.amount, date: sp.date, invoice_ref: stripeRef, status: sp.status });
                             addedCount++;
                         } catch (e) {
                             console.error('AddPayment failed: ', e);
@@ -366,6 +369,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     } else if (existingPayment.status !== sp.status) {
                         try {
                             await adminDataService.updatePaymentStatus(existingPayment.id, sp.status);
+                            existingPayment.status = sp.status;
                             addedCount++;
                         } catch (e) {
                             console.error('UpdatePaymentStatus failed: ', e);
