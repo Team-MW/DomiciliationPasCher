@@ -42,25 +42,7 @@ export const adminDataService = {
         let finalExtraInfo = clientData.extra_info ? (typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info) : {};
         const cleanEmail = clientData.email ? clientData.email.trim().toLowerCase() : '';
         
-        // 1. S'assurer que le client a bien un compte Stripe
-        if (!finalExtraInfo.stripe_customer_id && cleanEmail) {
-            try {
-                const stripeRes = await fetchWithRetry('/api/ensure-stripe-customer', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: cleanEmail, name: clientData.name })
-                });
-                
-                if (stripeRes.ok) {
-                    const data = await stripeRes.json();
-                    if (data.customerId) {
-                        finalExtraInfo.stripe_customer_id = data.customerId;
-                    }
-                }
-            } catch (e) {
-                console.error("Impossible de résoudre l'ID Stripe automatiquement :", e);
-            }
-        }
+        // Création manuelle : On ne crée plus automatiquement de client Stripe.
 
         const id = Date.now().toString();
         const since = clientData.since || new Date().toISOString().split('T')[0];
@@ -235,23 +217,7 @@ export const adminDataService = {
             // On s'assure que extra_info est un objet manipulable
             let finalExtraInfo = d.extra_info ? (typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info) : {};
 
-            if (!finalExtraInfo.stripe_customer_id && d.email) {
-                try {
-                    const stripeRes = await fetchWithRetry('/api/ensure-stripe-customer', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: d.email, name: d.clientName })
-                    });
-                    if (stripeRes.ok) {
-                        const data = await stripeRes.json();
-                        if (data.customerId) {
-                            finalExtraInfo.stripe_customer_id = data.customerId;
-                        }
-                    }
-                } catch (e) {
-                    console.error("Erreur résolution Stripe lors du traitement de la demande:", e);
-                }
-            }
+            // Création manuelle : On ne crée plus automatiquement de client Stripe.
 
             const extraInfoStr = JSON.stringify(finalExtraInfo);
 

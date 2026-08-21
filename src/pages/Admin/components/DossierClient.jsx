@@ -91,47 +91,49 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         }
                     }
 
-                    const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
-                    const stripePayments = syncData.payments;
-                    const subStatus = syncData.subscriptionStatus;
+                    if (stripeCustomerId) {
+                        const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+                        const stripePayments = syncData.payments;
+                        const subStatus = syncData.subscriptionStatus;
 
-                    if (stripePayments && stripePayments.length > 0) {
-                        let addedCount = 0;
-                        for (const sp of stripePayments) {
-                            // Vérifier si ce paiement Stripe existe déjà (par référence OU par montant+date pour éviter doublons avec le paiement initial manuel)
-                            const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
-                            const alreadyExists = pay.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
-                            if (!alreadyExists) {
-                                await adminDataService.addPayment(client.id, {
-                                    ...sp,
-                                    invoice_ref: stripeRef
-                                });
-                                addedCount++;
+                        if (stripePayments && stripePayments.length > 0) {
+                            let addedCount = 0;
+                            for (const sp of stripePayments) {
+                                // Vérifier si ce paiement Stripe existe déjà (par référence OU par montant+date pour éviter doublons avec le paiement initial manuel)
+                                const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
+                                const alreadyExists = pay.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
+                                if (!alreadyExists) {
+                                    await adminDataService.addPayment(client.id, {
+                                        ...sp,
+                                        invoice_ref: stripeRef
+                                    });
+                                    addedCount++;
+                                }
+                            }
+
+                            // Récupérer la liste à jour des paiements locaux
+                            let finalPayments = pay;
+                            if (addedCount > 0) {
+                                finalPayments = await adminDataService.getPayments(client.id);
+                                setPayments(finalPayments);
                             }
                         }
 
-                        // Récupérer la liste à jour des paiements locaux
-                        let finalPayments = pay;
-                        if (addedCount > 0) {
-                            finalPayments = await adminDataService.getPayments(client.id);
-                            setPayments(finalPayments);
-                        }
-                    }
+                        // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
+                        if (subStatus) {
+                            let newClientStatus = client.status;
+                            if (subStatus === 'canceled' && client.status !== 'résilié') {
+                                newClientStatus = 'résilié';
+                            } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
+                                newClientStatus = 'echec_paiement';
+                            } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
+                                newClientStatus = 'actif';
+                            }
 
-                    // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
-                    if (subStatus) {
-                        let newClientStatus = client.status;
-                        if (subStatus === 'canceled' && client.status !== 'résilié') {
-                            newClientStatus = 'résilié';
-                        } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
-                            newClientStatus = 'echec_paiement';
-                        } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
-                            newClientStatus = 'actif';
-                        }
-
-                        if (newClientStatus !== client.status) {
-                            await adminDataService.updateClientStatus(client.id, newClientStatus);
-                            onUpdate(); // Notification à Admin.jsx pour rafraîchir la liste générale
+                            if (newClientStatus !== client.status) {
+                                await adminDataService.updateClientStatus(client.id, newClientStatus);
+                                onUpdate(); // Notification à Admin.jsx pour rafraîchir la liste générale
+                            }
                         }
                     }
                 } catch (stripeErr) {
@@ -499,7 +501,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const handleLinkStripeCustomer = async (customerId) => {
         try {
             await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: customerId });
-            showAlert(customerId ? "Client Stripe lié avec succès !" : "Compte Stripe délié avec succès.");
+            
+            if (customerId) {
+                // L'utilisateur lie le compte Stripe : on supprime tous les anciens paiements locaux/manuels
+                // pour que la prochaine synchronisation ne récupère QUE l'historique propre de Stripe.
+                const currentPayments = await adminDataService.getPayments(client.id);
+                for (const p of currentPayments) {
+                    await adminDataService.deletePayment(p.id);
+                }
+            }
+
+            showAlert(customerId ? "Client Stripe lié avec succès ! Anciens paiements supprimés." : "Compte Stripe délié avec succès.");
             setIsStripeSearchOpen(false);
             onUpdate();
         } catch (e) {
