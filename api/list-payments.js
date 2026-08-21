@@ -123,7 +123,7 @@ export default async function handler(req, res) {
         for (const pi of allPIs) {
             if (invoicePiIds.has(pi.id)) continue; // Déjà traité via sa facture
             if (pi.invoice) continue; // Si lié à une facture, la facture le gère
-            if (pi.description && pi.description.includes('Subscription creation')) continue; // Géré par l'Invoice de l'abonnement
+            if (pi.description && pi.description.includes('Subscription')) continue; // Géré par l'Invoice de l'abonnement
             
             // Ignorer les tentatives de paiement abandonnées (évite les fausses alertes 'Impayé')
             if (pi.status === 'requires_payment_method' || pi.status === 'canceled') continue;
