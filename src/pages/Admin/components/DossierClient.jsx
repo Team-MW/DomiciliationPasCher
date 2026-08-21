@@ -96,29 +96,18 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         const stripePayments = syncData.payments;
                         const subStatus = syncData.subscriptionStatus;
 
-                        if (stripePayments && stripePayments.length > 0) {
-                            let addedCount = 0;
-                            const currentLocalPayments = [...pay]; // Copie locale mutable
-                            for (const sp of stripePayments) {
-                                // Vérifier si ce paiement Stripe existe déjà (par référence OU par montant+date pour éviter doublons avec le paiement initial manuel)
-                                const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
-                                const alreadyExists = currentLocalPayments.some(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
-                                if (!alreadyExists) {
-                                    await adminDataService.addPayment(client.id, {
-                                        ...sp,
-                                        invoice_ref: stripeRef
-                                    });
-                                    currentLocalPayments.push({ amount: sp.amount, date: sp.date, invoice_ref: stripeRef });
-                                    addedCount++;
-                                }
-                            }
+                        if (stripePayments) {
+                            // "le payement doit être pri de stripe et non de la db tout le temp"
+                            // On garde uniquement les ajouts manuels de la DB locale
+                            const manualPayments = pay.filter(p => p.method === 'Ajout Manuel');
+                            
+                            const formattedStripe = stripePayments.map(sp => ({
+                                ...sp,
+                                invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
+                            }));
 
-                            // Récupérer la liste à jour des paiements locaux
-                            let finalPayments = pay;
-                            if (addedCount > 0) {
-                                finalPayments = await adminDataService.getPayments(client.id);
-                                setPayments(finalPayments);
-                            }
+                            // On met à jour l'affichage en combinant Stripe (en direct) + Manuel
+                            setPayments([...formattedStripe, ...manualPayments].sort((a, b) => new Date(b.date) - new Date(a.date)));
                         }
 
                         // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
@@ -348,40 +337,18 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             setSyncDebugText(`DEBUG SYNC:\nURL params:\nEmail: ${client.email}\nCustomerID: ${stripeCustomerId}\nSince: ${client.since}\n\nResponse:\n${JSON.stringify(syncData, null, 2)}`);
             let addedCount = 0;
             if (stripePayments && stripePayments.length > 0) {
-                // Sync : on ajoute ceux qui ne sont pas là ou on met à jour le statut
-                const currentPayments = await adminDataService.getPayments(client.id);
-                for (const sp of stripePayments) {
-                    const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
-                    const existingPayment = currentPayments.find(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
-                    
-                    if (!existingPayment) {
-                        try {
-                            await adminDataService.addPayment(client.id, {
-                                ...sp,
-                                invoice_ref: stripeRef
-                            });
-                            currentPayments.push({ amount: sp.amount, date: sp.date, invoice_ref: stripeRef, status: sp.status });
-                            addedCount++;
-                        } catch (e) {
-                            console.error('AddPayment failed: ', e);
-                            showAlert('Erreur lors de l\'ajout du paiement: ' + e.message);
-                        }
-                    } else if (existingPayment.status !== sp.status) {
-                        try {
-                            await adminDataService.updatePaymentStatus(existingPayment.id, sp.status);
-                            existingPayment.status = sp.status;
-                            addedCount++;
-                        } catch (e) {
-                            console.error('UpdatePaymentStatus failed: ', e);
-                        }
-                    }
+                // "le payement doit être pri de stripe et non de la db tout le temp"
+                if (stripePayments) {
+                    const currentPayments = await adminDataService.getPayments(client.id);
+                    const manualPayments = currentPayments.filter(p => p.method === 'Ajout Manuel');
+                    const formattedStripe = stripePayments.map(sp => ({
+                        ...sp,
+                        invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
+                    }));
+                    setPayments([...formattedStripe, ...manualPayments].sort((a, b) => new Date(b.date) - new Date(a.date)));
+                    showAlert('Synchronisation Stripe terminée. Historique mis à jour en direct depuis Stripe.');
                 }
-
-                // Récupérer la liste finale à jour des paiements locaux
-                const finalPayments = await adminDataService.getPayments(client.id);
-                setPayments(finalPayments);
             }
-            alert(`Added ${addedCount} new payments`);
 
             // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
             let statusUpdated = false;

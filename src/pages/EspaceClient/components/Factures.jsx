@@ -114,26 +114,13 @@ export default function Factures({ clientData, setClientData }) {
                         }
                     }
 
-                    if (stripePayments && stripePayments.length > 0) {
-                        let addedCount = 0;
-                        for (const sp of stripePayments) {
-                            const stripeRef = `STRIPE-${sp.id.substring(3, 10)}`;
-                            const existingPayment = pay.find(p => p.invoice_ref === stripeRef || (p.amount == sp.amount && p.date == sp.date));
-                            if (!existingPayment) {
-                                await adminDataService.addPayment(clientData.id, {
-                                    ...sp,
-                                    invoice_ref: stripeRef
-                                });
-                                addedCount++;
-                            } else if (existingPayment.status !== sp.status) {
-                                await adminDataService.updatePaymentStatus(existingPayment.id, sp.status);
-                                addedCount++;
-                            }
-                        }
-                        if (addedCount > 0) {
-                            const updatedPay = await adminDataService.getPayments(clientData.id);
-                            setRealPayments(updatedPay);
-                        }
+                    if (stripePayments) {
+                        const manualPayments = pay.filter(p => p.method === 'Ajout Manuel');
+                        const formattedStripe = stripePayments.map(sp => ({
+                            ...sp,
+                            invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
+                        }));
+                        setRealPayments([...formattedStripe, ...manualPayments].sort((a, b) => new Date(b.date) - new Date(a.date)));
                     }
 
                     // Mettre à jour le statut du client automatiquement si l'abonnement a changé
