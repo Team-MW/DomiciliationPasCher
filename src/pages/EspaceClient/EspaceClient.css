@@ -1123,6 +1123,7 @@ select.ec-input {
     }
 
     .ec-layout {
+        display: flex;
         flex-direction: column;
     }
 
@@ -1134,7 +1135,7 @@ select.ec-input {
         width: 280px;
         z-index: 100;
         transition: left 0.3s ease;
-        background: white;
+        background: var(--ec-sidebar);
         box-shadow: 2px 0 10px rgba(0,0,0,0.1);
     }
 
@@ -1181,11 +1182,17 @@ select.ec-input {
         justify-content: center;
     }
 
-    .ec-stats-grid {
-        grid-template-columns: 1fr;
+    .ec-stats-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    @media (max-width: 480px) {
+        .ec-stats-row {
+            grid-template-columns: 1fr;
+        }
     }
 
-    .ec-cards-grid {
+    .ec-dashboard-grid {
         grid-template-columns: 1fr;
     }
 
@@ -1198,15 +1205,11 @@ select.ec-input {
         min-width: 600px; /* Force scroll on small screens */
     }
 
-    .ec-settings-grid {
+    .ec-grid-docs {
         grid-template-columns: 1fr;
     }
     
-    .ec-factures-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .ec-docs-grid {
+    .form-grid {
         grid-template-columns: 1fr;
     }
 }
