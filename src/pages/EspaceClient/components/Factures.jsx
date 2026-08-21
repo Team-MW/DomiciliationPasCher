@@ -175,11 +175,22 @@ export default function Factures({ clientData, setClientData }) {
                 dateStr: new Date(p.date).toLocaleDateString('fr-FR'),
                 amountTTC,
                 amountHT,
-                status: p.status
+                status: p.status,
+                invoice_url: p.invoice_url,
+                receipt_url: p.receipt_url
             };
         });
 
     const generatePdf = async (facture) => {
+        if (facture.invoice_url) {
+            window.open(facture.invoice_url, '_blank');
+            return;
+        }
+        if (facture.receipt_url) {
+            window.open(facture.receipt_url, '_blank');
+            return;
+        }
+
         try {
             setDownloadingDocId(facture.id);
             const { default: jsPDF } = await import('jspdf');

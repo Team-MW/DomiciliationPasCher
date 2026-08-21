@@ -115,7 +115,8 @@ export default async function handler(req, res) {
                 status: status,
                 date: new Date(inv.created * 1000).toISOString().split('T')[0],
                 method: 'Carte (Stripe)',
-                invoice_ref: inv.number || `FAC-TMP-${inv.id.substring(3, 9)}`
+                invoice_ref: inv.number || `FAC-TMP-${inv.id.substring(3, 9)}`,
+                invoice_url: inv.invoice_pdf || inv.hosted_invoice_url
             });
         }
 
@@ -139,7 +140,8 @@ export default async function handler(req, res) {
                 status: status,
                 date: new Date(pi.created * 1000).toISOString().split('T')[0],
                 method: pi.payment_method_types?.[0] === 'card' ? 'Carte (Stripe)' : (pi.payment_method_types?.[0] || 'Stripe'),
-                invoice_ref: pi.description || `PAIEMENT-${pi.id.substring(3, 9)}`
+                invoice_ref: pi.description || `PAIEMENT-${pi.id.substring(3, 9)}`,
+                receipt_url: pi.charges?.data?.[0]?.receipt_url
             });
         }
 
