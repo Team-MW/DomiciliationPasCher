@@ -5,7 +5,7 @@ import { useTranslation } from '../../i18n/LanguageContext';
 import './Villes.css';
 
 const cityImages = {
-    Toulouse: 'https://images.unsplash.com/photo-1596431760416-ed40d89f5bc5?q=80&w=2070&auto=format&fit=crop',
+    Toulouse: '/toulouse-capitole.jpg',
 };
 
 const benefitIcons = [

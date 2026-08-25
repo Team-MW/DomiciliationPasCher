@@ -353,7 +353,7 @@
 /* ── Tab Views (Glassmorphism Cards) ── */
 .ec-stats-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 20px;
     margin-bottom: 32px;
 }
@@ -416,6 +416,24 @@
     display: grid;
     grid-template-columns: 1fr 340px;
     gap: 30px;
+}
+
+.ec-grid-1 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+}
+
+.ec-grid-docs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
 }
 
 .ec-content-card {
@@ -1188,6 +1206,14 @@ select.ec-input {
     
     @media (max-width: 480px) {
         .ec-stats-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .ec-grid-docs {
             grid-template-columns: 1fr;
         }
     }

@@ -3,10 +3,15 @@
   "name": "Domiciliation Pas Cher",
   "icons": [
     {
-      "src": "app-icon.png",
+      "src": "favicon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "app-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
     }
   ],
   "start_url": ".",

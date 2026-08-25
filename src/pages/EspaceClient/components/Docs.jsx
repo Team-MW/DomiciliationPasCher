@@ -781,7 +781,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>3️⃣</span> Étape 3 : Vos documents finaux
                 </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                <div className="ec-grid-docs">
                     <div className="ec-content-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid #E2E8F0', background: '#FFFFFF', borderRadius: '16px' }}>
                         <div style={{ marginBottom: '20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>

@@ -7,7 +7,7 @@ export default function Overview({ mail, documents, bookings, clientData }) {
     return (
         <div className="ec-tab-animate" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
-            <div className="ec-stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+            <div className="ec-stats-row">
                 <div className="ec-stat-card">
                     <div className="ec-stat-label">Documents Sécurisés</div>
                     <div className="ec-stat-value">{documents.length}</div>
@@ -20,9 +20,16 @@ export default function Overview({ mail, documents, bookings, clientData }) {
                 </div>
             </div>
 
-            <div className="ec-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+            <div className="ec-grid-1">
 
-                <div className="ec-content-card" style={{ background: '#09090b', color: 'white', border: '1px solid #1e293b' }}>
+                <div className="ec-content-card" style={{ 
+                    background: '#09090b',
+                    backgroundImage: `linear-gradient(to bottom, rgba(9, 9, 11, 0.3), rgba(9, 9, 11, 0.95)), url('/toulouse-capitole.jpg')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    color: 'white', 
+                    border: '1px solid #1e293b' 
+                }}>
                     <div className="ec-card-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '20px 24px' }}>
                         <h2 style={{ fontSize: '15px', color: 'white' }}>Adresse de Domiciliation</h2>
                         <button className="ec-btn-text" style={{ fontSize: '12px', color: '#ffffff', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => {

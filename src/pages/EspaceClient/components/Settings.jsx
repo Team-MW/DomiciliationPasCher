@@ -116,7 +116,7 @@ export default function Settings({ clientData, setClientData }) {
                             </div>
                         )}
                         
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+                        <div className="form-grid" style={{ marginBottom: '24px' }}>
                             <div className="ec-form-group">
                                 <label style={labelStyle}>Nom complet</label>
                                 <input name="name" value={formData.name} onChange={handleChange} required style={inputStyle} />
@@ -143,7 +143,7 @@ export default function Settings({ clientData, setClientData }) {
                         {/* Informations Légales */}
                         <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--ec-border)', marginBottom: '32px' }}>
                             <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px', color: '#0F172A' }}>Informations de l'entreprise & Dirigeant</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
+                            <div className="form-grid">
                                 <div className="ec-form-group">
                                     <label style={labelStyle}>Forme juridique</label>
                                     {extra.formeJuridique ? (

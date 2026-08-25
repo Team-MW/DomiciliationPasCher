@@ -365,19 +365,27 @@ export default function Souscription() {
                             </div>
 
                             <div className="villes-grid">
-                                {VILLES.map(v => (
-                                    <button
-                                        key={v}
-                                        className={`ville-btn ${data.ville === v ? 'selected' : ''}`}
-                                        onClick={() => set('ville', v)}
-                                    >
-                                        <span className="vb-icon">📍</span>
-                                        <span>{v}</span>
-                                        <div className="vb-check">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                        </div>
-                                    </button>
-                                ))}
+                                {VILLES.map(v => {
+                                    const img = v.includes('Toulouse') ? '/toulouse-capitole.jpg' : 'https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=2070&auto=format&fit=crop';
+                                    return (
+                                        <button
+                                            key={v}
+                                            className={`ville-card-fancy ${data.ville === v ? 'selected' : ''}`}
+                                            onClick={() => set('ville', v)}
+                                        >
+                                            <div className="vcf-image" style={{ backgroundImage: `url('${img}')` }}>
+                                                <div className="vcf-overlay"></div>
+                                                <div className="vcf-check">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                                </div>
+                                            </div>
+                                            <div className="vcf-content">
+                                                <span className="vcf-icon">📍</span>
+                                                <span className="vcf-title">{v}</span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                             {errors.ville && <div className="field-error" style={{ marginTop: '12px' }}>{errors.ville}</div>}
 
