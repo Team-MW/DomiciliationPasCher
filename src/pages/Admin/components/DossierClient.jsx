@@ -5,7 +5,10 @@ import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { sendFailedPaymentEmail } from '../../../utils/emailService';
-import { generateAttestationPdf, generateContratPdf, generateLocalInvoicePdf } from '../../../utils/pdfGenerator';
+import { sendNewMailNotification } from '../../../services/emailService';
+import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
+import { resolveClientStatusFromStripe } from '../../../utils/stripeClientStatus';
+import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
 
 const formatDateLong = (dateStr) => {
     if (!dateStr) return 'Non définie';
@@ -41,6 +44,7 @@ const blobToBase64 = (blob) => {
 
 export default function DossierClient({ client, onBack, onUpdate, showConfirm, showAlert }) {
     const [documents, setDocuments] = useState([]);
+    const [mails, setMails] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [currentFolder, setCurrentFolder] = useState(null);
     const [downloadingDocId, setDownloadingDocId] = useState(null);
@@ -66,17 +70,29 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [stripeSearchResults, setStripeSearchResults] = useState([]);
     const [isStripeSearching, setIsStripeSearching] = useState(false);
 
+    // Courrier upload states
+    const [mailFile, setMailFile] = useState(null);
+    const [mailFrom, setMailFrom] = useState('');
+    const [mailType, setMailType] = useState('Lettre simple');
+    const [isUploadingMail, setIsUploadingMail] = useState(false);
+    const [reexpeditions, setReexpeditions] = useState([]);
+    const [isUpdatingReexp, setIsUpdatingReexp] = useState(false);
+
     useEffect(() => {
         if (client) {
             const fetchData = async () => {
                 setIsLoading(true);
                 try {
-                    const [docs, pay] = await Promise.all([
+                    const [docs, pay, clientMails, clientReexp] = await Promise.all([
                         adminDataService.getDocuments(client.id),
-                        adminDataService.getPayments(client.id)
+                        adminDataService.getPayments(client.id),
+                        adminDataService.getClientMail(client.id),
+                        adminDataService.getClientReexpeditions(client.id)
                     ]);
                     setDocuments(docs);
                     setPayments(pay);
+                    setMails(clientMails);
+                    setReexpeditions(Array.isArray(clientReexp) ? clientReexp : []);
                     setIsLoading(false);
 
                     // Synchronisation silencieuse en tâche de fond avec Stripe
@@ -97,28 +113,25 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
                     if (stripePayments) {
                         // "le payement doit être pri de stripe et non de la db tout le temp"
-                        // On garde uniquement les ajouts manuels de la DB locale
-                        const manualPayments = pay.filter(p => p.method === 'Ajout Manuel');
+                        const formattedStripe = stripePayments
+                            .filter(sp => !sp.invoice_ref || !sp.invoice_ref.toLowerCase().includes('subscription'))
+                            .map(sp => ({
+                                ...sp,
+                                invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
+                            }));
 
-                        const formattedStripe = stripePayments.map(sp => ({
-                            ...sp,
-                            invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
-                        }));
-
-                        // On met à jour l'affichage en combinant Stripe (en direct) + Manuel
-                        setPayments([...formattedStripe, ...manualPayments].sort((a, b) => new Date(b.date) - new Date(a.date)));
+                        // On affiche UNIQUEMENT Stripe si on a trouvé des paiements Stripe
+                        if (formattedStripe.length > 0) {
+                            setPayments(formattedStripe.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                        } else {
+                            // Sinon on garde les manuels s'il y en a
+                            setPayments(pay);
+                        }
                     }
 
                     // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
                     if (subStatus) {
-                        let newClientStatus = client.status;
-                        if (subStatus === 'canceled' && client.status !== 'résilié') {
-                            newClientStatus = 'résilié';
-                        } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
-                            newClientStatus = 'echec_paiement';
-                        } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
-                            newClientStatus = 'actif';
-                        }
+                        const newClientStatus = resolveClientStatusFromStripe(client.status, subStatus);
 
                         if (newClientStatus !== client.status) {
                             await adminDataService.updateClientStatus(client.id, newClientStatus);
@@ -156,12 +169,27 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         if (!newMessage.trim()) return;
 
         try {
+            const msgContent = newMessage;
             const msg = await adminDataService.addMessage(client.id, {
-                content: newMessage,
+                content: msgContent,
                 sender: 'admin'
             });
             setMessages(prev => [...prev, msg]);
             setNewMessage('');
+
+            // Envoi de l'email de notification au client
+            if (client.email) {
+                fetch('/api/email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: client.email,
+                        nom: client.name || client.clientName || 'Client',
+                        type: 'new_message',
+                        content: msgContent
+                    })
+                }).catch(err => console.error("Erreur d'envoi d'email de notification:", err));
+            }
         } catch (err) {
             await showAlert("Erreur lors de l'envoi du message");
         }
@@ -219,7 +247,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         } catch (err) {
             setIsUploading(false);
             console.error("Erreur préparation fichier:", err);
-            alert("Erreur de préparation : " + err.message);
+            appAlert("Erreur de préparation : " + err.message);
         } finally {
             setIsUploading(false);
         }
@@ -228,6 +256,62 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
     const handleUploadClick = () => {
         document.getElementById('admin-file-upload').click();
+    };
+
+    const handleMailFileChange = async (e) => {
+        const originalFile = e.target.files[0];
+        if (!originalFile) return;
+
+        setMailFile(originalFile);
+    };
+
+    const confirmMailUpload = async (e) => {
+        e.preventDefault();
+        setIsUploadingMail(true);
+
+        try {
+            let finalUrl = '';
+            if (mailFile) {
+                const isPdf = mailFile.type === 'application/pdf' || mailFile.name.toLowerCase().endsWith('.pdf');
+                if (isPdf) {
+                    finalUrl = await blobToBase64(mailFile);
+                } else {
+                    const info = await uploadFile(mailFile, { folder: `clients/${client.id}/Courriers` });
+                    finalUrl = info.secure_url;
+                }
+            }
+
+            // Save mail
+            await adminDataService.addClientMail(client.id, {
+                company: client.company,
+                type: mailType,
+                from: mailFrom,
+                preview: finalUrl
+            });
+
+            // Send notification
+            if (client.email) {
+                await sendNewMailNotification(client.email, client.name);
+            }
+
+            const updatedMails = await adminDataService.getClientMail(client.id);
+            setMails(Array.isArray(updatedMails) ? updatedMails : []);
+            
+            setMailFile(null);
+            setMailFrom('');
+            setMailType('Lettre simple');
+            
+            // Réinitialiser le champ fichier visuellement
+            const fileInput = document.getElementById('mail-file-input');
+            if (fileInput) fileInput.value = '';
+
+            showAlert("Courrier ajouté avec succès et notification envoyée.");
+        } catch (err) {
+            console.error("Erreur ajout courrier:", err);
+            appAlert("Erreur de préparation : " + err.message);
+        } finally {
+            setIsUploadingMail(false);
+        }
     };
 
     const onDragOver = (e) => {
@@ -284,7 +368,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
                 await adminDataService.addPayment(client.id, {
                     amount,
-                    date: dateStr,
+                    date: iter.toISOString().split('T')[0],
                     status: 'payé'
                 });
                 iter.setMonth(iter.getMonth() + 1);
@@ -335,15 +419,19 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             setSyncDebugText(`DEBUG SYNC:\nURL params:\nEmail: ${client.email}\nCustomerID: ${stripeCustomerId}\nSince: ${client.since}\n\nResponse:\n${JSON.stringify(syncData, null, 2)}`);
             let addedCount = 0;
             if (stripePayments && stripePayments.length > 0) {
-                // "le payement doit être pri de stripe et non de la db tout le temp"
                 if (stripePayments) {
                     const currentPayments = await adminDataService.getPayments(client.id);
-                    const manualPayments = currentPayments.filter(p => p.method === 'Ajout Manuel');
-                    const formattedStripe = stripePayments.map(sp => ({
-                        ...sp,
-                        invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
-                    }));
-                    setPayments([...formattedStripe, ...manualPayments].sort((a, b) => new Date(b.date) - new Date(a.date)));
+                    const formattedStripe = stripePayments
+                        .filter(sp => sp.id && sp.id.startsWith('in_'))
+                        .map(sp => ({
+                            ...sp,
+                            invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
+                        }));
+                    if (formattedStripe.length > 0) {
+                        setPayments(formattedStripe.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                    } else {
+                        setPayments(currentPayments);
+                    }
                     showAlert('Synchronisation Stripe terminée. Historique mis à jour en direct depuis Stripe.');
                 }
             }
@@ -351,14 +439,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
             let statusUpdated = false;
             if (subStatus) {
-                let newClientStatus = client.status;
-                if (subStatus === 'canceled' && client.status !== 'résilié') {
-                    newClientStatus = 'résilié';
-                } else if ((subStatus === 'past_due' || subStatus === 'unpaid') && client.status === 'actif') {
-                    newClientStatus = 'echec_paiement';
-                } else if (subStatus === 'active' && (client.status === 'echec_paiement' || client.status === 'impayé')) {
-                    newClientStatus = 'actif';
-                }
+                const newClientStatus = resolveClientStatusFromStripe(client.status, subStatus);
 
                 if (newClientStatus !== client.status) {
                     await adminDataService.updateClientStatus(client.id, newClientStatus);
@@ -534,17 +615,26 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 return (
                     <>
                         {/* NOUVEAU : Bloc Génération administrative */}
-                        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '20px', borderRadius: '12px', marginBottom: '24px' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>⚙️</span> Génération de Documents Officiels
-                            </h3>
-                            <p style={{ color: '#64748B', fontSize: '13px', lineHeight: '1.5', marginBottom: '16px', margin: 0 }}>
-                                Générez et téléchargez instantanément l'attestation ou le contrat officiel pré-remplis avec les données d'inscription validées pour ce client.
-                            </p>
-                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
+                        <div style={{
+                            background: '#ffffff',
+                            border: '1px solid #E2E8F0',
+                            padding: '24px',
+                            borderRadius: '20px',
+                            marginBottom: '24px',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                <div style={{ width: '40px', height: '40px', background: '#F8FAFC', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}><Icons.Settings style={{ width: '20px', height: '20px', color: '#64748B' }} /></div>
+                                <div>
+                                    <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', margin: 0 }}>Génération de Documents Officiels</h3>
+                                    <div style={{ color: '#64748B', fontSize: '13px', marginTop: '2px' }}>Générez l'attestation ou le contrat pré-remplis instantanément.</div>
+                                </div>
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '20px' }}>
                                 <button
                                     className="btn-primary-sm"
-                                    style={{ background: '#0F172A', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', opacity: downloadingDocId ? 0.7 : 1 }}
+                                    style={{ background: '#0F172A', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', padding: '12px 20px', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontSize: '13.5px', opacity: downloadingDocId ? 0.7 : 1, transition: 'all 0.2s' }}
                                     onClick={async () => {
                                         if (downloadingDocId) return;
                                         setDownloadingDocId('attestation');
@@ -564,11 +654,11 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             Génération...
                                         </>
                                     ) : (
-                                        <><span>📥</span> Attestation de Domiciliation</>
+                                        <><span><Icons.Download style={{ width: '16px', height: '16px' }} /></span> Attestation de Domiciliation</>
                                     )}
                                 </button>
                                 <button
-                                    style={{ background: 'white', color: '#0F172A', border: '1px solid #D1D5DB', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px', opacity: downloadingDocId ? 0.7 : 1 }}
+                                    style={{ background: 'white', color: '#0F172A', border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontSize: '13.5px', opacity: downloadingDocId ? 0.7 : 1, transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
                                     onClick={async () => {
                                         if (downloadingDocId) return;
                                         setDownloadingDocId('contrat-vierge');
@@ -588,20 +678,20 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             Génération...
                                         </>
                                     ) : (
-                                        <><span>📜</span> Contrat de Domiciliation</>
+                                        <><span><Icons.FileText style={{ width: '16px', height: '16px' }} /></span> Contrat de Domiciliation</>
                                     )}
                                 </button>
                             </div>
 
-                            {/* NOUVEAU : Documents Communs de l'Établissement */}
-                            <div style={{ borderTop: '1px solid #E2E8F0', marginTop: '20px', paddingTop: '16px' }}>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '10px' }}>📁 Documents Communs Domiciliataire (Toulouse) :</span>
+                            {/* Documents Communs de l'Établissement */}
+                            <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginTop: '24px', border: '1px solid #E2E8F0' }}>
+                                <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '12px' }}><Icons.Folder style={{ width: '16px', height: '16px', color: '#475569', display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Documents Communs Domiciliataire (Toulouse) :</span>
                                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                     <a
                                         href="/Agrement_CASSIN.pdf"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
+                                        style={{ textDecoration: 'none', background: 'white', color: '#475569', border: '1px solid #CBD5E1', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '12.5px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}
                                     >
                                         🛡️ Agrément CASSIN.pdf
                                     </a>
@@ -609,7 +699,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         href="/Extrait_KBIS_CASSIN.pdf"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
+                                        style={{ textDecoration: 'none', background: 'white', color: '#475569', border: '1px solid #CBD5E1', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '12.5px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}
                                     >
                                         🏢 Extrait KBIS CASSIN.pdf
                                     </a>
@@ -617,9 +707,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         href="/Procuration_Postale.pdf"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        style={{ textDecoration: 'none', background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px' }}
+                                        style={{ textDecoration: 'none', background: 'white', color: '#475569', border: '1px solid #CBD5E1', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '12.5px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}
                                     >
-                                        ✉️ Procuration Postale.pdf
+                                        <Icons.Mail style={{ width: '16px', height: '16px', display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Procuration Postale.pdf
                                     </a>
                                 </div>
                             </div>
@@ -628,28 +718,30 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         {/* ── DOCUMENTS JUSTIFICATIFS ─────────────────────── */}
                         {(extra?.pieceIdentiteUrl || extra?.justificatifDomicileUrl || extra?.kbisUrl || extra?.contractSignedUrl || extra?.procurationSignedUrl) && (
                             <div style={{
-                                borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
-                                border: '2px solid #e2e8f0'
+                                borderRadius: '20px', overflow: 'hidden', marginBottom: '24px',
+                                background: 'white',
+                                boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+                                border: '1px solid #e2e8f0'
                             }}>
                                 <div style={{
                                     background: '#f8fafc',
-                                    padding: '14px 20px', color: '#0f172a',
+                                    padding: '16px 24px', color: '#0f172a',
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                     borderBottom: '1px solid #e2e8f0'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <span style={{ fontSize: '22px' }}>🪪</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ width: '36px', height: '36px', background: 'white', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0' }}><Icons.IdCard style={{ width: '20px', height: '20px', color: '#64748B' }} /></div>
                                         <div>
-                                            <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                                            <div style={{ fontWeight: 800, fontSize: '15px' }}>
                                                 Documents Justificatifs
                                             </div>
-                                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                                                 Déposés par le client
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div style={{ background: 'white', padding: '12px 20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                <div style={{ background: 'white', padding: '20px 24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                                     {extra?.pieceIdentiteUrl && (
                                         <a
                                             href={extra.pieceIdentiteUrl.startsWith('data:') ? '#' : extra.pieceIdentiteUrl}
@@ -668,7 +760,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 color: '#334155', fontWeight: 600, fontSize: '13px'
                                             }}
                                         >
-                                            👁️ Voir la Pièce d'identité
+                                            <Icons.Eye style={{ width: '16px', height: '16px', marginRight: '6px' }} /> Voir la Pièce d'identité
                                         </a>
                                     )}
                                     {extra?.justificatifDomicileUrl && (
@@ -689,7 +781,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 color: '#334155', fontWeight: 600, fontSize: '13px'
                                             }}
                                         >
-                                            👁️ Voir le Justificatif de domicile
+                                            <Icons.Eye style={{ width: '16px', height: '16px', marginRight: '6px' }} /> Voir le Justificatif de domicile
                                         </a>
                                     )}
                                     {extra?.kbisUrl && (
@@ -710,7 +802,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 color: '#334155', fontWeight: 600, fontSize: '13px'
                                             }}
                                         >
-                                            👁️ Voir l'Extrait KBIS
+                                            <Icons.Eye style={{ width: '16px', height: '16px', marginRight: '6px' }} /> Voir l'Extrait KBIS
                                         </a>
                                     )}
                                     {extra?.contractSignedUrl && (
@@ -755,7 +847,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 pointerEvents: downloadingDocId ? 'none' : 'auto'
                                             }}
                                         >
-                                            {downloadingDocId === 'contrat-signe' ? 'Génération...' : '👁️ Voir le Contrat'}
+                                            {downloadingDocId === 'contrat-signe' ? 'Génération...' : <><Icons.Eye style={{ width: '16px', height: '16px', marginRight: '6px' }} /> Voir le Contrat</>}
                                         </a>
                                     )}
                                     {extra?.procurationSignedUrl && (
@@ -800,7 +892,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 pointerEvents: downloadingDocId ? 'none' : 'auto'
                                             }}
                                         >
-                                            {downloadingDocId === 'procuration-signe' ? 'Génération...' : '👁️ Voir la Procuration'}
+                                            {downloadingDocId === 'procuration-signe' ? 'Génération...' : <><Icons.Eye style={{ width: '16px', height: '16px', marginRight: '6px' }} /> Voir la Procuration</>}
                                         </a>
                                     )}
                                 </div>
@@ -816,23 +908,25 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             return (
                                 <>
                                     <div style={{
-                                        borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
-                                        border: contractSigned ? '2px solid #bbf7d0' : '2px solid #fde68a'
+                                        borderRadius: '20px', overflow: 'hidden', marginBottom: '24px',
+                                        border: contractSigned ? '2px solid #bbf7d0' : '2px solid #e2e8f0',
+                                        boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
                                     }}>
                                         <div style={{
                                             background: contractSigned
-                                                ? 'linear-gradient(135deg, #064e3b, #065f46)'
-                                                : 'linear-gradient(135deg, #78350f, #92400e)',
-                                            padding: '14px 20px', color: 'white',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                                                ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
+                                                : '#f8fafc',
+                                            padding: '20px 24px', color: contractSigned ? 'white' : '#0f172a',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            borderBottom: contractSigned ? 'none' : '1px solid #e2e8f0'
                                         }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <span style={{ fontSize: '22px' }}>{contractSigned ? '✅' : '⏳'}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <span style={{ fontSize: '24px' }}>{contractSigned ? <><Icons.Check style={{ width: '24px', height: '24px', color: '#10B981' }} /></> : <><Icons.Hourglass style={{ width: '24px', height: '24px', color: '#D97706' }} /></>}</span>
                                                 <div>
-                                                    <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                                                    <div style={{ fontWeight: 800, fontSize: '15px' }}>
                                                         {contractSigned ? 'Contrat signé électroniquement' : 'En attente de signature du contrat'}
                                                     </div>
-                                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', marginTop: '2px' }}>
+                                                    <div style={{ fontSize: '12px', color: contractSigned ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: '2px' }}>
                                                         {contractSigned && contractAt
                                                             ? `Signé le ${new Date(contractAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${new Date(contractAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
                                                             : 'Le client n\'a pas encore signé son contrat de domiciliation'}
@@ -840,7 +934,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 </div>
                                             </div>
                                             {contractSigned && (
-                                                <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '99px' }}>
+                                                <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '99px' }}>
                                                     Validé ✔
                                                 </span>
                                             )}
@@ -896,7 +990,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             Génération du PDF...
                                                         </>
                                                     ) : (
-                                                        <>📥 Télécharger le contrat signé (PDF)</>
+                                                        <><Icons.Download style={{ width: '16px', height: '16px' }} /> Télécharger le contrat signé (PDF)</>
                                                     )}
                                                 </a>
                                             </div>
@@ -905,23 +999,25 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
                                     {/* PROCURATION POSTALE */}
                                     <div style={{
-                                        borderRadius: '12px', overflow: 'hidden', marginBottom: '20px',
-                                        border: extra?.procurationSigned ? '2px solid #bbf7d0' : '2px solid #fde68a'
+                                        borderRadius: '20px', overflow: 'hidden', marginBottom: '24px',
+                                        border: extra?.procurationSigned ? '2px solid #bbf7d0' : '2px solid #e2e8f0',
+                                        boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
                                     }}>
                                         <div style={{
                                             background: extra?.procurationSigned
-                                                ? 'linear-gradient(135deg, #064e3b, #065f46)'
-                                                : 'linear-gradient(135deg, #78350f, #92400e)',
-                                            padding: '14px 20px', color: 'white',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                                                ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
+                                                : '#f8fafc',
+                                            padding: '20px 24px', color: extra?.procurationSigned ? 'white' : '#0f172a',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            borderBottom: extra?.procurationSigned ? 'none' : '1px solid #e2e8f0'
                                         }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <span style={{ fontSize: '22px' }}>{extra?.procurationSigned ? '✅' : '⏳'}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <span style={{ fontSize: '24px' }}>{extra?.procurationSigned ? <><Icons.Check style={{ width: '24px', height: '24px', color: '#10B981' }} /></> : <><Icons.Hourglass style={{ width: '24px', height: '24px', color: '#D97706' }} /></>}</span>
                                                 <div>
-                                                    <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                                                    <div style={{ fontWeight: 800, fontSize: '15px' }}>
                                                         {extra?.procurationSigned ? 'Procuration Postale signée' : 'En attente de signature de la procuration'}
                                                     </div>
-                                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', marginTop: '2px' }}>
+                                                    <div style={{ fontSize: '12px', color: extra?.procurationSigned ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: '2px' }}>
                                                         {extra?.procurationSigned && extra?.procurationSignedAt
                                                             ? `Signée le ${new Date(extra.procurationSignedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${new Date(extra.procurationSignedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
                                                             : 'Le client n\'a pas encore signé sa procuration postale'}
@@ -929,7 +1025,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 </div>
                                             </div>
                                             {extra?.procurationSigned && (
-                                                <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '99px' }}>
+                                                <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '99px' }}>
                                                     Validé ✔
                                                 </span>
                                             )}
@@ -985,7 +1081,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             Génération du PDF...
                                                         </>
                                                     ) : (
-                                                        <>📥 Télécharger la procuration</>
+                                                        <><Icons.Download style={{ width: '16px', height: '16px' }} /> Télécharger la procuration</>
                                                     )}
                                                 </a>
                                             </div>
@@ -995,21 +1091,47 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             );
                         })()}
 
-                        <div className="card-header">
-                            <h2>Documents Déposés / Partagés</h2>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                                <input
-                                    type="file"
-                                    id="admin-file-upload"
-                                    style={{ display: 'none' }}
-                                    onChange={handleFileChange}
-                                    disabled={isUploading}
-                                />
-                                <button className="btn-primary-sm" onClick={handleUploadClick} disabled={isUploading}>
-                                    {isUploading ? 'Envoi...' : 'Uploader'}
-                                </button>
+                        <div style={{
+                            borderRadius: '20px', overflow: 'hidden', marginBottom: '24px',
+                            background: 'white',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+                            border: '1px solid #e2e8f0'
+                        }}>
+                            <div style={{
+                                background: '#f8fafc',
+                                padding: '16px 24px', color: '#0f172a',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                borderBottom: '1px solid #e2e8f0'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '36px', height: '36px', background: 'white', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0' }}>📂</div>
+                                    <div>
+                                        <div style={{ fontWeight: 800, fontSize: '15px' }}>
+                                            Documents Déposés / Partagés
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                                            Documents additionnels liés au client
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="file"
+                                        id="admin-file-upload"
+                                        style={{ display: 'none' }}
+                                        onChange={handleFileChange}
+                                        disabled={isUploading}
+                                    />
+                                    <button 
+                                        style={{ background: '#0F172A', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }} 
+                                        onClick={handleUploadClick} 
+                                        disabled={isUploading}
+                                    >
+                                        {isUploading ? 'Envoi...' : <><span><Icons.UploadCloud style={{ width: '16px', height: '16px' }} /></span> Uploader</>}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                            <div style={{ padding: '20px 24px' }}>
                         <div
                             className="card-body"
                             onDragOver={onDragOver}
@@ -1063,106 +1185,108 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 return true;
                                             }).map(doc => {
                                                 return (
-                                                    <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                                                    <div key={doc.id} style={{
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
+                                                        padding: '12px 16px', width: '100%', maxWidth: '450px',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)', position: 'relative'
+                                                    }}>
                                                         {downloadingDocId === doc.id && (
-                                                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', zIndex: 10 }}>
+                                                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', zIndex: 10 }}>
                                                                 <div style={{ width: '16px', height: '16px', border: '2px solid #E2E8F0', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                                                             </div>
                                                         )}
-                                                        <a
-                                                            href={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '#' : doc.url}
-                                                            onClick={async (e) => {
-                                                                if (doc.url && doc.url.startsWith('data:')) {
-                                                                    e.preventDefault();
-                                                                    handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
-                                                                    return;
-                                                                }
-                                                                if (doc.url === '#local-signature') {
-                                                                    e.preventDefault();
-                                                                    if (downloadingDocId) return;
-                                                                    let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
-                                                                    if (extraInfo?.contractSignatureUrl) {
-                                                                        setDownloadingDocId(doc.id);
-                                                                        try {
-                                                                            const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
-                                                                            const blob = await generateSignedContratBlob(client, extraInfo.contractSignatureUrl);
-                                                                            const url = URL.createObjectURL(blob);
-                                                                            const a = document.createElement('a');
-                                                                            a.href = url;
-                                                                            a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
-                                                                            document.body.appendChild(a);
-                                                                            a.click();
-                                                                            document.body.removeChild(a);
-                                                                            URL.revokeObjectURL(url);
-                                                                        } catch (err) {
-                                                                            console.error(err);
-                                                                        } finally {
-                                                                            setDownloadingDocId(null);
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+                                                                📄
+                                                            </div>
+                                                            <span style={{ fontWeight: 600, color: '#334155', fontSize: '13.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }} title={doc.title || doc.name || 'Document'}>
+                                                                {doc.title || doc.name || 'Document sans titre'}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <a
+                                                                href={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '#' : doc.url}
+                                                                onClick={async (e) => {
+                                                                    if (doc.url && doc.url.startsWith('data:')) {
+                                                                        e.preventDefault();
+                                                                        handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
+                                                                        return;
+                                                                    }
+                                                                    if (doc.url === '#local-signature') {
+                                                                        e.preventDefault();
+                                                                        if (downloadingDocId) return;
+                                                                        let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                                                                        if (extraInfo?.contractSignatureUrl) {
+                                                                            setDownloadingDocId(doc.id);
+                                                                            try {
+                                                                                const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
+                                                                                const blob = await generateSignedContratBlob(client, extraInfo.contractSignatureUrl);
+                                                                                const url = URL.createObjectURL(blob);
+                                                                                const a = document.createElement('a');
+                                                                                a.href = url;
+                                                                                a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
+                                                                                document.body.appendChild(a);
+                                                                                a.click();
+                                                                                document.body.removeChild(a);
+                                                                                URL.revokeObjectURL(url);
+                                                                            } catch (err) {
+                                                                                console.error(err);
+                                                                            } finally {
+                                                                                setDownloadingDocId(null);
+                                                                            }
+                                                                        }
+                                                                    } else if (doc.url === '#local-procuration') {
+                                                                        e.preventDefault();
+                                                                        if (downloadingDocId) return;
+                                                                        let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                                                                        if (extraInfo?.procurationSignatureUrl) {
+                                                                            setDownloadingDocId(doc.id);
+                                                                            try {
+                                                                                const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
+                                                                                const blob = await generateSignedProcurationBlob(client, extraInfo.procurationSignatureUrl, extraInfo.procurationData);
+                                                                                const url = URL.createObjectURL(blob);
+                                                                                const a = document.createElement('a');
+                                                                                a.href = url;
+                                                                                a.download = `Procuration_${client.company || client.id}.pdf`;
+                                                                                document.body.appendChild(a);
+                                                                                a.click();
+                                                                                document.body.removeChild(a);
+                                                                                URL.revokeObjectURL(url);
+                                                                            } catch (err) {
+                                                                                console.error(err);
+                                                                            } finally {
+                                                                                setDownloadingDocId(null);
+                                                                            }
                                                                         }
                                                                     }
-                                                                } else if (doc.url === '#local-procuration') {
+                                                                }}
+                                                                target={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '_self' : '_blank'}
+                                                                rel="noopener noreferrer"
+                                                                style={{ color: '#0f172a', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}
+                                                            >
+                                                                Ouvrir
+                                                            </a>
+                                                            <button
+                                                                onClick={async (e) => {
                                                                     e.preventDefault();
-                                                                    if (downloadingDocId) return;
-                                                                    let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
-                                                                    if (extraInfo?.procurationSignatureUrl) {
-                                                                        setDownloadingDocId(doc.id);
+                                                                    e.stopPropagation();
+                                                                    if (await appConfirm("Supprimer ce document ?", { isDanger: true, confirmText: 'Supprimer', title: 'Supprimer le document' })) {
                                                                         try {
-                                                                            const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
-                                                                            const blob = await generateSignedProcurationBlob(client, extraInfo.procurationSignatureUrl, extraInfo.procurationData);
-                                                                            const url = URL.createObjectURL(blob);
-                                                                            const a = document.createElement('a');
-                                                                            a.href = url;
-                                                                            a.download = `Procuration_${client.company || client.id}.pdf`;
-                                                                            document.body.appendChild(a);
-                                                                            a.click();
-                                                                            document.body.removeChild(a);
-                                                                            URL.revokeObjectURL(url);
+                                                                            await adminDataService.deleteDocument(doc.id);
+                                                                            const updatedDocs = await adminDataService.getDocuments(client.id);
+                                                                            setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
                                                                         } catch (err) {
-                                                                            console.error(err);
-                                                                        } finally {
-                                                                            setDownloadingDocId(null);
+                                                                            appAlert("Erreur lors de la suppression");
                                                                         }
                                                                     }
-                                                                }
-                                                            }}
-                                                            target={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '_self' : '_blank'}
-                                                            rel="noopener noreferrer"
-                                                            style={{
-                                                                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                                                                padding: '9px 16px', borderRadius: '8px', textDecoration: 'none',
-                                                                background: '#f1f5f9', border: '1px solid #cbd5e1',
-                                                                color: '#334155', fontWeight: 600, fontSize: '13px'
-                                                            }}
-                                                        >
-                                                            👁️ {doc.title || doc.name || 'Document sans titre'}
-                                                        </a>
-                                                        <button
-                                                            onClick={async (e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                if (window.confirm("Supprimer ce document ?")) {
-                                                                    try {
-                                                                        await adminDataService.deleteDocument(doc.id);
-                                                                        const updatedDocs = await adminDataService.getDocuments(client.id);
-                                                                        setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
-                                                                    } catch (err) {
-                                                                        alert("Erreur lors de la suppression");
-                                                                    }
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                padding: '8px 12px',
-                                                                background: '#fee2e2',
-                                                                border: '1px solid #fca5a5',
-                                                                borderRadius: '8px',
-                                                                color: '#ef4444',
-                                                                cursor: 'pointer',
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                            }}
-                                                            title="Supprimer ce document"
-                                                        >
-                                                            🗑️
-                                                        </button>
+                                                                }}
+                                                                style={{ color: '#ef4444', background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                title="Supprimer ce document"
+                                                            >
+                                                                Supprimer
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -1188,58 +1312,60 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                             {(documents || []).filter(doc => doc && doc.owner !== 'client').map(doc => {
                                                 return (
-                                                    <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                                                    <div key={doc.id} style={{
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
+                                                        padding: '12px 16px', width: '100%', maxWidth: '450px',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)', position: 'relative'
+                                                    }}>
                                                         {downloadingDocId === doc.id && (
-                                                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', zIndex: 10 }}>
+                                                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', zIndex: 10 }}>
                                                                 <div style={{ width: '16px', height: '16px', border: '2px solid #E2E8F0', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                                                             </div>
                                                         )}
-                                                        <a
-                                                            href={(doc.url && doc.url.startsWith('data:')) ? '#' : doc.url}
-                                                            onClick={(e) => {
-                                                                if (doc.url && doc.url.startsWith('data:')) {
-                                                                    e.preventDefault();
-                                                                    handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
-                                                                }
-                                                            }}
-                                                            target={(doc.url && doc.url.startsWith('data:')) ? undefined : "_blank"}
-                                                            rel="noopener noreferrer"
-                                                            style={{
-                                                                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                                                                padding: '9px 16px', borderRadius: '8px', textDecoration: 'none',
-                                                                background: '#f1f5f9', border: '1px solid #cbd5e1',
-                                                                color: '#334155', fontWeight: 600, fontSize: '13px'
-                                                            }}
-                                                        >
-                                                            👁️ {doc.title || doc.name || 'Document sans titre'}
-                                                        </a>
-                                                        <button
-                                                            onClick={async (e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                if (window.confirm("Supprimer ce document ?")) {
-                                                                    try {
-                                                                        await adminDataService.deleteDocument(doc.id);
-                                                                        const updatedDocs = await adminDataService.getDocuments(client.id);
-                                                                        setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
-                                                                    } catch (err) {
-                                                                        alert("Erreur lors de la suppression");
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+                                                                📄
+                                                            </div>
+                                                            <span style={{ fontWeight: 600, color: '#334155', fontSize: '13.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }} title={doc.title || doc.name || 'Document'}>
+                                                                {doc.title || doc.name || 'Document sans titre'}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <a
+                                                                href={(doc.url && doc.url.startsWith('data:')) ? '#' : doc.url}
+                                                                onClick={(e) => {
+                                                                    if (doc.url && doc.url.startsWith('data:')) {
+                                                                        e.preventDefault();
+                                                                        handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
                                                                     }
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                padding: '8px 12px',
-                                                                background: '#fee2e2',
-                                                                border: '1px solid #fca5a5',
-                                                                borderRadius: '8px',
-                                                                color: '#ef4444',
-                                                                cursor: 'pointer',
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                            }}
-                                                            title="Supprimer ce document"
-                                                        >
-                                                            🗑️
-                                                        </button>
+                                                                }}
+                                                                target={(doc.url && doc.url.startsWith('data:')) ? undefined : "_blank"}
+                                                                rel="noopener noreferrer"
+                                                                style={{ color: '#0f172a', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}
+                                                            >
+                                                                Ouvrir
+                                                            </a>
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    if (await appConfirm("Supprimer ce document ?", { isDanger: true, confirmText: 'Supprimer', title: 'Supprimer le document' })) {
+                                                                        try {
+                                                                            await adminDataService.deleteDocument(doc.id);
+                                                                            const updatedDocs = await adminDataService.getDocuments(client.id);
+                                                                            setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
+                                                                        } catch (err) {
+                                                                            appAlert("Erreur lors de la suppression");
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                style={{ color: '#ef4444', background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                title="Supprimer ce document"
+                                                            >
+                                                                Supprimer
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -1248,6 +1374,235 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             )}
                                         </div>
                                     </div>
+                                </div>
+                            )}
+                        </div>
+                        </div>
+                        </div>
+                    </>
+                );
+            case 'courrier':
+                return (
+                    <>
+                        <div style={{
+                            background: '#ffffff',
+                            border: '1px solid #E2E8F0',
+                            padding: '24px',
+                            borderRadius: '20px',
+                            marginBottom: '24px',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
+                        }}>
+                            <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', margin: '0 0 16px 0' }}>Demandes de réexpédition physique</h3>
+                            {reexpeditions.length === 0 ? (
+                                <div style={{ color: '#64748B', fontSize: '13px' }}>Aucune demande pour ce client.</div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {reexpeditions.map((r) => (
+                                        <div key={r.id} style={{ padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', background: r.status === 'en_attente' ? '#FFFBEB' : 'white' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#0F172A' }}>{r.address}</div>
+                                                    {r.notes ? <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>{r.notes}</div> : null}
+                                                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '6px' }}>
+                                                        {r.createdAt ? new Date(r.createdAt).toLocaleString('fr-FR') : ''} · {r.status === 'en_attente' ? 'En attente' : r.status === 'expediee' ? 'Expédiée' : 'Refusée'}
+                                                    </div>
+                                                </div>
+                                                {r.status === 'en_attente' && (
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <button
+                                                            type="button"
+                                                            disabled={isUpdatingReexp}
+                                                            onClick={async () => {
+                                                                setIsUpdatingReexp(true);
+                                                                try {
+                                                                    await adminDataService.updateReexpeditionStatus(r.id, 'expediee');
+                                                                    if (client.email) {
+                                                                        const { sendReexpeditionStatusEmail } = await import('../../../utils/emailService');
+                                                                        await sendReexpeditionStatusEmail({
+                                                                            email: client.email,
+                                                                            nom: client.name,
+                                                                            status: 'expediee',
+                                                                            address: r.address,
+                                                                        });
+                                                                    }
+                                                                    await adminDataService.addMessage(client.id, {
+                                                                        sender: 'admin',
+                                                                        content: `Votre courrier a été réexpédié vers : ${r.address}`,
+                                                                    });
+                                                                    const updated = await adminDataService.getClientReexpeditions(client.id);
+                                                                    setReexpeditions(Array.isArray(updated) ? updated : []);
+                                                                    onUpdate?.();
+                                                                } catch (e) {
+                                                                    console.error(e);
+                                                                    await showAlert?.('Erreur lors du traitement.');
+                                                                } finally {
+                                                                    setIsUpdatingReexp(false);
+                                                                }
+                                                            }}
+                                                            style={{ padding: '8px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}
+                                                        >
+                                                            Marquer expédiée
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={isUpdatingReexp}
+                                                            onClick={async () => {
+                                                                setIsUpdatingReexp(true);
+                                                                try {
+                                                                    await adminDataService.updateReexpeditionStatus(r.id, 'refusee');
+                                                                    if (client.email) {
+                                                                        const { sendReexpeditionStatusEmail } = await import('../../../utils/emailService');
+                                                                        await sendReexpeditionStatusEmail({
+                                                                            email: client.email,
+                                                                            nom: client.name,
+                                                                            status: 'refusee',
+                                                                            address: r.address,
+                                                                        });
+                                                                    }
+                                                                    await adminDataService.addMessage(client.id, {
+                                                                        sender: 'admin',
+                                                                        content: 'Votre demande de réexpédition n’a pas pu être traitée. Contactez-nous pour plus d’informations.',
+                                                                    });
+                                                                    const updated = await adminDataService.getClientReexpeditions(client.id);
+                                                                    setReexpeditions(Array.isArray(updated) ? updated : []);
+                                                                    onUpdate?.();
+                                                                } catch (e) {
+                                                                    console.error(e);
+                                                                    await showAlert?.('Erreur lors du traitement.');
+                                                                } finally {
+                                                                    setIsUpdatingReexp(false);
+                                                                }
+                                                            }}
+                                                            style={{ padding: '8px 12px', background: 'white', color: '#EF4444', border: '1px solid #FECACA', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}
+                                                        >
+                                                            Refuser
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div style={{
+                            background: '#ffffff',
+                            border: '1px solid #E2E8F0',
+                            padding: '24px',
+                            borderRadius: '20px',
+                            marginBottom: '24px',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                                <div style={{ width: '40px', height: '40px', background: '#F8FAFC', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}><Icons.Mailbox style={{ width: '20px', height: '20px', color: '#64748B' }} /></div>
+                                <div>
+                                    <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', margin: 0 }}>Dépôt de Courrier</h3>
+                                    <div style={{ color: '#64748B', fontSize: '13px', marginTop: '2px' }}>Numérisez et déposez les courriers reçus pour ce client. Une notification email lui sera envoyée.</div>
+                                </div>
+                            </div>
+                            
+                            <form onSubmit={confirmMailUpload} style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: '#F8FAFC', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <div>
+                                        <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Expéditeur du courrier</label>
+                                        <input 
+                                            type="text" 
+                                            value={mailFrom}
+                                            onChange={e => setMailFrom(e.target.value)}
+                                            placeholder="Ex: URSSAF, Impôts, Fournisseur..." 
+                                            style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Type de courrier</label>
+                                        <select 
+                                            value={mailType}
+                                            onChange={e => setMailType(e.target.value)}
+                                            style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
+                                        >
+                                            <option value="Lettre simple">Lettre simple</option>
+                                            <option value="Lettre recommandée">Lettre recommandée</option>
+                                            <option value="Colis">Colis</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Fichier numérisé (PDF ou Image)</label>
+                                    <input 
+                                        id="mail-file-input"
+                                        type="file"
+                                        accept=".pdf,image/*"
+                                        onChange={handleMailFileChange}
+                                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px dashed #94A3B8', fontSize: '14px', boxSizing: 'border-box', background: 'white' }}
+                                    />
+                                </div>
+
+                                <button 
+                                    type="submit"
+                                    disabled={isUploadingMail}
+                                    style={{ background: '#0F172A', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: '600', cursor: isUploadingMail ? 'not-allowed' : 'pointer', fontSize: '14px', opacity: isUploadingMail ? 0.7 : 1, marginTop: '8px', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                                >
+                                    {isUploadingMail ? 'Envoi en cours...' : <><span><Icons.Send style={{ width: '16px', height: '16px' }} /></span> Déposer le courrier et notifier</>}
+                                </button>
+                            </form>
+                        </div>
+
+                        <div style={{
+                            background: '#ffffff',
+                            border: '1px solid #E2E8F0',
+                            padding: '24px',
+                            borderRadius: '20px',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
+                        }}>
+                            <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', margin: '0 0 16px 0' }}>Historique des courriers</h3>
+                            
+                            {(!mails || mails.length === 0) ? (
+                                <div style={{ textAlign: 'center', padding: '40px', color: '#64748B', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed #CBD5E1' }}>
+                                    Aucun courrier numérisé pour ce client.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {mails.map(m => (
+                                        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', background: 'white' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                                                    {m.type === 'Colis' ? <><Icons.Package style={{ width: '20px', height: '20px', color: '#64748B' }} /></> : m.type.includes('recommandée') ? <><Icons.FileText style={{ width: '16px', height: '16px' }} /></> : <><Icons.Mail style={{ width: '16px', height: '16px', display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /></>}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: '700', fontSize: '14px', color: '#0F172A' }}>{m.from}</div>
+                                                    <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                                        <span style={{ background: '#F1F5F9', padding: '2px 8px', borderRadius: '10px' }}>{m.type}</span>
+                                                        <span>•</span>
+                                                        <span>{formatDateLong(m.date)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <a 
+                                                    href={m.preview} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    style={{ padding: '8px 16px', background: '#F8FAFC', color: '#0F172A', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', cursor: 'pointer' }}
+                                                >
+                                                    Ouvrir
+                                                </a>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (await showConfirm('Supprimer ce courrier ?')) {
+                                                            await adminDataService.deleteMail(m.id);
+                                                            const updatedMails = await adminDataService.getClientMail(client.id);
+                                                            setMails(Array.isArray(updatedMails) ? updatedMails : []);
+                                                        }
+                                                    }}
+                                                    style={{ padding: '8px 12px', background: 'transparent', color: '#EF4444', border: '1px solid #FEE2E2', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                                                >
+                                                    Supprimer
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -1542,36 +1897,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                                                 Stripe
                                                             </button>
-                                                        ) : (p.status === 'payé' && (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        await generateLocalInvoicePdf(client, p);
-                                                                    } catch (err) {
-                                                                        console.error("Erreur PDF:", err);
-                                                                        await showAlert("Erreur lors de la génération de la facture.");
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    marginLeft: '12px',
-                                                                    fontSize: '12px',
-                                                                    fontWeight: '600',
-                                                                    padding: '4px 10px',
-                                                                    borderRadius: '6px',
-                                                                    background: '#F1F5F9',
-                                                                    color: '#334155',
-                                                                    border: '1px solid #E2E8F0',
-                                                                    cursor: 'pointer',
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px'
-                                                                }}
-                                                                title="Télécharger la facture locale"
-                                                            >
-                                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                                                Facture
-                                                            </button>
-                                                        ))}
+                                                        ) : null}
                                                         <button
                                                             onClick={async () => {
                                                                 const confirmed = await showConfirm(`Supprimer le paiement ${p.invoice_ref} ?`);
@@ -1618,9 +1944,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     {!isEditingDetails ? (
                                         <button
                                             onClick={() => { setEditFormData(extra || {}); setIsEditingDetails(true); }}
-                                            style={{ padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                                            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                                         >
-                                            ✏️ Modifier les infos
+                                            <Icons.Edit style={{ width: 14, height: 14 }} /> Modifier les infos
                                         </button>
                                     ) : (
                                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -1715,7 +2041,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     </div>
 
                                     {/* Section Domiciliation */}
-                                    <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>⚙️ Domiciliation & Forfait</h3>
+                                    <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}><Icons.Settings style={{ width: '20px', height: '20px', color: '#64748B' }} /> Domiciliation & Forfait</h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Adresse choisie</div>
@@ -1808,7 +2134,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 if (result.success) {
                                     await showAlert("Email de relance envoyé avec succès !");
                                 } else {
-                                    await showAlert(`Erreur EmailJS : ${result.error}`);
+                                    await showAlert(`Erreur Email : ${result.error}`);
                                 }
                             } catch (e) {
                                 console.error(e);
@@ -1833,6 +2159,18 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 </button>
                 <button data-testid="tab-docs" onClick={() => setActiveDossierTab('docs')} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'docs' ? 'white' : 'transparent', color: activeDossierTab === 'docs' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'docs' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Documents</button>
                 <button data-testid="tab-docs-hidden" style={{ display: 'none' }}>Documents</button>
+                <button
+                    onClick={() => setActiveDossierTab('courrier')}
+                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'courrier' ? 'white' : 'transparent', color: activeDossierTab === 'courrier' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'courrier' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                    Courrier
+                    {reexpeditions.some((r) => r.status === 'en_attente') && activeDossierTab !== 'courrier' && (
+                        <span style={{ marginLeft: '8px', background: '#F59E0B', color: 'white', fontSize: '10px', width: '18px', height: '18px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {reexpeditions.filter((r) => r.status === 'en_attente').length}
+                        </span>
+                    )}
+                </button>
+
 
                 <button
                     data-testid="tab-messages"
@@ -1881,7 +2219,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         onClick={handleSendClerkInvitation}
                                         style={{ marginTop: '8px', padding: '6px 12px', fontSize: '11px', background: '#6366F1', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
                                     >
-                                        ✉️ Envoyer Invitation Clerk
+                                        <Icons.Mail style={{ width: '16px', height: '16px', display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Envoyer Invitation Clerk
                                     </button>
                                 )}
                             </div>

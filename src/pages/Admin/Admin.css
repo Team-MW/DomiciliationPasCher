@@ -356,6 +356,11 @@
     color: var(--admin-success);
 }
 
+.trend-down {
+    color: #DC2626;
+    background: rgba(220, 38, 38, 0.08);
+}
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr;

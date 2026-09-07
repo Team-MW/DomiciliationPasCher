@@ -21,14 +21,13 @@ const STEPS = [
 const VILLES = ['Toulouse (31)'];
 const FORMES_JURIDIQUES = ['SASU', 'SAS', 'SARL', 'EURL', 'SCI', 'Auto-entrepreneur / EI', 'Association', 'Autre'];
 const TYPES_PROJET = [
-    { id: 'creation', icon: '🚀', label: "Création d'entreprise", desc: "Je crée ma société et je cherche une adresse de siège social" },
     { id: 'transfert', icon: '🔄', label: 'Transfert de siège', desc: "Je transfère l'adresse de ma société existante" },
     { id: 'domiciliation', icon: '📍', label: 'Domiciliation seule', desc: "J'ai déjà une société et je veux juste une adresse" },
 ];
 const OFFRES_COURRIER = [
-    { id: 'notification', icon: '🔔', label: 'Notification email', price: 'Inclus', desc: "Recevez un email dès qu'un courrier arrive" },
-    { id: 'scan', icon: '📄', label: 'Scan numérique', price: '+4€ HT/mois', desc: 'Vos courriers scannés et disponibles en ligne' },
-    { id: 'reexpedition', icon: '📦', label: 'Réexpédition physique', price: '+18€ HT/mois', desc: 'Votre courrier vous est envoyé chaque mois' },
+    { id: 'notification', icon: '📄', label: 'Scan inclus', price: 'Inclus', desc: "Vos courriers scannés et disponibles en ligne" },
+    { id: 'scan', icon: '📦', label: 'Scan + Réexpédition', price: '+4€ HT/mois', desc: 'Scan et renvoi de vos courriers à votre adresse' },
+    { id: 'reexpedition', icon: '📬', label: 'Boîte physique', price: '+18€ HT/mois', desc: 'Récupérez vos courriers et colis sur place' },
 ];
 const PLANS = {
     essentiel: { name: 'Essentiel', price: '20' },
@@ -36,17 +35,81 @@ const PLANS = {
     physique: { name: 'Physique+', price: '38' },
 };
 
+const STORAGE_KEY = 'dpc_souscription_draft';
+const STORAGE_STEP_KEY = 'dpc_souscription_step';
+
+function AddressAutocomplete({ onSelectAddress, value, onChange, error }) {
+    const [suggestions, setSuggestions] = useState([]);
+    const [isOpen, setIsOpen] = useState(false);
+
+    const fetchAddresses = async (query) => {
+        onChange(query);
+        if (query.length < 3) {
+            setSuggestions([]);
+            setIsOpen(false);
+            return;
+        }
+        try {
+            const res = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
+            const data = await res.json();
+            setSuggestions(data.features || []);
+            setIsOpen(true);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleSelect = (feature) => {
+        const p = feature.properties;
+        onChange(p.name);
+        setIsOpen(false);
+        onSelectAddress({
+            adresse: p.name,
+            codePostal: p.postcode,
+            ville: p.city
+        });
+    };
+
+    return (
+        <div style={{ position: 'relative' }}>
+            <input 
+                className={`sous-input ${error ? 'error' : ''}`}
+                value={value}
+                onChange={e => fetchAddresses(e.target.value)}
+                onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                placeholder="Entrez votre adresse (ex: 10 Rue de la Paix)"
+            />
+            {isOpen && suggestions.length > 0 && (
+                <ul className="address-suggestions" style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, 
+                    background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px',
+                    listStyle: 'none', margin: '4px 0 0', padding: 0, zIndex: 50,
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                }}>
+                    {suggestions.map(s => (
+                        <li key={s.properties.id} 
+                            onClick={() => handleSelect(s)}
+                            style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14px' }}
+                            onMouseOver={(e) => e.target.style.backgroundColor = '#f8fafc'}
+                            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                        >
+                            {s.properties.label}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+
 export default function Souscription() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const planId = searchParams.get('plan') || 'essentiel';
     const plan = PLANS[planId] || PLANS.essentiel;
 
-    const [step, setStep] = useState(0);
-    const [errors, setErrors] = useState({});
-    const [loading, setLoading] = useState(false);
-
-    const [data, setData] = useState({
+    const defaultData = {
         typeProjet: '',
         formeJuridique: '',
         // Coordonnées
@@ -55,54 +118,126 @@ export default function Souscription() {
         // Entreprise
         nomSociete: '', siren: '', activite: '', nationalite: 'Française', qualite: 'Gérant',
         // Domiciliation
-        ville: '',
+        ville: 'Toulouse (31)',
         // Courrier
         offre: planId === 'scan-plus' ? 'scan' : (planId === 'physique' ? 'reexpedition' : 'notification'),
         // Fréquence
         frequence: 'mensuel',
         // Documents
         justificatifDomicile: '',
-        pieceIdentite: '',
+        pieceIdentiteRecto: '',
+        pieceIdentiteVerso: '',
         // CGV
         cgv: false,
-        adressePerso: '',
+        adresse: '',
+        complement: '',
+        codePostal: '',
+        villePerso: '',
+        pays: 'France',
+    };
+
+    const [data, setData] = useState(() => {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                return {
+                    ...defaultData,
+                    ...parsed,
+                    pieceIdentiteFile: null,
+                    pieceIdentiteVersoFile: null,
+                    justificatifDomicileFile: null
+                };
+            }
+        } catch (e) {}
+        return defaultData;
     });
+
+    const CURRENT_STEPS = STEPS;
+
+    const [step, setStep] = useState(() => {
+        try {
+            const savedStep = localStorage.getItem(STORAGE_STEP_KEY);
+            if (savedStep !== null) {
+                const s = parseInt(savedStep, 10);
+                if (!isNaN(s) && s >= 0 && s < 8) return s;
+            }
+        } catch (e) {}
+        return 0;
+    });
+
+    const currentStepId = CURRENT_STEPS[step]?.id || 'projet';
+
+    const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState(false);
+
+    // Sauvegarde automatique des données dans localStorage à chaque modification
+    useEffect(() => {
+        try {
+            const toSave = { ...data };
+            delete toSave.pieceIdentiteFile;
+            delete toSave.pieceIdentiteVersoFile;
+            delete toSave.justificatifDomicileFile;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+        } catch (e) {}
+    }, [data]);
+
+    // Sauvegarde de l'étape active
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_STEP_KEY, step.toString());
+        } catch (e) {}
+    }, [step]);
 
     const set = (key, val) => setData(d => ({ ...d, [key]: val }));
 
     /* Validation par étape */
     const validate = () => {
         const e = {};
-        if (step === 0) {
+        if (currentStepId === 'projet') {
             if (!data.typeProjet) e.typeProjet = 'Veuillez choisir un type de projet';
             if (!data.formeJuridique) e.formeJuridique = 'Veuillez choisir une forme juridique';
         }
-        if (step === 1) {
+        if (currentStepId === 'coordonnees') {
             if (!data.nom.trim()) e.nom = 'Requis';
             if (!data.prenom.trim()) e.prenom = 'Requis';
             if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) e.email = 'Email invalide';
             if (!data.telephone.trim()) e.telephone = 'Requis';
-            if (!data.adressePerso.trim()) e.adressePerso = 'Requis';
+            if (!data.adresse.trim()) e.adresse = 'Requis';
+            if (!data.codePostal.trim()) e.codePostal = 'Requis';
+            if (!data.villePerso.trim()) e.villePerso = 'Requis';
+            if (!data.pays.trim()) e.pays = 'Requis';
             if (!data.dateNaissance) e.dateNaissance = 'Requis';
             if (!data.lieuNaissance.trim()) e.lieuNaissance = 'Requis';
         }
-        if (step === 2) {
-            if (!data.nomSociete.trim() && data.typeProjet !== 'creation') e.nomSociete = 'Requis';
+        if (currentStepId === 'entreprise') {
+            if (!data.nomSociete.trim()) e.nomSociete = 'Requis';
             if (!data.activite.trim()) e.activite = 'Requis';
         }
-        if (step === 3) {
+        if (currentStepId === 'domiciliation') {
             if (!data.ville) e.ville = 'Veuillez choisir une ville';
         }
-        if (step === 6) {
-            if (!data.pieceIdentite) e.pieceIdentite = 'Requis';
+        if (currentStepId === 'documents') {
+            if (!data.pieceIdentiteRecto) e.pieceIdentiteRecto = 'Requis';
+            if (!data.pieceIdentiteVerso) e.pieceIdentiteVerso = 'Requis';
             if (!data.justificatifDomicile) e.justificatifDomicile = 'Requis';
         }
         setErrors(e);
         return Object.keys(e).length === 0;
     };
 
-    const next = () => { if (validate()) setStep(s => Math.min(s + 1, STEPS.length - 1)); };
+    const next = () => { if (validate()) setStep(s => Math.min(s + 1, CURRENT_STEPS.length - 1)); };
     const prev = () => { setErrors({}); setStep(s => Math.max(s - 1, 0)); };
+
+    const handleBackClick = (e) => {
+        e.preventDefault();
+        if (step > 0) {
+            prev();
+        } else {
+            navigate('/tarifs');
+        }
+    };
 
     const currentPlanName = data.offre === 'scan' ? 'Scan+' : (data.offre === 'reexpedition' ? 'Physique+' : 'Essentiel');
     const currentPlanPrice = data.offre === 'scan' ? '24' : (data.offre === 'reexpedition' ? '38' : '20');
@@ -117,18 +252,36 @@ export default function Souscription() {
     const prixTotal = () => data.frequence === 'annuel' ? `${getHT()}€/an` : `${getHT()}€/mois`;
     const prixTotalTTC = () => data.frequence === 'annuel' ? `${getTTC().toFixed(2)}€/an` : `${getTTC().toFixed(2)}€/mois`;
 
+    if (success) {
+        return (
+            <div className="souscription-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
+                <div className="success-message" style={{ textAlign: 'center', background: 'white', padding: '3rem', borderRadius: '16px', maxWidth: '600px', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+                    <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#10B981' }}>Demande envoyée !</h1>
+                    <p style={{ fontSize: '1.1rem', color: '#475569', marginBottom: '1rem' }}>Nous avons bien reçu votre demande de consultation pour la création de votre entreprise.</p>
+                    <p style={{ fontSize: '1.1rem', color: '#475569' }}>Un conseiller va vous contacter très prochainement pour faire le point sur votre projet.</p>
+                    <Link to="/" className="sous-pay-btn" style={{ marginTop: '2.5rem', display: 'inline-block', textDecoration: 'none' }}>Retour à l'accueil</Link>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="souscription-layout">
 
             {/* ── Sidebar ── */}
             <aside className="sous-sidebar">
                 <div className="sous-sidebar-top">
-                    <Link to="/tarifs" className="sous-back">
+                    <button 
+                        onClick={handleBackClick} 
+                        className="sous-back"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                    >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M19 12H5M12 5l-7 7 7 7" />
                         </svg>
-                        Retour
-                    </Link>
+                        {step > 0 ? 'Étape précédente' : 'Retour'}
+                    </button>
 
                     <div className="sous-plan-badge">
                         <span className="spb-label">Forfait choisi</span>
@@ -138,10 +291,17 @@ export default function Souscription() {
                 </div>
 
                 <nav className="sous-steps-nav">
-                    {STEPS.map((s, i) => (
+                    {CURRENT_STEPS.map((s, i) => (
                         <div
                             key={s.id}
                             className={`sous-step-item ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`}
+                            onClick={() => {
+                                if (i < step) {
+                                    setStep(i);
+                                }
+                            }}
+                            style={{ cursor: i < step ? 'pointer' : 'default' }}
+                            title={i < step ? `Revenir à l'étape : ${s.label}` : ''}
                         >
                             <div className="ssi-dot">
                                 {i < step
@@ -167,16 +327,16 @@ export default function Souscription() {
 
                 {/* Progress bar */}
                 <div className="sous-progress-bar">
-                    <div className="sous-progress-fill" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+                    <div className="sous-progress-fill" style={{ width: `${((step + 1) / CURRENT_STEPS.length) * 100}%` }} />
                 </div>
 
                 <div className="sous-content">
 
                     {/* ══ ÉTAPE 0 — Choix du projet ══ */}
-                    {step === 0 && (
+                    {currentStepId === 'projet' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 1 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape 1 sur {CURRENT_STEPS.length}</div>
                                 <h2>Quel est votre projet ?</h2>
                                 <p>Sélectionnez la situation qui correspond à votre cas</p>
                             </div>
@@ -218,10 +378,10 @@ export default function Souscription() {
                     )}
 
                     {/* ══ ÉTAPE 1 — Coordonnées ══ */}
-                    {step === 1 && (
+                    {currentStepId === 'coordonnees' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 2 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape 2 sur {CURRENT_STEPS.length}</div>
                                 <h2>Saisissez vos coordonnées</h2>
                                 <p>Ces informations figurent sur votre contrat de domiciliation</p>
                             </div>
@@ -290,24 +450,44 @@ export default function Souscription() {
                                 </div>
                                 <div className="sous-field sous-field-full">
                                     <label className="sous-label">Adresse personnelle *</label>
-                                    <textarea 
-                                        className={`sous-input sous-textarea ${errors.adressePerso ? 'error' : ''}`} 
-                                        placeholder="Votre adresse complète (Rue, CP, Ville)" 
-                                        rows={2}
-                                        value={data.adressePerso} 
-                                        onChange={e => set('adressePerso', e.target.value)} 
+                                    <AddressAutocomplete 
+                                        value={data.adresse}
+                                        onChange={val => set('adresse', val)}
+                                        onSelectAddress={({adresse, codePostal, ville}) => {
+                                            setData(d => ({ ...d, adresse, codePostal, villePerso: ville }));
+                                        }}
+                                        error={errors.adresse}
                                     />
-                                    {errors.adressePerso && <div className="field-error">{errors.adressePerso}</div>}
+                                    {errors.adresse && <div className="field-error">{errors.adresse}</div>}
+                                </div>
+                                <div className="sous-field sous-field-full">
+                                    <label className="sous-label">Complément d'adresse (Optionnel)</label>
+                                    <input className="sous-input" placeholder="Bâtiment, Étage, Appartement..." value={data.complement} onChange={e => set('complement', e.target.value)} />
+                                </div>
+                                <div className="sous-field">
+                                    <label className="sous-label">Code postal *</label>
+                                    <input className={`sous-input ${errors.codePostal ? 'error' : ''}`} placeholder="31000" value={data.codePostal} onChange={e => set('codePostal', e.target.value)} />
+                                    {errors.codePostal && <div className="field-error">{errors.codePostal}</div>}
+                                </div>
+                                <div className="sous-field">
+                                    <label className="sous-label">Ville *</label>
+                                    <input className={`sous-input ${errors.villePerso ? 'error' : ''}`} placeholder="Toulouse" value={data.villePerso} onChange={e => set('villePerso', e.target.value)} />
+                                    {errors.villePerso && <div className="field-error">{errors.villePerso}</div>}
+                                </div>
+                                <div className="sous-field">
+                                    <label className="sous-label">Pays *</label>
+                                    <input className={`sous-input ${errors.pays ? 'error' : ''}`} placeholder="France" value={data.pays} onChange={e => set('pays', e.target.value)} />
+                                    {errors.pays && <div className="field-error">{errors.pays}</div>}
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {/* ══ ÉTAPE 2 — Votre entreprise ══ */}
-                    {step === 2 && (
+                    {currentStepId === 'entreprise' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 3 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape 3 sur {CURRENT_STEPS.length}</div>
                                 <h2>Votre entreprise</h2>
                                 <p>{data.typeProjet === 'creation' ? 'Renseignez les informations de votre future société' : 'Renseignez les informations de votre société existante'}</p>
                             </div>
@@ -356,10 +536,10 @@ export default function Souscription() {
                     )}
 
                     {/* ══ ÉTAPE 3 — Domiciliation ══ */}
-                    {step === 3 && (
+                    {currentStepId === 'domiciliation' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 4 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape 4 sur {CURRENT_STEPS.length}</div>
                                 <h2>Choisissez votre ville</h2>
                                 <p>Sélectionnez la ville où vous souhaitez domicilier votre entreprise</p>
                             </div>
@@ -400,10 +580,10 @@ export default function Souscription() {
                     )}
 
                     {/* ══ ÉTAPE 4 — Offre courrier ══ */}
-                    {step === 4 && (
+                    {currentStepId === 'courrier' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 5 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape 5 sur {CURRENT_STEPS.length}</div>
                                 <h2>Gestion de votre courrier</h2>
                                 <p>Comment souhaitez-vous gérer votre courrier ?</p>
                             </div>
@@ -433,10 +613,10 @@ export default function Souscription() {
                     )}
 
                     {/* ══ ÉTAPE 5 — Fréquence ══ */}
-                    {step === 5 && (
+                    {currentStepId === 'frequence' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 6 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape 6 sur {CURRENT_STEPS.length}</div>
                                 <h2>Choisissez votre fréquence</h2>
                                 <p>Économisez 2 mois avec l'abonnement annuel</p>
                             </div>
@@ -475,90 +655,185 @@ export default function Souscription() {
                     )}
 
                     {/* ══ ÉTAPE 6 — Documents ══ */}
-                    {step === 6 && (
+                    {currentStepId === 'documents' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 7 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape 7 sur {CURRENT_STEPS.length}</div>
                                 <h2>Vos documents justificatifs</h2>
                                 <p>Veuillez télécharger les documents nécessaires pour votre dossier</p>
                             </div>
                             
                             <div className="sous-form-grid">
-                                <div className="sous-field sous-field-full">
-                                    <label className="sous-label">Pièce d'identité (Recto/Verso) *</label>
-                                    <input 
-                                        type="file" 
-                                        className={`sous-input ${errors.pieceIdentite ? 'error' : ''}`} 
-                                        accept="image/*,.pdf"
-                                        onChange={e => {
-                                            const file = e.target.files[0];
-                                            if (file) {
-                                                set('pieceIdentiteFile', file);
-                                                set('pieceIdentite', file.name);
-                                            }
-                                        }} 
-                                    />
-                                    {data.pieceIdentite && <div className="field-hint" style={{color: '#10B981', marginTop: '4px'}}>Fichier sélectionné : {data.pieceIdentite}</div>}
-                                    {errors.pieceIdentite && <div className="field-error">{errors.pieceIdentite}</div>}
+
+                                {/* Pièce d'identité Recto */}
+                                <div className="sous-field doc-upload-field">
+                                    <label className="sous-label">Pièce d'identité — Recto *</label>
+                                    <label className={`doc-upload-btn ${errors.pieceIdentiteRecto ? 'error' : ''} ${data.pieceIdentiteRecto ? 'uploaded' : ''}`}>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*,.pdf"
+                                            style={{ display: 'none' }}
+                                            onChange={e => {
+                                                const file = e.target.files[0];
+                                                if (file) {
+                                                    set('pieceIdentiteFile', file);
+                                                    set('pieceIdentiteRecto', file.name);
+                                                }
+                                            }} 
+                                        />
+                                        <div className="doc-upload-inner">
+                                            {data.pieceIdentiteRecto ? (
+                                                <>
+                                                    <div className="doc-upload-icon doc-upload-icon--done">
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                                    </div>
+                                                    <div className="doc-upload-text">
+                                                        <span className="doc-upload-title" style={{color:'#10B981'}}>Fichier chargé ✓</span>
+                                                        <span className="doc-upload-sub">{data.pieceIdentiteRecto}</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="doc-upload-icon">
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="7" y1="9" x2="9" y2="9"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="15" x2="13" y2="15"/></svg>
+                                                    </div>
+                                                    <div className="doc-upload-text">
+                                                        <span className="doc-upload-title">Charger le Recto</span>
+                                                        <span className="doc-upload-sub">JPG, PNG ou PDF</span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </label>
+                                    {errors.pieceIdentiteRecto && <div className="field-error">{errors.pieceIdentiteRecto}</div>}
                                 </div>
-                                
-                                <div className="sous-field sous-field-full">
+
+                                {/* Pièce d'identité Verso */}
+                                <div className="sous-field doc-upload-field">
+                                    <label className="sous-label">Pièce d'identité — Verso *</label>
+                                    <label className={`doc-upload-btn ${errors.pieceIdentiteVerso ? 'error' : ''} ${data.pieceIdentiteVerso ? 'uploaded' : ''}`}>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*,.pdf"
+                                            style={{ display: 'none' }}
+                                            onChange={e => {
+                                                const file = e.target.files[0];
+                                                if (file) {
+                                                    set('pieceIdentiteVersoFile', file);
+                                                    set('pieceIdentiteVerso', file.name);
+                                                }
+                                            }} 
+                                        />
+                                        <div className="doc-upload-inner">
+                                            {data.pieceIdentiteVerso ? (
+                                                <>
+                                                    <div className="doc-upload-icon doc-upload-icon--done">
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                                    </div>
+                                                    <div className="doc-upload-text">
+                                                        <span className="doc-upload-title" style={{color:'#10B981'}}>Fichier chargé ✓</span>
+                                                        <span className="doc-upload-sub">{data.pieceIdentiteVerso}</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="doc-upload-icon">
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="7" y1="9" x2="9" y2="9"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="15" x2="13" y2="15"/></svg>
+                                                    </div>
+                                                    <div className="doc-upload-text">
+                                                        <span className="doc-upload-title">Charger le Verso</span>
+                                                        <span className="doc-upload-sub">JPG, PNG ou PDF</span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </label>
+                                    {errors.pieceIdentiteVerso && <div className="field-error">{errors.pieceIdentiteVerso}</div>}
+                                </div>
+
+                                {/* Justificatif de domicile */}
+                                <div className="sous-field sous-field-full doc-upload-field">
                                     <label className="sous-label">Justificatif de domicile (de moins de 3 mois) *</label>
-                                    <input 
-                                        type="file" 
-                                        className={`sous-input ${errors.justificatifDomicile ? 'error' : ''}`} 
-                                        accept="image/*,.pdf"
-                                        onChange={e => {
-                                            const file = e.target.files[0];
-                                            if (file) {
-                                                set('justificatifDomicileFile', file);
-                                                set('justificatifDomicile', file.name);
-                                            }
-                                        }} 
-                                    />
-                                    {data.justificatifDomicile && <div className="field-hint" style={{color: '#10B981', marginTop: '4px'}}>Fichier sélectionné : {data.justificatifDomicile}</div>}
+                                    <label className={`doc-upload-btn ${errors.justificatifDomicile ? 'error' : ''} ${data.justificatifDomicile ? 'uploaded' : ''}`}>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*,.pdf"
+                                            style={{ display: 'none' }}
+                                            onChange={e => {
+                                                const file = e.target.files[0];
+                                                if (file) {
+                                                    set('justificatifDomicileFile', file);
+                                                    set('justificatifDomicile', file.name);
+                                                }
+                                            }} 
+                                        />
+                                        <div className="doc-upload-inner">
+                                            {data.justificatifDomicile ? (
+                                                <>
+                                                    <div className="doc-upload-icon doc-upload-icon--done">
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                                    </div>
+                                                    <div className="doc-upload-text">
+                                                        <span className="doc-upload-title" style={{color:'#10B981'}}>Fichier chargé ✓</span>
+                                                        <span className="doc-upload-sub">{data.justificatifDomicile}</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="doc-upload-icon">
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                                    </div>
+                                                    <div className="doc-upload-text">
+                                                        <span className="doc-upload-title">Charger le justificatif</span>
+                                                        <span className="doc-upload-sub">Facture EDF, quittance de loyer... JPG, PNG ou PDF</span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </label>
                                     {errors.justificatifDomicile && <div className="field-error">{errors.justificatifDomicile}</div>}
                                 </div>
+
                             </div>
                         </div>
                     )}
 
                     {/* ══ ÉTAPE 7 — Récapitulatif ══ */}
-                    {step === 7 && (
+                    {currentStepId === 'recapitulatif' && (
                         <div className="sous-step">
                             <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 8 sur {STEPS.length}</div>
+                                <div className="sous-step-num">Étape {step + 1} sur {CURRENT_STEPS.length}</div>
                                 <h2>Vérifiez votre commande</h2>
                                 <p>Relisez vos informations avant de passer au paiement</p>
                             </div>
 
                             <div className="recap-grid">
                                 <div className="recap-card">
-                                    <div className="rc-title">📋 Projet</div>
+                                    <h3>Choix du projet</h3>
                                     <div className="rc-row"><span>Type</span><strong>{TYPES_PROJET.find(t => t.id === data.typeProjet)?.label || '—'}</strong></div>
                                     <div className="rc-row"><span>Forme juridique</span><strong>{data.formeJuridique || '—'}</strong></div>
                                 </div>
 
                                 <div className="recap-card">
-                                    <div className="rc-title">👤 Coordonnées</div>
-                                    <div className="rc-row"><span>Nom</span><strong>{data.nom} {data.prenom}</strong></div>
+                                    <h3>Coordonnées</h3>
+                                    <div className="rc-row"><span>Nom</span><strong>{data.prenom} {data.nom}</strong></div>
                                     <div className="rc-row"><span>Email</span><strong>{data.email}</strong></div>
                                     <div className="rc-row"><span>Téléphone</span><strong>{data.telephone}</strong></div>
+                                    <div className="rc-row"><span>Adresse pers.</span><strong>{data.adresse}{data.complement ? `, ${data.complement}` : ''} {data.codePostal} {data.villePerso}</strong></div>
                                 </div>
 
                                 <div className="recap-card">
-                                    <div className="rc-title">🏢 Entreprise</div>
-                                    <div className="rc-row"><span>Nom</span><strong>{data.nomSociete || '(En cours de création)'}</strong></div>
-                                    {data.siren && <div className="rc-row"><span>SIREN</span><strong>{data.siren}</strong></div>}
-                                    <div className="rc-row"><span>Activité</span><strong>{data.activite}</strong></div>
+                                    <h3>Entreprise</h3>
+                                    <div className="rc-row"><span>Nom</span><strong>{data.nomSociete || '—'}</strong></div>
+                                    <div className="rc-row"><span>SIREN</span><strong>{data.siren || '—'}</strong></div>
+                                    <div className="rc-row"><span>Activité</span><strong>{data.activite || '—'}</strong></div>
                                 </div>
 
                                 <div className="recap-card">
-                                    <div className="rc-title">📍 Domiciliation</div>
-                                    <div className="rc-row"><span>Ville</span><strong>{data.ville}</strong></div>
-                                    <div className="rc-row"><span>Forfait</span><strong>{currentPlanName}</strong></div>
-                                    <div className="rc-row"><span>Courrier</span><strong>{OFFRES_COURRIER.find(o => o.id === data.offre)?.label}</strong></div>
-                                    <div className="rc-row"><span>Fréquence</span><strong>{data.frequence === 'annuel' ? 'Annuel (2 mois offerts)' : 'Mensuel'}</strong></div>
+                                    <h3>Domiciliation & Courrier</h3>
+                                    <div className="rc-row"><span>Ville cible</span><strong>{data.ville}</strong></div>
+                                    <div className="rc-row"><span>Offre courrier</span><strong>{OFFRES_COURRIER.find(o => o.id === data.offre)?.label}</strong></div>
+                                    <div className="rc-row"><span>Fréquence</span><strong>{data.frequence === 'annuel' ? 'Annuelle' : 'Mensuelle'}</strong></div>
                                 </div>
                             </div>
 
@@ -590,6 +865,7 @@ export default function Souscription() {
                                         setLoading(true);
                                         try {
                                             let pieceUrl = '';
+                                            let pieceVersoUrl = '';
                                             let justificatifUrl = '';
 
                                             // Upload files to Cloudinary if they exist
@@ -603,6 +879,16 @@ export default function Souscription() {
                                                     pieceUrl = res.secure_url;
                                                 } catch(e) { console.error('Upload pieceIdentite error', e); }
                                             }
+                                            if (data.pieceIdentiteVersoFile) {
+                                                try {
+                                                    let fileToUpload = data.pieceIdentiteVersoFile;
+                                                    if (fileToUpload.type === 'application/pdf' || fileToUpload.name.toLowerCase().endsWith('.pdf')) {
+                                                        fileToUpload = await convertPdfToPng(fileToUpload);
+                                                    }
+                                                    const res = await uploadFile(fileToUpload, { folder: 'demandes' });
+                                                    pieceVersoUrl = res.secure_url;
+                                                } catch(e) { console.error('Upload pieceIdentiteVerso error', e); }
+                                            }
                                             if (data.justificatifDomicileFile) {
                                                 try {
                                                     let fileToUpload = data.justificatifDomicileFile;
@@ -614,12 +900,20 @@ export default function Souscription() {
                                                 } catch(e) { console.error('Upload justificatif error', e); }
                                             }
 
-                                            const finalData = { ...data, pieceIdentiteUrl: pieceUrl, justificatifDomicileUrl: justificatifUrl };
+                                            const adressePerso = `${data.adresse}${data.complement ? `, ${data.complement}` : ''}${data.codePostal ? `, ${data.codePostal}` : ''}${data.villePerso ? ` ${data.villePerso}` : ''}${data.pays ? ` - ${data.pays}` : ''}`.replace(/\s+/g, ' ').trim();
+                                            const finalData = {
+                                                ...data,
+                                                pieceIdentiteUrl: pieceUrl,
+                                                pieceIdentiteVersoUrl: pieceVersoUrl,
+                                                justificatifDomicileUrl: justificatifUrl,
+                                                adressePerso,
+                                                adresseComplete: adressePerso,
+                                                date: new Date().toLocaleDateString('fr-FR')
+                                            };
                                             delete finalData.pieceIdentiteFile;
+                                            delete finalData.pieceIdentiteVersoFile;
                                             delete finalData.justificatifDomicileFile;
 
-                                            // Enregistrer la demande dans le service admin
-                                            // On ajoute le numéro de téléphone pour que l'admin y ait accès dans son pannel
                                             const demande = await adminDataService.addDemande({
                                                 clientName: `${data.prenom} ${data.nom} - 📞 ${data.telephone}`,
                                                 email: data.email,
@@ -635,9 +929,13 @@ export default function Souscription() {
 
                                             let productName = `Forfait ${currentPlanName} - ${data.ville} (${data.frequence})`;
 
-                                            // Stocker les infos pour EmailJS sur la page de succès
-                                            localStorage.setItem('pending_emailjs', data.email);
+                                            // Stocker les infos pour Email sur la page de succès
+                                            localStorage.setItem('pending_email', data.email);
                                             localStorage.setItem('pending_namejs', `${data.prenom} ${data.nom}`);
+
+                                            // Ne pas effacer le localStorage ici pour permettre le retour en arrière
+                                            // localStorage.removeItem(STORAGE_KEY);
+                                            // localStorage.removeItem(STORAGE_STEP_KEY);
 
                                             const actualPlanId = data.offre === 'scan' ? 'scan-plus' : (data.offre === 'reexpedition' ? 'physique' : 'essentiel');
                                             await handleCheckout(
@@ -656,7 +954,7 @@ export default function Souscription() {
                                         }
                                     }}
                                 >
-                                    {loading ? 'Redirection vers Stripe en cours...' : (!data.cgv ? 'Acceptez les CGV pour payer' : `Payer ${prixTotalTTC()} de façon sécurisée ->`)}
+                                    {loading ? 'Traitement en cours...' : (!data.cgv ? 'Acceptez les CGV pour continuer' : `Payer ${prixTotalTTC()} de façon sécurisée ->`)}
                                 </button>
                                 <div className="stripe-badge" style={{ justifyContent: 'center', marginTop: '1rem', borderTop: 'none' }}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
@@ -676,7 +974,7 @@ export default function Souscription() {
                                 Précédent
                             </button>
                         )}
-                        {step < STEPS.length - 1 && (
+                        {step < CURRENT_STEPS.length - 1 && (
                             <button className="sous-btn-next" onClick={next}>
                                 Suivant
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -120,20 +120,10 @@ export default function Villes() {
                                 style={{ animationDelay: `${i * 0.05}s` }}
                             >
                                 <div className="cwc-image-side">
-                                    <div className="cwc-map-overlay">
-                                        <div className="map-glass">
-                                            <span className="map-glass-icon">{city.icon}</span>
-                                            <div className="map-glass-info">
-                                                <div className="mgi-city">{city.name}</div>
-                                                <div className="mgi-zip">{city.zip}000</div>
-                                            </div>
-                                            <div className="map-glass-pulse" />
-                                        </div>
-                                    </div>
                                     {/* Image de fond pour chaque ville */}
                                     <div
                                         className="cwc-city-bg"
-                                        style={{ backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.2)), url(${city.image})` }}
+                                        style={{ backgroundImage: `url(${city.image})` }}
                                     />
                                 </div>
 

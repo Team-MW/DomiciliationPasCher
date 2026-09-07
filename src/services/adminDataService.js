@@ -1,6 +1,8 @@
 import { conn } from '../lib/db';
 import { fetchWithRetry } from '../utils/api';
 import { sendApprovalEmail } from './emailService';
+import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward } from '../../shared/plans.js';
+import { parseExtraInfo, normalizeSubscriptionExtra, resolvePersonalAddress } from '../utils/contractLegalFields';
 
 /**
  * ADMIN DATA SERVICE - Version PlanetScale
@@ -41,26 +43,50 @@ export const adminDataService = {
     async addClient(clientData) {
         let finalExtraInfo = clientData.extra_info ? (typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info) : {};
         const cleanEmail = clientData.email ? clientData.email.trim().toLowerCase() : '';
-        
+
         // Création manuelle : On ne crée plus automatiquement de client Stripe.
 
         const id = Date.now().toString();
         const since = clientData.since || new Date().toISOString().split('T')[0];
-        const status = clientData.status || 'actif';
-        const clerkStatus = clientData.clerkStatus || 'invitation_sent';
-        const clerkId = clientData.clerkId || '';
+        const displayName = (clientData.name || '').trim()
+            || [finalExtraInfo.prenom, finalExtraInfo.nom].filter(Boolean).join(' ').trim();
+        const company = clientData.company || finalExtraInfo.nomSociete || '';
+        const address = String(clientData.address || resolvePersonalAddress({}, finalExtraInfo)).slice(0, 255);
+        const phone = String(clientData.phone || finalExtraInfo.telephone || '').slice(0, 50);
+
+        if (!finalExtraInfo.offre && clientData.plan) {
+            const catalog = PLAN_CATALOG[resolvePlanId(clientData.plan)];
+            if (catalog) finalExtraInfo.offre = catalog.offre;
+        }
+        if (!finalExtraInfo.email) finalExtraInfo.email = cleanEmail;
+        if (!finalExtraInfo.adressePerso && address) finalExtraInfo.adressePerso = address;
+        if (!finalExtraInfo.telephone && phone) finalExtraInfo.telephone = phone;
+
         const extraInfoStr = JSON.stringify(finalExtraInfo);
-        
+
         await conn.execute(
-            `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info, address, phone) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                id, clientData.name, cleanEmail, clientData.company,
+                id, displayName, cleanEmail, company,
                 clientData.city || 'À définir', clientData.plan, 'actif',
-                since, clientData.renewal || since, '', 'manual', extraInfoStr
+                since, clientData.renewal || since, '', 'manual', extraInfoStr,
+                address, phone
             ]
         );
-        return { id, ...clientData, email: cleanEmail, status: 'actif', since };
+        return {
+            id,
+            ...clientData,
+            name: displayName,
+            company,
+            email: cleanEmail,
+            status: 'actif',
+            since,
+            address,
+            phone,
+            extra_info: extraInfoStr,
+            clerkStatus: 'manual',
+        };
     },
 
     async updateClientClerkId(clientId, clerkId) {
@@ -81,6 +107,16 @@ export const adminDataService = {
             [data.name, cleanEmail, data.address || '', data.phone || '', id]
         );
         return { id, ...data, email: cleanEmail };
+    },
+
+    /**
+     * Met à jour uniquement l'adresse personnelle. Volontairement distinct de
+     * updateClientProfile, qui réécrit aussi nom, email et téléphone : le client n'a le droit
+     * de modifier que son adresse, et cette méthode rend cette limite impossible à contourner.
+     */
+    async updateClientAddress(id, address) {
+        await conn.execute('UPDATE clients SET address = ? WHERE id = ?', [address || '', id]);
+        return { id, address: address || '' };
     },
 
     async updateClientStatus(id, newStatus) {
@@ -214,8 +250,11 @@ export const adminDataService = {
             let clientId;
             const since = new Date().toISOString().split('T')[0];
 
-            // On s'assure que extra_info est un objet manipulable
-            let finalExtraInfo = d.extra_info ? (typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info) : {};
+            let finalExtraInfo = normalizeSubscriptionExtra(parseExtraInfo(d.extra_info));
+            const displayName = [finalExtraInfo.prenom, finalExtraInfo.nom].filter(Boolean).join(' ').trim()
+                || String(d.clientName || '').replace(/\s*-?\s*📞.*$/, '').trim();
+            const address = resolvePersonalAddress({}, finalExtraInfo).slice(0, 255);
+            const phone = String(finalExtraInfo.telephone || '').slice(0, 50);
 
             // Création manuelle : On ne crée plus automatiquement de client Stripe.
 
@@ -225,17 +264,17 @@ export const adminDataService = {
                 // Mettre à jour le client existant avec TOUTES les nouvelles infos
                 clientId = existingClientRes.rows[0].id;
                 await conn.execute(
-                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = 'linked' 
+                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = 'linked', address = ?, phone = ?
                      WHERE id = ?`,
-                    [d.clientName, d.company, d.city || 'À définir', d.plan, since, extraInfoStr, d.clerkId || '', clientId]
+                    [displayName, d.company, d.city || 'À définir', d.plan, since, extraInfoStr, d.clerkId || '', address, phone, clientId]
                 );
             } else {
                 // Créer le nouveau client
                 clientId = Date.now().toString();
                 await conn.execute(
-                    `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [clientId, d.clientName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, d.clerkId || '', d.clerkId ? 'linked' : 'invitation_sent', extraInfoStr]
+                    `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info, address, phone) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [clientId, displayName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, d.clerkId || '', d.clerkId ? 'linked' : 'invitation_sent', extraInfoStr, address, phone]
                 );
             }
 
@@ -291,6 +330,25 @@ export const adminDataService = {
     async getMail() {
         const res = await conn.execute('SELECT * FROM mail ORDER BY date DESC');
         return res.rows;
+    },
+
+    async markMailAsRead(mailId) {
+        await conn.execute('UPDATE mail SET status = ? WHERE id = ?', ['lu', mailId]);
+    },
+
+    async addClientMail(clientId, data) {
+        const id = 'mail_' + Date.now();
+        const date = new Date().toISOString().split('T')[0];
+        await conn.execute(
+            `INSERT INTO mail (id, clientId, company, type, \`from\`, date, status, preview) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, clientId, data.company || '', data.type || 'Lettre simple', data.from || 'Expéditeur inconnu', date, 'non lu', data.preview || '']
+        );
+        return { id, clientId, company: data.company || '', type: data.type || 'Lettre simple', from: data.from || 'Expéditeur inconnu', date, status: 'non lu', preview: data.preview || '' };
+    },
+
+    async deleteMail(id) {
+        await conn.execute('DELETE FROM mail WHERE id = ?', [id]);
     },
 
     async getClientMail(clientId) {
@@ -371,6 +429,64 @@ export const adminDataService = {
         return { id, clientId, city, ...b, status: 'en_attente', createdAt };
     },
 
+    // --- RÉEXPÉDITIONS PHYSIQUES ---
+    async getReexpeditions() {
+        try {
+            const res = await conn.execute(`
+                SELECT r.*, c.company as clientName, c.name as clientContact, c.email as clientEmail, c.plan as clientPlan
+                FROM reexpeditions r
+                LEFT JOIN clients c ON r.clientId = c.id
+                ORDER BY r.createdAt DESC
+            `);
+            return res.rows;
+        } catch (err) {
+            console.error('REEXPEDITIONS_FETCH_ERROR:', err);
+            return [];
+        }
+    },
+
+    async getClientReexpeditions(clientId) {
+        try {
+            const res = await conn.execute(
+                'SELECT * FROM reexpeditions WHERE clientId = ? ORDER BY createdAt DESC',
+                [clientId]
+            );
+            return res.rows;
+        } catch (err) {
+            console.error('REEXPEDITIONS_CLIENT_FETCH_ERROR:', err);
+            return [];
+        }
+    },
+
+    async addReexpeditionRequest(clientId, data) {
+        const clientRes = await conn.execute(
+            'SELECT id, plan, extra_info FROM clients WHERE id = ?',
+            [clientId]
+        );
+        const client = clientRes.rows[0];
+        if (!client) throw new Error('Client introuvable');
+        const extra = parseExtraInfo(client.extra_info);
+        if (!canRequestPhysicalForward(client.plan, extra)) {
+            throw new Error('La réexpédition physique est réservée aux forfaits Scan+ et Physique+.');
+        }
+        const address = String(data?.address || '').trim();
+        if (!address) throw new Error('Adresse de destination requise');
+        const notes = String(data?.notes || '').trim();
+        const id = 'rexp_' + Date.now();
+        const createdAt = new Date().toISOString();
+        await conn.execute(
+            `INSERT INTO reexpeditions (id, clientId, address, notes, status, createdAt)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [id, clientId, address, notes, 'en_attente', createdAt]
+        );
+        return { id, clientId, address, notes, status: 'en_attente', createdAt };
+    },
+
+    async updateReexpeditionStatus(id, status) {
+        await conn.execute('UPDATE reexpeditions SET status = ? WHERE id = ?', [status, id]);
+        return { id, status };
+    },
+
     // --- PAYMENTS ---
     async getPayments(clientId) {
         const res = await conn.execute('SELECT * FROM payments WHERE clientId = ? ORDER BY date DESC', [clientId]);
@@ -415,12 +531,27 @@ export const adminDataService = {
             const data = await res.json();
             return {
                 payments: data.payments || [],
-                subscriptionStatus: data.subscriptionStatus || 'active',
+                // Jamais 'active' par défaut : sinon une réponse incomplète ou une panne réseau
+                // repasserait en actif un client réellement en impayé.
+                subscriptionStatus: data.subscriptionStatus || 'non_trouvé',
                 foundCustomerId: data.foundCustomerId || null
             };
         } catch (err) {
             console.error("Erreur sync Stripe:", err);
-            return { payments: [], subscriptionStatus: 'active', foundCustomerId: null };
+            return { payments: [], subscriptionStatus: 'non_trouvé', foundCustomerId: null };
+        }
+    },
+
+    // Balayage global du compte Stripe : remonte les impayés sans devoir ouvrir chaque dossier.
+    async getStripeFailedPayments() {
+        try {
+            const res = await fetchWithRetry(`/api/stripe-failed-payments?_t=${Date.now()}`);
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            return data.failures || [];
+        } catch (err) {
+            console.error("Erreur récupération impayés Stripe:", err);
+            throw err;
         }
     },
 
@@ -494,17 +625,22 @@ export const adminDataService = {
 
     // --- STATS ---
     async getGlobalStats() {
-        const [clients, mails, demandes, unreadMsgs] = await Promise.all([
+        const [clients, mails, demandes, unreadMsgs, pendingReexp] = await Promise.all([
             conn.execute('SELECT COUNT(*) as total FROM clients WHERE status = ?', ['actif']),
             conn.execute("SELECT COUNT(*) as total FROM mail WHERE status = 'non lu'"),
             conn.execute("SELECT COUNT(*) as total FROM demandes WHERE status = 'en_attente'"),
-            conn.execute("SELECT COUNT(*) as total FROM messages WHERE status = 'sent' AND sender = 'client'")
+            conn.execute("SELECT COUNT(*) as total FROM messages WHERE status = 'sent' AND sender = 'client'"),
+            conn.execute("SELECT COUNT(*) as total FROM reexpeditions WHERE status = 'en_attente'").catch(() => ({ rows: [{ total: 0 }] })),
         ]);
 
         let monthlyRevenue = 0;
         let revenueHistory = [];
+        let mrr = null;
+        let activeSubscriptions = null;
+        let revenueChangePct = null;
+        let stripeSource = null;
+        let stripeLivemode = false;
         
-        // --- NOUVEAU: Récupérer les vraies données depuis Stripe via l'API ---
         try {
             const apiBaseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
                 ? 'http://localhost:5173'
@@ -515,6 +651,11 @@ export const adminDataService = {
                 const data = await res.json();
                 monthlyRevenue = data.monthlyRevenue || 0;
                 revenueHistory = data.revenueHistory || [];
+                mrr = data.mrr ?? 0;
+                activeSubscriptions = data.activeSubscriptions ?? 0;
+                revenueChangePct = data.revenueChangePct ?? null;
+                stripeSource = data.source || 'stripe';
+                stripeLivemode = data.livemode === true;
             } else {
                 console.warn("Impossible de récupérer les statistiques Stripe");
             }
@@ -539,8 +680,14 @@ export const adminDataService = {
             activeClients: parseInt(clients.rows[0]?.total || 0),
             pendingDemandes: parseInt(demandes.rows[0]?.total || 0),
             pendingMessages: parseInt(unreadMsgs.rows[0]?.total || 0),
+            pendingReexpeditions: parseInt(pendingReexp.rows[0]?.total || 0),
             unreadMail: parseInt(mails.rows[0]?.total || 0),
             monthlyRevenue: monthlyRevenue,
+            mrr,
+            activeSubscriptions,
+            revenueChangePct,
+            source: stripeSource,
+            livemode: stripeLivemode,
             revenueHistory
         };
     },
@@ -642,14 +789,30 @@ export const adminDataService = {
                     \`createdAt\` VARCHAR(30)
                 )
             `);
-            // Migration: Ajouter 'city' si la table existait DÉJÀ avant notre mise à jour !
             try {
-                await conn.execute('DELETE FROM bookings');
+                await conn.execute('ALTER TABLE bookings ADD COLUMN city VARCHAR(50) DEFAULT "À définir"');
             } catch (err) { }
-            
-            console.log("Bookings table verified and cleared.");
+
+            console.log("Bookings table verified.");
         } catch (err) {
             console.error("BOOKINGS_INIT_ERROR:", err);
+        }
+    },
+
+    async initReexpeditions() {
+        try {
+            await conn.execute(`
+                CREATE TABLE IF NOT EXISTS reexpeditions (
+                    id VARCHAR(50) PRIMARY KEY,
+                    clientId VARCHAR(50),
+                    address TEXT,
+                    notes TEXT,
+                    status VARCHAR(20),
+                    createdAt VARCHAR(30)
+                )
+            `);
+        } catch (err) {
+            console.error('REEXPEDITIONS_INIT_ERROR:', err);
         }
     },
 
@@ -678,5 +841,6 @@ export const adminDataService = {
         await this.initProfileFields();
         await this.initBookings();
         await this.initPayments();
+        await this.initReexpeditions();
     }
 };

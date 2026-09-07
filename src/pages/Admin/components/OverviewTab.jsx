@@ -15,7 +15,7 @@ export default function OverviewTab({ stats, clients, mail }) {
     const pctScan = Math.round((planCounts['scan-plus'] / totalClients) * 100);
     const pctPhysique = Math.round((planCounts.physique / totalClients) * 100);
 
-    // Données réelles issues de l'historique de la base de données (sécurisé avec valeurs par défaut sur le premier render)
+    // Historique Stripe (6 derniers mois). Placeholder le temps que getGlobalStats réponde.
     const revenueHistory = stats.revenueHistory || [
         { label: '...', revenue: 0 },
         { label: '...', revenue: 0 },
@@ -71,8 +71,10 @@ export default function OverviewTab({ stats, clients, mail }) {
                 <div className="stat-card">
                     <span className="stat-card-label">Clients Actifs</span>
                     <div className="stat-card-value">{stats.activeClients || 0}</div>
-                    <div className="stat-card-trend trend-up">
-                        <Icons.TrendUp /> <span>12.5%</span>
+                    <div className="stat-card-trend" style={{ color: '#1A56DB' }}>
+                        {stats.source === 'stripe'
+                            ? `${stats.activeSubscriptions} abo Stripe`
+                            : 'Dossier interne'}
                     </div>
                 </div>
                 <div className="stat-card">
@@ -81,11 +83,22 @@ export default function OverviewTab({ stats, clients, mail }) {
                     <div className="stat-card-trend" style={{ color: '#1A56DB' }}>Action requise</div>
                 </div>
                 <div className="stat-card">
-                    <span className="stat-card-label">Revenu Mensuel</span>
-                    <div className="stat-card-value">{(stats.monthlyRevenue || 0)}€</div>
-                    <div className="stat-card-trend trend-up">
-                        <Icons.TrendUp /> <span>8.2%</span>
+                    <span className="stat-card-label">Revenu du mois</span>
+                    <div className="stat-card-value">{(stats.monthlyRevenue || 0).toLocaleString('fr-FR')}€</div>
+                    <div className={`stat-card-trend ${stats.revenueChangePct == null ? '' : (stats.revenueChangePct >= 0 ? 'trend-up' : 'trend-down')}`}>
+                        {stats.revenueChangePct == null ? (
+                            <span>vs mois précédent</span>
+                        ) : stats.revenueChangePct >= 0 ? (
+                            <><Icons.TrendUp /> <span>+{stats.revenueChangePct}%</span></>
+                        ) : (
+                            <span>{stats.revenueChangePct}%</span>
+                        )}
                     </div>
+                    {stats.source === 'stripe' && (
+                        <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
+                            MRR Stripe : {(stats.mrr || 0).toLocaleString('fr-FR')}€
+                        </div>
+                    )}
                 </div>
                 <div className="stat-card">
                     <span className="stat-card-label">Santé Système</span>
@@ -98,9 +111,18 @@ export default function OverviewTab({ stats, clients, mail }) {
             <div className="dashboard-grid" style={{ marginBottom: '24px' }}>
                 <div className="content-card">
                     <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h2>Analyse Mensuelle des Revenus (Live Stripe)</h2>
-                        <span style={{ fontSize: '12px', background: '#ECFDF5', color: '#047857', padding: '4px 8px', borderRadius: '6px', fontWeight: '700' }}>
-                            Base de données synchronisée
+                        <h2>Analyse Mensuelle des Revenus (Stripe)</h2>
+                        <span style={{
+                            fontSize: '12px',
+                            background: stats.livemode ? '#ECFDF5' : '#F1F5F9',
+                            color: stats.livemode ? '#047857' : '#475569',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontWeight: '700'
+                        }}>
+                            {stats.source === 'stripe'
+                                ? (stats.livemode ? 'Paiements live' : 'Mode test')
+                                : 'Hors ligne'}
                         </span>
                     </div>
                     <div className="card-body" style={{ padding: '24px', display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '32px', alignItems: 'center' }}>

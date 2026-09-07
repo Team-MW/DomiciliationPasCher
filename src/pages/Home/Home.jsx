@@ -215,6 +215,7 @@ export default function Home() {
     const pageRef = useAnimateOnScroll();
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [pendingStatus, setPendingStatus] = useState(false);
 
     const features = tr.home.features.items.map((item, i) => ({
         ...item,
@@ -240,6 +241,25 @@ export default function Home() {
     useEffect(() => {
         document.title = tr.home.pageTitle;
     }, [tr.home.pageTitle]);
+
+    useEffect(() => {
+        const checkPending = async () => {
+            const lastSessionId = localStorage.getItem('last_successful_session');
+            if (lastSessionId) {
+                try {
+                    const demande = await adminDataService.getDemandeBySessionId(lastSessionId);
+                    if (demande) {
+                        setPendingStatus(true);
+                    } else {
+                        localStorage.removeItem('last_successful_session');
+                    }
+                } catch (e) {
+                    console.error("Erreur check pending:", e);
+                }
+            }
+        };
+        checkPending();
+    }, []);
 
     useEffect(() => {
         const handleScroll = () => setShowScrollTop(window.scrollY > 600);
@@ -303,6 +323,24 @@ export default function Home() {
 
     return (
         <main ref={pageRef} className="page-wrapper">
+            {pendingStatus && (
+                <div style={{
+                    background: '#FEF3C7',
+                    color: '#92400E',
+                    padding: '12px 24px',
+                    textAlign: 'center',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    borderBottom: '1px solid #FDE68A',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Votre demande de domiciliation est en cours de traitement. Vous recevrez un email dès sa validation.
+                </div>
+            )}
 
             {/* ══════════ HERO ══════════ */}
             <section className="hero" id="hero">

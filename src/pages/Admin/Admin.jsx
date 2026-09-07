@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useUser, useClerk, SignIn, UserButton } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
+import { appAlert, appConfirm } from '../../components/AppDialog/dialogApi';
 import './Admin.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
@@ -12,6 +13,7 @@ import DemandesTab from './components/DemandesTab';
 import ClientsTab from './components/ClientsTab';
 import FailedPaymentsTab from './components/FailedPaymentsTab';
 import MeetingTab from './components/MeetingTab';
+import MailTab from './components/MailTab';
 import DossierClient from './components/DossierClient';
 import CreateClientModal from './components/CreateClientModal';
 import { DemandeDetailsModal } from './components/DemandesTab';
@@ -28,6 +30,7 @@ export default function Admin() {
     const [mail, setMail] = useState([]);
     const [demandes, setDemandes] = useState([]);
     const [bookings, setBookings] = useState([]);
+    const [reexpeditions, setReexpeditions] = useState([]);
     const [stats, setStats] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClientId, setSelectedClientId] = useState(null);
@@ -36,42 +39,8 @@ export default function Admin() {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingId, setLoadingId] = useState(null);
 
-    // Custom Confirm and Alert modals state
-    const [confirmConfig, setConfirmConfig] = useState(null);
-    const [alertConfig, setAlertConfig] = useState(null);
-
-    const showConfirm = useCallback((message, options = {}) => {
-        return new Promise((resolve) => {
-            setConfirmConfig({
-                title: options.title || 'Confirmation',
-                message,
-                confirmText: options.confirmText || 'OK',
-                cancelText: options.cancelText || 'Annuler',
-                isDanger: !!options.isDanger,
-                onConfirm: () => {
-                    setConfirmConfig(null);
-                    resolve(true);
-                },
-                onCancel: () => {
-                    setConfirmConfig(null);
-                    resolve(false);
-                }
-            });
-        });
-    }, []);
-
-    const showAlert = useCallback((message, options = {}) => {
-        return new Promise((resolve) => {
-            setAlertConfig({
-                title: options.title || 'Notification',
-                message,
-                onClose: () => {
-                    setAlertConfig(null);
-                    resolve(true);
-                }
-            });
-        });
-    }, []);
+    const showConfirm = useCallback((message, options = {}) => appConfirm(message, options), []);
+    const showAlert = useCallback((message, options = {}) => appAlert(message, options), []);
 
     const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
     const userEmail = user?.primaryEmailAddress?.emailAddress;
@@ -80,17 +49,19 @@ export default function Admin() {
     const refreshData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [c, m, d, b, s] = await Promise.all([
+            const [c, m, d, b, r, s] = await Promise.all([
                 adminDataService.getClients(),
                 adminDataService.getMail(),
                 adminDataService.getDemandes(),
                 adminDataService.getBookings(),
+                adminDataService.getReexpeditions(),
                 adminDataService.getGlobalStats()
             ]);
             setClients(c);
             setMail(m);
             setDemandes(d);
             setBookings(b);
+            setReexpeditions(Array.isArray(r) ? r : []);
             setStats(s);
 
             const lastDemandesCount = parseInt(localStorage.getItem('admin_seen_demandes') || '0');
@@ -100,6 +71,10 @@ export default function Admin() {
             const lastBookingsCount = parseInt(localStorage.getItem('admin_seen_bookings') || '0');
             if (b.length > lastBookingsCount && activeTab !== 'meeting') {
                 setHasNewBooking(true);
+            }
+            const lastReexpCount = parseInt(localStorage.getItem('admin_seen_reexpeditions') || '0');
+            if ((r || []).length > lastReexpCount && activeTab !== 'courrier') {
+                setHasNewReexp(true);
             }
 
         } catch (err) {
@@ -111,6 +86,7 @@ export default function Admin() {
 
     const [hasNewDemande, setHasNewDemande] = useState(false);
     const [hasNewBooking, setHasNewBooking] = useState(false);
+    const [hasNewReexp, setHasNewReexp] = useState(false);
 
     useEffect(() => {
         if (activeTab === 'demandes') {
@@ -121,7 +97,11 @@ export default function Admin() {
             setHasNewBooking(false);
             localStorage.setItem('admin_seen_bookings', bookings.length.toString());
         }
-    }, [activeTab, demandes.length, bookings.length]);
+        if (activeTab === 'courrier') {
+            setHasNewReexp(false);
+            localStorage.setItem('admin_seen_reexpeditions', reexpeditions.length.toString());
+        }
+    }, [activeTab, demandes.length, bookings.length, reexpeditions.length]);
 
     useEffect(() => {
         const body = document.querySelector('.admin-body');
@@ -232,6 +212,11 @@ export default function Admin() {
                         <span className="menu-icon"><Icons.Calendar /></span> Salles & Bureaux
                         {hasNewBooking && <span className="red-dot"></span>}
                     </button>
+                    <button className={`menu-item ${activeTab === 'courrier' ? 'active' : ''}`} onClick={() => { setActiveTab('courrier'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
+                        <span className="menu-icon"><Icons.Mail /></span> Courrier
+                        {stats.pendingReexpeditions > 0 && <span className="menu-badge" style={{ background: '#F59E0B' }}>{stats.pendingReexpeditions}</span>}
+                        {hasNewReexp && <span className="red-dot"></span>}
+                    </button>
                 </nav>
 
                 <div style={{ marginTop: 'auto', padding: '12px 20px', borderTop: '1px solid var(--admin-border)' }}>
@@ -286,6 +271,7 @@ export default function Admin() {
                             {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
                             {activeTab === 'billing' && <FailedPaymentsTab clients={clients} onSelect={setSelectedClientId} onUpdate={refreshData} showConfirm={showConfirm} showAlert={showAlert} />}
                             {activeTab === 'meeting' && <MeetingTab bookings={bookings} clients={clients} onUpdate={refreshData} showAlert={showAlert} />}
+                            {activeTab === 'courrier' && <MailTab reexpeditions={reexpeditions} onUpdate={refreshData} showAlert={showAlert} onSelectClient={setSelectedClientId} />}
                         </>
                     )}
                 </div>
@@ -299,8 +285,14 @@ export default function Admin() {
                             try {
                                 await adminDataService.traiterDemande(id);
                                 refreshData();
+                                
+                                // Envoyer l'email d'approbation
+                                import('../../services/emailService').then(({ sendApprovalEmail }) => {
+                                    sendApprovalEmail(selectedDemande.email, selectedDemande.company);
+                                }).catch(err => console.error("Erreur chargement emailService:", err));
+
                                 setSelectedDemande(null);
-                                await showAlert("Accès créé avec succès !", { title: "Succès" });
+                                await showAlert("Accès créé avec succès ! L'email de validation a été envoyé.", { title: "Succès" });
                             } finally {
                                 setLoadingId(null);
                             }
@@ -333,50 +325,6 @@ export default function Admin() {
                     />
                 )}
             </main>
-
-            {/* Custom Confirm Modal */}
-            {confirmConfig && (
-                <div className="custom-modal-overlay">
-                    <div className="custom-dialog-box">
-                        <div className="custom-dialog-header">
-                            <h3>{confirmConfig.title}</h3>
-                        </div>
-                        <div className="custom-dialog-body">
-                            <p>{confirmConfig.message}</p>
-                        </div>
-                        <div className="custom-dialog-footer">
-                            <button className="btn-secondary" onClick={confirmConfig.onCancel}>
-                                {confirmConfig.cancelText}
-                            </button>
-                            <button 
-                                className={confirmConfig.isDanger ? "btn-primary btn-danger-action" : "btn-primary"} 
-                                onClick={confirmConfig.onConfirm}
-                            >
-                                {confirmConfig.confirmText}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Custom Alert Modal */}
-            {alertConfig && (
-                <div className="custom-modal-overlay">
-                    <div className="custom-dialog-box">
-                        <div className="custom-dialog-header">
-                            <h3>{alertConfig.title}</h3>
-                        </div>
-                        <div className="custom-dialog-body">
-                            <p>{alertConfig.message}</p>
-                        </div>
-                        <div className="custom-dialog-footer">
-                            <button className="btn-primary" onClick={alertConfig.onClose}>
-                                Fermer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

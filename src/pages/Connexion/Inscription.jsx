@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SignUp } from '@clerk/clerk-react';
 import { adminDataService } from '../../services/adminDataService';
+import { appAlert } from '../../components/AppDialog/dialogApi';
 import './Auth.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
@@ -32,10 +33,10 @@ export default function InscriptionPage() {
                 setIsAllowed(true);
                 setShowFallback(false);
             } else {
-                alert("Aucun paiement validé trouvé pour cet e-mail. Vérifiez l'adresse ou contactez le support.");
+                await appAlert("Aucun paiement validé trouvé pour cet e-mail. Vérifiez l'adresse ou contactez le support.");
             }
         } catch (err) {
-            alert("Erreur lors de la vérification.");
+            await appAlert("Erreur lors de la vérification.");
         } finally {
             setIsChecking(false);
         }

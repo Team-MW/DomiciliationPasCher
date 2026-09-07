@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import Navbar from './components/Navbar/Navbar';
@@ -12,7 +12,11 @@ import About from './pages/About/About';
 import ConnexionPage from './pages/Connexion/Connexion';
 import InscriptionPage from './pages/Connexion/Inscription';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
+import Landing from './pages/Landing/Landing';
+import RendezVous from './pages/RendezVous/RendezVous';
+
 import { useTranslation } from './i18n/LanguageContext';
+import { DialogProvider } from './components/AppDialog/DialogProvider.jsx';
 
 /* Lazy loading pour les grosses pages */
 const EspaceClient = lazy(() => import('./pages/EspaceClient/EspaceClient'));
@@ -61,7 +65,11 @@ export function PublicOnlyRoute({ children }) {
   return children;
 }
 
-/* Layout public (avec Navbar + Footer) */
+/* Redirection qui conserve ?tab= et les flags Stripe (booking_success, etc.). */
+export function RedirectKeepSearch({ to }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={`${to}${search}${hash}`} replace />;
+}
 function PublicLayout({ children }) {
   return (
     <>
@@ -75,6 +83,7 @@ function PublicLayout({ children }) {
 function App() {
   return (
     <BrowserRouter>
+      <DialogProvider>
       <ScrollToTop />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
@@ -85,6 +94,12 @@ function App() {
           <Route path="/services" element={<PublicLayout><Services /></PublicLayout>} />
           <Route path="/a-propos" element={<PublicLayout><About /></PublicLayout>} />
           <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
+
+          {/* Prise de rendez-vous (Calendly) */}
+          <Route path="/rendez-vous" element={<PublicLayout><RendezVous /></PublicLayout>} />
+
+          {/* Landing Page (Ads) */}
+          <Route path="/offre" element={<Landing />} />
 
           {/* Connexion — publique uniquement */}
           <Route path="/connexion" element={<PublicOnlyRoute><ConnexionPage /></PublicOnlyRoute>} />
@@ -114,13 +129,14 @@ function App() {
           <Route path="/fiches-pratiques/:slug" element={<PublicLayout><FicheDetail /></PublicLayout>} />
 
           {/* Redirections legacy */}
-          <Route path="/espace-client" element={<Navigate to="/app/espace-client" replace />} />
-          <Route path="/admin" element={<Navigate to="/app/admin" replace />} />
+          <Route path="/espace-client" element={<RedirectKeepSearch to="/app/espace-client" />} />
+          <Route path="/admin" element={<RedirectKeepSearch to="/app/admin" />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      </DialogProvider>
     </BrowserRouter>
   );
 }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
+import { useTranslation } from '../../../i18n/LanguageContext';
 
 export default function Messages({ clientData }) {
+    const { t } = useTranslation();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -34,12 +36,19 @@ export default function Messages({ clientData }) {
 
         setIsLoading(true);
         try {
+            const content = newMessage;
             const msg = await adminDataService.addMessage(clientData.id, {
-                content: newMessage,
+                content: content,
                 sender: 'client'
             });
             setMessages(prev => [...prev, msg]);
             setNewMessage('');
+            
+            // Envoi de la notification par email à l'administrateur
+            import('../../../utils/emailService').then(({ sendClientNewMessageEmail }) => {
+                sendClientNewMessageEmail(clientData.email, clientData.clientName || clientData.company || t('espaceClient.messages.clientFallback'), content);
+            }).catch(err => console.error("Erreur chargement emailService:", err));
+            
         } catch (err) {
             console.error(err);
         } finally {
@@ -51,9 +60,9 @@ export default function Messages({ clientData }) {
         <div className="ec-tab-animate" style={{ height: 'calc(100vh - 200px)' }}>
             <div className="ec-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <div className="ec-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2>Messagerie Directe</h2>
+                    <h2>{t('espaceClient.messages.title')}</h2>
                     <span className="ec-status-tag" style={{ background: '#F1F5F9', color: '#64748B', fontSize: '12px' }}>
-                        Support en ligne
+{t('espaceClient.messages.support')}
                     </span>
                 </div>
 
@@ -61,8 +70,8 @@ export default function Messages({ clientData }) {
                     {messages.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '40px', color: '#94A3B8' }}>
                             <div style={{ fontSize: '40px', marginBottom: '16px' }}>💬</div>
-                            <p>Bienvenue dans votre messagerie sécurisée.</p>
-                            <p style={{ fontSize: '13px' }}>Posez vos questions ici, notre équipe vous répondra dans les plus brefs délais.</p>
+                            <p>{t('espaceClient.messages.emptyTitle')}</p>
+                            <p style={{ fontSize: '13px' }}>{t('espaceClient.messages.emptyHint')}</p>
                         </div>
                     ) : (
                         messages.map(m => (
@@ -88,7 +97,7 @@ export default function Messages({ clientData }) {
                                     {m.content}
                                 </div>
                                 <span style={{ fontSize: '10px', color: '#94A3B8', marginTop: '6px' }}>
-                                    {m.sender === 'admin' ? 'Support DPC' : 'Vous'} • {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {m.sender === 'admin' ? t('espaceClient.messages.supportName') : t('espaceClient.messages.you')} • {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
                         ))
@@ -98,7 +107,7 @@ export default function Messages({ clientData }) {
                 <form onSubmit={handleSend} style={{ padding: '20px', background: 'white', borderTop: '1px solid #E2E8F0', display: 'flex', gap: '12px' }}>
                     <input
                         type="text"
-                        placeholder="Tapez votre message ici..."
+                        placeholder={t('espaceClient.messages.placeholder')}
                         style={{
                             flex: 1,
                             height: '48px',
@@ -118,7 +127,7 @@ export default function Messages({ clientData }) {
                         style={{ padding: '0 24px', whiteSpace: 'nowrap' }}
                         disabled={isLoading || !newMessage.trim()}
                     >
-                        {isLoading ? '...' : 'Envoyer'}
+                        {isLoading ? '...' : t('espaceClient.messages.send')}
                     </button>
                 </form>
             </div>

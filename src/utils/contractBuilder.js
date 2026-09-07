@@ -1,4 +1,5 @@
 import { cleanForPdf } from './pdfGenerator';
+import { resolvePersonalAddress } from './contractLegalFields';
 
 export const buildContractContent = (doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof = null) => {
     let currentY = 45;
@@ -9,7 +10,7 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
     const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || '[DÉNOMINATION SOCIALE DU DOMICILIÉ]'));
     const siretValue = extra.siret || clientData.siret || extra.siren || clientData.siren || '';
     const sirenText = cleanForPdf(siretValue ? `immatriculée sous le n° ${siretValue.replace(/\s/g, '')}` : 'en cours d\'immatriculation');
-    const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || '[ADRESSE PERSONNELLE]');
+    const clientAddress = cleanForPdf(resolvePersonalAddress(clientData, extra) || '[ADRESSE PERSONNELLE]');
     const lieuNaissance = cleanForPdf(extra.lieuNaissance || '');
     const dateNaissance = cleanForPdf(extra.dateNaissance ? new Date(extra.dateNaissance).toLocaleDateString('fr-FR') : '');
     const nationalite = cleanForPdf(extra.nationalite || '');

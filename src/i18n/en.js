@@ -1,7 +1,14 @@
+import espaceClient from './espaceClient/index.js';
+
 export default {
   common: {
     loading: 'Loading...',
     backToTop: 'Back to top',
+    dialogConfirm: 'Confirmation',
+    dialogNotice: 'Notice',
+    dialogOk: 'OK',
+    dialogCancel: 'Cancel',
+    dialogClose: 'Close',
   },
 
   nav: {
@@ -9,7 +16,8 @@ export default {
       home: 'Home',
       services: 'Services',
       tarifs: 'Pricing',
-      villes: 'Locations',
+      villes: 'Addresses',
+      creationEntreprise: 'Company Creation',
       fichesPratiques: 'Practical Guides',
     },
     megaMenu: {
@@ -1232,4 +1240,132 @@ export default {
       },
     },
   },
+  souscription: {
+  "back": "Back",
+  "prevStep": "Previous step",
+  "chosenPlan": "Chosen plan",
+  "secureForm": "SSL secure form",
+  "step1ofN": "Step 1 of",
+  "project": {
+    "title": "What is your project?",
+    "subtitle": "Select the situation that fits your case",
+    "creation": "Company creation (Consultation)",
+    "transfer": "I am transferring my registered office",
+    "legalForm": "Legal form"
+  },
+  "contact": {
+    "title": "Your contact details",
+    "subtitle": "Legal representative information",
+    "lastName": "Last name",
+    "firstName": "First name",
+    "email": "Email",
+    "phone": "Phone",
+    "birthDate": "Birth date",
+    "birthPlace": "Birth place",
+    "personalAddress": "Personal address"
+  },
+  "company": {
+    "title": "Your company",
+    "subtitle": "Information about your company",
+    "companyName": "Company name",
+    "siren": "SIREN (optional)",
+    "activity": "Main activity",
+    "nationality": "Nationality",
+    "quality": "Quality"
+  },
+  "domiciliation": {
+    "title": "Address choice",
+    "subtitle": "Select the city for your domiciliation"
+  },
+  "documents": {
+    "title": "Supporting documents",
+    "subtitle": "Upload your documents to complete your file",
+    "idCard": "ID card (Front/Back)",
+    "proofOfAddress": "Proof of address (- 3 months)"
+  },
+  "summary": {
+    "title": "Summary & Request",
+    "subtitle": "Check your information before confirming",
+    "plan": "Plan",
+    "paymentFrequency": "Payment frequency",
+    "monthly": "Monthly",
+    "annual": "Annual (2 months free)",
+    "total": "Total",
+    "acceptCgv": "I accept the General Terms of Sale",
+    "submitCreation": "Confirm appointment request ->",
+    "submitPayment": "Pay {price} securely ->",
+    "processing": "Processing...",
+    "needCgv": "Accept the Terms of Sale to continue"
+  }
+},
+  creation: {
+    badge: '✨ Advice & Support',
+    title: 'Start, advise, close:',
+    titleHighlight: 'we handle everything',
+    subtitle: 'Three turnkey services for every stage in the life of your company. Pick yours and book a 30-minute call with an advisor.',
+    cardCta: 'Book an appointment',
+    cards: [
+      {
+        id: 'creation',
+        title: 'Company formation',
+        desc: 'We set up your company from start to finish and file your case with the French one-stop shop.',
+        features: [
+          'Bespoke drafting of the articles of association',
+          'Share capital deposit within 24h',
+          'Publication of the legal notice',
+          'INPI registration & Kbis extract',
+        ],
+        tag: '⚡ Kbis in 5 days on average',
+      },
+      {
+        id: 'conseil',
+        featured: true,
+        badge: 'Most requested',
+        title: 'Formation advice',
+        desc: 'An expert reviews your project and points you to the most profitable structure.',
+        features: [
+          'Choosing your status: SASU, SAS, SARL, EURL…',
+          'Tax and social optimisation for the director',
+          'Simulation of your net remuneration',
+          'Detailed roadmap and budget',
+        ],
+        tag: '🎁 First call free',
+      },
+      {
+        id: 'dissolution',
+        title: 'Company dissolution',
+        desc: 'Close your company cleanly, with no risk of tax reassessment or missed paperwork.',
+        features: [
+          'Amicable dissolution and liquidation',
+          'Minutes and legal formalities',
+          'Closing legal notices',
+          'Final deregistration at the registry',
+        ],
+        tag: '🛡️ Zero administrative risk',
+      },
+    ],
+    reassurance: [
+      '30 free minutes',
+      'Video call or phone',
+      'No commitment',
+      'Dedicated advisor',
+    ],
+  },
+
+  rendezVous: {
+    pageTitle: 'Book an appointment — Company formation — Domiciliation-Pas-Cher.com',
+    eyebrow: 'Advisory appointment',
+    title: 'Book your',
+    titleHighlight: '30-minute slot',
+    subtitle: 'Pick the date and time that suit you. An advisor will guide you through your company formation project.',
+    benefits: [
+      { icon: '🎯', title: 'Personalised review', desc: 'The legal structure best suited to your activity.' },
+      { icon: '💰', title: 'Transparent pricing', desc: 'The real cost of your formation, with no hidden fees.' },
+      { icon: '🚀', title: 'Clear action plan', desc: 'The steps and timeline to obtain your Kbis.' },
+    ],
+    loading: 'Loading calendar...',
+    backLink: 'Back to pricing',
+  },
+
+  espaceClient: espaceClient('en'),
 };

@@ -1163,3 +1163,81 @@
         font-size: 20px;
     }
 }
+
+/* ── Document Upload Buttons ── */
+.doc-upload-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.doc-upload-btn {
+    display: block;
+    border: 2px dashed #CBD5E1;
+    border-radius: 12px;
+    padding: 20px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #F8FAFC;
+    user-select: none;
+}
+
+.doc-upload-btn:hover {
+    border-color: #1A56DB;
+    background: #EFF6FF;
+}
+
+.doc-upload-btn.error {
+    border-color: #EF4444;
+    background: #FEF2F2;
+}
+
+.doc-upload-btn.uploaded {
+    border-color: #10B981;
+    border-style: solid;
+    background: #F0FDF4;
+}
+
+.doc-upload-inner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.doc-upload-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #EFF6FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #1A56DB;
+    transition: all 0.2s;
+}
+
+.doc-upload-icon--done {
+    background: #D1FAE5;
+    color: #10B981;
+}
+
+.doc-upload-btn:hover .doc-upload-icon {
+    background: #DBEAFE;
+}
+
+.doc-upload-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.doc-upload-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1E293B;
+}
+
+.doc-upload-sub {
+    font-size: 12px;
+    color: #94A3B8;
+}

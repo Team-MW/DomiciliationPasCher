@@ -2,7 +2,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
-import { ProtectedRoute, PublicOnlyRoute } from '../src/App.jsx';
+import { ProtectedRoute, PublicOnlyRoute, RedirectKeepSearch } from '../src/App.jsx';
 
 // Mock react-router-dom
 vi.mock('react-router-dom', () => {
@@ -12,6 +12,10 @@ vi.mock('react-router-dom', () => {
                 Navigate to {to}
             </div>
         )),
+        useLocation: () => ({
+            search: window.location.search || '',
+            hash: window.location.hash || '',
+        }),
     };
 });
 
@@ -162,6 +166,20 @@ describe('Route Security Guards (ProtectedRoute & PublicOnlyRoute)', () => {
             expect(navigateElement.getAttribute('data-replace')).toBe('true');
 
             vi.unstubAllEnvs();
+        });
+    });
+
+    describe('RedirectKeepSearch', () => {
+        test('keeps Stripe booking flags when rewriting /espace-client', () => {
+            window.location = new URL('http://localhost/espace-client?tab=meeting&booking_success=true');
+
+            render(<RedirectKeepSearch to="/app/espace-client" />);
+
+            const navigateElement = screen.getByTestId('navigate');
+            expect(navigateElement.getAttribute('data-to')).toBe(
+                '/app/espace-client?tab=meeting&booking_success=true'
+            );
+            expect(navigateElement.getAttribute('data-replace')).toBe('true');
         });
     });
 });

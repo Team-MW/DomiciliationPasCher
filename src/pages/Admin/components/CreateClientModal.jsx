@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
-import { uploadFile } from '../../../utils/cloudinary';
+import AddressAutocomplete from '../../../components/AddressAutocomplete/AddressAutocomplete';
+import { PLAN_CATALOG, resolvePlanId } from '../../../data/plans';
 
 export default function CreateClientModal({ onClose, onCreated, showAlert }) {
     const [formData, setFormData] = useState({
@@ -22,7 +23,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
         formeJuridique: '',
         typeProjet: 'creation'
     });
-    
+
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState('');
 
@@ -31,9 +32,14 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
         setLoading(true);
         try {
             setProgress('Création du profil client...');
-            // Préparer les extra_info
+            const composedName = [formData.prenom, formData.nom].filter(Boolean).join(' ').trim();
+            const catalog = PLAN_CATALOG[resolvePlanId(formData.plan)];
             const clientData = {
                 ...formData,
+                name: formData.name.trim() || composedName,
+                company: (formData.company || '').trim(),
+                address: formData.adresse,
+                phone: formData.telephone,
                 extra_info: {
                     prenom: formData.prenom,
                     nom: formData.nom,
@@ -48,11 +54,11 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                     nationalite: formData.nationalite,
                     qualite: formData.qualite,
                     formeJuridique: formData.formeJuridique,
-                    typeProjet: formData.typeProjet
+                    typeProjet: formData.typeProjet,
+                    offre: catalog?.offre || 'notification',
                 }
             };
-            
-            // 1. Ajouter le client en base
+
             await adminDataService.addClient(clientData);
 
             onCreated();
@@ -78,7 +84,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                     <button className="btn-close" onClick={onClose}>×</button>
                 </div>
                 <form onSubmit={handleSubmit} className="modal-form">
-                    
+
                     <h3 style={{ fontSize: '15px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '16px', color: '#1e293b' }}>
                         1. Informations de base
                     </h3>
@@ -192,10 +198,9 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                         </div>
                         <div className="form-group full">
                             <label>Adresse personnelle</label>
-                            <input
-                                type="text"
+                            <AddressAutocomplete
                                 value={formData.adresse}
-                                onChange={e => setFormData({ ...formData, adresse: e.target.value })}
+                                onChange={(value) => setFormData({ ...formData, adresse: value })}
                                 placeholder="12 rue de la Paix, 75000 Paris"
                             />
                         </div>
@@ -265,7 +270,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                     <div style={{ padding: '16px 0 0', fontSize: '12px', color: '#64748B' }}>
                         *Le client recevra son accès et devra se créer un compte avec cet e-mail sur la page /espace-client pour lier son compte.
                     </div>
-                    
+
                     <div className="modal-footer" style={{ marginTop: '24px' }}>
                         <button type="button" className="btn-secondary" onClick={onClose} disabled={loading}>Annuler</button>
                         <button type="submit" className="btn-primary" disabled={loading}>

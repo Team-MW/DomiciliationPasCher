@@ -276,4 +276,53 @@ describe('Checkout API Handler (api/checkout.js)', () => {
 
         expect(mockRes.status).toHaveBeenCalledWith(200);
     });
+
+    test('creates a one-time checkout for a meeting room booking', async () => {
+        mockReq.body = {
+            planId: 'salle',
+            amount: 25,
+            productName: 'Réservation Salle de réunion (6-8 pers) (Matinée (9h-12h))',
+            interval: 'one_time',
+            successUrl: 'http://localhost:5173/app/espace-client?tab=meeting&booking_success=true',
+            cancelUrl: 'http://localhost:5173/app/espace-client?tab=meeting&booking_cancel=true',
+            email: 'jean@test.fr',
+            clientName: 'Jean Dupont',
+            metadata: { client_id: 'cli_42', type: 'meeting_booking' },
+        };
+
+        stripeMocks.list.mockResolvedValue({ data: [{ id: 'cus_jean', name: 'Jean Dupont' }] });
+        stripeMocks.sessionsCreate.mockResolvedValue({
+            id: 'cs_meeting',
+            url: 'https://checkout.stripe.com/c/pay/cs_meeting',
+        });
+
+        await handler(mockReq, mockRes);
+
+        expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({
+            mode: 'payment',
+            allow_promotion_codes: false,
+            customer: 'cus_jean',
+            success_url: 'http://localhost:5173/app/espace-client?tab=meeting&booking_success=true',
+            cancel_url: 'http://localhost:5173/app/espace-client?tab=meeting&booking_cancel=true',
+            metadata: expect.objectContaining({
+                client_id: 'cli_42',
+                type: 'meeting_booking',
+            }),
+            payment_intent_data: expect.objectContaining({
+                metadata: expect.objectContaining({ type: 'meeting_booking' }),
+            }),
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'eur',
+                        product_data: { name: 'Réservation Salle de réunion (6-8 pers) (Matinée (9h-12h))' },
+                        unit_amount: 2500,
+                    },
+                    quantity: 1,
+                },
+            ],
+        }));
+        expect(mockRes.status).toHaveBeenCalledWith(200);
+    });
 });
+

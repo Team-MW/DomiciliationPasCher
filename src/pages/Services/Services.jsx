@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
+import CreationEntrepriseSection from '../../components/CreationEntreprise/CreationEntrepriseSection';
 import './Services.css';
 
 /* ─── Sub-components ────────────────────────────────── */

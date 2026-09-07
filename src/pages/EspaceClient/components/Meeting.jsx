@@ -1,78 +1,89 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { handleCheckout } from '../../../utils/stripe';
+import { useTranslation } from '../../../i18n/LanguageContext';
+import {
+    MEETING_TYPES,
+    MEETING_DURATIONS,
+    meetingPriceHt,
+    formatMeetingPrice,
+    localIsoDate,
+} from '../../../utils/meetingPrices';
 
-export default function Meeting({ clientData, setActiveTab }) {
+export default function Meeting({ clientData }) {
+    const { t } = useTranslation();
     const [bookings, setBookings] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
-    const [bookingCache, setBookingCache] = useState(null);
+    const [form, setForm] = useState({
+        type: MEETING_TYPES.room,
+        date: '',
+        duration: MEETING_DURATIONS.morning,
+    });
+    const returnHandled = useRef(false);
 
-    // Au chargement, on vérifie si l'utilisateur revient d'un paiement Stripe réussi
     useEffect(() => {
-        if (clientData?.id) {
-            const fetchBookings = async () => {
-                const b = await adminDataService.getClientBookings(clientData.id);
-                setBookings(b);
-            };
-            fetchBookings();
+        if (!clientData?.id) return;
 
-            // Interception du webhook/redirection Stripe
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            if (urlParams.get('booking_success') === 'true') {
-                const storedBooking = sessionStorage.getItem('pendingBooking');
-                if (storedBooking) {
+        const fetchBookings = async () => {
+            const b = await adminDataService.getClientBookings(clientData.id);
+            setBookings(b);
+        };
+        fetchBookings();
+
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if (urlParams.get('booking_success') === 'true') {
+            if (returnHandled.current) return;
+            returnHandled.current = true;
+            const storedBooking = sessionStorage.getItem('pendingBooking');
+            if (storedBooking) {
+                (async () => {
                     try {
                         const parsedBooking = JSON.parse(storedBooking);
-                        adminDataService.addBookingRequest(clientData.id, parsedBooking).then(async () => {
-                            const b = await adminDataService.getClientBookings(clientData.id);
-                            setBookings(b);
-                            setShowSuccess(true);
-                        });
-                        sessionStorage.removeItem('pendingBooking');
-                        window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
+                        if (!parsedBooking.city && clientData.city) {
+                            parsedBooking.city = clientData.city;
+                        }
+                        await adminDataService.addBookingRequest(clientData.id, parsedBooking);
+                        const b = await adminDataService.getClientBookings(clientData.id);
+                        setBookings(b);
+                        setShowSuccess(true);
                     } catch (e) {
                         console.error('Erreur restauration réservation', e);
+                        setErrorMsg(t('espaceClient.meeting.payError'));
+                    } finally {
+                        sessionStorage.removeItem('pendingBooking');
+                        window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
                     }
-                }
-            } else if (urlParams.get('booking_cancel') === 'true') {
-                setErrorMsg('Le paiement a été annulé ou refusé. Votre réservation n\'a pas pu aboutir.');
-                sessionStorage.removeItem('pendingBooking');
+                })();
+            } else {
                 window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
             }
+        } else if (urlParams.get('booking_cancel') === 'true') {
+            setErrorMsg(t('espaceClient.meeting.cancelled'));
+            sessionStorage.removeItem('pendingBooking');
+            window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
         }
     }, [clientData]);
 
     const handleBooking = async () => {
-        const type = document.getElementById('book-type').value;
-        const date = document.getElementById('book-date').value;
-        const duration = document.getElementById('book-duration').value;
-
+        const { type, date, duration } = form;
         setShowSuccess(false);
         setErrorMsg('');
 
-        if (!date) return setErrorMsg('Veuillez choisir une date de réservation.');
+        if (!date) return setErrorMsg(t('espaceClient.meeting.needDate'));
 
-        // Calcul du prix dynamique
-        let price = 20;
-        if (type.includes('Salle')) {
-            price = duration === 'Journée complète' ? 40 : 25;
-        } else if (type.includes('Bureau')) {
-            price = duration === 'Journée complète' ? 40 : 20;
-        } else {
-            price = duration === 'Journée complète' ? 30 : 15;
-        }
+        const price = meetingPriceHt(type, duration);
 
         setIsSubmitting(true);
         try {
-            const cache = { type, date, duration };
+            const cache = { type, date, duration, city: clientData.city || 'À définir' };
             sessionStorage.setItem('pendingBooking', JSON.stringify(cache));
-            const successUrl = `${window.location.origin}/espace-client?tab=meeting&booking_success=true`;
-            const cancelUrl = `${window.location.origin}/espace-client?tab=meeting&booking_cancel=true`;
-            
+            const successUrl = `${window.location.origin}/app/espace-client?tab=meeting&booking_success=true`;
+            const cancelUrl = `${window.location.origin}/app/espace-client?tab=meeting&booking_cancel=true`;
+
             await handleCheckout(
                 'salle',
                 price,
@@ -84,27 +95,14 @@ export default function Meeting({ clientData, setActiveTab }) {
                 clientData.name,
                 { client_id: clientData.id, type: 'meeting_booking' }
             );
-            // La page va être redirigée vers Stripe ici.
         } catch (error) {
             console.error("Booking payment error:", error);
-            setErrorMsg(error.message || "Erreur de connexion au système de paiement.");
+            setErrorMsg(error.message || t('espaceClient.meeting.payError'));
             setIsSubmitting(false);
         }
     };
 
-    // Calcul du prix pour l'affichage du bouton
-    const getDisplayPrice = () => {
-        const type = document.getElementById('book-type')?.value || '';
-        const duration = document.getElementById('book-duration')?.value || '';
-        if (type.includes('Salle')) return duration === 'Journée complète' ? '40,00' : '25,00';
-        if (type.includes('Bureau')) return duration === 'Journée complète' ? '40,00' : '20,00';
-        return duration === 'Journée complète' ? '30,00' : '15,00';
-    };
-
-    // Force re-render on select change to update price
-    const [priceTrigger, setPriceTrigger] = useState(0);
-
-
+    const displayPrice = formatMeetingPrice(meetingPriceHt(form.type, form.duration));
 
     return (
         <div className="ec-tab-animate">
@@ -112,24 +110,23 @@ export default function Meeting({ clientData, setActiveTab }) {
                 <div className="ec-content-card">
                     <div className="ec-card-header">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                            <h2>Réserver une Salle ou un Bureau</h2>
+                            <h2>{t('espaceClient.meeting.title')}</h2>
                             <span className="ec-status-tag" style={{ background: '#EEF2FF', color: '#4F46E5', fontWeight: 600 }}>
-                                📍 Centre {clientData.city}
+                                {t('espaceClient.meeting.centre').replace('{city}', clientData.city || 'Toulouse')}
                             </span>
                         </div>
                     </div>
                     <div className="ec-card-body" style={{ padding: '24px' }}>
                         <p style={{ color: '#64748B', fontSize: '14px', marginBottom: '20px' }}>
-                            Besoin d'un espace pour vos rendez-vous clients ou pour travailler au calme ?
-                            Réservez dès maintenant un créneau dans nos locaux de {clientData.city}.
+                            {t('espaceClient.meeting.intro').replace('{city}', clientData.city || 'Toulouse')}
                         </p>
-                        
+
                         {showSuccess && (
                             <div style={{ background: '#ECFDF5', border: '1px solid #10B981', color: '#047857', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <div style={{ background: '#10B981', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>
                                 <div>
-                                    <strong style={{ display: 'block', fontSize: '14px', marginBottom: '4px' }}>Demande envoyée !</strong>
-                                    <span style={{ fontSize: '13px' }}>Votre réservation a bien été transmise à notre équipe. Vous recevrez une notification dès sa validation !</span>
+                                    <strong style={{ display: 'block', fontSize: '14px', marginBottom: '4px' }}>{t('espaceClient.meeting.successTitle')}</strong>
+                                    <span style={{ fontSize: '13px' }}>{t('espaceClient.meeting.successHint')}</span>
                                 </div>
                             </div>
                         )}
@@ -141,44 +138,61 @@ export default function Meeting({ clientData, setActiveTab }) {
                         )}
                         <div className="ec-booking-form">
                             <div className="form-group">
-                                <label>Type de location</label>
-                                <select id="book-type" className="ec-input" onChange={() => setPriceTrigger(p => p + 1)}>
-                                     <option>Salle de réunion (6-8 pers)</option>
-                                     <option>Bureau privé (1-2 pers)</option>
-                                     <option>Espace Coworking</option>
-                                 </select>
-                             </div>
-                             <div className="form-grid">
-                                 <div className="form-group">
-                                     <label>Date souhaitée</label>
-                                     <input type="date" id="book-date" className="ec-input" />
-                                 </div>
-                                 <div className="form-group">
-                                     <label>Durée</label>
-                                     <select id="book-duration" className="ec-input" onChange={() => setPriceTrigger(p => p + 1)}>
-                                         <option>Matinée (9h-12h)</option>
-                                         <option>Après-midi (14h-18h)</option>
-                                         <option>Journée complète</option>
-                                     </select>
-                                 </div>
-                             </div>
-                             <button
-                                 className="ec-btn-primary"
-                                 style={{ width: '100%', marginTop: '20px' }}
-                                 onClick={handleBooking}
-                                 disabled={isSubmitting}
-                             >
-                                 {isSubmitting ? 'Connexion à Stripe...' : `Payer (${getDisplayPrice()} € HT) et Réserver`}
-                             </button>
+                                <label htmlFor="book-type">{t('espaceClient.meeting.typeLabel')}</label>
+                                <select
+                                    id="book-type"
+                                    className="ec-input"
+                                    value={form.type}
+                                    onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                                >
+                                    <option value={MEETING_TYPES.room}>{t('espaceClient.meeting.typeRoom')}</option>
+                                    <option value={MEETING_TYPES.office}>{t('espaceClient.meeting.typeOffice')}</option>
+                                    <option value={MEETING_TYPES.cowork}>{t('espaceClient.meeting.typeCowork')}</option>
+                                </select>
+                            </div>
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label htmlFor="book-date">{t('espaceClient.meeting.dateLabel')}</label>
+                                    <input
+                                        type="date"
+                                        id="book-date"
+                                        className="ec-input"
+                                        min={localIsoDate()}
+                                        value={form.date}
+                                        onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="book-duration">{t('espaceClient.meeting.durationLabel')}</label>
+                                    <select
+                                        id="book-duration"
+                                        className="ec-input"
+                                        value={form.duration}
+                                        onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+                                    >
+                                        <option value={MEETING_DURATIONS.morning}>{t('espaceClient.meeting.morning')}</option>
+                                        <option value={MEETING_DURATIONS.afternoon}>{t('espaceClient.meeting.afternoon')}</option>
+                                        <option value={MEETING_DURATIONS.fullday}>{t('espaceClient.meeting.fullday')}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button
+                                className="ec-btn-primary"
+                                style={{ width: '100%', marginTop: '20px' }}
+                                onClick={handleBooking}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? t('espaceClient.meeting.connecting') : t('espaceClient.meeting.pay').replace('{price}', displayPrice)}
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <div className="ec-content-card">
-                    <div className="ec-card-header"><h2>Vos réservations</h2></div>
+                    <div className="ec-card-header"><h2>{t('espaceClient.meeting.yourBookings')}</h2></div>
                     <div className="ec-activity-list">
                         {bookings.length === 0 ? (
-                            <div className="ec-empty" style={{ padding: '40px' }}>Vous n'avez pas de réservation en cours.</div>
+                            <div className="ec-empty" style={{ padding: '40px' }}>{t('espaceClient.meeting.empty')}</div>
                         ) : bookings.map(b => (
                             <div key={b.id} className="ec-activity-item">
                                 <div className="ec-activity-icon"><Icons.Calendar /></div>

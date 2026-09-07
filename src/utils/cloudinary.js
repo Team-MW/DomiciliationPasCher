@@ -3,12 +3,14 @@
  * Gestionnaire d'upload via le Widget Cloudinary
  */
 
+import { appAlert } from '../components/AppDialog/dialogApi';
+
 export const openUploadWidget = (options, callback) => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
     if (!window.cloudinary) {
         console.error("Cloudinary widget script is not loaded.");
-        alert("Le service d'upload Cloudinary n'est pas disponible pour le moment.");
+        appAlert("Le service d'upload Cloudinary n'est pas disponible pour le moment.");
         return;
     }
 

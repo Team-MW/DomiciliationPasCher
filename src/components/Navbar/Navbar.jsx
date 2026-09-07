@@ -153,6 +153,14 @@ export default function Navbar() {
                                 to={link.to}
                                 end={link.to === '/'}
                                 className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                                onClick={(e) => {
+                                    setIsMegaOpen(false);
+                                    if (link.isAnchor && location.pathname === '/') {
+                                        e.preventDefault();
+                                        const el = document.getElementById('creation-entreprise');
+                                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                    }
+                                }}
                             >
                                 {link.label}
                             </NavLink>
@@ -204,7 +212,14 @@ export default function Navbar() {
                         to={link.to}
                         end={link.to === '/'}
                         className={({ isActive }) => `mobile-link${isActive ? ' active' : ''}`}
-                        onClick={() => setMenuOpen(false)}
+                        onClick={(e) => {
+                            setMenuOpen(false);
+                            if (link.isAnchor && location.pathname === '/') {
+                                e.preventDefault();
+                                const el = document.getElementById('creation-entreprise');
+                                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        }}
                     >
                         {link.label}
                     </NavLink>

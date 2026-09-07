@@ -23,7 +23,7 @@ vi.mock('@clerk/clerk-react', () => {
 
 // Mock Language Context if needed (assuming defaults if missing or not used deeply)
 vi.mock('../../../i18n/LanguageContext', () => ({
-    useTranslation: () => ({ tr: { common: { loading: 'Chargement...' } } })
+    useTranslation: () => ({ t: (key) => key, tr: { common: { loading: 'Chargement...' } } })
 }));
 
 // Mock adminDataService
@@ -37,6 +37,7 @@ vi.mock('../../../services/adminDataService', () => {
             getClientMail: vi.fn().mockResolvedValue([]),
             getDocuments: vi.fn().mockResolvedValue([]),
             getClientBookings: vi.fn().mockResolvedValue([]),
+            getClientReexpeditions: vi.fn().mockResolvedValue([]),
             getMessages: vi.fn().mockResolvedValue([])
         }
     };

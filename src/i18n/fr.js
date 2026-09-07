@@ -1,7 +1,14 @@
+import espaceClient from './espaceClient/index.js';
+
 export default {
   common: {
     loading: 'Chargement...',
     backToTop: 'Retour en haut',
+    dialogConfirm: 'Confirmation',
+    dialogNotice: 'Notification',
+    dialogOk: 'OK',
+    dialogCancel: 'Annuler',
+    dialogClose: 'Fermer',
   },
 
   nav: {
@@ -10,6 +17,7 @@ export default {
       services: 'Services',
       tarifs: 'Tarifs',
       villes: 'Adresses',
+      creationEntreprise: "Création d'entreprise",
       fichesPratiques: 'Fiches pratiques',
     },
     megaMenu: {
@@ -234,7 +242,7 @@ export default {
           desc: 'Idéal pour le lancement de votre activité.',
           features: [
             { text: 'Adresse juridique officielle', bold: true },
-            'Réception du courrier simple',
+            'Scan numérique de vos courriers',
             'Attestation de domiciliation immédiate',
             'Espace client 100% sécurisé',
           ],
@@ -244,15 +252,27 @@ export default {
           badge: 'Le plus populaire',
           price: '24',
           period: '€ HT / mois',
-          desc: 'Gérez tout en ligne, où que vous soyez.',
+          desc: 'Scan de vos courriers et réexpédition à votre adresse.',
           features: [
             "Tout l'offre Essentiel",
-            { text: 'Scan numérique', bold: true, suffix: ' quotidien' },
+            { text: 'Réexpédition physique', bold: true, suffix: ' à votre adresse' },
             'Notification en temps réel',
             'Archivage à vie des scans',
           ],
           cta: 'Commencer ici',
         },
+        {
+          name: 'Physique+',
+          price: '38',
+          period: '€ HT / mois',
+          desc: 'Accès sur place pour récupérer vos colis et courriers.',
+          features: [
+            "Tout l'offre Scan+",
+            { text: 'Accès physique', bold: true, suffix: ' à votre courrier/colis' },
+            'Récupération sur place'
+          ],
+          cta: 'Commencer ici',
+        }
       ],
     },
 
@@ -369,7 +389,7 @@ export default {
         name: 'Essentiel',
         price: '20',
         period: 'HT/mois',
-        subtitle: 'La domiciliation simple et efficace',
+        subtitle: 'Adresse + scan numérique de votre courrier',
         cta: 'Choisir Essentiel',
         note: 'Résiliation à tout moment au delà de la durée légale de 3 mois',
         features: [
@@ -379,8 +399,9 @@ export default {
           { ok: true, text: 'Attestation de domiciliation' },
           { ok: true, text: 'Espace client 24h/24' },
           { ok: true, text: 'Contrat legale conforme Dutreil' },
-          { ok: false, text: 'Scan des courriers' },
-          { ok: false, text: 'Transfert physique' },
+          { ok: true, text: 'Scan numérique des courriers' },
+          { ok: false, text: 'Réexpédition physique' },
+          { ok: false, text: 'Accès physique sur place' },
         ],
       },
       {
@@ -390,7 +411,7 @@ export default {
         name: 'Scan+',
         price: '24',
         period: 'HT/mois',
-        subtitle: "Gérez votre courrier de n'importe où",
+        subtitle: 'Scan + réexpédition physique de vos courriers',
         cta: 'Choisir Scan+',
         note: 'Résiliation à tout moment au delà de la durée légale de 3 mois',
         features: [
@@ -400,8 +421,9 @@ export default {
           { ok: true, text: 'Attestation de domiciliation' },
           { ok: true, text: 'Espace client 24h/24' },
           { ok: true, text: 'Contrat legale conforme Dutreil' },
-          { ok: true, text: 'Scan numérique de vos courriers' },
-          { ok: false, text: 'Transfert physique' },
+          { ok: true, text: 'Scan numérique des courriers' },
+          { ok: true, text: 'Réexpédition physique' },
+          { ok: false, text: 'Accès physique sur place' },
         ],
       },
       {
@@ -410,7 +432,7 @@ export default {
         name: 'Physique+',
         price: '38',
         period: 'HT/mois',
-        subtitle: 'Courrier transféré directement chez vous',
+        subtitle: 'Accès physique sur place pour récupérer vos colis',
         cta: 'Choisir Physique+',
         note: 'Résiliation à tout moment au delà de la durée légale de 3 mois',
         features: [
@@ -420,8 +442,9 @@ export default {
           { ok: true, text: 'Attestation de domiciliation' },
           { ok: true, text: 'Espace client 24h/24' },
           { ok: true, text: 'Contrat legale conforme Dutreil' },
-          { ok: true, text: 'Scan numérique de vos courriers' },
-          { ok: true, text: 'Réexpédition physique mensuelle' },
+          { ok: true, text: 'Scan numérique des courriers' },
+          { ok: true, text: 'Réexpédition physique' },
+          { ok: true, text: 'Accès physique sur place' },
         ],
       },
     ],
@@ -1232,4 +1255,132 @@ export default {
       },
     },
   },
+  souscription: {
+  "back": "Retour",
+  "prevStep": "Étape précédente",
+  "chosenPlan": "Forfait choisi",
+  "secureForm": "Formulaire sécurisé SSL",
+  "step1ofN": "Étape 1 sur",
+  "project": {
+    "title": "Quel est votre projet ?",
+    "subtitle": "Sélectionnez la situation qui correspond à votre cas",
+    "creation": "Création d'entreprise (Consultation)",
+    "transfer": "Je transfère mon siège social",
+    "legalForm": "Forme juridique"
+  },
+  "contact": {
+    "title": "Vos coordonnées",
+    "subtitle": "Informations du représentant légal",
+    "lastName": "Nom",
+    "firstName": "Prénom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "birthDate": "Date de naissance",
+    "birthPlace": "Lieu de naissance",
+    "personalAddress": "Adresse personnelle"
+  },
+  "company": {
+    "title": "Votre entreprise",
+    "subtitle": "Informations sur votre société",
+    "companyName": "Nom de la société",
+    "siren": "SIREN (optionnel)",
+    "activity": "Activité principale",
+    "nationality": "Nationalité",
+    "quality": "Qualité"
+  },
+  "domiciliation": {
+    "title": "Choix de l'adresse",
+    "subtitle": "Sélectionnez la ville pour votre domiciliation"
+  },
+  "documents": {
+    "title": "Pièces justificatives",
+    "subtitle": "Téléchargez vos documents pour finaliser votre dossier",
+    "idCard": "Pièce d'identité (Recto/Verso)",
+    "proofOfAddress": "Justificatif de domicile (- 3 mois)"
+  },
+  "summary": {
+    "title": "Récapitulatif & Demande",
+    "subtitle": "Vérifiez vos informations avant de confirmer",
+    "plan": "Forfait",
+    "paymentFrequency": "Fréquence de paiement",
+    "monthly": "Mensuel",
+    "annual": "Annuel (-2 mois offerts)",
+    "total": "Total",
+    "acceptCgv": "J'accepte les Conditions Générales de Vente",
+    "submitCreation": "Confirmer la demande de RDV ->",
+    "submitPayment": "Payer {price} de façon sécurisée ->",
+    "processing": "Traitement en cours...",
+    "needCgv": "Acceptez les CGV pour continuer"
+  }
+},
+  creation: {
+    badge: '✨ Conseil & Accompagnement',
+    title: 'Créer, conseiller, fermer :',
+    titleHighlight: "on s'occupe de tout",
+    subtitle: "Trois accompagnements clé en main pour chaque étape de la vie de votre société. Choisissez le vôtre et réservez un échange de 30 minutes avec un conseiller.",
+    cardCta: 'Prendre rendez-vous',
+    cards: [
+      {
+        id: 'creation',
+        title: "Création d'entreprise",
+        desc: 'Nous montons votre société de A à Z et déposons votre dossier au Guichet Unique.',
+        features: [
+          'Rédaction sur-mesure des statuts',
+          'Dépôt de capital en 24h',
+          'Publication de l\'annonce légale',
+          'Immatriculation INPI & obtention du Kbis',
+        ],
+        tag: '⚡ Kbis en 5 jours en moyenne',
+      },
+      {
+        id: 'conseil',
+        featured: true,
+        badge: 'Le plus demandé',
+        title: 'Conseil en création',
+        desc: 'Un expert analyse votre projet et vous oriente vers la structure la plus rentable.',
+        features: [
+          'Choix du statut : SASU, SAS, SARL, EURL…',
+          'Optimisation fiscale et sociale du dirigeant',
+          'Simulation de votre rémunération nette',
+          'Feuille de route et budget détaillés',
+        ],
+        tag: '🎁 Premier échange offert',
+      },
+      {
+        id: 'dissolution',
+        title: "Dissolution d'entreprise",
+        desc: 'Fermez votre société proprement, sans risque de redressement ni oubli administratif.',
+        features: [
+          'Dissolution et liquidation amiable',
+          'Procès-verbaux et formalités juridiques',
+          'Annonces légales de clôture',
+          'Radiation définitive au greffe',
+        ],
+        tag: '🛡️ Zéro risque administratif',
+      },
+    ],
+    reassurance: [
+      '30 minutes offertes',
+      'Visioconférence ou téléphone',
+      'Sans engagement',
+      'Conseiller dédié',
+    ],
+  },
+
+  rendezVous: {
+    pageTitle: "Prendre rendez-vous — Création d'entreprise — Domiciliation-Pas-Cher.com",
+    eyebrow: 'Rendez-vous conseil',
+    title: 'Réservez votre créneau',
+    titleHighlight: 'de 30 minutes',
+    subtitle: "Choisissez la date et l'heure qui vous conviennent. Un conseiller vous accompagne pour étudier votre projet de création d'entreprise.",
+    benefits: [
+      { icon: '🎯', title: 'Diagnostic personnalisé', desc: 'Le statut juridique le plus adapté à votre activité.' },
+      { icon: '💰', title: 'Chiffrage transparent', desc: 'Le coût réel de votre création, sans frais cachés.' },
+      { icon: '🚀', title: 'Plan d\'action clair', desc: 'Les étapes et délais pour obtenir votre Kbis.' },
+    ],
+    loading: 'Chargement du calendrier...',
+    backLink: 'Retour aux tarifs',
+  },
+
+  espaceClient: espaceClient('fr'),
 };

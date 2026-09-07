@@ -64,3 +64,21 @@ Pour faire évoluer la base de code sereinement :
 1. **Éviter les réécritures complètes** : Préférez des refactorisations localisées et progressives.
 2. **Maintenir la compatibilité des signatures de fonction** : Si vous changez une fonction utilitaire (ex. dans `pdfGenerator.js`), assurez-vous que tous les composants consommateurs et les tests unitaires associés sont mis à jour en conséquence.
 3. **Mocks de tests robustes** : Lors de l'écriture ou de la mise à jour des mocks dans les tests (ex. `stripe` ou `jspdf`), veillez à utiliser des syntaxes de classes constructibles pour éviter les erreurs de type `TypeError: ... is not a constructor` induites par le chargement asynchrone des modules.
+
+---
+
+## 🏗️ Qualité du Code & Intégrité des Données (NOUVEAU)
+
+Afin d'éviter les bugs frustrants et les données incohérentes, voici les nouvelles règles strictes de développement :
+
+### 1. Interdiction des valeurs "en dur" (Hardcoding)
+- **Règle** : Ne **jamais** écrire de montants, de prix ou de noms de forfaits "en dur" dans le code (ex: `19.90€`). 
+- **Solution** : Toujours se baser sur les données réelles du client (`clientData.amount`, `clientData.plan`, etc.) ou sur un fichier de configuration centralisé. L'interface doit refléter la vérité de la base de données.
+
+### 2. Validation rigoureuse de la syntaxe (JSX/React)
+- **Règle** : Avant de valider et d'injecter une modification dans un fichier `.jsx`, vérifiez **minutieusement** que les balises HTML/JSX (`<div>`, `<>`, `()`) et les opérateurs ternaires (`condition ? () : ()`) sont parfaitement équilibrés et refermés.
+- **Pourquoi ?** : Une simple parenthèse ou balise manquante fait planter Vite (erreurs de type `Unterminated regexp literal` ou `Syntax Error`) et paralyse l'application.
+
+### 3. Gestion défensive des données
+- **Règle** : Lors de la lecture de données complexes (comme `extra_info`), utilisez toujours un bloc `try...catch` et prévoyez des valeurs de repli (fallback). 
+- **Exemple** : `const extra = typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : (clientData.extra_info || {});`

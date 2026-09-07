@@ -13,7 +13,14 @@ const LanguageContext = createContext(null);
 export function LanguageProvider({ children }) {
     const [lang, setLangState] = useState(() => {
         const saved = localStorage.getItem(STORAGE_KEY);
-        return saved === 'ru' || saved === 'fr' || saved === 'en' ? saved : 'fr';
+        if (saved === 'ru' || saved === 'fr' || saved === 'en') return saved;
+        
+        // Vérification de la langue du navigateur (ex: téléphone en russe)
+        const browserLang = typeof navigator !== 'undefined' && navigator.language ? navigator.language.toLowerCase() : '';
+        if (browserLang.startsWith('ru')) return 'ru';
+        if (browserLang.startsWith('en')) return 'en';
+        
+        return 'fr';
     });
     const [isDetecting, setIsDetecting] = useState(false);
 

@@ -1,4 +1,6 @@
 import logoUrl from '../assets/DomiciliationPasCher-Logo.png';
+import { parseExtraInfo, resolvePersonalAddress } from './contractLegalFields';
+import { appAlert } from '../components/AppDialog/dialogApi';
 
 /**
  * Nettoie une chaîne de caractères pour s'assurer qu'elle n'induit pas d'erreur d'encodage WinAnsi dans pdf-lib (comme les Emojis)
@@ -25,18 +27,7 @@ export const cleanForPdf = (str) => {
  * Extrait de manière sécurisée les informations supplémentaires du client
  */
 export const getClientExtraInfo = (clientData) => {
-    if (!clientData) return {};
-    let extra = {};
-    try {
-        if (clientData.extra_info) {
-            extra = typeof clientData.extra_info === 'string'
-                ? JSON.parse(clientData.extra_info)
-                : clientData.extra_info;
-        }
-    } catch (e) {
-        console.error("Error parsing extra_info in pdfGenerator:", e);
-    }
-    return extra || {};
+    return parseExtraInfo(clientData?.extra_info);
 };
 
 /**
@@ -83,7 +74,7 @@ export const generateAttestationPdf = async (clientData) => {
         const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || 'Société en cours de constitution'));
         const formeJuridique = cleanForPdf(extra.formeJuridique || 'EI / Société');
         const sirenText = cleanForPdf(extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution au Greffe');
-        const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || "Adresse personnelle non renseignée");
+        const clientAddress = cleanForPdf(resolvePersonalAddress(clientData, extra) || "Adresse personnelle non renseignée");
         const clientActivity = cleanForPdf(extra.activite || "Activités de services et de conseil");
 
         const buildPdf = (imgData = null) => {
@@ -238,7 +229,7 @@ export const generateAttestationPdf = async (clientData) => {
 
     } catch (err) {
         console.error("Erreur génération Attestation PDF :", err);
-        alert("Erreur lors de la génération de l'attestation.");
+        appAlert("Erreur lors de la génération de l'attestation.");
     }
 };
 
@@ -269,7 +260,7 @@ export const generateContratPdf = async (clientData) => {
         const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || 'Société en cours de constitution'));
         const formeJuridique = cleanForPdf(extra.formeJuridique || 'EI / Société');
         const sirenText = cleanForPdf(extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution');
-        const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || "Adresse personnelle non renseignée");
+        const clientAddress = cleanForPdf(resolvePersonalAddress(clientData, extra) || "Adresse personnelle non renseignée");
         const clientActivity = cleanForPdf(extra.activite || "Activités de services et de conseil");
         const isAnnuel = extra.frequence === 'annuel';
 
@@ -291,7 +282,7 @@ export const generateContratPdf = async (clientData) => {
 
     } catch (err) {
         console.error("Erreur génération Contrat PDF :", err);
-        alert("Erreur lors de la génération du contrat.");
+        appAlert("Erreur lors de la génération du contrat.");
     }
 };
 
@@ -321,7 +312,7 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
             const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || 'Société en cours de constitution'));
             const formeJuridique = cleanForPdf(extra.formeJuridique || 'EI / Société');
             const sirenText = cleanForPdf(extra.siren ? `SIREN ${extra.siren}` : 'en cours de constitution');
-            const clientAddress = cleanForPdf(clientData.address || extra.adressePerso || 'Adresse personnelle non renseignée');
+            const clientAddress = cleanForPdf(resolvePersonalAddress(clientData, extra) || 'Adresse personnelle non renseignée');
             const isAnnuel = extra.frequence === 'annuel';
 
             const buildPdf = async (logoImg, sigImg) => {

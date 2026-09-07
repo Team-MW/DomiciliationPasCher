@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
+import CreationEntrepriseSection from '../../components/CreationEntreprise/CreationEntrepriseSection';
 import './Tarifs.css';
 
 const CheckIcon = () => (
@@ -103,6 +104,8 @@ export default function Tarifs() {
                 </div>
             </section>
 
+            <CreationEntrepriseSection />
+
             {/* Options */}
             <section className="section-sm" style={{ background: 'var(--off-white)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
                 <div className="container">
@@ -160,7 +163,7 @@ export default function Tarifs() {
                                         </li>
                                     ))}
                                 </ul>
-                                <Link to="/services" className="btn btn-outline" style={{ justifyContent: 'center' }}>
+                                <Link to="/app/espace-client?tab=meeting" className="btn btn-outline" style={{ justifyContent: 'center' }}>
                                     {tr.tarifs.spaces.reserveCta}
                                 </Link>
                             </div>

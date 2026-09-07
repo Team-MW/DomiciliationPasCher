@@ -7,6 +7,10 @@ import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { generateAttestationPdf, generateContratPdf, generateSignedContratBlob, generateSignedProcurationBlob } from '../../../utils/pdfGenerator';
 import SignatureModal from '../../../components/SignatureModal/SignatureModal';
+import AddressAutocomplete from '../../../components/AddressAutocomplete/AddressAutocomplete';
+import { useTranslation } from '../../../i18n/LanguageContext';
+import { parseExtraInfo, getContractLegalFields } from '../../../utils/contractLegalFields';
+import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
 
 const blobToBase64 = (blob) => {
     return new Promise((resolve, reject) => {
@@ -27,6 +31,7 @@ const handleDataUrlDownload = (url, filename) => {
 };
 
 export default function Docs({ documents, setDocuments, clientData, setClientData }) {
+    const { t } = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
     const [showSignModal, setShowSignModal] = useState(false);
     const [signStatus, setSignStatus] = useState(null); // null | 'loading' | 'done' | 'error'
@@ -42,6 +47,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     const [localProcSignatureUrl, setLocalProcSignatureUrl] = useState(null);
     const [showProcurationForm, setShowProcurationForm] = useState(false);
     const [showProcurationSignModal, setShowProcurationSignModal] = useState(false);
+    const [showApprovalModal, setShowApprovalModal] = useState(false);
     const [procSignStatus, setProcSignStatus] = useState(null);
     const [isUploadingKbis, setIsUploadingKbis] = useState(false);
     const [localKbisUrl, setLocalKbisUrl] = useState(null);
@@ -49,22 +55,92 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         lieuNaissance: '', dateNaissance: '', typePiece: "Carte d'Identité", numeroPiece: '', dateDelivrance: '', autoriteDelivrance: '',
         pointRemise: '', complementAdresse: '', adresseVoie: '', lieuDit: '', codePostalVille: '', siret: '', siren: ''
     });
+    const [showLegalModal, setShowLegalModal] = useState(false);
+    const [legalSaving, setLegalSaving] = useState(false);
+    const [legalError, setLegalError] = useState('');
+    const [legalForm, setLegalForm] = useState({
+        prenom: '', nom: '', company: '', address: '',
+        nationalite: 'Française', qualite: 'Gérant', dateNaissance: '', lieuNaissance: '',
+    });
 
-    const parsedExtraInfo = useMemo(() => {
-        try {
-            if (!clientData?.extra_info) return {};
-            return typeof clientData.extra_info === 'string'
-                ? JSON.parse(clientData.extra_info) : clientData.extra_info;
-        } catch { return {}; }
-    }, [clientData]);
+    const parsedExtraInfo = useMemo(() => parseExtraInfo(clientData?.extra_info), [clientData]);
     const hasKbis = !!(parsedExtraInfo.kbisUrl || localKbisUrl);
 
     const checkApproval = () => {
         if (clientData?.isTemporary || clientData?.status === 'en_attente_validation') {
-            alert("Vous n'avez pas encore été approuvé.\n\nVous serez approuvé sous 24h. Une fois approuvé, vous pourrez signer, télécharger et déposer vos documents.");
+            setShowApprovalModal(true);
             return false;
         }
         return true;
+    };
+
+    const openLegalOrSign = () => {
+        if (!checkApproval()) return;
+        const fields = getContractLegalFields(clientData);
+        if (fields.missing.length === 0) {
+            if (isSaving) return;
+            setShowSignModal(true);
+            return;
+        }
+        setLegalError('');
+        setLegalForm({
+            prenom: fields.prenom,
+            nom: fields.nom,
+            company: fields.compName,
+            address: fields.address,
+            nationalite: fields.nationalite || 'Française',
+            qualite: fields.qualite || 'Gérant',
+            dateNaissance: fields.dateNaissance,
+            lieuNaissance: fields.lieuNaissance,
+        });
+        setShowLegalModal(true);
+    };
+
+    const handleLegalSubmit = async (e) => {
+        e.preventDefault();
+        const prenom = legalForm.prenom.trim();
+        const nom = legalForm.nom.trim();
+        const company = legalForm.company.trim();
+        const address = legalForm.address.trim();
+        const nationalite = legalForm.nationalite.trim();
+        const qualite = legalForm.qualite.trim();
+        const dateNaissance = legalForm.dateNaissance.trim();
+        const lieuNaissance = legalForm.lieuNaissance.trim();
+        if (!prenom || !nom || !company || !address || !nationalite || !qualite || !dateNaissance || !lieuNaissance) {
+            setLegalError(t('espaceClient.docs.legalRequired'));
+            return;
+        }
+        setLegalSaving(true);
+        setLegalError('');
+        try {
+            const updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, {
+                prenom,
+                nom,
+                nomSociete: company,
+                adressePerso: address,
+                nationalite,
+                qualite,
+                dateNaissance,
+                lieuNaissance,
+            });
+            await adminDataService.updateClientAddress(clientData.id, address);
+            if (setClientData) {
+                setClientData((prev) => ({
+                    ...prev,
+                    name: `${prenom} ${nom}`.trim(),
+                    company,
+                    address,
+                    extra_info: JSON.stringify(updatedExtra),
+                }));
+            }
+            setShowLegalModal(false);
+            setShowSignModal(true);
+        } catch (err) {
+            console.error(err);
+            setLegalError(t('espaceClient.docs.legalSaveError'));
+        } finally {
+            setLegalSaving(false);
+        }
     };
 
     const handleKbisUpload = async (e) => {
@@ -103,7 +179,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             setDocuments(prev => [docData, ...prev]);
         } catch (err) {
             console.error('KBIS upload error', err);
-            alert("Erreur lors de l'envoi du KBIS.");
+            appAlert(t('espaceClient.docs.kbisUploadError'));
         } finally {
             setIsUploadingKbis(false);
             if (e.target) e.target.value = '';
@@ -111,12 +187,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     };
 
     const procInfo = useMemo(() => {
-        try {
-            if (!clientData?.extra_info) return null;
-            const e = typeof clientData.extra_info === 'string'
-                ? JSON.parse(clientData.extra_info) : clientData.extra_info;
-            return e?.procurationSigned ? e : null;
-        } catch { return null; }
+        const e = parseExtraInfo(clientData?.extra_info);
+        return e?.procurationSigned ? e : null;
     }, [clientData]);
 
     const isProcSigned = !!(procInfo?.procurationSigned || localProcSignatureUrl);
@@ -126,12 +198,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
     // Lire le statut de signature depuis extra_info
     const signatureInfo = useMemo(() => {
-        try {
-            if (!clientData?.extra_info) return null;
-            const e = typeof clientData.extra_info === 'string'
-                ? JSON.parse(clientData.extra_info) : clientData.extra_info;
-            return e?.contractSigned ? e : null;
-        } catch { return null; }
+        const e = parseExtraInfo(clientData?.extra_info);
+        return e?.contractSigned ? e : null;
     }, [clientData]);
 
     const isSigned = !!(signatureInfo?.contractSigned || signedUrl);
@@ -140,13 +208,11 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     const signedAt = signatureInfo?.contractSignedAt;
 
     const handleUploadClick = () => {
-        if (!checkApproval()) return;
         setPendingFileName('');
         document.getElementById('file-upload').click();
     };
 
     const handleSpecificUploadClick = (name) => {
-        if (!checkApproval()) return;
         setPendingFileName(name);
         document.getElementById('file-upload').click();
     };
@@ -202,7 +268,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             setDocuments(updatedDocs);
         } catch (err) {
             console.error("Error during upload:", err);
-            alert("Erreur lors de l'envoi du document.");
+            appAlert(t('espaceClient.docs.docUploadError'));
         } finally {
             setIsUploading(false);
         }
@@ -289,7 +355,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
             // Envoi de l'email post-signature
             try {
-                await fetch('/api/emailjs', {
+                await fetch('/api/email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -404,7 +470,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
             // Envoi de l'email procuration
             try {
-                await fetch('/api/emailjs', {
+                await fetch('/api/email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -435,10 +501,9 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     return (
         <div className="ec-tab-animate" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             <div style={{ background: '#f8fafc', padding: '16px 24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px 0', color: '#0f172a' }}>Dossier de Domiciliation 📁</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px 0', color: '#0f172a' }}>{t('espaceClient.docs.dossierTitle')}</h2>
                 <p style={{ margin: 0, color: '#475569', fontSize: '14px', lineHeight: 1.5 }}>
-                    Pour finaliser votre inscription, veuillez compléter les <strong>deux étapes obligatoires</strong> ci-dessous.
-                    Une fois le contrat et la procuration signés, vous pourrez générer vos documents finaux (Attestation, Extrait KBIS, etc.) plus bas.
+                    {t('espaceClient.docs.introLead')}<strong>{t('espaceClient.docs.introStrong')}</strong>{t('espaceClient.docs.introRest')}
                 </p>
             </div>
 
@@ -459,12 +524,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                         <span style={{ fontSize: '28px' }}>{isSigned ? '✅' : '1️⃣'}</span>
                         <div>
                             <div style={{ fontWeight: 800, fontSize: '16px' }}>
-                                {isSigned ? 'Étape 1 : Contrat signé' : 'Étape 1 : Signer mon contrat'}
+                                {isSigned ? t('espaceClient.docs.step1Signed') : t('espaceClient.docs.step1Unsigned')}
                             </div>
                             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
                                 {isSigned
-                                    ? `Signé le ${signedAt ? new Date(signedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}`
-                                    : 'Signature électronique simple · Valeur juridique (art. 1367 du Code civil)'}
+                                    ? t('espaceClient.docs.signedOn').replace('{date}', signedAt ? new Date(signedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
+                                    : t('espaceClient.docs.legalHint')}
                             </div>
                         </div>
                     </div>
@@ -473,7 +538,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             background: '#dcfce7', color: '#15803d', fontSize: '11px',
                             fontWeight: 700, padding: '4px 12px', borderRadius: '99px'
                         }}>
-                            Validé ✔
+                            {t('espaceClient.docs.validated')}
                         </span>
                     )}
                 </div>
@@ -488,42 +553,21 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                         borderTopColor: '#1e40af', borderRadius: '50%',
                                         animation: 'spin 0.8s linear infinite', margin: '0 auto 12px'
                                     }} />
-                                    <p style={{ margin: 0, fontWeight: 600 }}>Génération et enregistrement du contrat signé...</p>
+                                    <p style={{ margin: 0, fontWeight: 600 }}>{t('espaceClient.docs.generatingContract')}</p>
                                 </div>
                             )}
                             {signStatus === 'error' && (
                                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
-                                    ❌ Une erreur est survenue, veuillez réessayer dans quelques instants.
+                                    {t('espaceClient.docs.signError')}
                                 </div>
                             )}
                             {signStatus !== 'loading' && (
                                 <>
                                     <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.6, margin: '0 0 16px' }}>
-                                        Votre contrat de domiciliation est prêt. Apposez votre <strong>signature électronique</strong> pour le valider officiellement. Le document signé sera immédiatement accessible par votre espace et par l'administration.
+                                        {t('espaceClient.docs.contractBodyLead')}<strong>{t('espaceClient.docs.contractBodyStrong')}</strong>{t('espaceClient.docs.contractBodyRest')}
                                     </p>
                                     <button
-                                        onClick={() => {
-                                            if (!checkApproval()) return;
-                                            
-                                            const extra = parsedExtraInfo || {};
-                                            const isCreation = extra.typeProjet === 'creation' || (clientData?.company || extra.nomSociete || '').toLowerCase().includes('en cours de création');
-                                            const cName = extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData?.name || '').trim();
-                                            const compName = (clientData?.company || extra.nomSociete || '').trim();
-                                            const address = (clientData?.address || extra.adressePerso || '').trim();
-                                            const siretValue = extra.siret || clientData?.siret || extra.siren || clientData?.siren || '';
-                                            const nationalite = (extra.nationalite || '').trim();
-                                            const qualite = (extra.qualite || '').trim();
-                                            const dateNaissance = (extra.dateNaissance || '').trim();
-                                            const lieuNaissance = (extra.lieuNaissance || '').trim();
-
-                                            if (!cName || !compName || !address || !nationalite || !qualite || !dateNaissance || !lieuNaissance) {
-                                                alert("⚠️ Vos informations sont incomplètes.\n\nVeuillez vérifier et compléter toutes vos informations légales dans l'onglet 'Paramètres' (Nom, Société, Nationalité, Date/Lieu de naissance, Qualité, etc.) afin que votre contrat soit juridiquement valide et complet.");
-                                                return;
-                                            }
-
-                                            if (isSaving) return; // prevent duplicate clicks
-                                            setShowSignModal(true);
-                                        }}
+                                        onClick={openLegalOrSign}
                                         disabled={isSaving || signStatus === 'loading'}
                                         style={{
                                             width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
@@ -533,7 +577,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                             opacity: isSaving ? 0.6 : 1
                                         }}
                                     >
-                                        {isSaving ? 'Enregistrement...' : '✍️ Signer mon contrat maintenant'}
+                                        {isSaving ? t('espaceClient.docs.saving') : t('espaceClient.docs.signNow')}
                                     </button>
                                 </>
                             )}
@@ -542,7 +586,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#15803d', fontSize: '13px', fontWeight: 600 }}>
                                 <span style={{ fontSize: '18px' }}>🎉</span>
-                                Votre contrat a été signé et enregistré avec succès.
+                                {t('espaceClient.docs.contractSignedOk')}
                             </div>
 
                             {/* Bouton téléchargement */}
@@ -559,7 +603,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 console.log("Tentative de génération du PDF...");
                                                 const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
                                                 if (!sig) {
-                                                    throw new Error("Données de signature introuvables en mémoire ou en base.");
+                                                    throw new Error(t('espaceClient.docs.signatureMissing'));
                                                 }
                                                 const blob = await generateSignedContratBlob(clientData, sig);
                                                 const url = URL.createObjectURL(blob);
@@ -572,7 +616,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 URL.revokeObjectURL(url);
                                             } catch (err) {
                                                 console.error("Erreur téléchargement PDF:", err);
-                                                alert("Erreur: " + err.message);
+                                                appAlert(t('espaceClient.docs.errorPrefix').replace('{message}', err.message));
                                             } finally {
                                                 setDownloadingDocId(null);
                                             }
@@ -595,10 +639,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     {downloadingDocId === 'contrat-signe' ? (
                                         <>
                                             <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                                            Génération du PDF...
+                                            {t('espaceClient.docs.generatingPdf')}
                                         </>
                                     ) : (
-                                        <>📥 Télécharger mon contrat signé (PDF)</>
+                                        <>{t('espaceClient.docs.downloadSignedContract')}</>
                                     )}
                                 </a>
                             )}
@@ -625,12 +669,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                         <span style={{ fontSize: '28px' }}>{isProcSigned ? '✅' : '2️⃣'}</span>
                         <div>
                             <div style={{ fontWeight: 800, fontSize: '16px' }}>
-                                {isProcSigned ? 'Étape 2 : Procuration Postale signée' : 'Étape 2 : Procuration Postale'}
+                                {isProcSigned ? t('espaceClient.docs.step2Signed') : t('espaceClient.docs.step2Unsigned')}
                             </div>
                             <div style={{ fontSize: '12px', color: isProcSigned ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: '2px' }}>
                                 {isProcSigned
-                                    ? `Signée le ${procSignedAt ? new Date(procSignedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}`
-                                    : 'Autorisez-nous à recevoir vos recommandés'}
+                                    ? t('espaceClient.docs.signedOnFem').replace('{date}', procSignedAt ? new Date(procSignedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
+                                    : t('espaceClient.docs.procHint')}
                             </div>
                         </div>
                     </div>
@@ -639,7 +683,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             background: '#dcfce7', color: '#15803d', fontSize: '11px',
                             fontWeight: 700, padding: '4px 12px', borderRadius: '99px'
                         }}>
-                            Validé ✔
+                            {t('espaceClient.docs.validated')}
                         </span>
                     )}
                 </div>
@@ -654,22 +698,22 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                         borderTopColor: '#1e40af', borderRadius: '50%',
                                         animation: 'spin 0.8s linear infinite', margin: '0 auto 12px'
                                     }} />
-                                    <p style={{ margin: 0, fontWeight: 600 }}>Génération et enregistrement de la procuration...</p>
+                                    <p style={{ margin: 0, fontWeight: 600 }}>{t('espaceClient.docs.generatingProc')}</p>
                                 </div>
                             )}
                             {procSignStatus === 'error' && (
                                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
-                                    ❌ Une erreur est survenue : {window.lastProcSignError || 'Erreur inconnue'}
+                                    {t('espaceClient.docs.procError').replace('{message}', window.lastProcSignError || t('espaceClient.docs.unknownError'))}
                                 </div>
                             )}
                             {procSignStatus !== 'loading' && (
                                 <>
                                     <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.6, margin: '0 0 16px' }}>
-                                        Afin que nous puissions réceptionner vos courriers recommandés et colis en votre nom, une <strong>Procuration Postale</strong> officielle est requise. {hasKbis ? "Remplissez simplement les informations de votre pièce d'identité." : "Vous devez d'abord fournir votre Extrait KBIS."}
+                                        {t('espaceClient.docs.procBodyLead')}<strong>{t('espaceClient.docs.procBodyStrong')}</strong>{t('espaceClient.docs.procBodyRest')}{hasKbis ? t('espaceClient.docs.procBodyHasKbis') : t('espaceClient.docs.procBodyNoKbis')}
                                     </p>
                                     {!hasKbis ? (
                                         <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', padding: '16px', borderRadius: '12px', textAlign: 'center' }}>
-                                            <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px', fontWeight: 600 }}>Déposez votre Extrait KBIS pour débloquer la procuration.</p>
+                                            <p style={{ fontSize: '13px', color: '#475569', marginBottom: '12px', fontWeight: 600 }}>{t('espaceClient.docs.dropKbis')}</p>
                                             <input type="file" id="kbis-upload" style={{ display: 'none' }} onChange={handleKbisUpload} accept="application/pdf,image/*" />
                                             <button
                                                 onClick={() => {
@@ -682,9 +726,9 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 {isUploadingKbis ? (
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                                                         <div style={{ width: '14px', height: '14px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                                                        Envoi en cours...
+                                                        {t('espaceClient.docs.uploading')}
                                                     </span>
-                                                ) : '📤 Déposer mon KBIS'}
+                                                ) : t('espaceClient.docs.dropMyKbis')}
                                             </button>
                                         </div>
                                     ) : (
@@ -700,7 +744,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                                             }}
                                         >
-                                            📝 Créer ma procuration
+                                            {t('espaceClient.docs.createProc')}
                                         </button>
                                     )}
                                 </>
@@ -710,7 +754,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#15803d', fontSize: '13px', fontWeight: 600 }}>
                                 <span style={{ fontSize: '18px' }}>🎉</span>
-                                Votre procuration a été générée et signée avec succès.
+                                {t('espaceClient.docs.procSignedOk')}
                             </div>
 
                             {/* Bouton téléchargement */}
@@ -728,7 +772,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 const sig = localProcSignatureUrl || procInfo?.procurationSignatureUrl;
                                                 const data = procInfo?.procurationData || procurationFormData;
                                                 if (!sig) {
-                                                    throw new Error("Données de signature introuvables en mémoire ou en base.");
+                                                    throw new Error(t('espaceClient.docs.signatureMissing'));
                                                 }
                                                 const blob = await generateSignedProcurationBlob(clientData, sig, data);
                                                 const url = URL.createObjectURL(blob);
@@ -741,7 +785,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 URL.revokeObjectURL(url);
                                             } catch (err) {
                                                 console.error("Erreur téléchargement procuration:", err);
-                                                alert("Erreur: " + err.message);
+                                                appAlert(t('espaceClient.docs.errorPrefix').replace('{message}', err.message));
                                             } finally {
                                                 setDownloadingDocId(null);
                                             }
@@ -764,10 +808,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     {downloadingDocId === 'procuration-signe' ? (
                                         <>
                                             <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                                            Génération du PDF...
+                                            {t('espaceClient.docs.generatingPdf')}
                                         </>
                                     ) : (
-                                        <>📥 Télécharger ma Procuration (PDF)</>
+                                        <>{t('espaceClient.docs.downloadProc')}</>
                                     )}
                                 </a>
                             )}
@@ -779,17 +823,17 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             {/* ── DOCUMENTS CONTRACTUELS ───────────────────────────── */}
             <div>
                 <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>3️⃣</span> Étape 3 : Vos documents finaux
+                    <span>3️⃣</span> {t('espaceClient.docs.step3')}
                 </h2>
                 <div className="ec-grid-docs">
                     <div className="ec-content-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid #E2E8F0', background: '#FFFFFF', borderRadius: '16px' }}>
                         <div style={{ marginBottom: '20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                                 <span style={{ fontSize: '24px' }}>📝</span>
-                                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Générateur de Documents</h3>
+                                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>{t('espaceClient.docs.generatorTitle')}</h3>
                             </div>
                             <p style={{ color: '#64748B', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>
-                                Générez instantanément vos documents contractuels officiels pré-remplis avec les données de votre entreprise.
+                                {t('espaceClient.docs.generatorHint')}
                             </p>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -813,10 +857,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 {downloadingDocId === 'attestation' ? (
                                     <>
                                         <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                                        Génération...
+                                        {t('espaceClient.docs.generating')}
                                     </>
                                 ) : (
-                                    <><span>📥</span> Télécharger mon Attestation</>
+                                    <><span>📥</span> {t('espaceClient.docs.downloadAttestation')}</>
                                 )}
                             </button>
                             <button
@@ -839,10 +883,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 {downloadingDocId === 'contrat-vierge' ? (
                                     <>
                                         <div style={{ width: '16px', height: '16px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                                        Génération...
+                                        {t('espaceClient.docs.generating')}
                                     </>
                                 ) : (
-                                    <><span>📜</span> Télécharger mon Contrat (non signé)</>
+                                    <><span>📜</span> {t('espaceClient.docs.downloadUnsignedContract')}</>
                                 )}
                             </button>
                         </div>
@@ -853,17 +897,17 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                                 <span style={{ fontSize: '24px' }}>🛡️</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Agrément Préfectoral</h3>
-                                    <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '99px' }}>Officiel</span>
+                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>{t('espaceClient.docs.approvalTitle')}</h3>
+                                    <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '99px' }}>{t('espaceClient.docs.official')}</span>
                                 </div>
                             </div>
                             <p style={{ color: '#64748B', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>
-                                Consultez l'autorisation d'exercice délivrée par la Préfecture de la Haute-Garonne pour notre centre de domiciliation commerciale.
+                                {t('espaceClient.docs.approvalHint')}
                             </p>
                         </div>
                         <div>
                             <a href="/Agrement_CASSIN.pdf" target="_blank" rel="noopener noreferrer" className="ec-btn-primary" style={{ textDecoration: 'none', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', background: '#0F172A', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', boxSizing: 'border-box', textAlign: 'center' }}>
-                                <span>👁️</span> Consulter l'Agrément CASSIN
+                                <span>👁️</span> {t('espaceClient.docs.viewApproval')}
                             </a>
                         </div>
                     </div>
@@ -873,17 +917,17 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                                 <span style={{ fontSize: '24px' }}>🏢</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Extrait KBIS</h3>
-                                    <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '99px' }}>Officiel</span>
+                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>{t('espaceClient.docs.kbisTitle')}</h3>
+                                    <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '99px' }}>{t('espaceClient.docs.official')}</span>
                                 </div>
                             </div>
                             <p style={{ color: '#64748B', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>
-                                Consultez l'extrait KBIS officiel de notre établissement de domiciliation commerciale (CASSIN LUDOVIC).
+                                {t('espaceClient.docs.kbisHint')}
                             </p>
                         </div>
                         <div>
                             <a href="/Extrait_KBIS_CASSIN.pdf" target="_blank" rel="noopener noreferrer" className="ec-btn-primary" style={{ textDecoration: 'none', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', background: '#0F172A', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', boxSizing: 'border-box', textAlign: 'center' }}>
-                                <span>👁️</span> Consulter l'Extrait KBIS
+                                <span>👁️</span> {t('espaceClient.docs.viewKbis')}
                             </a>
                         </div>
                     </div>
@@ -893,20 +937,20 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                                 <span style={{ fontSize: '24px' }}>✉️</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Procuration Postale</h3>
-                                    <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '99px' }}>Requis</span>
+                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>{t('espaceClient.docs.postalTitle')}</h3>
+                                    <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '99px' }}>{t('espaceClient.docs.required')}</span>
                                 </div>
                             </div>
                             <p style={{ color: '#64748B', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>
-                                <strong>Obligatoire</strong> pour nous autoriser à réceptionner vos lettres recommandées et vos colis auprès de La Poste.
+                                <strong>{t('espaceClient.docs.postalBodyStrong')}</strong>{t('espaceClient.docs.postalBodyRest')}
                             </p>
                         </div>
                         <div>
                             <a href="/Procuration_Postale.pdf" target="_blank" rel="noopener noreferrer" className="ec-btn-primary" style={{ textDecoration: 'none', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', background: '#0F172A', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', boxSizing: 'border-box', textAlign: 'center' }}>
-                                <span>📥</span> Télécharger la Procuration
+                                <span>📥</span> {t('espaceClient.docs.downloadPostal')}
                             </a>
                             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#94A3B8', marginTop: '8px' }}>
-                                Remplissez, signez et déposez-la ci-dessous.
+                                {t('espaceClient.docs.fillSignDrop')}
                             </span>
                         </div>
                     </div>
@@ -917,193 +961,187 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             <div className="ec-content-card">
                 <div className="ec-card-header">
                     <div className="ec-breadcrumb">
-                        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>Mes Documents Partagés</h2>
+                        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>{t('espaceClient.docs.sharedTitle')}</h2>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <input type="file" id="file-upload" style={{ display: 'none' }} onChange={handleFileChange} disabled={isUploading} />
                         <button className="ec-btn-primary" onClick={handleUploadClick} disabled={isUploading}>
-                            {isUploading ? 'Transfert...' : '+ Déposer un document'}
+                            {isUploading ? t('espaceClient.docs.transferring') : t('espaceClient.docs.dropDocument')}
                         </button>
                     </div>
                 </div>
 
-                <div style={{ padding: '24px', minHeight: '300px' }} onDragOver={onDragOver} onDrop={onDrop}>
+                <div style={{ padding: '24px', minHeight: '300px', display: 'flex', flexDirection: 'column', gap: '32px' }} onDragOver={onDragOver} onDrop={onDrop}>
                     {(() => {
-                        const hasId = documents?.some(d => d.name.toLowerCase().match(/identit|séjour|passeport|cni/));
-                        const hasDomicile = documents?.some(d => d.name.toLowerCase().match(/domicile|justificatif/));
-                        const hasStatut = documents?.some(d => d.name.toLowerCase().match(/statut|kbis/));
-                        
-                        const missingDocs = [];
-                        if (!hasStatut) missingDocs.push({ name: "Projet Statut (et KBIS lorsque reçu)", label: "Projet Statut" });
-                        if (!hasId) missingDocs.push({ name: "Pièce d'identité (Carte d'identité, Titre de séjour, Passeport)", label: "Pièce d'identité" });
-                        if (!hasDomicile) missingDocs.push({ name: "Justificatif de domicile de moins de 3 mois", label: "Justificatif de domicile" });
+                        const idDoc = documents?.find(d => d.name.toLowerCase().match(/identit|séjour|passeport|cni/));
+                        const domicileDoc = documents?.find(d => d.name.toLowerCase().match(/domicile|justificatif/));
+                        const statutDoc = documents?.find(d => d.name.toLowerCase().match(/statut|kbis/));
+
+                        const requiredDocs = [
+                            {
+                                id: 'statut',
+                                name: t('espaceClient.docs.reqStatutTitle'),
+                                label: "Projet Statut",
+                                description: t('espaceClient.docs.reqStatutDesc'),
+                                doc: statutDoc
+                            },
+                            {
+                                id: 'id',
+                                name: t('espaceClient.docs.reqIdTitle'),
+                                label: "Pièce d'identité",
+                                description: t('espaceClient.docs.reqIdDesc'),
+                                doc: idDoc
+                            },
+                            {
+                                id: 'domicile',
+                                name: t('espaceClient.docs.reqHomeTitle'),
+                                label: "Justificatif de domicile",
+                                description: t('espaceClient.docs.reqHomeDesc'),
+                                doc: domicileDoc
+                            }
+                        ];
+
+                        const otherDocs = (documents || []).filter(doc => {
+                            if (!doc || doc.owner !== 'client') return false;
+                            const name = doc.name?.toLowerCase() || '';
+                            if (name.includes('kbis')) return false;
+                            if (name.includes('contrat signé')) return false;
+                            if (name.includes('procuration signée')) return false;
+                            if (name.includes('procuration postale')) return false;
+                            if (doc.id === statutDoc?.id || doc.id === idDoc?.id || doc.id === domicileDoc?.id) return false;
+                            return true;
+                        });
 
                         return (
                             <>
-                                {missingDocs.length > 0 && (
-                                    <div style={{ marginBottom: '32px' }}>
-                                        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#DC2626', marginBottom: '12px', borderBottom: '1px solid #fecaca', paddingBottom: '8px' }}>
-                                            ⚠️ Pièces obligatoires à joindre
-                                        </h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {missingDocs.map((doc, idx) => (
-                                                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fef2f2', padding: '12px 16px', borderRadius: '8px', border: '1px solid #fecaca' }}>
-                                                    <span style={{ fontSize: '14px', color: '#991B1B', fontWeight: 500 }}>• Joindre {doc.name.replace('Joindre ', '')}</span>
-                                                    <button 
-                                                        onClick={() => handleSpecificUploadClick(doc.label)}
-                                                        style={{ padding: '6px 12px', background: 'white', border: '1px solid #fca5a5', borderRadius: '6px', color: '#DC2626', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                                                        onMouseEnter={(e) => e.target.style.background = '#fee2e2'}
-                                                        onMouseLeave={(e) => e.target.style.background = 'white'}
-                                                    >
-                                                        Joindre
-                                                    </button>
+                                {/* SECTION 1: DOCUMENTS REQUIS */}
+                                <div>
+                                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#F1F5F9', borderRadius: '6px' }}>📋</span>
+                                        {t('espaceClient.docs.adminRequired')}
+                                    </h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                                        {requiredDocs.map((req, idx) => (
+                                            <div key={idx} style={{ background: req.doc ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${req.doc ? '#BBF7D0' : '#FECACA'}`, borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <div style={{ marginBottom: '16px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                        <h4 style={{ fontSize: '14px', fontWeight: 700, color: req.doc ? '#166534' : '#991B1B', margin: 0, paddingRight: '12px' }}>{req.name}</h4>
+                                                        {req.doc ? (
+                                                            <span style={{ background: '#DCFCE7', color: '#15803D', padding: '4px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>{t('espaceClient.docs.provided')}</span>
+                                                        ) : (
+                                                            <span style={{ background: '#FEE2E2', color: '#B91C1C', padding: '4px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>{t('espaceClient.docs.toProvide')}</span>
+                                                        )}
+                                                    </div>
+                                                    <p style={{ fontSize: '12px', color: req.doc ? '#166534' : '#991B1B', opacity: 0.8, margin: 0 }}>{req.description}</p>
+                                                </div>
+
+                                                <div>
+                                                    {req.doc ? (
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <a
+                                                                href={(!req.doc.url || req.doc.url.startsWith('#') || req.doc.url.startsWith('data:')) ? '#' : req.doc.url}
+                                                                target={(!req.doc.url || req.doc.url.startsWith('#') || req.doc.url.startsWith('data:')) ? undefined : "_blank"}
+                                                                rel="noopener noreferrer"
+                                                                style={{ flex: 1, textAlign: 'center', padding: '8px', background: 'white', border: '1px solid #BBF7D0', borderRadius: '8px', color: '#166534', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+                                                            >
+                                                                {t('espaceClient.docs.viewDocument')}
+                                                            </a>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (await appConfirm(t('espaceClient.docs.deleteConfirm'), {
+                                                                        title: t('espaceClient.docs.deleteTitle'),
+                                                                        confirmText: t('espaceClient.docs.deleteOk'),
+                                                                        isDanger: true,
+                                                                    })) {
+                                                                        try {
+                                                                            await adminDataService.deleteDocument(req.doc.id);
+                                                                            setDocuments(prev => (prev || []).filter(x => x.id !== req.doc.id));
+                                                                        } catch (err) { appAlert(t('espaceClient.docs.deleteError')); }
+                                                                    }
+                                                                }}
+                                                                style={{ padding: '8px', background: 'white', border: '1px solid #FECACA', borderRadius: '8px', color: '#DC2626', cursor: 'pointer' }}
+                                                            >
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleSpecificUploadClick(req.label)}
+                                                            style={{ width: '100%', padding: '8px', background: '#DC2626', border: 'none', borderRadius: '8px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                                                        >
+                                                            {t('espaceClient.docs.attachFile')}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* SECTION 2: AUTRES DOCUMENTS */}
+                                <div>
+                                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#F1F5F9', borderRadius: '6px' }}>📁</span>
+                                        {t('espaceClient.docs.otherDocs')}
+                                    </h3>
+                                    
+                                    {otherDocs.length === 0 ? (
+                                        <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '32px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📂</div>
+                                            <p style={{ color: '#64748B', fontSize: '14px', margin: 0, fontWeight: 500 }}>{t('espaceClient.docs.noOther')}</p>
+                                            <p style={{ color: '#94A3B8', fontSize: '13px', marginTop: '4px' }}>{t('espaceClient.docs.noOtherHint')}</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                                            {otherDocs.map(doc => (
+                                                <div key={doc.id} style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
+                                                        <div style={{ width: '36px', height: '36px', background: '#F1F5F9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}>
+                                                            📄
+                                                        </div>
+                                                        <div style={{ overflow: 'hidden' }}>
+                                                            <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.name || t('espaceClient.docs.documentFallback')}</div>
+                                                            <div style={{ fontSize: '11px', color: '#64748B' }}>{t('espaceClient.docs.sharedOn').replace('{date}', new Date(doc.date).toLocaleDateString())}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        <a
+                                                            href={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? '#' : doc.url}
+                                                            target={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? undefined : "_blank"}
+                                                            rel="noopener noreferrer"
+                                                            style={{ padding: '6px 10px', background: '#F1F5F9', borderRadius: '6px', color: '#475569', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}
+                                                        >
+                                                            {t('espaceClient.docs.view')}
+                                                        </a>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (await appConfirm(t('espaceClient.docs.deleteConfirm'), {
+                                                                    title: t('espaceClient.docs.deleteTitle'),
+                                                                    confirmText: t('espaceClient.docs.deleteOk'),
+                                                                    isDanger: true,
+                                                                })) {
+                                                                    try {
+                                                                        await adminDataService.deleteDocument(doc.id);
+                                                                        setDocuments(prev => (prev || []).filter(x => x.id !== doc.id));
+                                                                    } catch (err) { appAlert(t('espaceClient.docs.deleteError')); }
+                                                                }
+                                                            }}
+                                                            style={{ padding: '6px 10px', background: '#FEE2E2', border: 'none', borderRadius: '6px', color: '#EF4444', cursor: 'pointer' }}
+                                                        >
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
-                                    </div>
-                                )}
-
-                                {!documents || documents.length === 0 ? (
-                                    <div className="ec-empty" style={{ textAlign: 'center', padding: '20px 0 60px' }}>
-                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📂</div>
-                                        <p style={{ color: '#64748B', fontSize: '15px' }}>Aucun document déposé pour le moment.</p>
-                                        <p style={{ color: '#94A3B8', fontSize: '13px', marginTop: '4px' }}>Glissez-déposez un fichier ici pour l'envoyer.</p>
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                        {/* Documents from Client */}
-                                        <div>
-                                            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                                                Mes documents déposés
-                                            </h3>
-                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                    {(documents || []).filter(doc => {
-                                        if (!doc || doc.owner !== 'client') return false;
-                                        const name = doc.name?.toLowerCase() || '';
-                                        if (name.includes('kbis')) return false;
-                                        if (name.includes('contrat signé')) return false;
-                                        if (name.includes('procuration signée')) return false;
-                                        if (name.includes('procuration postale')) return false;
-                                        return true;
-                                    }).map(doc => {
-                                        return (
-                                            <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-                                                {downloadingDocId === doc.id && (
-                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', zIndex: 10 }}>
-                                                        <div style={{ width: '16px', height: '16px', border: '2px solid #E2E8F0', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                                                    </div>
-                                                )}
-                                                <a
-                                                    href={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? '#' : doc.url}
-                                                    onClick={async (e) => {
-                                                        if (!checkApproval()) { e.preventDefault(); return; }
-                                                        if (doc.url && doc.url.startsWith('data:')) {
-                                                            e.preventDefault();
-                                                            handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
-                                                            return;
-                                                        }
-                                                        if (doc.url === '#local-signature') {
-                                                            e.preventDefault();
-                                                            if (downloadingDocId) return;
-                                                            setDownloadingDocId(doc.id);
-                                                            try {
-                                                                const sig = localSignatureUrl || signatureInfo?.contractSignatureUrl;
-                                                                if (!sig) throw new Error("Données de signature introuvables en mémoire.");
-                                                                const blob = await generateSignedContratBlob(clientData, sig);
-                                                                const url = URL.createObjectURL(blob);
-                                                                const a = document.createElement('a');
-                                                                a.href = url;
-                                                                a.download = `Contrat_Signe_${clientData.company || clientData.id}.pdf`;
-                                                                document.body.appendChild(a);
-                                                                a.click();
-                                                                document.body.removeChild(a);
-                                                                URL.revokeObjectURL(url);
-                                                            } catch (err) {
-                                                                alert("Erreur: " + err.message);
-                                                            } finally {
-                                                                setDownloadingDocId(null);
-                                                            }
-                                                        } else if (doc.url === '#local-procuration') {
-                                                            e.preventDefault();
-                                                            if (downloadingDocId) return;
-                                                            setDownloadingDocId(doc.id);
-                                                            try {
-                                                                const sig = localProcSignatureUrl || procInfo?.procurationSignatureUrl;
-                                                                const data = procInfo?.procurationData || procurationFormData;
-                                                                if (!sig) throw new Error("Données de signature de procuration introuvables.");
-                                                                const blob = await generateSignedProcurationBlob(clientData, sig, data);
-                                                                const url = URL.createObjectURL(blob);
-                                                                const a = document.createElement('a');
-                                                                a.href = url;
-                                                                a.download = `Procuration_${clientData.company || clientData.id}.pdf`;
-                                                                document.body.appendChild(a);
-                                                                a.click();
-                                                                document.body.removeChild(a);
-                                                                URL.revokeObjectURL(url);
-                                                            } catch (err) {
-                                                                alert("Erreur: " + err.message);
-                                                            } finally {
-                                                                setDownloadingDocId(null);
-                                                            }
-                                                        }
-                                                    }}
-                                                    target={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? undefined : "_blank"}
-                                                    rel="noopener noreferrer"
-                                                    style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: '8px',
-                                                        padding: '9px 16px', borderRadius: '8px', textDecoration: 'none',
-                                                        background: '#f1f5f9', border: '1px solid #cbd5e1',
-                                                        color: '#334155', fontWeight: 600, fontSize: '13px'
-                                                    }}
-                                                >
-                                                    👁️ {doc.title || doc.name || 'Document sans titre'}
-                                                </a>
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        if (window.confirm("Supprimer ce document ?")) {
-                                                            try {
-                                                                await adminDataService.deleteDocument(doc.id);
-                                                                setDocuments(prev => (prev || []).filter(x => x.id !== doc.id));
-                                                            } catch (err) { alert("Erreur lors de la suppression"); }
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        padding: '8px 12px',
-                                                        background: '#fee2e2',
-                                                        border: '1px solid #fca5a5',
-                                                        borderRadius: '8px',
-                                                        color: '#ef4444',
-                                                        cursor: 'pointer',
-                                                    }}
-                                                    title="Supprimer ce document"
-                                                    onMouseEnter={(e) => { e.currentTarget.style.background = '#FEE2E2'; e.currentTarget.style.color = '#DC2626'; }}
-                                                    onMouseLeave={(e) => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#EF4444'; }}
-                                                >
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                    {(documents || []).filter(doc => {
-                                        if (!doc || doc.owner !== 'client') return false;
-                                        const name = doc.name?.toLowerCase() || '';
-                                        if (name.includes('kbis')) return false;
-                                        if (name.includes('contrat signé')) return false;
-                                        if (name.includes('procuration signée')) return false;
-                                        if (name.includes('procuration postale')) return false;
-                                        return true;
-                                    }).length === 0 && (
-                                            <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par vous.</div>
-                                        )}
+                                    )}
                                 </div>
-                            </div>
-
-                            {/* Documents from Admin */}
+                            
+                            {/* SECTION 3: Documents from Admin */}
                             <div>
-                                <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                                    Documents administratifs (MW CREA)
+                                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: '#F1F5F9', borderRadius: '6px' }}>🏛️</span>
+                                    {t('espaceClient.docs.adminMw')}
                                 </h3>
                                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                                     {(documents || []).filter(doc => doc && doc.owner !== 'client').map(doc => {
@@ -1132,19 +1170,17 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                         color: '#334155', fontWeight: 600, fontSize: '13px'
                                                     }}
                                                 >
-                                                    👁️ {doc.title || doc.name || 'Document sans titre'}
+                                                    👁️ {doc.title || doc.name || t('espaceClient.docs.untitled')}
                                                 </a>
                                             </div>
                                         );
                                     })}
                                     {(documents || []).filter(doc => doc && doc.owner !== 'client').length === 0 && (
-                                        <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document administratif.</div>
+                                        <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>{t('espaceClient.docs.noAdmin')}</div>
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    )}
-                            </>
+                        </>
                         );
                     })()}
                 </div>
@@ -1152,8 +1188,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
             <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed #E2E8F0' }}>
                 <p style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.5', margin: 0 }}>
-                    <strong>Note :</strong> Cet espace réunit vos pièces justificatives (KBIS, statuts), vos factures et vos contrats de domiciliation officielle.
-                    Vous pouvez télétransmettre de nouvelles pièces justificatives en glissant vos fichiers dans la zone ci-dessus.
+                    <strong>{t('espaceClient.docs.note')}</strong>{t('espaceClient.docs.noteBody')}
                 </p>
             </div>
 
@@ -1165,10 +1200,10 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: '#3B82F6' }}>
                                 📄
                             </div>
-                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Nommer le document</h2>
+                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>{t('espaceClient.docs.nameDoc')}</h2>
                         </div>
                         <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '20px', lineHeight: 1.5 }}>
-                            Entrez un nom pour votre document ou laissez ce champ vide pour utiliser le nom d'origine.
+                            {t('espaceClient.docs.nameDocHint')}
                         </p>
                         <input
                             type="text"
@@ -1193,13 +1228,13 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 }}
                                 style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #E2E8F0', background: 'white', color: '#475569', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}
                             >
-                                Annuler
+                                {t('espaceClient.docs.cancel')}
                             </button>
                             <button
                                 onClick={confirmFileUpload}
                                 style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#3B82F6', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}
                             >
-                                Valider
+                                {t('espaceClient.docs.validate')}
                             </button>
                         </div>
                     </div>
@@ -1225,8 +1260,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     📝
                                 </div>
                                 <div>
-                                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Procuration</h2>
-                                    <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748B' }}>Informations requises</p>
+                                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>{t('espaceClient.docs.procFormTitle')}</h2>
+                                    <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748B' }}>{t('espaceClient.docs.procFormHint')}</p>
                                 </div>
                             </div>
                             <button onClick={() => setShowProcurationForm(false)} style={{ background: 'transparent', border: 'none', fontSize: '20px', color: '#94A3B8', cursor: 'pointer', padding: '4px' }}>✕</button>
@@ -1234,83 +1269,90 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div style={{ display: 'flex', gap: '16px' }}>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Date de naissance</label>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.birthDate')}</label>
                                     <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.dateNaissance} onChange={e => setProcurationFormData({ ...procurationFormData, dateNaissance: e.target.value })} />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Lieu de naissance</label>
-                                    <input type="text" placeholder="Ex: Toulouse" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.lieuNaissance} onChange={e => setProcurationFormData({ ...procurationFormData, lieuNaissance: e.target.value })} />
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.birthPlace')}</label>
+                                    <input type="text" placeholder={t('espaceClient.docs.birthPlacePh')} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.lieuNaissance} onChange={e => setProcurationFormData({ ...procurationFormData, lieuNaissance: e.target.value })} />
                                 </div>
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Type de pièce d'identité</label>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.idType')}</label>
                                 <select style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }} value={procurationFormData.typePiece} onChange={e => setProcurationFormData({ ...procurationFormData, typePiece: e.target.value })}>
-                                    <option>Carte d'Identité</option>
-                                    <option>Passeport</option>
-                                    <option>Titre de Séjour</option>
+                                    <option value="Carte d'Identité">{t('espaceClient.docs.idTypeId')}</option>
+                                    <option value="Passeport">{t('espaceClient.docs.idTypePassport')}</option>
+                                    <option value="Titre de Séjour">{t('espaceClient.docs.idTypeResidence')}</option>
                                 </select>
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Numéro de la pièce</label>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.idNumber')}</label>
                                 <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.numeroPiece} onChange={e => setProcurationFormData({ ...procurationFormData, numeroPiece: e.target.value })} />
                             </div>
                             <div style={{ display: 'flex', gap: '16px' }}>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Délivrée le</label>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.issuedOn')}</label>
                                     <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.dateDelivrance} onChange={e => setProcurationFormData({ ...procurationFormData, dateDelivrance: e.target.value })} />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Par l'autorité</label>
-                                    <input type="text" placeholder="Ex: Préfecture" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.autoriteDelivrance} onChange={e => setProcurationFormData({ ...procurationFormData, autoriteDelivrance: e.target.value })} />
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.issuedBy')}</label>
+                                    <input type="text" placeholder={t('espaceClient.docs.issuedByPh')} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.autoriteDelivrance} onChange={e => setProcurationFormData({ ...procurationFormData, autoriteDelivrance: e.target.value })} />
                                 </div>
                             </div>
                             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Numéro SIRET (Optionnel si en cours d'immatriculation)</label>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.siret')}</label>
                                 <input type="text" placeholder="Ex: 12345678900012" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.siret || ''} onChange={e => setProcurationFormData({ ...procurationFormData, siret: e.target.value })} />
                             </div>
                             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Numéro SIREN (Optionnel si en cours d'immatriculation)</label>
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.siren')}</label>
                                 <input type="text" placeholder="Ex: 123456789" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.siren || ''} onChange={e => setProcurationFormData({ ...procurationFormData, siren: e.target.value })} />
                             </div>
 
                             {/* Nouveaux champs pour l'adresse d'expédition (optionnels) */}
                             <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed #cbd5e1' }}>
-                                <h3 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#0f172a' }}>Adresse du destinataire (Optionnel)</h3>
+                                <h3 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#0f172a' }}>{t('espaceClient.docs.recipientAddress')}</h3>
 
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>N°, TYPE et NOM DE LA VOIE</label>
-                                    <input type="text" placeholder="Ex: 10 Rue de la Paix" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', marginBottom: '10px' }} value={procurationFormData.adresseVoie} onChange={e => setProcurationFormData({ ...procurationFormData, adresseVoie: e.target.value })} />
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.street')}</label>
+                                    <input type="text" placeholder={t('espaceClient.docs.streetPh')} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', marginBottom: '10px' }} value={procurationFormData.adresseVoie} onChange={e => setProcurationFormData({ ...procurationFormData, adresseVoie: e.target.value })} />
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '16px', marginBottom: '10px' }}>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Point de remise (appart, étage)</label>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.deliveryPoint')}</label>
                                         <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.pointRemise} onChange={e => setProcurationFormData({ ...procurationFormData, pointRemise: e.target.value })} />
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Complément (bâtiment, résidence)</label>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.complement')}</label>
                                         <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.complementAdresse} onChange={e => setProcurationFormData({ ...procurationFormData, complementAdresse: e.target.value })} />
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '16px' }}>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Code Postal & Ville</label>
-                                        <input type="text" placeholder="Ex: 75001 Paris" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.codePostalVille} onChange={e => setProcurationFormData({ ...procurationFormData, codePostalVille: e.target.value })} />
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.postcodeCity')}</label>
+                                        <AddressAutocomplete
+                                            value={procurationFormData.codePostalVille}
+                                            onChange={(codePostalVille) => setProcurationFormData({ ...procurationFormData, codePostalVille })}
+                                            searchType="municipality"
+                                            placeholder={t('espaceClient.docs.postcodeCityPh')}
+                                            noResultsLabel={t('espaceClient.docs.cityNoResults')}
+                                            inputStyle={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }}
+                                        />
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>Lieu dit (BP, etc.)</label>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#475569' }}>{t('espaceClient.docs.locality')}</label>
                                         <input type="text" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }} value={procurationFormData.lieuDit} onChange={e => setProcurationFormData({ ...procurationFormData, lieuDit: e.target.value })} />
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '12px', marginTop: '30px' }}>
-                            <button onClick={() => setShowProcurationForm(false)} style={{ padding: '12px 20px', borderRadius: '10px', border: '1px solid #E2E8F0', background: 'white', cursor: 'pointer', fontWeight: 600, color: '#64748B', transition: 'background 0.2s' }}>Annuler</button>
+                            <button onClick={() => setShowProcurationForm(false)} style={{ padding: '12px 20px', borderRadius: '10px', border: '1px solid #E2E8F0', background: 'white', cursor: 'pointer', fontWeight: 600, color: '#64748B', transition: 'background 0.2s' }}>{t('espaceClient.docs.cancel')}</button>
                             <button onClick={() => {
                                 setShowProcurationForm(false);
                                 setShowProcurationSignModal(true);
-                            }} style={{ flex: 1, padding: '12px 24px', borderRadius: '10px', border: 'none', background: '#3B82F6', color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Suivant : Signer</button>
+                            }} style={{ flex: 1, padding: '12px 24px', borderRadius: '10px', border: 'none', background: '#3B82F6', color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{t('espaceClient.docs.nextSign')}</button>
                         </div>
                     </div>
                 </div>,
@@ -1324,6 +1366,93 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                     onClose={() => setShowProcurationSignModal(false)}
                     onSigned={handleSignProcuration}
                 />
+            )}
+
+            {/* Modal Approval */}
+            {showLegalModal && createPortal(
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '24px' }}>
+                    <form onSubmit={handleLegalSubmit} style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '520px', padding: '28px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', margin: '24px 0' }}>
+                        <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>{t('espaceClient.docs.legalModalTitle')}</h2>
+                        <p style={{ color: '#64748B', fontSize: '14px', lineHeight: 1.55, margin: '0 0 20px' }}>{t('espaceClient.docs.legalModalHint')}</p>
+                        {legalError && (
+                            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', borderRadius: '10px', padding: '10px 12px', marginBottom: '16px', fontSize: '13px' }}>{legalError}</div>
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.docs.legalPrenom')}</label>
+                                <input required value={legalForm.prenom} onChange={(e) => setLegalForm((f) => ({ ...f, prenom: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.docs.legalNom')}</label>
+                                <input required value={legalForm.nom} onChange={(e) => setLegalForm((f) => ({ ...f, nom: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.settings.company')}</label>
+                                <input required value={legalForm.company} onChange={(e) => setLegalForm((f) => ({ ...f, company: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                            </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.settings.addressLabel')}</label>
+                                <AddressAutocomplete
+                                    value={legalForm.address}
+                                    onChange={(value) => setLegalForm((f) => ({ ...f, address: value }))}
+                                    placeholder={t('espaceClient.settings.addressPlaceholder')}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.settings.nationality')}</label>
+                                <select required value={legalForm.nationalite} onChange={(e) => setLegalForm((f) => ({ ...f, nationalite: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+                                    <option value="Française">Française</option>
+                                    <option value="Autre (UE)">Autre (UE)</option>
+                                    <option value="Hors UE">Hors UE</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.settings.quality')}</label>
+                                <select required value={legalForm.qualite} onChange={(e) => setLegalForm((f) => ({ ...f, qualite: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+                                    <option value="Gérant">Gérant</option>
+                                    <option value="Président">Président</option>
+                                    <option value="Auto-entrepreneur">Auto-entrepreneur</option>
+                                    <option value="Fondateur">Fondateur</option>
+                                    <option value="Directeur Général">Directeur Général</option>
+                                    <option value="Autre">Autre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.settings.birthDate')}</label>
+                                <input required type="date" value={legalForm.dateNaissance} onChange={(e) => setLegalForm((f) => ({ ...f, dateNaissance: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>{t('espaceClient.settings.birthPlace')}</label>
+                                <input required value={legalForm.lieuNaissance} onChange={(e) => setLegalForm((f) => ({ ...f, lieuNaissance: e.target.value }))} placeholder={t('espaceClient.docs.birthPlacePh')} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                            <button type="button" onClick={() => setShowLegalModal(false)} disabled={legalSaving} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', fontWeight: 600, cursor: 'pointer' }}>{t('espaceClient.docs.cancel')}</button>
+                            <button type="submit" disabled={legalSaving} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#1e40af', color: 'white', fontWeight: 700, cursor: legalSaving ? 'default' : 'pointer', opacity: legalSaving ? 0.7 : 1 }}>
+                                {legalSaving ? t('espaceClient.docs.saving') : t('espaceClient.docs.legalContinue')}
+                            </button>
+                        </div>
+                    </form>
+                </div>,
+                document.body
+            )}
+
+            {showApprovalModal && createPortal(
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: 'white', borderRadius: '16px', width: '90%', maxWidth: '400px', padding: '32px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', textAlign: 'center', animation: 'scaleIn 0.2s ease-out' }}>
+                        <div style={{ width: '64px', height: '64px', background: '#FEF3C7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: '#D97706' }}>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        </div>
+                        <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>{t('espaceClient.docs.pendingTitle')}</h2>
+                        <p style={{ color: '#64748B', fontSize: '14.5px', lineHeight: '1.6', marginBottom: '32px' }}>
+                            {t('espaceClient.docs.pendingBody')}
+                        </p>
+                        <button onClick={() => setShowApprovalModal(false)} style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: '#3B82F6', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }}>
+                            {t('espaceClient.docs.understood')}
+                        </button>
+                    </div>
+                </div>,
+                document.body
             )}
 
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

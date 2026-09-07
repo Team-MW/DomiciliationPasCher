@@ -41,3 +41,14 @@
         margin: 0 auto 12px;
     }
 }
+
+.lang-flag.text-flag {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.5px;
+}
+
+.lang-btn.active .lang-flag.text-flag {
+    color: #0f172a;
+}

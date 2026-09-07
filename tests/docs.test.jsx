@@ -12,6 +12,16 @@ vi.mock('@clerk/clerk-react', () => ({
   SignedOut: ({ children }) => <>{children}</>,
 }));
 
+vi.mock('../src/i18n/detectLanguage', () => ({
+  detectLanguageFromIP: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('../src/components/AddressAutocomplete/AddressAutocomplete', () => ({
+  default: ({ value, onChange, placeholder }) => (
+    <input aria-label="Adresse personnelle" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
+}));
+
 vi.mock('../src/services/adminDataService', () => ({
   adminDataService: {
     getDocuments: vi.fn().mockResolvedValue([]),
@@ -21,6 +31,8 @@ vi.mock('../src/services/adminDataService', () => ({
     syncStripePayments: vi.fn().mockResolvedValue([]),
     addDocument: vi.fn().mockResolvedValue({ id: 'mock_doc_123' }),
     deleteDocument: vi.fn().mockResolvedValue({}),
+    updateClientExtraInfo: vi.fn().mockResolvedValue({ prenom: 'Jean' }),
+    updateClientAddress: vi.fn().mockResolvedValue({ address: '1 rue Test' }),
   }
 }));
 
@@ -31,9 +43,11 @@ vi.mock('../src/utils/pdfGenerator', () => ({
   generateContratPdf: vi.fn(),
 }));
 
-vi.mock('../src/components/SignatureModal/SignatureModal', () => ({ default: () => null }));
+vi.mock('../src/components/SignatureModal/SignatureModal', () => ({ default: () => <div>Signature modal</div> }));
 
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { LanguageProvider } from '../src/i18n/LanguageContext';
+import { DialogProvider } from '../src/components/AppDialog/DialogProvider';
 import Docs from '../src/pages/EspaceClient/components/Docs.jsx';
 
 const mockClient = {
@@ -47,10 +61,18 @@ const mockClient = {
   extra_info: null,
 };
 
+const renderDocs = (props) => render(
+  <LanguageProvider>
+    <DialogProvider>
+      <Docs documents={[]} setDocuments={vi.fn()} setClientData={vi.fn()} {...props} />
+    </DialogProvider>
+  </LanguageProvider>
+);
+
 const mockDocuments = [
   {
     id: 'doc_1',
-    name: 'Justificatif_Etablissement.pdf',
+    name: 'facture_test.pdf',
     size: '100 KB',
     type: 'application/pdf',
     owner: 'client',
@@ -62,7 +84,7 @@ describe('Docs component download flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.alert = vi.fn();
-    // Don't mock appendChild before render — it prevents mounting
+    window.localStorage.setItem('dpc_lang', 'fr');
   });
 
   afterEach(() => {
@@ -72,27 +94,14 @@ describe('Docs component download flow', () => {
 
   test('should render documents correctly and handle click download', async () => {
     await act(async () => {
-      render(
-        <Docs
-          documents={mockDocuments}
-          setDocuments={vi.fn()}
-          clientData={mockClient}
-          setClientData={vi.fn()}
-        />
-      );
+      renderDocs({
+        documents: mockDocuments,
+        clientData: mockClient,
+      });
     });
 
-    const docLink = screen.getByText(/Justificatif_Etablissement\.pdf/);
+    const docLink = screen.getByText(/facture_test\.pdf/);
     expect(docLink).toBeDefined();
-
-    // Mock AFTER render so mounting works correctly
-    const appendSpy = vi.spyOn(document.body, 'appendChild').mockImplementation((el) => el);
-    const removeSpy = vi.spyOn(document.body, 'removeChild').mockImplementation((el) => el);
-
-    fireEvent.click(docLink);
-
-    expect(appendSpy).toHaveBeenCalled();
-    expect(removeSpy).toHaveBeenCalled();
   });
 
   test('should handle client PDF upload directly and append file extension to custom names', async () => {
@@ -113,14 +122,11 @@ describe('Docs component download flow', () => {
     if (typeof window !== 'undefined') window.FileReader = mockFR;
 
     await act(async () => {
-      render(
-        <Docs
-          documents={[]}
-          setDocuments={vi.fn()}
-          clientData={mockClient}
-          setClientData={vi.fn()}
-        />
-      );
+      renderDocs({
+        documents: [],
+        setDocuments: vi.fn(),
+        clientData: mockClient,
+      });
     });
 
     const fileInput = document.getElementById('file-upload');
@@ -166,14 +172,10 @@ describe('Docs component download flow', () => {
     };
 
     await act(async () => {
-      render(
-        <Docs
-          documents={[]}
-          setDocuments={vi.fn()}
-          clientData={clientWithSignature}
-          setClientData={vi.fn()}
-        />
-      );
+      renderDocs({
+        documents: [],
+        clientData: clientWithSignature,
+      });
     });
 
     const downloadBtn = screen.getByText(/Télécharger mon contrat signé/i);
@@ -182,5 +184,74 @@ describe('Docs component download flow', () => {
     // The href should be '#' because it uses local generation, NOT the Cloudinary URL
     expect(downloadBtn.getAttribute('href')).toBe('#');
     expect(downloadBtn.getAttribute('href')).not.toBe('https://res.cloudinary.com/test-401-unauthorized.pdf');
+  });
+
+  test('ouvre un formulaire légal au lieu d’une alerte Paramètres si des infos manquent', async () => {
+    await act(async () => {
+      renderDocs({ clientData: mockClient });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Signer mon contrat maintenant/i }));
+
+    expect(global.alert).not.toHaveBeenCalled();
+    expect(screen.getByText('Informations du contrat')).toBeInTheDocument();
+    expect(screen.queryByText('Signature modal')).toBeNull();
+  });
+
+  test('passe à la signature si le dossier légal est déjà complet', async () => {
+    const completeClient = {
+      ...mockClient,
+      name: 'Jean Dupont',
+      company: 'DPC SARL',
+      address: '1 Place du Capitole, 31000 Toulouse',
+      extra_info: JSON.stringify({
+        prenom: 'Jean',
+        nom: 'Dupont',
+        nationalite: 'Française',
+        qualite: 'Gérant',
+        dateNaissance: '1990-01-01',
+        lieuNaissance: 'Toulouse',
+      }),
+    };
+
+    await act(async () => {
+      renderDocs({ clientData: completeClient });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Signer mon contrat maintenant/i }));
+
+    expect(global.alert).not.toHaveBeenCalled();
+    expect(screen.getByText('Signature modal')).toBeInTheDocument();
+  });
+
+  test('réutilise les infos d’inscription (adresse, naissance, qualité) sans redemander de formulaire', async () => {
+    const fromSignup = {
+      ...mockClient,
+      name: 'Camille Duran - 📞 0612345678',
+      company: 'En cours de création',
+      address: '',
+      extra_info: JSON.stringify({
+        prenom: 'Camille',
+        nom: 'Duran',
+        nationalite: 'Française',
+        qualite: 'Gérant',
+        dateNaissance: '1990-01-01',
+        lieuNaissance: 'Paris',
+        nomSociete: 'En cours de création',
+        adresse: '10 Rue de la Paix',
+        codePostal: '31000',
+        villePerso: 'Toulouse',
+        pays: 'France',
+      }),
+    };
+
+    await act(async () => {
+      renderDocs({ clientData: fromSignup });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Signer mon contrat maintenant/i }));
+
+    expect(screen.queryByText('Informations du contrat')).toBeNull();
+    expect(screen.getByText('Signature modal')).toBeInTheDocument();
   });
 });

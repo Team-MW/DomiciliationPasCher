@@ -42,18 +42,27 @@ export default async function handler(req, res) {
         }
         const customerIds = Array.from(customerIdsSet);
 
-        if (customerIds.length === 0) {
-            return res.status(200).json({ payments: [], subscriptionStatus: 'non_trouvé' });
-        }
+        // Pas de sortie anticipée quand aucune fiche client ne correspond : un paiement invité
+        // (payment link, checkout sans compte) n'est rattaché à aucun customer et ne serait
+        // jamais retrouvé, alors que c'est précisément le cas que la recherche par email couvre.
 
-        let subscriptionStatus = 'active'; // par défaut
-        // Trouver le statut d'abonnement le plus récent pour ce(s) client(s)
+        // Un client peut avoir plusieurs abonnements (ou plusieurs fiches Stripe pour le même email).
+        // On retient le plus préoccupant afin qu'un impayé ne soit jamais masqué par un autre
+        // abonnement encore actif.
+        const STATUS_PRIORITY = ['unpaid', 'past_due', 'incomplete', 'trialing', 'active', 'paused', 'canceled', 'incomplete_expired'];
+        // 'non_trouvé' signifie « aucun abonnement Stripe » : les appelants laissent alors le
+        // statut de la fiche client inchangé, au lieu de le forcer à 'actif' à tort.
+        let subscriptionStatus = 'non_trouvé';
+        let bestRank = Infinity;
         for (const cid of customerIds) {
             try {
-                const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
-                if (subs.data.length > 0) {
-                    subscriptionStatus = subs.data[0].status;
-                    break;
+                const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 100 });
+                for (const sub of subs.data) {
+                    const rank = STATUS_PRIORITY.indexOf(sub.status);
+                    if (rank !== -1 && rank < bestRank) {
+                        bestRank = rank;
+                        subscriptionStatus = sub.status;
+                    }
                 }
             } catch (err) {
                 console.warn(`Could not fetch subscriptions for ${cid}:`, err.message);
@@ -64,22 +73,36 @@ export default async function handler(req, res) {
         const allPIs = [];
         for (const cid of customerIds) {
             try {
-                const paymentIntents = await stripe.paymentIntents.list({ customer: cid, limit: 100 });
+                const paymentIntents = await stripe.paymentIntents.list({
+                    customer: cid,
+                    limit: 100,
+                    expand: ['data.latest_charge'],
+                });
                 allPIs.push(...paymentIntents.data);
 
-                const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
+                // `data.payments` est nécessaire pour relier une facture à son PaymentIntent :
+                // le champ Invoice.payment_intent n'existe plus dans l'API Stripe actuelle.
+                const invoices = await stripe.invoices.list({
+                    customer: cid,
+                    limit: 100,
+                    expand: ['data.payments'],
+                });
                 allInvoices.push(...invoices.data);
             } catch (err) {
                 console.warn(`Could not fetch payments for ${cid}:`, err.message);
             }
         }
 
-        // Récupérer aussi les paiements invités (guest checkouts/payment links) liés à cet email
+        // Récupérer aussi les paiements invités (guest checkouts/payment links) liés à cet email.
+        // `receipt_email` n'est pas un champ interrogeable pour les PaymentIntents ; on passe par
+        // la métadonnée `email` que /api/checkout écrit sur chaque paiement.
         if (email) {
+            const safeEmail = email.trim().toLowerCase().replace(/['\\]/g, '');
             try {
                 const searchPIs = await stripe.paymentIntents.search({
-                    query: `receipt_email:'${email.trim()}'`,
-                    limit: 100
+                    query: `metadata['email']:'${safeEmail}'`,
+                    limit: 100,
+                    expand: ['data.latest_charge'],
                 });
                 allPIs.push(...searchPIs.data);
             } catch (searchErr) {
@@ -94,16 +117,15 @@ export default async function handler(req, res) {
         for (const inv of allInvoices) {
             if (inv.status === 'draft' || inv.status === 'void') continue;
 
-            if (inv.payment_intent) invoicePiIds.add(typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent.id);
+            for (const p of inv.payments?.data || []) {
+                const pi = p.payment?.payment_intent;
+                if (pi) invoicePiIds.add(typeof pi === 'string' ? pi : pi.id);
+            }
 
             let status = 'échec';
             if (inv.status === 'paid') status = 'payé';
             else if (inv.status === 'open') {
-                if (inv.attempt_count > 0 && !inv.paid) {
-                    status = 'échec';
-                } else {
-                    status = 'en attente';
-                }
+                status = inv.attempt_count > 0 ? 'échec' : 'en attente';
             }
             else if (inv.status === 'uncollectible') status = 'échec';
 
@@ -115,6 +137,8 @@ export default async function handler(req, res) {
                 date: new Date(inv.created * 1000).toISOString().split('T')[0],
                 method: 'Carte (Stripe)',
                 invoice_ref: inv.number || `FAC-TMP-${inv.id.substring(3, 9)}`,
+                invoice_pdf: inv.invoice_pdf || null,
+                hosted_invoice_url: inv.hosted_invoice_url || null,
                 invoice_url: inv.invoice_pdf || inv.hosted_invoice_url
             });
         }
@@ -122,8 +146,7 @@ export default async function handler(req, res) {
         // 2. Ajouter les PaymentIntents uniques (ex: paiements initiaux non liés à une facture récurrente)
         for (const pi of allPIs) {
             if (invoicePiIds.has(pi.id)) continue; // Déjà traité via sa facture
-            if (pi.invoice) continue; // Si lié à une facture, la facture le gère
-            if (pi.description && pi.description.includes('Subscription')) continue; // Géré par l'Invoice de l'abonnement
+            if (pi.description && pi.description.toLowerCase().includes('subscription')) continue; // Géré par l'Invoice de l'abonnement
             
             // Ignorer les tentatives de paiement abandonnées (évite les fausses alertes 'Impayé')
             if (pi.status === 'requires_payment_method' || pi.status === 'canceled') continue;
@@ -141,7 +164,7 @@ export default async function handler(req, res) {
                 date: new Date(pi.created * 1000).toISOString().split('T')[0],
                 method: pi.payment_method_types?.[0] === 'card' ? 'Carte (Stripe)' : (pi.payment_method_types?.[0] || 'Stripe'),
                 invoice_ref: pi.description || `PAIEMENT-${pi.id.substring(3, 9)}`,
-                receipt_url: pi.charges?.data?.[0]?.receipt_url
+                receipt_url: pi.latest_charge?.receipt_url || null
             });
         }
 

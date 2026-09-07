@@ -3,6 +3,20 @@ import react from '@vitejs/plugin-react-swc'
 import fs from 'fs'
 import Stripe from 'stripe'
 
+// Adapte une réponse Node à l'interface `res` attendue par les handlers Vercel.
+const makeVercelRes = (res) => {
+  const wrapper = {
+    status: (code) => { res.statusCode = code; return wrapper; },
+    json: (data) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(data));
+      return wrapper;
+    },
+    send: (data) => { res.end(data); return wrapper; },
+  };
+  return wrapper;
+};
+
 // Plugin local pour simuler le VRAI backend sans avoir besoin de npx vercel dev
 const localStripePlugin = {
   name: 'local-stripe-api',
@@ -70,101 +84,30 @@ const localStripePlugin = {
         return;
       }
 
-      if (req.url === '/api/emailjs' && req.method === 'POST') {
+      if (req.url === '/api/email' && req.method === 'POST') {
         let bodyStr = '';
         req.on('data', chunk => { bodyStr += chunk.toString(); });
         req.on('end', async () => {
           try {
             const body = JSON.parse(bodyStr || '{}');
-            const { email, nom, type, amount, paymentLink } = body;
+            req.body = body;
+
+            const { default: handler } = await import('./api/email.js');
             
-            if (!email) {
-              res.statusCode = 400;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: "L'email est requis." }));
-              return;
-            }
-
-            let serviceId = null;
-            let templateId = null;
-            let publicKey = null;
-            let privateKey = null;
-
-            if (fs.existsSync('.env.local')) {
-                const content = fs.readFileSync('.env.local', 'utf-8');
-                const getEnv = (key) => {
-                    const match = content.match(new RegExp(`${key}=(.*)`));
-                    return match ? match[1].trim() : null;
-                };
-                serviceId = getEnv('EMAILJS_SERVICE_ID');
-                templateId = getEnv('EMAILJS_TEMPLATE_ID');
-                publicKey = getEnv('VITE_EMAILJS_PUBLIC_KEY');
-                privateKey = getEnv('EMAILJS_PRIVATE_KEY');
-            }
-            if (!serviceId) serviceId = process.env.EMAILJS_SERVICE_ID;
-            if (!templateId) templateId = process.env.EMAILJS_TEMPLATE_ID;
-            if (!publicKey) publicKey = process.env.VITE_EMAILJS_PUBLIC_KEY;
-            if (!privateKey) privateKey = process.env.EMAILJS_PRIVATE_KEY;
-
-            let message = "Votre paiement a été validé avec succès. Merci de créer votre compte Espace Client et de déposer vos pièces justificatives.";
-            if (type === 'payment_failed') {
-                message = "Bonjour,\n\nNous vous informons qu'un incident est survenu lors de votre dernier règlement.\n\nAfin de maintenir la continuité de vos services et l'accès à votre courrier, nous vous invitons à mettre à jour vos informations de facturation depuis votre espace personnel.\n\nVous pouvez régulariser la situation en vous connectant ici : https://domiciliation-pas-cher.fr/espace-client\n\nBien cordialement,\nLe service comptabilité";
-            } else if (type === 'post_signature') {
-                message = `Bonjour ${nom || 'Client'},\n\nNous vous confirmons la signature de votre contrat. Ce document est dès à présent disponible dans votre espace sécurisé.\n\nAfin de finaliser l'ouverture de votre dossier, nous vous invitons à nous transmettre vos pièces justificatives (Pièce d'identité, justificatif de domicile, extrait Kbis) directement depuis l'onglet "Mes Documents".\n\nAccédez à votre portail ici : https://domiciliation-pas-cher.fr/espace-client\n\nBien cordialement,\nLe service client`;
-            } else if (type === 'procuration_postale') {
-                message = `Bonjour ${nom || 'Client'},\n\nAfin que notre centre puisse réceptionner vos courriers recommandés, la mise en place d'une procuration postale est requise.\n\nNous vous invitons à réaliser cette démarche sur le site officiel de La Poste :\nhttps://www.laposte.fr/donner-procuration/informations-mandant\n\nBien cordialement,\nLe service administratif`;
-            }
-            
-            let finalTemplateId = templateId;
-            if (type === 'payment_reminder' || type === 'payment_failed') {
-                finalTemplateId = 'template_717kmpr';
-            }
-
-            const templateParams = {
-                to_email: email,
-                to_name: nom || "Client",
-                message: message
+            const resMock = {
+              status: (code) => {
+                res.statusCode = code;
+                return resMock;
+              },
+              json: (data) => {
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(data));
+              }
             };
 
-            if (type === 'payment_reminder' || type === 'payment_failed') {
-                templateParams.name = nom || "Client";
-                templateParams.amount = amount || "le montant dû";
-                templateParams.paymentLink = paymentLink || "https://domiciliation-pas-cher.fr/espace-client";
-            }
-
-            // Fallback for vite when offline/no keys
-            if (!serviceId || !publicKey) {
-               console.warn("MOCK EMAILJS SEND (Keys missing):", templateParams);
-               res.statusCode = 200;
-               res.setHeader('Content-Type', 'application/json');
-               res.end(JSON.stringify({ success: true, mock: true }));
-               return;
-            }
-
-            const fetchRes = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service_id: serviceId,
-                    template_id: finalTemplateId,
-                    user_id: publicKey,
-                    accessToken: privateKey,
-                    template_params: templateParams
-                })
-            });
-
-            if (fetchRes.ok) {
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ success: true }));
-            } else {
-                const errTxt = await fetchRes.text();
-                res.statusCode = 500;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ error: errTxt }));
-            }
+            await handler(req, resMock);
           } catch (e) {
-            console.error("Vite EmailJS Error:", e);
+            console.error("Vite SMTP Error:", e);
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ error: e.message }));
@@ -179,63 +122,9 @@ const localStripePlugin = {
         req.on('data', chunk => { bodyStr += chunk.toString() });
         req.on('end', async () => {
           try {
-            const body = JSON.parse(bodyStr || '{}');
-
-            // Récupérer la clé directement
-            // Récupérer la clé directement depuis .env.local en priorité
-            let secretKey = null;
-            if (fs.existsSync('.env.local')) {
-              const envContent = fs.readFileSync('.env.local', 'utf-8');
-              const match = envContent.match(/STRIPE_SECRET_KEY=(.*)/);
-              if (match) secretKey = match[1].trim();
-            }
-            if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
-
-            if (!secretKey || secretKey === 'sk_live_remplace_moi' || secretKey.startsWith('pk_')) {
-              res.statusCode = 400;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: "Clé Sécrète Stripe manquante ou invalide (Ne mets pas 'pk_' dans STRIPE_SECRET_KEY, il faut 'sk_')." }));
-              return;
-            }
-
-            const stripe = new Stripe(secretKey);
-
-            const isOneTime = body.interval === 'one_time';
-            
-            const priceData = {
-              currency: 'eur',
-              product_data: { name: body.productName || 'Forfait' },
-              unit_amount: Math.round(body.amount * 100),
-            };
-
-            if (!isOneTime) {
-                // Seulement pour mensuel / annuel
-                priceData.recurring = { interval: body.interval || 'month' };
-            }
-
-            const sessionParams = {
-              payment_method_types: ['card'],
-              line_items: [
-                {
-                  price_data: priceData,
-                  quantity: 1,
-                },
-              ],
-              mode: isOneTime ? 'payment' : 'subscription',
-              allow_promotion_codes: body.interval === 'month',
-              success_url: body.successUrl || `http://localhost:5173/?success=true`,
-              cancel_url: body.cancelUrl || `http://localhost:5173/souscription`,
-            };
-
-            if (body.email) {
-              sessionParams.customer_email = body.email;
-            }
-
-            const session = await stripe.checkout.sessions.create(sessionParams);
-
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ id: session.id, url: session.url }));
+            req.body = JSON.parse(bodyStr || '{}');
+            const { default: handler } = await import('./api/checkout.js');
+            await handler(req, makeVercelRes(res));
           } catch (e) {
             console.error("Vite Stripe Error:", e);
             res.statusCode = 500;
@@ -437,132 +326,34 @@ const localStripePlugin = {
         return;
       }
 
+      if (req.url === '/api/change-plan' && req.method === 'POST') {
+        let bodyStr = '';
+        req.on('data', chunk => { bodyStr += chunk.toString(); });
+        req.on('end', async () => {
+          try {
+            req.body = JSON.parse(bodyStr || '{}');
+            const { default: handler } = await import('./api/change-plan.js');
+            await handler(req, makeVercelRes(res));
+          } catch (e) {
+            console.error('Vite change-plan error:', e);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+        return;
+      }
+
       if (req.url.startsWith('/api/list-payments')) {
-        const urlObj = new URL(req.url, `http://${req.headers.host}`);
-        const email = urlObj.searchParams.get('email');
-        const customerId = urlObj.searchParams.get('customerId');
-        const since = urlObj.searchParams.get('since');
-
+        // Délégation au handler de production : dupliquer cette logique ici a déjà
+        // provoqué des divergences dev/prod (doublons, montants à 0, faux impayés).
         try {
-          if (!email && !customerId) {
-            res.statusCode = 400;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Email or CustomerId is required' }));
-            return;
-          }
-
-          let sinceUnix = 0;
-          if (since) {
-            const sinceDate = new Date(since);
-            if (!isNaN(sinceDate.getTime())) {
-              // On soustrait 2 jours pour éviter les problèmes de fuseaux horaires 
-              // ou si le paiement a été fait juste avant l'enregistrement en base
-              sinceUnix = Math.floor(sinceDate.getTime() / 1000) - (2 * 24 * 60 * 60);
-            }
-          }
-
-          let secretKey = null;
-          if (fs.existsSync('.env.local')) {
-            const envContent = fs.readFileSync('.env.local', 'utf-8');
-            const match = envContent.match(/STRIPE_SECRET_KEY=(.*)/);
-            if (match) secretKey = match[1].trim();
-          }
-          if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
-
-          if (!secretKey || secretKey === 'sk_live_remplace_moi' || secretKey.startsWith('pk_')) {
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ payments: [] }));
-            return;
-          }
-
-          const stripe = new Stripe(secretKey);
-          let customerIds = [];
-
-          if (customerId) {
-            customerIds = [customerId];
-          } else if (email) {
-            const customers = await stripe.customers.list({ email: email.trim().toLowerCase(), limit: 100 });
-            customerIds = customers.data.map(c => c.id);
-          }
-
-          if (customerIds.length === 0) {
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ payments: [], subscriptionStatus: 'non_trouvé' }));
-            return;
-          }
-
-          let subscriptionStatus = 'active'; // par défaut
-          for (const cid of customerIds) {
-            try {
-              const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 1 });
-              if (subs.data.length > 0) {
-                  subscriptionStatus = subs.data[0].status;
-                  break;
-              }
-            } catch (err) {
-              if (err.code === 'resource_missing') {
-                  console.warn(`[Stripe] Customer ${cid} introuvable (probablement supprimé).`);
-              }
-            }
-          }
-
-          const allInvoices = [];
-          const allPIs = [];
-          for (const cid of customerIds) {
-            try {
-              const paymentIntents = await stripe.paymentIntents.list({ customer: cid, limit: 100 });
-              allPIs.push(...paymentIntents.data);
-
-              const invoices = await stripe.invoices.list({ customer: cid, limit: 100 });
-              allInvoices.push(...invoices.data);
-            } catch (err) {
-              if (err.code !== 'resource_missing') throw err;
-            }
-          }
-
-          const uniquePayments = new Map();
-          const invoicePiIds = new Set();
-
-          for (const inv of allInvoices) {
-            if (inv.created < sinceUnix) continue;
-            if (inv.status === 'draft' || inv.status === 'void') continue;
-
-            if (inv.payment_intent) invoicePiIds.add(typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent.id);
-
-            uniquePayments.set(inv.id, {
-                id: inv.id,
-                amount: inv.amount_paid / 100,
-                currency: inv.currency,
-                status: inv.status === 'paid' ? 'payé' : 'échec',
-                date: new Date(inv.created * 1000).toISOString().split('T')[0],
-                method: 'Carte (Stripe)',
-                invoice_ref: inv.number || `FAC-${new Date(inv.created * 1000).getFullYear()}${String(new Date(inv.created * 1000).getMonth() + 1).padStart(2, '0')}`
-            });
-          }
-
-          for (const pi of allPIs) {
-            if (pi.created < sinceUnix) continue;
-            if (invoicePiIds.has(pi.id)) continue;
-
-            uniquePayments.set(pi.id, {
-                id: pi.id,
-                amount: pi.amount / 100,
-                currency: pi.currency,
-                status: pi.status === 'succeeded' ? 'payé' : 'échec',
-                date: new Date(pi.created * 1000).toISOString().split('T')[0],
-                method: pi.payment_method_types?.[0] === 'card' ? 'Carte (Stripe)' : (pi.payment_method_types?.[0] || 'Stripe'),
-                invoice_ref: pi.description || `FAC-${new Date(pi.created * 1000).getFullYear()}${String(new Date(pi.created * 1000).getMonth() + 1).padStart(2, '0')}`
-            });
-          }
-
-          const payments = Array.from(uniquePayments.values());
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ payments, subscriptionStatus }));
+          const { default: handler } = await import('./api/list-payments.js');
+          const urlObj = new URL(req.url, `http://${req.headers.host}`);
+          req.query = Object.fromEntries(urlObj.searchParams);
+          await handler(req, makeVercelRes(res));
         } catch (e) {
-          console.error("Vite Stripe Sync Error:", e);
+          console.error('Vite Stripe Sync Error:', e);
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ error: e.message }));
@@ -680,6 +471,30 @@ const localStripePlugin = {
         });
         return;
       }
+      // Handlers GET servis tels quels : sans ce routage, Vite renvoie le code source
+      // du fichier au lieu de l'exécuter, et le front reçoit du JS à la place du JSON.
+      const passthroughGetRoutes = [
+        'stripe-failed-payments',
+        'get-payment-method',
+        'stripe-customers',
+        'verify-session',
+      ];
+      const passthrough = passthroughGetRoutes.find(name => req.url.startsWith(`/api/${name}`));
+      if (passthrough && req.method === 'GET') {
+        try {
+          const { default: handler } = await import(`./api/${passthrough}.js`);
+          const urlObj = new URL(req.url, `http://${req.headers.host}`);
+          req.query = Object.fromEntries(urlObj.searchParams);
+          await handler(req, makeVercelRes(res));
+        } catch (e) {
+          console.error(`Vite API Error (${passthrough}):`, e);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
       if (req.url === '/api/stripe-stats' && req.method === 'GET') {
         try {
           const { default: handler } = await import('./api/stripe-stats.js');

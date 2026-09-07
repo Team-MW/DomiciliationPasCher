@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { appAlert } from '../AppDialog/dialogApi';
 
 export default function SignatureModal({ clientData, onClose, onSigned }) {
     const canvasRef = useRef(null);
@@ -107,7 +108,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
             await onSigned(dataUrl);
         } catch (err) {
             console.error('Erreur signature:', err);
-            alert('Erreur lors de la sauvegarde. Réessayez.');
+            appAlert('Erreur lors de la sauvegarde. Réessayez.');
         } finally {
             setIsSaving(false);
         }

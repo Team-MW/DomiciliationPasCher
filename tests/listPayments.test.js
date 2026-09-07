@@ -8,6 +8,7 @@ vi.mock('stripe', () => {
     const listPaymentIntents = vi.fn();
     const listSubscriptions = vi.fn();
     const listInvoices = vi.fn();
+    const searchPaymentIntents = vi.fn();
     return {
         default: class {
             constructor() {
@@ -17,6 +18,7 @@ vi.mock('stripe', () => {
                     },
                     paymentIntents: {
                         list: listPaymentIntents,
+                        search: searchPaymentIntents,
                     },
                     subscriptions: {
                         list: listSubscriptions,
@@ -72,7 +74,9 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
             listPaymentIntents: stripe.paymentIntents.list,
             listSubscriptions: stripe.subscriptions.list,
             listInvoices: stripe.invoices.list,
+            searchPaymentIntents: stripe.paymentIntents.search,
         };
+        stripeMocks.searchPaymentIntents.mockResolvedValue({ data: [] });
     });
 
     test('should return 405 Method Not Allowed if request method is not GET', async () => {
@@ -103,7 +107,11 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
             limit: 100
         });
         expect(mockRes.status).toHaveBeenCalledWith(200);
-        expect(mockRes.json).toHaveBeenCalledWith({ payments: [], subscriptionStatus: 'non_trouvé' });
+        expect(mockRes.json).toHaveBeenCalledWith({
+            payments: [],
+            subscriptionStatus: 'non_trouvé',
+            foundCustomerId: null
+        });
     });
 
     test('should fetch and process payment intents correctly for matching customer', async () => {
@@ -147,7 +155,13 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
         });
         expect(stripeMocks.listPaymentIntents).toHaveBeenCalledWith({
             customer: 'cus_test_123',
-            limit: 100
+            limit: 100,
+            expand: ['data.latest_charge']
+        });
+        expect(stripeMocks.listInvoices).toHaveBeenCalledWith({
+            customer: 'cus_test_123',
+            limit: 100,
+            expand: ['data.payments']
         });
 
         expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -160,7 +174,8 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
                     status: 'payé',
                     method: 'Carte (Stripe)',
                     invoice_ref: 'Invoice #10',
-                    date: expect.any(String)
+                    date: expect.any(String),
+                    receipt_url: null
                 },
                 {
                     id: 'pi_2',
@@ -169,11 +184,112 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
                     status: 'échec',
                     method: 'Carte (Stripe)',
                     invoice_ref: expect.stringContaining('PAIEMENT-'),
-                    date: expect.any(String)
+                    date: expect.any(String),
+                    receipt_url: null
                 }
             ],
             subscriptionStatus: 'active',
             foundCustomerId: 'cus_test_123'
         }));
+    });
+
+    test('ne duplique pas un paiement déjà porté par sa facture', async () => {
+        stripeMocks.listCustomers.mockResolvedValue({ data: [{ id: 'cus_test_123' }] });
+        stripeMocks.listSubscriptions.mockResolvedValue({ data: [{ status: 'active' }] });
+
+        stripeMocks.listInvoices.mockResolvedValue({
+            data: [{
+                id: 'in_1',
+                status: 'paid',
+                total: 2880,
+                currency: 'eur',
+                created: 1770000000,
+                number: 'FAC-0001',
+                payments: { data: [{ payment: { payment_intent: 'pi_linked' } }] }
+            }]
+        });
+
+        // Même paiement vu côté PaymentIntent, sans description exploitable.
+        stripeMocks.listPaymentIntents.mockResolvedValue({
+            data: [{
+                id: 'pi_linked',
+                amount: 2880,
+                currency: 'eur',
+                status: 'succeeded',
+                created: 1770000000,
+                payment_method_types: ['card'],
+                description: null
+            }]
+        });
+
+        await handler(mockReq, mockRes);
+
+        const { payments } = mockRes.json.mock.calls[0][0];
+        expect(payments).toHaveLength(1);
+        expect(payments[0].id).toBe('in_1');
+    });
+
+    test('signale une facture relancée sans succès comme un échec', async () => {
+        stripeMocks.listCustomers.mockResolvedValue({ data: [{ id: 'cus_test_123' }] });
+        stripeMocks.listSubscriptions.mockResolvedValue({ data: [{ status: 'past_due' }] });
+        stripeMocks.listPaymentIntents.mockResolvedValue({ data: [] });
+        stripeMocks.listInvoices.mockResolvedValue({
+            data: [{
+                id: 'in_fail',
+                status: 'open',
+                attempt_count: 2,
+                total: 2880,
+                currency: 'eur',
+                created: 1770000000,
+                number: 'FAC-0002'
+            }]
+        });
+
+        await handler(mockReq, mockRes);
+
+        const { payments, subscriptionStatus } = mockRes.json.mock.calls[0][0];
+        expect(payments[0].status).toBe('échec');
+        expect(subscriptionStatus).toBe('past_due');
+    });
+
+    test('retrouve un paiement invité qui n\'est rattaché à aucune fiche client Stripe', async () => {
+        stripeMocks.listCustomers.mockResolvedValue({ data: [] });
+        stripeMocks.searchPaymentIntents.mockResolvedValue({
+            data: [{
+                id: 'pi_guest',
+                amount: 9900,
+                currency: 'eur',
+                status: 'succeeded',
+                created: 1770000000,
+                payment_method_types: ['card'],
+                description: 'Frais de dossier',
+                latest_charge: { receipt_url: 'https://stripe.test/recu' }
+            }]
+        });
+
+        await handler(mockReq, mockRes);
+
+        expect(stripeMocks.searchPaymentIntents).toHaveBeenCalledWith(
+            expect.objectContaining({ query: "metadata['email']:'test@example.com'" })
+        );
+        const { payments, subscriptionStatus } = mockRes.json.mock.calls[0][0];
+        expect(payments).toHaveLength(1);
+        expect(payments[0].id).toBe('pi_guest');
+        expect(payments[0].amount).toBe(99);
+        expect(payments[0].receipt_url).toBe('https://stripe.test/recu');
+        expect(subscriptionStatus).toBe('non_trouvé');
+    });
+
+    test('retient le statut le plus préoccupant quand plusieurs abonnements coexistent', async () => {
+        stripeMocks.listCustomers.mockResolvedValue({ data: [{ id: 'cus_test_123' }] });
+        stripeMocks.listPaymentIntents.mockResolvedValue({ data: [] });
+        stripeMocks.listInvoices.mockResolvedValue({ data: [] });
+        stripeMocks.listSubscriptions.mockResolvedValue({
+            data: [{ status: 'active' }, { status: 'past_due' }]
+        });
+
+        await handler(mockReq, mockRes);
+
+        expect(mockRes.json.mock.calls[0][0].subscriptionStatus).toBe('past_due');
     });
 });

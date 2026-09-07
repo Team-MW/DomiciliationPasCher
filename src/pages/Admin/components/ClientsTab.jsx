@@ -14,9 +14,11 @@ const formatDateShort = (dateStr) => {
 export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, onCreateClick }) {
     const [isExporting, setIsExporting] = useState(false);
 
+    const q = (searchQuery || '').toLowerCase();
     const filtered = clients.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.company.toLowerCase().includes(searchQuery.toLowerCase())
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.company || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q)
     );
 
     const handleExport = async () => {
@@ -88,7 +90,7 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, o
                             <tr key={c.id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.2s' }} className="table-row-hover">
                                 <td style={{ padding: '16px 20px', cursor: 'pointer', position: 'relative' }} onClick={() => onSelect(c.id)}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <div style={{ fontWeight: '700', fontSize: '14px', color: '#0F172A' }}>{c.company}</div>
+                                        <div style={{ fontWeight: '700', fontSize: '14px', color: '#0F172A' }}>{c.company || c.name || '—'}</div>
                                         {parseInt(c.unreadCount) > 0 && (
                                             <span style={{ 
                                                 background: '#6366F1', 

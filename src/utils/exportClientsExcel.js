@@ -16,6 +16,7 @@ const STATUS_LABELS = {
     actif: 'Actif',
     echec_paiement: 'Échec paiement',
     impayé: 'Impayé',
+    résilié: 'Résilié',
     inactif: 'Inactif',
 };
 
