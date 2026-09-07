@@ -38,6 +38,8 @@ vi.mock('../src/services/adminDataService', () => ({
 describe('Onboarding Documents Upload Flow inside Souscription', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        window.localStorage.clear();
+        global.fetch = vi.fn().mockResolvedValue({ json: async () => ({ features: [] }) });
     });
 
     afterEach(() => {
@@ -50,35 +52,30 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         });
 
         // 1. Step 0: Choix du projet
-        // Click on Creation card
-        const creationCard = screen.getByText("Création d'entreprise");
-        fireEvent.click(creationCard);
-        // Click on SASU
-        const sasuBtn = screen.getByText('SASU');
-        fireEvent.click(sasuBtn);
-        // Click Suivant
+        fireEvent.click(screen.getByText('Domiciliation seule'));
+        fireEvent.click(screen.getByText('SASU'));
         fireEvent.click(screen.getByText('Suivant'));
 
         // 2. Step 1: Coordonnees
-        // Fill fields
         fireEvent.change(screen.getByPlaceholderText('Duran'), { target: { value: 'Doe' } });
         fireEvent.change(screen.getByPlaceholderText('Camille'), { target: { value: 'John' } });
         fireEvent.change(screen.getByPlaceholderText('exemple@gmail.com'), { target: { value: 'john@example.com' } });
         fireEvent.change(screen.getByPlaceholderText('06 XX XX XX XX'), { target: { value: '0612345678' } });
-        // Use container query selector for date since no placeholder
         const dateInput = document.querySelector('input[type="date"]');
         if (dateInput) fireEvent.change(dateInput, { target: { value: '1990-01-01' } });
         fireEvent.change(screen.getByPlaceholderText('Ville, Pays'), { target: { value: 'Paris, France' } });
-        fireEvent.change(screen.getByPlaceholderText('Votre adresse complète (Rue, CP, Ville)'), { target: { value: '1 Main St' } });
+        fireEvent.change(screen.getByPlaceholderText('Entrez votre adresse (ex: 10 Rue de la Paix)'), { target: { value: '1 Main St' } });
+        fireEvent.change(screen.getByPlaceholderText('31000'), { target: { value: '31000' } });
+        fireEvent.change(screen.getByPlaceholderText('Toulouse'), { target: { value: 'Toulouse' } });
         fireEvent.click(screen.getByText('Suivant'));
 
         // 3. Step 2: Entreprise
+        fireEvent.change(screen.getByPlaceholderText('Ex: Ma Super SASU'), { target: { value: 'SAS Test' } });
         fireEvent.change(screen.getByPlaceholderText("Décrivez brièvement l'activité de votre entreprise…"), { target: { value: 'Consulting' } });
         fireEvent.click(screen.getByText('Suivant'));
 
         // 4. Step 3: Domiciliation
-        const toulouseBtn = screen.getByText('Toulouse (31)');
-        fireEvent.click(toulouseBtn);
+        fireEvent.click(screen.getByText('Toulouse (31)'));
         fireEvent.click(screen.getByText('Suivant'));
 
         // 5. Step 4: Courrier
@@ -87,52 +84,47 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         // 6. Step 5: Frequence
         fireEvent.click(screen.getByText('Suivant'));
 
-        // 7. Step 6: Documents justificatifs page
-        expect(screen.getByText("Vos documents justificatifs")).toBeDefined();
+        // 7. Step 6: Documents justificatifs
+        expect(screen.getByText('Vos documents justificatifs')).toBeDefined();
 
-        // Query file inputs
         const fileInputsRaw = document.querySelectorAll('input[type="file"]');
-        expect(fileInputsRaw.length).toBe(2);
+        expect(fileInputsRaw.length).toBe(3);
 
-        const idFile = new File(['%PDF-1.4...'], 'identity.pdf', { type: 'application/pdf' });
+        const idRecto = new File(['%PDF-1.4...'], 'identity.pdf', { type: 'application/pdf' });
+        const idVerso = new File([''], 'identity-verso.png', { type: 'image/png' });
         const addressFile = new File([''], 'address.png', { type: 'image/png' });
 
         await act(async () => {
-            fireEvent.change(fileInputsRaw[0], { target: { files: [idFile] } });
-            fireEvent.change(fileInputsRaw[1], { target: { files: [addressFile] } });
+            fireEvent.change(fileInputsRaw[0], { target: { files: [idRecto] } });
+            fireEvent.change(fileInputsRaw[1], { target: { files: [idVerso] } });
+            fireEvent.change(fileInputsRaw[2], { target: { files: [addressFile] } });
         });
 
-        expect(screen.getByText(/Fichier sélectionné : identity.pdf/)).toBeDefined();
-        expect(screen.getByText(/Fichier sélectionné : address.png/)).toBeDefined();
+        expect(screen.getByText('identity.pdf')).toBeDefined();
+        expect(screen.getByText('identity-verso.png')).toBeDefined();
+        expect(screen.getByText('address.png')).toBeDefined();
 
         fireEvent.click(screen.getByText('Suivant'));
 
         // 8. Step 7: Recapitulatif & CGV
-        expect(screen.getByText("Vérifiez votre commande")).toBeDefined();
-        
-        // Accept CGV
-        const cgvCheckbox = screen.getByRole('checkbox');
-        fireEvent.click(cgvCheckbox);
+        expect(screen.getByText('Vérifiez votre commande')).toBeDefined();
 
-        // Click Pay
+        fireEvent.click(screen.getByRole('checkbox'));
+
         const payBtn = screen.getByText(/Payer/);
         await act(async () => {
             fireEvent.click(payBtn);
         });
 
-        // Verify PDF was converted to PNG
         expect(mockConvertPdfToPng).toHaveBeenCalledTimes(1);
-        expect(mockConvertPdfToPng).toHaveBeenCalledWith(idFile);
+        expect(mockConvertPdfToPng).toHaveBeenCalledWith(idRecto);
+        expect(mockUploadFile).toHaveBeenCalledTimes(3);
 
-        // Verify files were uploaded to Cloudinary
-        expect(mockUploadFile).toHaveBeenCalledTimes(2);
-
-        // Verify adminDataService.addDemande was called with correct data
         expect(mockAddDemande).toHaveBeenCalledTimes(1);
         expect(mockAddDemande).toHaveBeenCalledWith(expect.objectContaining({
             clientName: 'John Doe - 📞 0612345678',
             email: 'john@example.com',
-            company: 'En cours de création',
+            company: 'SAS Test',
             city: 'Toulouse (31)',
             plan: 'Essentiel',
             extra_info: expect.objectContaining({
@@ -143,7 +135,6 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
             })
         }));
 
-        // Verify handleCheckout was triggered
         expect(mockHandleCheckout).toHaveBeenCalledTimes(1);
     });
 });

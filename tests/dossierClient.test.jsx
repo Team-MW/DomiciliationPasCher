@@ -90,10 +90,9 @@ describe('DossierClient Document Tab', () => {
     const tabBtn = screen.getByTestId('tab-docs');
     await act(async () => { fireEvent.click(tabBtn); });
 
-    // Verify the buttons are rendered
-    const kbisBtn = screen.getByText("👁️ Voir l'Extrait KBIS");
-    const idBtn = screen.getByText("👁️ Voir la Pièce d'identité");
-    const domBtn = screen.getByText("👁️ Voir le Justificatif de domicile");
+    const kbisBtn = screen.getByRole('link', { name: /Voir l'Extrait KBIS/ });
+    const idBtn = screen.getByRole('link', { name: /Voir la Pièce d'identité/ });
+    const domBtn = screen.getByRole('link', { name: /Voir le Justificatif de domicile/ });
 
     expect(kbisBtn).toBeDefined();
     expect(idBtn).toBeDefined();

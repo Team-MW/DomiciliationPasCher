@@ -30,6 +30,36 @@ const handleDataUrlDownload = (url, filename) => {
     document.body.removeChild(link);
 };
 
+const isUsableDocUrl = (url) => Boolean(url) && url !== '#' && !String(url).startsWith('#local');
+
+/** Ouvre un document http(s) ou data: (les PDF client sont stockés en data URL, pas en lien Cloudinary). */
+export function openStoredDocument(url, filename = 'document.pdf') {
+    if (!isUsableDocUrl(url)) return false;
+    if (url.startsWith('data:')) {
+        try {
+            const comma = url.indexOf(',');
+            if (comma < 0) {
+                handleDataUrlDownload(url, filename);
+                return true;
+            }
+            const mime = (url.slice(5, comma).split(';')[0] || 'application/octet-stream').trim();
+            const binary = atob(url.slice(comma + 1));
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+            const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+            if (!opened) handleDataUrlDownload(url, filename);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+            return true;
+        } catch {
+            handleDataUrlDownload(url, filename);
+            return true;
+        }
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return true;
+}
+
 export default function Docs({ documents, setDocuments, clientData, setClientData }) {
     const { t } = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
@@ -72,6 +102,12 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             return false;
         }
         return true;
+    };
+
+    const handleViewStoredDoc = (url, filename) => {
+        if (!openStoredDocument(url, filename)) {
+            appAlert(t('espaceClient.docs.viewUnavailable'));
+        }
     };
 
     const openLegalOrSign = () => {
@@ -983,21 +1019,24 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 name: t('espaceClient.docs.reqStatutTitle'),
                                 label: "Projet Statut",
                                 description: t('espaceClient.docs.reqStatutDesc'),
-                                doc: statutDoc
+                                doc: statutDoc,
+                                fallbackUrl: parsedExtraInfo.kbisUrl || localKbisUrl,
                             },
                             {
                                 id: 'id',
                                 name: t('espaceClient.docs.reqIdTitle'),
                                 label: "Pièce d'identité",
                                 description: t('espaceClient.docs.reqIdDesc'),
-                                doc: idDoc
+                                doc: idDoc,
+                                fallbackUrl: parsedExtraInfo.pieceIdentiteUrl || parsedExtraInfo.pieceIdentiteRecto,
                             },
                             {
                                 id: 'domicile',
                                 name: t('espaceClient.docs.reqHomeTitle'),
                                 label: "Justificatif de domicile",
                                 description: t('espaceClient.docs.reqHomeDesc'),
-                                doc: domicileDoc
+                                doc: domicileDoc,
+                                fallbackUrl: parsedExtraInfo.justificatifDomicileUrl,
                             }
                         ];
 
@@ -1038,14 +1077,16 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                 <div>
                                                     {req.doc ? (
                                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                                            <a
-                                                                href={(!req.doc.url || req.doc.url.startsWith('#') || req.doc.url.startsWith('data:')) ? '#' : req.doc.url}
-                                                                target={(!req.doc.url || req.doc.url.startsWith('#') || req.doc.url.startsWith('data:')) ? undefined : "_blank"}
-                                                                rel="noopener noreferrer"
-                                                                style={{ flex: 1, textAlign: 'center', padding: '8px', background: 'white', border: '1px solid #BBF7D0', borderRadius: '8px', color: '#166534', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const url = isUsableDocUrl(req.doc.url) ? req.doc.url : req.fallbackUrl;
+                                                                    handleViewStoredDoc(url, req.doc.name || 'document.pdf');
+                                                                }}
+                                                                style={{ flex: 1, textAlign: 'center', padding: '8px', background: 'white', border: '1px solid #BBF7D0', borderRadius: '8px', color: '#166534', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
                                                             >
                                                                 {t('espaceClient.docs.viewDocument')}
-                                                            </a>
+                                                            </button>
                                                             <button
                                                                 onClick={async () => {
                                                                     if (await appConfirm(t('espaceClient.docs.deleteConfirm'), {
@@ -1105,14 +1146,13 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                         </div>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '6px' }}>
-                                                        <a
-                                                            href={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? '#' : doc.url}
-                                                            target={(!doc.url || doc.url.startsWith('#') || doc.url.startsWith('data:')) ? undefined : "_blank"}
-                                                            rel="noopener noreferrer"
-                                                            style={{ padding: '6px 10px', background: '#F1F5F9', borderRadius: '6px', color: '#475569', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleViewStoredDoc(doc.url, doc.name || 'document.pdf')}
+                                                            style={{ padding: '6px 10px', background: '#F1F5F9', borderRadius: '6px', color: '#475569', fontSize: '12px', fontWeight: 600, border: 'none', cursor: 'pointer' }}
                                                         >
                                                             {t('espaceClient.docs.view')}
-                                                        </a>
+                                                        </button>
                                                         <button
                                                             onClick={async () => {
                                                                 if (await appConfirm(t('espaceClient.docs.deleteConfirm'), {

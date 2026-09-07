@@ -1,10 +1,9 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import Navbar from '../Navbar';
 import { LanguageProvider } from '../../../i18n/LanguageContext';
 
-// Mock Clerk React
 vi.mock('@clerk/clerk-react', () => {
     return {
         SignedIn: ({ children }) => <div data-testid="signed-in">{children}</div>,
@@ -23,11 +22,14 @@ const renderNavbar = () => {
 };
 
 describe('Navbar Component', () => {
+    beforeEach(() => {
+        window.localStorage.setItem('dpc_lang', 'fr');
+    });
+
     it('renders the logo and links', () => {
         renderNavbar();
         expect(screen.getByAltText('DomiciliationPasCher')).toBeInTheDocument();
-        
-        // Les liens de navigation de base doivent être présents (ex: Tarifs)
+
         const tarifsLinks = screen.getAllByText('Tarifs');
         expect(tarifsLinks.length).toBeGreaterThan(0);
     });

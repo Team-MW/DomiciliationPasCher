@@ -104,6 +104,30 @@ describe('Docs component download flow', () => {
     expect(docLink).toBeDefined();
   });
 
+  test('ouvre le PDF Projet Statut (data URL) au clic sur Voir le document', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({ closed: false });
+    const pdfDataUrl = `data:application/pdf;base64,${btoa('%PDF-1.4 fake')}`;
+
+    await act(async () => {
+      renderDocs({
+        documents: [{
+          id: 'doc_statut',
+          name: 'Projet Statut.pdf',
+          size: '20 KB',
+          type: 'application/pdf',
+          owner: 'client',
+          url: pdfDataUrl,
+        }],
+        clientData: mockClient,
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voir le document' }));
+    expect(openSpy).toHaveBeenCalled();
+    expect(openSpy.mock.calls[0][0]).toMatch(/^blob:/);
+    openSpy.mockRestore();
+  });
+
   test('should handle client PDF upload directly and append file extension to custom names', async () => {
     const mockAddDocument = vi.fn().mockResolvedValue({ id: 'new_doc_999' });
     const { adminDataService } = await import('../src/services/adminDataService');
