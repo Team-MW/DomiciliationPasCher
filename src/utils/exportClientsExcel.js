@@ -59,6 +59,7 @@ function clientToRow(client) {
         'Email': client.email || extra.email || '',
         'Téléphone': client.phone || extra.telephone || '',
         'Adresse personnelle': client.address || extra.adressePerso || '',
+        'Adresse de réexpédition': extra.adresseReexp || extra.adresseReexpedition || '',
         'Date de naissance': extra.dateNaissance || '',
         'Lieu de naissance': extra.lieuNaissance || '',
         'Nationalité': extra.nationalite || '',

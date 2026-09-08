@@ -21,6 +21,11 @@ export default {
         needDate: 'Veuillez choisir une date de réservation.',
         cancelled: "Le paiement a été annulé ou refusé. Votre réservation n'a pas pu aboutir.",
         payError: 'Erreur de connexion au système de paiement.',
+        statusLabel: {
+            pending: 'En attente',
+            confirmed: 'Confirmée',
+            refused: 'Refusée',
+        },
     },
     en: {
         title: 'Book a room or office',
@@ -44,6 +49,11 @@ export default {
         needDate: 'Please choose a booking date.',
         cancelled: 'Payment was cancelled or declined. Your booking could not be completed.',
         payError: 'Could not connect to the payment system.',
+        statusLabel: {
+            pending: 'Pending',
+            confirmed: 'Confirmed',
+            refused: 'Declined',
+        },
     },
     ru: {
         title: 'Забронировать зал или офис',
@@ -67,5 +77,10 @@ export default {
         needDate: 'Выберите дату бронирования.',
         cancelled: 'Оплата отменена или отклонена. Бронирование не состоялось.',
         payError: 'Не удалось подключиться к системе оплаты.',
+        statusLabel: {
+            pending: 'Ожидает',
+            confirmed: 'Подтверждено',
+            refused: 'Отклонено',
+        },
     },
 };

@@ -38,6 +38,14 @@ export function resolvePersonalAddress(clientData, extra = {}) {
     ).trim();
 }
 
+/**
+ * Destination physique des originaux (Scan+). Jamais l’adresse personnelle :
+ * le client peut habiter à A et faire réexpédier à B.
+ */
+export function resolveForwardingAddress(extra = {}) {
+    return String(extra.adresseReexp || extra.adresseReexpedition || '').trim();
+}
+
 export function normalizeSubscriptionExtra(extra) {
     const e = extra && typeof extra === 'object' ? { ...extra } : {};
     const adressePerso = resolvePersonalAddress({}, e);

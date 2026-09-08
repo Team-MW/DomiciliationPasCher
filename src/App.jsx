@@ -36,16 +36,26 @@ function LoadingFallback() {
   );
 }
 
+/* Redirection interne uniquement (anti open-redirect). */
+function safeAppRedirect(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null;
+  return raw;
+}
+
 /* Route protégée : redirige vers /connexion si non connecté */
 export function ProtectedRoute({ children }) {
   const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
 
   if (isPreview) return children;
 
+  const next = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const loginTo = `/connexion?redirect=${encodeURIComponent(next)}`;
+
   return (
     <>
       <SignedIn>{children}</SignedIn>
-      <SignedOut><Navigate to="/connexion" replace /></SignedOut>
+      <SignedOut><Navigate to={loginTo} replace /></SignedOut>
     </>
   );
 }
@@ -59,7 +69,8 @@ export function PublicOnlyRoute({ children }) {
     if (ADMIN_EMAILS.includes(user.primaryEmailAddress?.emailAddress)) {
       return <Navigate to="/app/admin" replace />;
     }
-    return <Navigate to="/app/espace-client" replace />;
+    const redirect = safeAppRedirect(new URLSearchParams(window.location.search).get('redirect'));
+    return <Navigate to={redirect || '/app/espace-client'} replace />;
   }
 
   return children;

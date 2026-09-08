@@ -4,6 +4,14 @@ import Stripe from 'stripe';
 import fs from 'fs';
 import path from 'path';
 
+/** Stripe n’ajoute `{CHECKOUT_SESSION_ID}` que si on le met dans l’URL. Sans ça, le retour ne peut pas être vérifié. */
+export function withCheckoutSessionId(url, origin) {
+    const fallback = `${origin || ''}?success=true&session_id={CHECKOUT_SESSION_ID}`;
+    if (!url || typeof url !== 'string') return fallback;
+    if (url.includes('{CHECKOUT_SESSION_ID}') || /[?&]session_id=/.test(url)) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`;
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
@@ -80,7 +88,7 @@ export default async function handler(req, res) {
             ],
             mode: isOneTime ? 'payment' : 'subscription',
             allow_promotion_codes: interval === 'month', // Actif UNIQUEMENT pour les abonnements mensuels
-            success_url: successUrl || `${req.headers.origin}?success=true&session_id={CHECKOUT_SESSION_ID}`,
+            success_url: withCheckoutSessionId(successUrl, req.headers.origin),
             cancel_url: cancelUrl || `${req.headers.origin}/souscription`,
             metadata: {
                 email: email || '',

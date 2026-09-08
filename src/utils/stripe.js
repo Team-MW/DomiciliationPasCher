@@ -40,7 +40,7 @@ export const handleCheckout = async (planId, amount, productName = '', interval 
                 amount,
                 productName: productName || `Forfait Domiciliation`,
                 interval: finalInterval,
-                successUrl: customSuccessUrl || `${window.location.origin}/?success=true`,
+                successUrl: customSuccessUrl || `${window.location.origin}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
                 cancelUrl: customCancelUrl || `${window.location.origin}/`,
                 email,
                 clientName,

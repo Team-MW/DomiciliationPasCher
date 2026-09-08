@@ -2,7 +2,15 @@ import { SignIn } from '@clerk/clerk-react';
 import './Auth.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
+function postLoginUrl() {
+    const redirect = new URLSearchParams(window.location.search).get('redirect');
+    if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) return redirect;
+    return '/app/espace-client';
+}
+
 export default function ConnexionPage() {
+    const afterAuth = postLoginUrl();
+
     return (
         <main className="auth-page">
             <div className="auth-left">
@@ -39,8 +47,8 @@ export default function ConnexionPage() {
 
             <div className="auth-right">
                 <SignIn
-                    fallbackRedirectUrl="/app/espace-client"
-                    forceRedirectUrl="/app/espace-client"
+                    fallbackRedirectUrl={afterAuth}
+                    forceRedirectUrl={afterAuth}
                     appearance={{
                         elements: {
                             rootBox: 'clerk-root',

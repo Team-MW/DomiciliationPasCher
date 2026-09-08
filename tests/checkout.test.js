@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import handler from '../api/checkout.js';
+import handler, { withCheckoutSessionId } from '../api/checkout.js';
 import Stripe from 'stripe';
 
 // Mock stripe module
@@ -36,6 +36,26 @@ vi.mock('fs', () => {
             readFileSync: vi.fn(),
         }
     };
+});
+
+describe('withCheckoutSessionId', () => {
+    test('ajoute session_id sur une URL custom (salles, souscription)', () => {
+        expect(withCheckoutSessionId(
+            'http://localhost:5173/app/espace-client?tab=meeting&booking_success=true',
+            'http://localhost:5173'
+        )).toBe('http://localhost:5173/app/espace-client?tab=meeting&booking_success=true&session_id={CHECKOUT_SESSION_ID}');
+    });
+
+    test('ne double pas le paramètre s’il est déjà là', () => {
+        const url = 'http://x/?success=true&session_id={CHECKOUT_SESSION_ID}';
+        expect(withCheckoutSessionId(url, 'http://x')).toBe(url);
+    });
+
+    test('fallback si URL absente', () => {
+        expect(withCheckoutSessionId(null, 'http://localhost')).toBe(
+            'http://localhost?success=true&session_id={CHECKOUT_SESSION_ID}'
+        );
+    });
 });
 
 describe('Checkout API Handler (api/checkout.js)', () => {
@@ -150,7 +170,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
             ],
             mode: 'subscription',
             allow_promotion_codes: true, // <-- Vérification stricte : Les codes promos DOIVENT marcher en mensuel
-            success_url: 'http://localhost/success',
+            success_url: 'http://localhost/success?session_id={CHECKOUT_SESSION_ID}',
             cancel_url: 'http://localhost/cancel',
             customer: 'cus_existing123',
             metadata: {
@@ -302,7 +322,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
             mode: 'payment',
             allow_promotion_codes: false,
             customer: 'cus_jean',
-            success_url: 'http://localhost:5173/app/espace-client?tab=meeting&booking_success=true',
+            success_url: 'http://localhost:5173/app/espace-client?tab=meeting&booking_success=true&session_id={CHECKOUT_SESSION_ID}',
             cancel_url: 'http://localhost:5173/app/espace-client?tab=meeting&booking_cancel=true',
             metadata: expect.objectContaining({
                 client_id: 'cli_42',

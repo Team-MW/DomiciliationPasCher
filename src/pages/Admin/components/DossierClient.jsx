@@ -597,6 +597,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         setIsSavingDetails(true);
         try {
             await adminDataService.updateClientExtraInfo(client.id, editFormData);
+            const displayName = [editFormData.prenom, editFormData.nom].filter(Boolean).join(' ').trim() || client.name;
+            await adminDataService.updateClientProfile(client.id, {
+                name: displayName,
+                email: editFormData.email || client.email,
+                address: editFormData.adressePerso || client.address,
+                phone: editFormData.telephone || client.phone,
+                company: editFormData.nomSociete || client.company,
+                city: editFormData.ville || client.city,
+            });
             onUpdate();
             setIsEditingDetails(false);
             showAlert("Informations mises à jour avec succès.");
@@ -1983,7 +1992,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             { key: 'lieuNaissance', label: 'Lieu Naissance' },
                                             { key: 'nationalite', label: 'Nationalité' },
                                             { key: 'qualite', label: 'Qualité' },
-                                            { key: 'adressePerso', label: 'Adresse Personnelle', fullWidth: true, fallbackKey: 'address' }
+                                            { key: 'adressePerso', label: 'Adresse Personnelle', fullWidth: true, fallbackKey: 'address' },
+                                            { key: 'adresseReexp', label: 'Adresse de réexpédition', fullWidth: true }
                                         ].map(field => (
                                             <div key={field.key} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', gridColumn: field.fullWidth ? '1 / -1' : 'auto' }}>
                                                 <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>{field.label}</div>
@@ -2257,6 +2267,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>ADRESSE PERSO.</span>
                                     <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.adressePerso || extra.address}</span>
+                                </div>
+                            )}
+                            {(extra?.adresseReexp || extra?.adresseReexpedition) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>RÉEXPÉDITION</span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.adresseReexp || extra.adresseReexpedition}</span>
                                 </div>
                             )}
                             {(extra?.siren || extra?.siret) && (

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
 vi.mock('@clerk/clerk-react', () => ({
@@ -26,6 +26,9 @@ vi.mock('../src/i18n/LanguageContext', () => ({
                 'espaceClient.shell.howTo': 'Veuillez régler votre situation',
                 'espaceClient.shell.howToBody': ' Sans règlement sous 2 mois, vous ne serez plus domicilié à cette adresse.',
                 'espaceClient.shell.checkPayment': 'Vérifier mon paiement',
+                'espaceClient.shell.checkingPayment': 'Vérification en cours…',
+                'espaceClient.shell.updateCard': 'Mettre à jour ma carte',
+                'espaceClient.shell.openingPortal': 'Ouverture de Stripe…',
                 'espaceClient.shell.logout': 'Se déconnecter',
                 'espaceClient.shell.terminatedTitle': 'Vous n’êtes plus domicilié',
                 'espaceClient.shell.terminatedBody': 'La domiciliation de {company} a été résiliée.',
@@ -48,6 +51,10 @@ vi.mock('../src/services/adminDataService', () => ({
         getClientBookings: vi.fn().mockResolvedValue([]),
         getMessages: vi.fn().mockResolvedValue([]),
         updateClientClerkId: vi.fn(),
+        syncStripePayments: vi.fn().mockResolvedValue({ payments: [], subscriptionStatus: 'active' }),
+        updateClientStatus: vi.fn().mockResolvedValue({}),
+        updateClientExtraInfo: vi.fn().mockResolvedValue({}),
+        createStripePortalSession: vi.fn(),
     },
 }));
 
@@ -96,5 +103,17 @@ describe('Espace client — impayé et résiliation', () => {
         expect(await screen.findByText('Vous n’êtes plus domicilié')).toBeInTheDocument();
         expect(screen.getByText(/a été résiliée/)).toBeInTheDocument();
         expect(screen.queryByText('Incident de paiement')).toBeNull();
+    });
+
+    it('resynchronise Stripe au clic sur Vérifier mon paiement', async () => {
+        renderPortal();
+        expect(await screen.findByText('Incident de paiement')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Vérifier mon paiement' }));
+        await waitFor(() => {
+            expect(adminDataService.syncStripePayments).toHaveBeenCalledWith('client@example.com', null, undefined);
+        });
+        await waitFor(() => {
+            expect(adminDataService.updateClientStatus).toHaveBeenCalledWith('cli_1', 'actif');
+        });
     });
 });

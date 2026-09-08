@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
+import { parseExtraInfo, resolveForwardingAddress, resolvePersonalAddress } from '../../../utils/contractLegalFields';
 
 export default function Adresse({ clientData, setActiveTab }) {
     const { t } = useTranslation();
     const [copied, setCopied] = useState(false);
 
+    const extra = useMemo(() => parseExtraInfo(clientData?.extra_info), [clientData?.extra_info]);
+    const personalAddress = resolvePersonalAddress(clientData, extra);
+    const forwardingAddress = resolveForwardingAddress(extra);
     const companyName = clientData?.company || t('espaceClient.address.companyFallback');
     const city = clientData?.city || "Toulouse";
     const addressLine1 = "150 Rue Nicolas Louis Vauquelin";
@@ -122,6 +126,47 @@ export default function Adresse({ clientData, setActiveTab }) {
                         <div style={{ fontSize: '14px', color: '#e2e8f0', lineHeight: '1.6' }}>
                             {t('espaceClient.address.hours')} <strong>{t('espaceClient.address.hoursRange')}</strong><br />
                             {t('espaceClient.address.hoursHint')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="ec-content-card" style={{ background: 'white', padding: '24px', borderRadius: '14px', border: '1px solid var(--ec-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--ec-text-main)', margin: 0 }}>
+                            {t('espaceClient.address.otherTitle')}
+                        </h3>
+                        <p style={{ fontSize: '13px', color: 'var(--ec-text-sub)', margin: '6px 0 0', lineHeight: 1.5 }}>
+                            {t('espaceClient.address.otherHint')}
+                        </p>
+                    </div>
+                    {setActiveTab && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('settings')}
+                            className="btn-outline"
+                            style={{ padding: '10px 16px', borderRadius: '10px', background: 'white', fontSize: '13px', fontWeight: 700 }}
+                        >
+                            {t('espaceClient.address.editInSettings')}
+                        </button>
+                    )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginTop: '18px' }}>
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', marginBottom: '8px' }}>
+                            {t('espaceClient.address.personalLabel')}
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: personalAddress ? '#0f172a' : '#94a3b8', lineHeight: 1.5 }}>
+                            {personalAddress || t('espaceClient.address.personalEmpty')}
+                        </div>
+                    </div>
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', marginBottom: '8px' }}>
+                            {t('espaceClient.address.forwardLabel')}
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: forwardingAddress ? '#0f172a' : '#94a3b8', lineHeight: 1.5 }}>
+                            {forwardingAddress || t('espaceClient.address.forwardEmpty')}
                         </div>
                     </div>
                 </div>

@@ -1,84 +1,121 @@
-# Instructions pour l'IA (À lire avant toute modification)
+# Instructions pour l’IA
 
-Ce document récapitule les points névralgiques de l'application **Domiciliation Pas Cher**, les règles strictes pour ne rien casser, et la méthodologie à suivre pour l'améliorer pas à pas.
+À lire **avant** toute modification. Application React/Vite de domiciliation d’entreprises (espace client, admin, Stripe, Clerk, PlanetScale).
 
----
-
-## 🚨 Profil de Test Unique & Sécurité de la Base de Données
-
-> [!WARNING]
-> **Le seul profil de test autorisé pour les manipulations, tests et nettoyages en base de données est :**
-> - **Nom d'utilisateur** : `frefe`
-> - **E-mail** : `benilias757@gmail.com`
-> 
-> **Ne surtout pas supprimer les documents déjà signés par les vrais clients lors des tests.**
-> Tout nettoyage de documents, de contrats ou de signatures doit cibler **uniquement** cet utilisateur de test. Ne jamais vider globalement les tables en production ou impacter d'autres clients.
+Ne pas committer ni pousser sauf demande explicite. Ne jamais `--no-verify` : le hook `pre-push` lance `npm run test:deploy` (Vitest + build Vite).
 
 ---
 
-## 🚨 Points Critiques à ne JAMAIS Casser (Règles d'Or)
 
-L'application repose sur trois piliers fondamentaux. Toute modification sur ces parties doit être effectuée avec une vigilance extrême :
+## Base de données — un seul profil de test
 
-### 1. Le Flux de Paiement (Stripe)
-- **Fonctionnement** : Le client choisit son forfait, le frontend appelle `/api/checkout` (handler Vercel), qui crée ou récupère un client Stripe puis génère une Stripe Checkout Session.
-- **Règles d'or** :
-  - **Conversion des montants** : Stripe attend des montants en centimes. Toujours utiliser `Math.round(amount * 100)` pour éviter les erreurs de virgule flottante JS.
-  - **Liaison Client** : Ne jamais recréer un client Stripe s'il existe déjà avec cet e-mail. Toujours rechercher le client via `stripe.customers.list({ email })` d'abord.
-  - **Métadonnées** : Les métadonnées (`demande_id`, `email`, etc.) passées à Stripe Checkout sont cruciales pour le système anti-perte. Ne pas les altérer.
+**Seul compte autorisé** pour manipuler, nettoyer ou réinitialiser la base :
 
-### 2. La Connexion & La Sécurité des Routes (Clerk & React Router)
-- **Fonctionnement** : L'accès à l'Espace Client est régi par `ProtectedRoute` et `PublicOnlyRoute` (exportées dans [App.jsx](file:///Users/elamine/Desktop/MWCREA/logiciel/domiciliation-pas-cher/src/App.jsx)).
-- **Règles d'or** :
-  - `ProtectedRoute` doit bloquer et rediriger vers `/connexion` tout utilisateur non authentifié (sauf si l'URL contient le paramètre `?preview=true` pour la prévisualisation admin).
-  - `PublicOnlyRoute` doit empêcher un utilisateur connecté d'accéder aux pages de login/inscription/souscription, et le rediriger vers `/app/admin` (s'il s'agit d'un e-mail admin listé dans `VITE_ADMIN_EMAILS`) ou vers `/app/espace-client` (pour les clients normaux).
+| Champ | Valeur |
+|---|---|
+| Nom | `frefe` |
+| E-mail | `benilias757@gmail.com` |
 
-### 3. La Génération de Documents PDF (jsPDF & Cloudinary)
-- **Fonctionnement** : Les attestations, procurations et contrats signés sont générés en PDF côté client dans [pdfGenerator.js](file:///Users/elamine/Desktop/MWCREA/logiciel/domiciliation-pas-cher/src/utils/pdfGenerator.js) en important dynamiquement `jspdf`. Certains éléments ou documents font appel à Cloudinary.
-- **Règles d'or (NE SURTOUT PAS CHANGER)** :
-  - **INTERDICTION FORMELLE DE MODIFIER LA GÉNÉRATION DE DOCUMENTS.** L'architecture actuelle avec Cloudinary et la génération directe de PDF est vitale et ne doit en aucun cas bouger.
-  - Le logo est chargé de manière asynchrone via `new Image()`. Ne pas bloquer l'exécution si le logo échoue à charger, utiliser un fallback textuel.
-  - La procuration postale utilise `doc.getImageProperties(signatureDataUrl)` pour conserver le ratio de la signature du client. Les dimensions et ratios de calcul de taille d'image doivent rester précis pour éviter les débordements sur le PDF.
+- Ne jamais supprimer contrats, signatures ou documents d’**autres** clients.
+- Ne jamais `DELETE` / `TRUNCATE` global sur les tables en production.
+- Script ciblé : `npm run db:clean-docs -- benilias757@gmail.com` (`scripts/reset-test-client.cjs`). L’e-mail en argument **doit** être celui-ci.
+- Un autre compte interne (`sasu` / `mwcreationv2@gmail.com`) sert parfois à **se connecter** pour vérifier l’UI. Ce n’est **pas** un compte à nettoyer en base.
 
 ---
 
-## 🧪 Processus Obligatoire de Test & Validation
+## Ne jamais casser
 
-Nous disposons d'une suite de tests unitaires et d'intégration automatisés avec **Vitest** sous le dossier `/tests`.
+### 1. Stripe (`api/checkout.js`, `api/change-plan.js`, `shared/plans.js`)
 
-### Commandes utiles :
-- Lancer les tests une fois : `npm run test`
-- Lancer les tests en mode interactif/veille : `npx vitest`
+- Montants Stripe **en centimes** : `Math.round(amount * 100)` (jamais de float brut).
+- Ne pas recréer un customer : `stripe.customers.list({ email })` d’abord.
+- Métadonnées Checkout (`demande_id`, `email`, etc.) : ne pas les retirer, le retour de paiement s’appuie dessus.
+- Prix et noms de forfaits : **uniquement** `PLAN_CATALOG` dans `shared/plans.js` (réexporté par `src/data/plans.js`). Interdit d’écrire `19.90€` ou `"Scan+"` en dur dans l’UI.
+- Forfaits : Essentiel (scan/notif), Scan+, Physique+. La réexpédition physique n’est **pas** dans Essentiel (`canRequestPhysicalForward`).
+- URLs de succès/annulation Checkout : garder la query string. `/espace-client` redirige vers `/app/espace-client` via `RedirectKeepSearch` (`src/App.jsx`). Sans `?tab=` / `booking_success=`, les réservations salles & bureaux ne s’enregistrent pas.
+- Impayés : grâce de **2 mois calendaires** puis résiliation auto (`shared/paymentGrace.js`, cron `api/cron/reminders.js` + `api/_payment-dunning.js`). Ne pas raccourcir ce délai sans instruction.
 
-### Hook Git automatique :
-Un hook `pre-push` est installé dans `.git/hooks/pre-push`. Il lance automatiquement `npm run test` à chaque `git push`. Si un seul test échoue, le push est avorté.
+### 2. Auth & routes (`src/App.jsx`)
 
-> [!IMPORTANT]
-> **Règle absolue :** Si vous modifiez du code lié au paiement, aux routes/authentification ou à la génération de PDF, vous **devez** vérifier que la suite de tests est toujours au vert avant de déclarer la tâche terminée. Si vous introduisez de nouveaux comportements, mettez à jour ou enrichissez les fichiers de test correspondants dans `/tests`.
+- Espace client réel : `/app/espace-client`. L’ancienne URL `/espace-client` doit **conserver** search et hash.
+- `ProtectedRoute` : non connecté → `/connexion`, sauf `?preview=true` (prévisualisation admin).
+- `PublicOnlyRoute` : déjà connecté → `/app/admin` si l’e-mail est dans `VITE_ADMIN_EMAILS`, sinon `/app/espace-client`.
+- Admin : `/app/admin`.
+
+### 3. PDF, signatures, Cloudinary
+
+**Ne pas modifier** `src/utils/pdfGenerator.js`, le flux Cloudinary, ni la génération contrat / procuration / attestation, sauf demande explicite et ciblée.
+
+- Logo : chargement async `new Image()`, fallback texte si échec (ne pas bloquer).
+- Procuration : `doc.getImageProperties(signatureDataUrl)` pour le ratio de signature — ne pas figer largeur/hauteur au hasard.
 
 ---
 
-## 📈 Amélioration Continue (Petit à Petit)
+## Données métier à ne pas confondre
 
-Pour faire évoluer la base de code sereinement :
-1. **Éviter les réécritures complètes** : Préférez des refactorisations localisées et progressives.
-2. **Maintenir la compatibilité des signatures de fonction** : Si vous changez une fonction utilitaire (ex. dans `pdfGenerator.js`), assurez-vous que tous les composants consommateurs et les tests unitaires associés sont mis à jour en conséquence.
-3. **Mocks de tests robustes** : Lors de l'écriture ou de la mise à jour des mocks dans les tests (ex. `stripe` ou `jspdf`), veillez à utiliser des syntaxes de classes constructibles pour éviter les erreurs de type `TypeError: ... is not a constructor` induites par le chargement asynchrone des modules.
+`extra_info` (JSON, parfois double-encodé) porte le dossier. Toujours `parseExtraInfo()` depuis `src/utils/contractLegalFields.js` — pas un `JSON.parse` isolé.
+
+Trois adresses **distinctes** :
+
+| Adresse | Où | Usage |
+|---|---|---|
+| Domiciliation (siège) | Onglet Adresse, fixe (Vauquelin, Toulouse) | Kbis, greffe, banques |
+| Personnelle | `clients.address` + `extra_info.adressePerso` | Contrat, identité |
+| Réexpédition | `extra_info.adresseReexp` **uniquement** | Originaux postaux (Scan+ / Physique+) |
+
+`resolvePersonalAddress` ≠ `resolveForwardingAddress`. Ne jamais préremplir la réexpédition avec le domicile.
+
+Après `updateClientExtraInfo`, réécrire `clientData.extra_info` en `JSON.stringify(merged)` pour que le reste de l’espace client voie le changement.
 
 ---
 
-## 🏗️ Qualité du Code & Intégrité des Données (NOUVEAU)
+## i18n
 
-Afin d'éviter les bugs frustrants et les données incohérentes, voici les nouvelles règles strictes de développement :
+- Site public : `src/i18n/fr.js`, `en.js`, `ru.js`.
+- Espace client : un module par onglet dans `src/i18n/espaceClient/` (enregistrer dans `index.js`).
+- Toute nouvelle clé : **fr + en + ru**. `tests/i18nEspaceClient.test.js` échoue si les clés divergent ou si une valeur est vide.
+- Copie UI en français d’abord. Les valeurs métier en base (forme juridique, statuts) restent en français.
 
-### 1. Interdiction des valeurs "en dur" (Hardcoding)
-- **Règle** : Ne **jamais** écrire de montants, de prix ou de noms de forfaits "en dur" dans le code (ex: `19.90€`). 
-- **Solution** : Toujours se baser sur les données réelles du client (`clientData.amount`, `clientData.plan`, etc.) ou sur un fichier de configuration centralisé. L'interface doit refléter la vérité de la base de données.
+---
 
-### 2. Validation rigoureuse de la syntaxe (JSX/React)
-- **Règle** : Avant de valider et d'injecter une modification dans un fichier `.jsx`, vérifiez **minutieusement** que les balises HTML/JSX (`<div>`, `<>`, `()`) et les opérateurs ternaires (`condition ? () : ()`) sont parfaitement équilibrés et refermés.
-- **Pourquoi ?** : Une simple parenthèse ou balise manquante fait planter Vite (erreurs de type `Unterminated regexp literal` ou `Syntax Error`) et paralyse l'application.
+## Tests et fin de tâche
 
-### 3. Gestion défensive des données
-- **Règle** : Lors de la lecture de données complexes (comme `extra_info`), utilisez toujours un bloc `try...catch` et prévoyez des valeurs de repli (fallback). 
-- **Exemple** : `const extra = typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : (clientData.extra_info || {});`
+```bash
+npm run test          # vitest uniquement
+npm run test:deploy   # vitest + build Vite — hook pre-push et avant un déploiement
+```
+
+CI GitHub (`.github/workflows/ci.yml`) : les mêmes deux étapes sur chaque push / PR.
+
+- Tests : `tests/`, plus `src/**/__tests__/` et `src/pages/api/__tests__/`.
+- Paiement, auth, PDF, extra_info, i18n : la suite doit rester verte **avant** de dire que c’est fini.
+- Nouveau comportement → mettre à jour ou ajouter le test du même dossier.
+- Mocks Stripe / jsPDF : classes constructibles (`new Stripe()`, `new jsPDF()`), sinon `TypeError: ... is not a constructor` à cause des imports dynamiques.
+- Changement UI (layout, onglet, état client) : vérifier le flux dans le navigateur (`npm run dev`, souvent `http://localhost:5173/`). Un screenshot ne suffit pas. Contrôler les autres onglets qui lisent les mêmes données.
+
+---
+
+## Comment travailler
+
+1. Changement **localisé**. Pas de réécriture d’un écran ou d’un utilitaire « pour faire propre ».
+2. JSX : ternaires et fragments équilibrés avant d’écrire le fichier. Une parenthèse manquante fait tomber Vite (`Unterminated regexp` / `Unexpected token`).
+3. Signatures de fonctions existantes : si tu les changes, mets à jour **tous** les appelants et les tests.
+4. Dialogues : `appAlert` / `AppDialog`, pas `window.alert`.
+5. E-mails : `src/utils/emailService.js` + handlers `api/`. Le cron d’impayés exige `CRON_SECRET`.
+
+---
+
+## Carte rapide
+
+| Besoin | Fichier |
+|---|---|
+| Routes, redirections | `src/App.jsx` |
+| Accès BDD | `src/lib/db.js`, `src/services/adminDataService.js` |
+| API Vercel / Stripe / cron | `api/` |
+| Forfaits, TTC, réexp. | `shared/plans.js` |
+| Grâce impayés | `shared/paymentGrace.js` |
+| extra_info, adresses, contrat | `src/utils/contractLegalFields.js` |
+| Espace client | `src/pages/EspaceClient/` |
+| Admin | `src/pages/Admin/` |
+| PDF (ne pas toucher) | `src/utils/pdfGenerator.js` |
+| Traductions espace client | `src/i18n/espaceClient/` |

@@ -275,15 +275,17 @@ export default function Home() {
                 let isValid = true;
                 let stripeData = null;
                 
-                // Si on a un session_id, on demande au serveur de vérifier VRAIMENT chez Stripe
-                if (sessionId) {
+                // Sans session Stripe, `?success=true` seul ne prouve rien (annulation, URL tapée à la main).
+                if (!sessionId) {
+                    isValid = false;
+                } else {
                     try {
                         const res = await fetch(`/api/verify-session?session_id=${sessionId}`);
                         stripeData = await res.json();
                         isValid = stripeData.success;
                     } catch (err) {
                         console.error("Erreur verification Stripe:", err);
-                        isValid = false; 
+                        isValid = false;
                     }
                 }
 

@@ -1,6 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import { useTranslation } from '../../../i18n/LanguageContext';
+import { Icons } from './Icons';
+
+function sameCalendarDay(a, b) {
+    return a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate();
+}
+
+function dayKey(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return 'unknown';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatDayLabel(iso, t) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (sameCalendarDay(d, today)) return t('espaceClient.messages.today');
+    if (sameCalendarDay(d, yesterday)) return t('espaceClient.messages.yesterday');
+    return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function formatTime(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function Messages({ clientData }) {
     const { t } = useTranslation();
@@ -8,11 +38,12 @@ export default function Messages({ clientData }) {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const scrollRef = useRef(null);
+    const inputRef = useRef(null);
 
     useEffect(() => {
         if (clientData) {
             fetchMessages();
-            const interval = setInterval(fetchMessages, 10000); // Poll every 10s
+            const interval = setInterval(fetchMessages, 10000);
             return () => clearInterval(interval);
         }
     }, [clientData]);
@@ -26,108 +57,148 @@ export default function Messages({ clientData }) {
     const fetchMessages = async () => {
         const msgs = await adminDataService.getMessages(clientData.id);
         setMessages(msgs);
-        // Marquer comme lu
         await adminDataService.markMessagesAsRead(clientData.id, 'client');
     };
 
     const handleSend = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || isLoading) return;
+        const content = newMessage.trim();
+        if (!content || isLoading) return;
 
         setIsLoading(true);
         try {
-            const content = newMessage;
             const msg = await adminDataService.addMessage(clientData.id, {
-                content: content,
-                sender: 'client'
+                content,
+                sender: 'client',
             });
-            setMessages(prev => [...prev, msg]);
+            setMessages((prev) => [...prev, msg]);
             setNewMessage('');
-            
-            // Envoi de la notification par email à l'administrateur
+
             import('../../../utils/emailService').then(({ sendClientNewMessageEmail }) => {
-                sendClientNewMessageEmail(clientData.email, clientData.clientName || clientData.company || t('espaceClient.messages.clientFallback'), content);
-            }).catch(err => console.error("Erreur chargement emailService:", err));
-            
+                sendClientNewMessageEmail(
+                    clientData.email,
+                    clientData.clientName || clientData.company || t('espaceClient.messages.clientFallback'),
+                    content
+                );
+            }).catch((err) => console.error('Erreur chargement emailService:', err));
         } catch (err) {
             console.error(err);
         } finally {
             setIsLoading(false);
+            inputRef.current?.focus();
         }
     };
 
-    return (
-        <div className="ec-tab-animate" style={{ height: 'calc(100vh - 200px)' }}>
-            <div className="ec-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <div className="ec-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2>{t('espaceClient.messages.title')}</h2>
-                    <span className="ec-status-tag" style={{ background: '#F1F5F9', color: '#64748B', fontSize: '12px' }}>
-{t('espaceClient.messages.support')}
-                    </span>
-                </div>
+    const grouped = useMemo(() => {
+        const days = [];
+        for (const m of messages) {
+            const key = dayKey(m.createdAt);
+            const last = days[days.length - 1];
+            if (!last || last.key !== key) {
+                days.push({ key, label: formatDayLabel(m.createdAt, t), items: [m] });
+            } else {
+                last.items.push(m);
+            }
+        }
+        return days;
+    }, [messages, t]);
 
-                <div className="ec-card-body" ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#FAFAFA' }}>
+    return (
+        <div className="ec-tab-animate ec-chat-page">
+            <div className="ec-chat">
+                <header className="ec-chat-header">
+                    <div className="ec-chat-header-left">
+                        <div className="ec-chat-avatar" aria-hidden="true">
+                            <Icons.Chat style={{ width: 18, height: 18 }} />
+                        </div>
+                        <div>
+                            <h2>{t('espaceClient.messages.title')}</h2>
+                            <p className="ec-chat-header-sub">{t('espaceClient.messages.replyHint')}</p>
+                        </div>
+                    </div>
+                    <span className="ec-chat-online">
+                        <span className="ec-chat-online-dot" />
+                        {t('espaceClient.messages.online')}
+                    </span>
+                </header>
+
+                <div className="ec-chat-thread" ref={scrollRef}>
                     {messages.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '40px', color: '#94A3B8' }}>
-                            <div style={{ fontSize: '40px', marginBottom: '16px' }}>💬</div>
-                            <p>{t('espaceClient.messages.emptyTitle')}</p>
-                            <p style={{ fontSize: '13px' }}>{t('espaceClient.messages.emptyHint')}</p>
+                        <div className="ec-chat-empty">
+                            <div className="ec-chat-empty-icon" aria-hidden="true">
+                                <Icons.Chat style={{ width: 28, height: 28 }} />
+                            </div>
+                            <p className="ec-chat-empty-title">{t('espaceClient.messages.emptyTitle')}</p>
+                            <p className="ec-chat-empty-hint">{t('espaceClient.messages.emptyHint')}</p>
                         </div>
                     ) : (
-                        messages.map(m => (
-                            <div key={m.id} style={{
-                                alignSelf: m.sender === 'client' ? 'flex-end' : 'flex-start',
-                                maxWidth: '75%',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: m.sender === 'client' ? 'flex-end' : 'flex-start'
-                            }}>
-                                <div style={{
-                                    background: m.sender === 'client' ? 'var(--primary)' : 'white',
-                                    color: m.sender === 'client' ? 'white' : '#1E293B',
-                                    padding: '12px 18px',
-                                    borderRadius: '18px',
-                                    fontSize: '14px',
-                                    lineHeight: '1.5',
-                                    boxShadow: m.sender === 'client' ? '0 4px 12px rgba(37, 99, 235, 0.2)' : '0 2px 8px rgba(0,0,0,0.05)',
-                                    borderBottomRightRadius: m.sender === 'client' ? '2px' : '18px',
-                                    borderBottomLeftRadius: m.sender === 'client' ? '18px' : '2px',
-                                    border: m.sender === 'client' ? 'none' : '1px solid #E2E8F0'
-                                }}>
-                                    {m.content}
+                        grouped.map((day) => (
+                            <section key={day.key} className="ec-chat-day">
+                                <div className="ec-chat-day-label">
+                                    <span>{day.label}</span>
                                 </div>
-                                <span style={{ fontSize: '10px', color: '#94A3B8', marginTop: '6px' }}>
-                                    {m.sender === 'admin' ? t('espaceClient.messages.supportName') : t('espaceClient.messages.you')} • {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                            </div>
+                                {day.items.map((m, i) => {
+                                    const mine = m.sender === 'client';
+                                    const prev = day.items[i - 1];
+                                    const stacked = prev && prev.sender === m.sender;
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            className={`ec-chat-row ${mine ? 'is-mine' : 'is-theirs'}${stacked ? ' is-stacked' : ''}`}
+                                        >
+                                            {!mine && (
+                                                <div className={`ec-chat-row-avatar${stacked ? ' is-hidden' : ''}`} aria-hidden="true">
+                                                    {stacked ? null : 'D'}
+                                                </div>
+                                            )}
+                                            <div className="ec-chat-col">
+                                                <div className="ec-chat-bubble">{m.content}</div>
+                                                <span className="ec-chat-meta">
+                                                    {mine ? t('espaceClient.messages.you') : t('espaceClient.messages.supportName')}
+                                                    {' · '}
+                                                    {formatTime(m.createdAt)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </section>
                         ))
                     )}
                 </div>
 
-                <form onSubmit={handleSend} style={{ padding: '20px', background: 'white', borderTop: '1px solid #E2E8F0', display: 'flex', gap: '12px' }}>
-                    <input
-                        type="text"
-                        placeholder={t('espaceClient.messages.placeholder')}
-                        style={{
-                            flex: 1,
-                            height: '48px',
-                            padding: '0 20px',
-                            borderRadius: '12px',
-                            border: '1px solid #E2E8F0',
-                            fontSize: '14px',
-                            background: '#F8FAFC'
-                        }}
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        disabled={isLoading}
-                    />
+                <form className="ec-chat-composer" onSubmit={handleSend}>
+                    <label className="ec-chat-input-wrap">
+                        <span className="sr-only">{t('espaceClient.messages.placeholder')}</span>
+                        <textarea
+                            ref={inputRef}
+                            rows={1}
+                            placeholder={t('espaceClient.messages.placeholder')}
+                            value={newMessage}
+                            disabled={isLoading}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    e.currentTarget.form?.requestSubmit();
+                                }
+                            }}
+                        />
+                    </label>
                     <button
                         type="submit"
-                        className="btn-primary"
-                        style={{ padding: '0 24px', whiteSpace: 'nowrap' }}
+                        className="ec-chat-send"
                         disabled={isLoading || !newMessage.trim()}
+                        aria-label={t('espaceClient.messages.send')}
                     >
-                        {isLoading ? '...' : t('espaceClient.messages.send')}
+                        {isLoading ? (
+                            <span className="ec-chat-send-wait">{t('espaceClient.messages.sending')}</span>
+                        ) : (
+                            <>
+                                <Icons.Send style={{ width: 16, height: 16 }} />
+                                <span>{t('espaceClient.messages.send')}</span>
+                            </>
+                        )}
                     </button>
                 </form>
             </div>

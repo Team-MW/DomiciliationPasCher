@@ -23,6 +23,8 @@ const { mockAdminDataService } = vi.hoisted(() => ({
     getClientMail: vi.fn().mockResolvedValue([]),
     getClientReexpeditions: vi.fn().mockResolvedValue([]),
     syncStripePayments: vi.fn().mockResolvedValue([]),
+    updateClientExtraInfo: vi.fn().mockResolvedValue({}),
+    updateClientProfile: vi.fn().mockResolvedValue({}),
     addDocument: vi.fn().mockResolvedValue({ id: 'doc_123' }),
     deleteDocument: vi.fn().mockResolvedValue(undefined),
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseExtraInfo, splitDisplayName, getContractLegalFields } from '../src/utils/contractLegalFields.js';
+import { parseExtraInfo, splitDisplayName, getContractLegalFields, resolveForwardingAddress, resolvePersonalAddress } from '../src/utils/contractLegalFields.js';
 
 describe('parseExtraInfo', () => {
     it('accepte objet, JSON et JSON double-encodé', () => {
@@ -49,6 +49,26 @@ describe('getContractLegalFields', () => {
         expect(fields.address).toContain('31000');
         expect(fields.prenom).toBe('Camille');
         expect(fields.nom).toBe('Duran');
+    });
+});
+
+describe('resolveForwardingAddress', () => {
+    it('ne reprend jamais l’adresse personnelle', () => {
+        expect(resolveForwardingAddress({
+            adressePerso: '1 rue Maison 31000 Toulouse',
+            adresse: '1 rue Maison',
+        })).toBe('');
+        expect(resolvePersonalAddress(
+            { address: '1 rue Maison 31000 Toulouse' },
+            { adressePerso: '1 rue Maison 31000 Toulouse' },
+        )).toBe('1 rue Maison 31000 Toulouse');
+    });
+
+    it('lit uniquement adresseReexp', () => {
+        expect(resolveForwardingAddress({
+            adressePerso: '1 rue Maison 31000 Toulouse',
+            adresseReexp: '99 rue Bureau 75001 Paris',
+        })).toBe('99 rue Bureau 75001 Paris');
     });
 });
 

@@ -930,7 +930,7 @@ export default function Souscription() {
                                             let productName = `Forfait ${currentPlanName} - ${data.ville} (${data.frequence})`;
 
                                             // Stocker les infos pour Email sur la page de succès
-                                            localStorage.setItem('pending_email', data.email);
+                                            localStorage.setItem('pending_emailjs', data.email);
                                             localStorage.setItem('pending_namejs', `${data.prenom} ${data.nom}`);
 
                                             // Ne pas effacer le localStorage ici pour permettre le retour en arrière

@@ -83,8 +83,20 @@ describe('Route Security Guards (ProtectedRoute & PublicOnlyRoute)', () => {
             expect(screen.getByTestId('signed-out')).toBeDefined();
             
             const navigateElement = screen.getByTestId('navigate');
-            expect(navigateElement.getAttribute('data-to')).toBe('/connexion');
+            expect(navigateElement.getAttribute('data-to')).toBe('/connexion?redirect=%2F');
             expect(navigateElement.getAttribute('data-replace')).toBe('true');
+        });
+
+        test('preserves meeting Stripe query when sending unsigned users to login', () => {
+            window.location = new URL('http://localhost/app/espace-client?tab=meeting&booking_success=true&session_id=cs_1');
+            render(
+                <ProtectedRoute>
+                    <div>x</div>
+                </ProtectedRoute>
+            );
+            expect(screen.getByTestId('navigate').getAttribute('data-to')).toBe(
+                '/connexion?redirect=%2Fapp%2Fespace-client%3Ftab%3Dmeeting%26booking_success%3Dtrue%26session_id%3Dcs_1'
+            );
         });
     });
 
@@ -140,6 +152,34 @@ describe('Route Security Guards (ProtectedRoute & PublicOnlyRoute)', () => {
             const navigateElement = screen.getByTestId('navigate');
             expect(navigateElement.getAttribute('data-to')).toBe('/app/espace-client');
             expect(navigateElement.getAttribute('data-replace')).toBe('true');
+        });
+
+        test('keeps Stripe return URL after login (redirect query)', () => {
+            window.location = new URL('http://localhost/connexion?redirect=%2Fapp%2Fespace-client%3Ftab%3Dmeeting%26booking_success%3Dtrue%26session_id%3Dcs_1');
+            mockUseUser.mockReturnValue({
+                isLoaded: true,
+                user: { primaryEmailAddress: { emailAddress: 'client@example.com' } },
+            });
+
+            render(
+                <PublicOnlyRoute>
+                    <div data-testid="public-content">Public Content</div>
+                </PublicOnlyRoute>
+            );
+
+            expect(screen.getByTestId('navigate').getAttribute('data-to')).toBe(
+                '/app/espace-client?tab=meeting&booking_success=true&session_id=cs_1'
+            );
+        });
+
+        test('ignores open-redirect (external URL in redirect)', () => {
+            window.location = new URL('http://localhost/connexion?redirect=https://evil.test');
+            mockUseUser.mockReturnValue({
+                isLoaded: true,
+                user: { primaryEmailAddress: { emailAddress: 'client@example.com' } },
+            });
+            render(<PublicOnlyRoute><div>x</div></PublicOnlyRoute>);
+            expect(screen.getByTestId('navigate').getAttribute('data-to')).toBe('/app/espace-client');
         });
 
         test('should redirect admin to admin dashboard (/app/admin) if logged in', () => {

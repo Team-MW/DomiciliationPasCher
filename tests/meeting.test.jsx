@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
@@ -62,7 +62,15 @@ describe('Meeting (espace client)', () => {
         handleCheckout.mockClear();
         getClientBookings.mockResolvedValue([]);
         sessionStorage.clear();
+        localStorage.clear();
         window.history.replaceState({}, '', '/app/espace-client');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            json: async () => ({ success: true, metadata: { type: 'meeting_booking' } }),
+        }));
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
     });
 
     it('refuse de payer sans date', async () => {
@@ -89,7 +97,7 @@ describe('Meeting (espace client)', () => {
             expect.stringContaining('/app/espace-client?tab=meeting&booking_cancel=true'),
             'jean@test.fr',
             'Jean Dupont',
-            { client_id: 'cli_42', type: 'meeting_booking' },
+            { client_id: 'cli_42', type: 'meeting_booking', meeting_type: 'Salle de réunion (6-8 pers)', date: '2026-09-20', duration: 'Matinée (9h-12h)', city: 'Toulouse' },
         ]);
         const pending = JSON.parse(sessionStorage.getItem('pendingBooking'));
         expect(pending).toMatchObject({
@@ -107,7 +115,7 @@ describe('Meeting (espace client)', () => {
             duration: 'Journée complète',
             city: 'Toulouse',
         }));
-        window.history.replaceState({}, '', '/app/espace-client?tab=meeting&booking_success=true');
+        window.history.replaceState({}, '', '/app/espace-client?tab=meeting&booking_success=true&session_id=cs_test_paid');
         getClientBookings
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce([{
@@ -143,5 +151,38 @@ describe('Meeting (espace client)', () => {
         await waitFor(() => expect(getClientBookings).toHaveBeenCalled());
         expect(addBookingRequest).not.toHaveBeenCalled();
         expect(sessionStorage.getItem('pendingBooking')).toBeTruthy();
+    });
+
+    it('n’enregistre pas une réservation sans session Stripe vérifiée', async () => {
+        sessionStorage.setItem('pendingBooking', JSON.stringify({
+            type: 'Bureau privé (1-2 pers)',
+            date: '2026-09-21',
+            duration: 'Journée complète',
+            city: 'Toulouse',
+        }));
+        window.history.replaceState({}, '', '/app/espace-client?tab=meeting&booking_success=true');
+
+        render(<Meeting clientData={client} setActiveTab={vi.fn()} />);
+
+        await waitFor(() => expect(getClientBookings).toHaveBeenCalled());
+        expect(addBookingRequest).not.toHaveBeenCalled();
+        expect(await screen.findByText(/pay error/)).toBeInTheDocument();
+    });
+
+    it('ne bloque pas un nouvel essai si l’enregistrement de la réservation a échoué', async () => {
+        addBookingRequest.mockRejectedValueOnce(new Error('db down'));
+        sessionStorage.setItem('pendingBooking', JSON.stringify({
+            type: 'Bureau privé (1-2 pers)',
+            date: '2026-09-21',
+            duration: 'Journée complète',
+            city: 'Toulouse',
+        }));
+        window.history.replaceState({}, '', '/app/espace-client?tab=meeting&booking_success=true&session_id=cs_fail');
+
+        render(<Meeting clientData={client} setActiveTab={vi.fn()} />);
+
+        await waitFor(() => expect(addBookingRequest).toHaveBeenCalledTimes(1));
+        expect(localStorage.getItem('dpc_paid_booking_cs_fail')).toBeNull();
+        expect(await screen.findByText(/pay error/)).toBeInTheDocument();
     });
 });

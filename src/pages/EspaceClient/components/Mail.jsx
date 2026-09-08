@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { canRequestPhysicalForward } from '../../../data/plans';
-import { parseExtraInfo, resolvePersonalAddress } from '../../../utils/contractLegalFields';
+import { parseExtraInfo, resolveForwardingAddress, resolvePersonalAddress } from '../../../utils/contractLegalFields';
 import { adminDataService } from '../../../services/adminDataService';
 import { appAlert } from '../../../components/AppDialog/dialogApi';
 
@@ -16,20 +16,21 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
     const { t } = useTranslation();
     const extra = useMemo(() => parseExtraInfo(clientData?.extra_info), [clientData?.extra_info]);
     const canForward = canRequestPhysicalForward(clientData?.plan, extra);
-    const defaultAddress = resolvePersonalAddress(clientData, extra);
+    const personalAddress = resolvePersonalAddress(clientData, extra);
+    const forwardingAddress = resolveForwardingAddress(extra);
 
     const [filter, setFilter] = useState('all');
     const [reexpModalOpen, setReexpModalOpen] = useState(false);
     const [reexpSuccess, setReexpSuccess] = useState(false);
-    const [destAddress, setDestAddress] = useState(defaultAddress);
+    const [destAddress, setDestAddress] = useState(forwardingAddress);
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState('');
     const [requests, setRequests] = useState([]);
 
     useEffect(() => {
-        setDestAddress(defaultAddress);
-    }, [defaultAddress]);
+        setDestAddress(forwardingAddress);
+    }, [forwardingAddress]);
 
     useEffect(() => {
         if (!clientData?.id) return;
@@ -370,6 +371,49 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
                                         placeholder={t('espaceClient.mail.destPlaceholder')}
                                         style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }}
                                     />
+                                    <p style={{ fontSize: '12px', color: '#64748b', margin: '6px 0 0' }}>
+                                        {t('espaceClient.mail.destHint')}
+                                    </p>
+                                    {(forwardingAddress || personalAddress) && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                                            {forwardingAddress ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDestAddress(forwardingAddress)}
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        fontWeight: 700,
+                                                        padding: '6px 10px',
+                                                        borderRadius: '8px',
+                                                        border: destAddress === forwardingAddress ? '1px solid #16a34a' : '1px solid #cbd5e1',
+                                                        background: destAddress === forwardingAddress ? '#f0fdf4' : '#fff',
+                                                        color: '#334155',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    {t('espaceClient.mail.useSavedForward')}
+                                                </button>
+                                            ) : null}
+                                            {personalAddress && personalAddress !== forwardingAddress ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDestAddress(personalAddress)}
+                                                    style={{
+                                                        fontSize: '12px',
+                                                        fontWeight: 700,
+                                                        padding: '6px 10px',
+                                                        borderRadius: '8px',
+                                                        border: destAddress === personalAddress ? '1px solid #16a34a' : '1px solid #cbd5e1',
+                                                        background: destAddress === personalAddress ? '#f0fdf4' : '#fff',
+                                                        color: '#334155',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    {t('espaceClient.mail.usePersonalOnce')}
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>

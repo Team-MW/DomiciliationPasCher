@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import AddressAutocomplete from '../../../components/AddressAutocomplete/AddressAutocomplete';
-import { parseExtraInfo, resolvePersonalAddress } from '../../../utils/contractLegalFields';
+import { parseExtraInfo, resolveForwardingAddress, resolvePersonalAddress } from '../../../utils/contractLegalFields';
 
 const LANGUAGES = [
     { code: 'fr', label: 'Français', flag: '🇫🇷', short: 'FR' },
@@ -13,6 +13,7 @@ const LANGUAGES = [
 export default function Settings({ clientData, setClientData }) {
     const { t, lang, setLang } = useTranslation();
     const [address, setAddress] = useState(clientData?.address || '');
+    const [forwardAddress, setForwardAddress] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [isWindows, setIsWindows] = useState(false);
@@ -23,12 +24,17 @@ export default function Settings({ clientData, setClientData }) {
 
     const extra = parseExtraInfo(clientData?.extra_info);
     const resolvedAddress = resolvePersonalAddress(clientData, extra);
+    const resolvedForward = resolveForwardingAddress(extra);
 
     useEffect(() => {
-        setAddress(resolvePersonalAddress(clientData, parseExtraInfo(clientData?.extra_info)));
+        const parsed = parseExtraInfo(clientData?.extra_info);
+        setAddress(resolvePersonalAddress(clientData, parsed));
+        setForwardAddress(resolveForwardingAddress(parsed));
     }, [clientData]);
 
-    const hasChanged = address.trim() !== resolvedAddress.trim();
+    const personalTrim = address.trim();
+    const forwardTrim = forwardAddress.trim();
+    const hasChanged = personalTrim !== resolvedAddress.trim() || forwardTrim !== resolvedForward.trim();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -37,9 +43,23 @@ export default function Settings({ clientData, setClientData }) {
         setMessage({ type: '', text: '' });
 
         try {
-            const updated = await adminDataService.updateClientAddress(clientData.id, address.trim());
+            if (clientData?.isTemporary) {
+                setMessage({ type: 'error', text: t('espaceClient.settings.pendingSave') });
+                return;
+            }
+            if (personalTrim !== resolvedAddress.trim()) {
+                await adminDataService.updateClientAddress(clientData.id, personalTrim);
+            }
+            const merged = await adminDataService.updateClientExtraInfo(clientData.id, {
+                adressePerso: personalTrim,
+                adresseReexp: forwardTrim,
+            });
             if (setClientData) {
-                setClientData(prev => ({ ...prev, address: updated.address }));
+                setClientData(prev => ({
+                    ...prev,
+                    address: personalTrim,
+                    extra_info: JSON.stringify(merged),
+                }));
             }
             setMessage({ type: 'success', text: t('espaceClient.settings.saveSuccess') });
         } catch (error) {
@@ -138,7 +158,7 @@ export default function Settings({ clientData, setClientData }) {
                             </div>
                         )}
 
-                        <div className="ec-form-group" style={{ marginBottom: '20px' }}>
+                        <div className="ec-form-group" style={{ marginBottom: '24px' }}>
                             <label style={labelStyle}>{t('espaceClient.settings.addressLabel')}</label>
                             <AddressAutocomplete
                                 value={address}
@@ -148,10 +168,24 @@ export default function Settings({ clientData, setClientData }) {
                                 noResultsLabel={t('espaceClient.settings.addressNoResults')}
                             />
                             <p style={{ fontSize: '13px', color: 'var(--ec-text-sub)', marginTop: '8px' }}>
-                                {t('espaceClient.settings.addressSearchHint')}
+                                {t('espaceClient.settings.addressHint')}
+                            </p>
+                        </div>
+
+                        <div className="ec-form-group" style={{ marginBottom: '20px' }}>
+                            <label style={labelStyle}>{t('espaceClient.settings.forwardLabel')}</label>
+                            <AddressAutocomplete
+                                value={forwardAddress}
+                                onChange={setForwardAddress}
+                                placeholder={t('espaceClient.settings.forwardPlaceholder')}
+                                inputStyle={inputStyle}
+                                noResultsLabel={t('espaceClient.settings.addressNoResults')}
+                            />
+                            <p style={{ fontSize: '13px', color: 'var(--ec-text-sub)', marginTop: '8px' }}>
+                                {t('espaceClient.settings.forwardHint')}
                             </p>
                             <p style={{ fontSize: '13px', color: 'var(--ec-text-sub)', marginTop: '4px' }}>
-                                {t('espaceClient.settings.addressHint')}
+                                {t('espaceClient.settings.addressSearchHint')}
                             </p>
                         </div>
 

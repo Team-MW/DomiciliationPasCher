@@ -3,6 +3,7 @@ import { useUser, useClerk } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
 import { parseExtraInfo, resolvePersonalAddress } from '../../utils/contractLegalFields';
+import { resolveClientStatusFromStripe } from '../../utils/stripeClientStatus';
 import { useTranslation } from '../../i18n/LanguageContext';
 import './EspaceClient.css';
 
@@ -49,6 +50,8 @@ export default function EspaceClient() {
     const [hasNewDocs, setHasNewDocs] = useState(false);
     const [hasNewFactures, setHasNewFactures] = useState(false);
     const [pendingDemande, setPendingDemande] = useState(null);
+    const [checkingPayment, setCheckingPayment] = useState(false);
+    const [openingPortal, setOpeningPortal] = useState(false);
 
     useEffect(() => {
         const body = document.querySelector('.ec-main');
@@ -71,7 +74,7 @@ export default function EspaceClient() {
                     since: "2024-12-01"
                 };
                 const [m, d, b] = await Promise.all([
-                    adminDataService.getMail(),
+                    adminDataService.getClientMail('1'),
                     adminDataService.getDocuments('1'),
                     adminDataService.getClientBookings('1')
                 ]);
@@ -124,6 +127,7 @@ export default function EspaceClient() {
                             extra_info: maDemande.extra_info,
                             status: 'en_attente_validation',
                             since: maDemande.date,
+                            city: maDemande.city || extra.ville || '',
                             isTemporary: true
                         };
                     }
@@ -161,29 +165,18 @@ export default function EspaceClient() {
                     }
                     setClientData(data);
 
-                    // On ne charge les dossiers/mails que si c'est un vrai client (pas une demande temporaire)
-                    if (!data.isTemporary) {
-                        const [m, d, b, msgs] = await Promise.all([
-                            adminDataService.getClientMail(data.id),
-                            adminDataService.getDocuments(data.id),
-                            adminDataService.getClientBookings(data.id),
-                            adminDataService.getMessages(data.id)
-                        ]);
-                        if (isMounted) {
-                            setMail(m);
-                            setDocuments(d);
-                            setBookings(b);
-                            const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
-                            setUnreadMsgsCount(unread);
-                        }
-                    } else {
-                        // Pour une demande temporaire, on met des listes vides
-                        if (isMounted) {
-                            setMail([]);
-                            setDocuments([]);
-                            setBookings([]);
-                            setUnreadMsgsCount(0);
-                        }
+                    const [m, d, b, msgs] = await Promise.all([
+                        data.isTemporary ? Promise.resolve([]) : adminDataService.getClientMail(data.id),
+                        adminDataService.getDocuments(data.id),
+                        adminDataService.getClientBookings(data.id),
+                        adminDataService.getMessages(data.id)
+                    ]);
+                    if (isMounted) {
+                        setMail(m);
+                        setDocuments(d);
+                        setBookings(b);
+                        const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
+                        setUnreadMsgsCount(unread);
                     }
                 } else {
                     if (isMounted) setClientData(null);
@@ -202,6 +195,73 @@ export default function EspaceClient() {
     const handleLogout = async () => {
         await signOut();
         navigate('/');
+    };
+
+    const stripeCustomerIdFromClient = (client) => {
+        const extra = parseExtraInfo(client?.extra_info);
+        return extra.stripe_customer_id || extra.stripeCustomerId || client?.stripeCustomerId || null;
+    };
+
+    const handleCheckPayment = async () => {
+        if (!clientData?.id || checkingPayment) return;
+        setCheckingPayment(true);
+        try {
+            const stripeId = stripeCustomerIdFromClient(clientData);
+            const syncData = await adminDataService.syncStripePayments(clientData.email, stripeId, clientData.since);
+            if (!stripeId && syncData.foundCustomerId) {
+                try {
+                    const merged = await adminDataService.updateClientExtraInfo(clientData.id, {
+                        stripe_customer_id: syncData.foundCustomerId,
+                    });
+                    setClientData((prev) => ({ ...prev, extra_info: JSON.stringify(merged) }));
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+            const newStatus = resolveClientStatusFromStripe(clientData.status, syncData.subscriptionStatus);
+            if (newStatus !== clientData.status) {
+                await adminDataService.updateClientStatus(clientData.id, newStatus);
+                setClientData((prev) => ({ ...prev, status: newStatus }));
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setCheckingPayment(false);
+        }
+    };
+
+    const handleUpdateCard = async () => {
+        if (!clientData || openingPortal) return;
+        setOpeningPortal(true);
+        try {
+            let stripeId = stripeCustomerIdFromClient(clientData);
+            if (!stripeId) {
+                const res = await fetch('/api/ensure-stripe-customer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: clientData.email,
+                        name: clientData.name || clientData.company,
+                        company: clientData.company,
+                    }),
+                });
+                const data = await res.json();
+                if (data.customerId) {
+                    stripeId = data.customerId;
+                    const merged = await adminDataService.updateClientExtraInfo(clientData.id, {
+                        stripe_customer_id: stripeId,
+                    });
+                    setClientData((prev) => ({ ...prev, extra_info: JSON.stringify(merged) }));
+                }
+            }
+            if (!stripeId) return;
+            const url = await adminDataService.createStripePortalSession(stripeId);
+            if (url) window.location.href = url;
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setOpeningPortal(false);
+        }
     };
 
     if (isLoading) return <div className="ec-loading">{t('espaceClient.shell.loading')}</div>;
@@ -286,8 +346,11 @@ export default function EspaceClient() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <button className="btn-primary" onClick={() => window.location.reload()} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700', background: '#EF4444' }}>
-                            {t('espaceClient.shell.checkPayment')}
+                        <button className="btn-primary" onClick={handleUpdateCard} disabled={openingPortal} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700', background: '#EF4444', opacity: openingPortal ? 0.7 : 1 }}>
+                            {openingPortal ? t('espaceClient.shell.openingPortal') : t('espaceClient.shell.updateCard')}
+                        </button>
+                        <button className="btn-outline" onClick={handleCheckPayment} disabled={checkingPayment} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
+                            {checkingPayment ? t('espaceClient.shell.checkingPayment') : t('espaceClient.shell.checkPayment')}
                         </button>
                         <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
                             {t('espaceClient.shell.logout')}

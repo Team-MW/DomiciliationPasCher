@@ -35,36 +35,74 @@ export default function Meeting({ clientData }) {
 
         const urlParams = new URLSearchParams(window.location.search);
 
+        const cleanMeetingUrl = () => {
+            window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
+        };
+
         if (urlParams.get('booking_success') === 'true') {
             if (returnHandled.current) return;
             returnHandled.current = true;
+            const sessionId = urlParams.get('session_id');
             const storedBooking = sessionStorage.getItem('pendingBooking');
-            if (storedBooking) {
-                (async () => {
-                    try {
-                        const parsedBooking = JSON.parse(storedBooking);
-                        if (!parsedBooking.city && clientData.city) {
-                            parsedBooking.city = clientData.city;
-                        }
-                        await adminDataService.addBookingRequest(clientData.id, parsedBooking);
-                        const b = await adminDataService.getClientBookings(clientData.id);
-                        setBookings(b);
-                        setShowSuccess(true);
-                    } catch (e) {
-                        console.error('Erreur restauration réservation', e);
+
+            (async () => {
+                try {
+                    if (!sessionId) {
                         setErrorMsg(t('espaceClient.meeting.payError'));
-                    } finally {
-                        sessionStorage.removeItem('pendingBooking');
-                        window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
+                        return;
                     }
-                })();
-            } else {
-                window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
-            }
+                    const paidKey = `dpc_paid_booking_${sessionId}`;
+                    if (localStorage.getItem(paidKey)) {
+                        sessionStorage.removeItem('pendingBooking');
+                        return;
+                    }
+                    const res = await fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`);
+                    const data = await res.json();
+                    if (!data?.success) {
+                        setErrorMsg(t('espaceClient.meeting.payError'));
+                        return;
+                    }
+                    if (data.metadata?.type && data.metadata.type !== 'meeting_booking') {
+                        setErrorMsg(t('espaceClient.meeting.payError'));
+                        return;
+                    }
+                    let parsedBooking = null;
+                    if (storedBooking) {
+                        try { parsedBooking = JSON.parse(storedBooking); } catch { parsedBooking = null; }
+                    }
+                    if (!parsedBooking?.date && data.metadata?.date) {
+                        parsedBooking = {
+                            type: data.metadata.meeting_type,
+                            date: data.metadata.date,
+                            duration: data.metadata.duration,
+                            city: data.metadata.city || clientData.city,
+                        };
+                    }
+                    if (!parsedBooking?.city && clientData.city) {
+                        parsedBooking = { ...parsedBooking, city: clientData.city };
+                    }
+                    if (!parsedBooking?.date) {
+                        setErrorMsg(t('espaceClient.meeting.payError'));
+                        return;
+                    }
+                    sessionStorage.removeItem('pendingBooking');
+                    await adminDataService.addBookingRequest(clientData.id, parsedBooking);
+                    localStorage.setItem(paidKey, '1');
+                    const b = await adminDataService.getClientBookings(clientData.id);
+                    setBookings(b);
+                    setShowSuccess(true);
+                } catch (e) {
+                    console.error('Erreur restauration réservation', e);
+                    setErrorMsg(t('espaceClient.meeting.payError'));
+                } finally {
+                    sessionStorage.removeItem('pendingBooking');
+                    cleanMeetingUrl();
+                }
+            })();
         } else if (urlParams.get('booking_cancel') === 'true') {
             setErrorMsg(t('espaceClient.meeting.cancelled'));
             sessionStorage.removeItem('pendingBooking');
-            window.history.replaceState({}, document.title, window.location.pathname + '?tab=meeting');
+            cleanMeetingUrl();
         }
     }, [clientData]);
 
@@ -93,7 +131,14 @@ export default function Meeting({ clientData }) {
                 cancelUrl,
                 clientData.email,
                 clientData.name,
-                { client_id: clientData.id, type: 'meeting_booking' }
+                {
+                    client_id: String(clientData.id),
+                    type: 'meeting_booking',
+                    meeting_type: type,
+                    date,
+                    duration,
+                    city: clientData.city || '',
+                }
             );
         } catch (error) {
             console.error("Booking payment error:", error);
@@ -200,7 +245,9 @@ export default function Meeting({ clientData }) {
                                     <div className="ec-activity-title">{b.type}</div>
                                     <div className="ec-activity-meta">{b.date} · {b.duration}</div>
                                 </div>
-                                <span className={`ec-status-chip ${b.status === 'en_attente' ? 'unread' : ''}`}>{b.status}</span>
+                                <span className={`ec-status-chip ${b.status === 'en_attente' ? 'unread' : ''}`}>
+                                    {t(`espaceClient.meeting.statusLabel.${b.status === 'confirmée' || b.status === 'confirmee' ? 'confirmed' : b.status === 'refusee' ? 'refused' : 'pending'}`)}
+                                </span>
                             </div>
                         ))}
                     </div>

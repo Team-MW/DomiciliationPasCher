@@ -35,13 +35,15 @@ export const adminDataService = {
 
     async getClientBySessionId(sessionId) {
         if (!sessionId) return null;
-        // On cherche dans le JSON extra_info
-        const res = await conn.execute("SELECT * FROM clients WHERE JSON_EXTRACT(extra_info, '$.stripe_session_id') = ?", [sessionId]);
+        const res = await conn.execute(
+            "SELECT * FROM clients WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_info, '$.stripe_session_id')) = ?",
+            [sessionId]
+        );
         return res.rows[0];
     },
 
     async addClient(clientData) {
-        let finalExtraInfo = clientData.extra_info ? (typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info) : {};
+        let finalExtraInfo = parseExtraInfo(clientData.extra_info);
         const cleanEmail = clientData.email ? clientData.email.trim().toLowerCase() : '';
 
         // Création manuelle : On ne crée plus automatiquement de client Stripe.
@@ -103,8 +105,8 @@ export const adminDataService = {
     async updateClientProfile(id, data) {
         const cleanEmail = data.email ? data.email.trim().toLowerCase() : '';
         await conn.execute(
-            'UPDATE clients SET name = ?, email = ?, address = ?, phone = ? WHERE id = ?',
-            [data.name, cleanEmail, data.address || '', data.phone || '', id]
+            'UPDATE clients SET name = ?, email = ?, address = ?, phone = ?, company = ?, city = ? WHERE id = ?',
+            [data.name || '', cleanEmail, data.address || '', data.phone || '', data.company || '', data.city || '', id]
         );
         return { id, ...data, email: cleanEmail };
     },
@@ -115,7 +117,17 @@ export const adminDataService = {
      * de modifier que son adresse, et cette méthode rend cette limite impossible à contourner.
      */
     async updateClientAddress(id, address) {
-        await conn.execute('UPDATE clients SET address = ? WHERE id = ?', [address || '', id]);
+        const clientRes = await conn.execute('SELECT id FROM clients WHERE id = ?', [id]);
+        if (clientRes.rows[0]) {
+            await conn.execute('UPDATE clients SET address = ? WHERE id = ?', [address || '', id]);
+            return { id, address: address || '' };
+        }
+        const demRes = await conn.execute('SELECT extra_info FROM demandes WHERE id = ?', [id]);
+        if (demRes.rows[0]) {
+            const existing = parseExtraInfo(demRes.rows[0].extra_info);
+            const merged = { ...existing, adressePerso: address || '' };
+            await conn.execute('UPDATE demandes SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), id]);
+        }
         return { id, address: address || '' };
     },
 
@@ -129,18 +141,21 @@ export const adminDataService = {
      * en fusionnant avec les données existantes.
      */
     async updateClientExtraInfo(clientId, extraData) {
-        // Récupérer l'extra_info existant
         const res = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId]);
-        const row = res.rows[0];
-        let existing = {};
-        if (row && row.extra_info) {
-            try {
-                existing = typeof row.extra_info === 'string' ? JSON.parse(row.extra_info) : row.extra_info;
-            } catch (e) {}
+        if (res.rows[0]) {
+            const existing = parseExtraInfo(res.rows[0].extra_info);
+            const merged = { ...existing, ...extraData };
+            await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), clientId]);
+            return merged;
         }
-        const merged = { ...existing, ...extraData };
-        await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), clientId]);
-        return merged;
+        const dem = await conn.execute('SELECT extra_info FROM demandes WHERE id = ?', [clientId]);
+        if (dem.rows[0]) {
+            const existing = parseExtraInfo(dem.rows[0].extra_info);
+            const merged = { ...existing, ...extraData };
+            await conn.execute('UPDATE demandes SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), clientId]);
+            return merged;
+        }
+        return extraData;
     },
 
     async deleteClient(id) {
@@ -221,7 +236,10 @@ export const adminDataService = {
 
     async getDemandeBySessionId(sessionId) {
         if (!sessionId) return null;
-        const res = await conn.execute("SELECT * FROM demandes WHERE JSON_EXTRACT(extra_info, '$.stripe_session_id') = ?", [sessionId]);
+        const res = await conn.execute(
+            "SELECT * FROM demandes WHERE JSON_UNQUOTE(JSON_EXTRACT(extra_info, '$.stripe_session_id')) = ?",
+            [sessionId]
+        );
         return res.rows[0];
     },
 
@@ -294,8 +312,11 @@ export const adminDataService = {
                 });
             }
 
-            // Transférer les messages de la demande vers le nouveau compte client
+            // Transférer messages, documents, réservations et réexpéditions (même id de demande).
             await conn.execute('UPDATE messages SET clientId = ? WHERE clientId = ?', [clientId, id]);
+            await conn.execute('UPDATE documents SET clientId = ? WHERE clientId = ?', [clientId, id]);
+            await conn.execute('UPDATE bookings SET clientId = ? WHERE clientId = ?', [clientId, id]);
+            await conn.execute('UPDATE reexpeditions SET clientId = ? WHERE clientId = ?', [clientId, id]);
 
             // Supprimer la demande
             await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
@@ -305,7 +326,7 @@ export const adminDataService = {
                 await sendApprovalEmail(d.email, d.clientName);
             }
 
-            return { id: clientId, ...d };
+            return { ...d, id: clientId };
         }
     },
 

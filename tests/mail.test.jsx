@@ -45,8 +45,11 @@ vi.mock('../src/i18n/LanguageContext', () => ({
                 'espaceClient.mail.emptyHint': 'hint',
                 'espaceClient.mail.reexpTitle': 'Réexpédition postale physique',
                 'espaceClient.mail.reexpIntro': 'intro',
-                'espaceClient.mail.destLabel': 'Adresse postale de destination',
+                'espaceClient.mail.destLabel': 'Adresse de réexpédition',
                 'espaceClient.mail.destPlaceholder': 'Ex: 12 Rue',
+                'espaceClient.mail.destHint': 'Pas l’adresse personnelle.',
+                'espaceClient.mail.useSavedForward': 'Adresse de réexpédition enregistrée',
+                'espaceClient.mail.usePersonalOnce': 'Utiliser l’adresse personnelle (cette demande)',
                 'espaceClient.mail.notesLabel': 'Notes',
                 'espaceClient.mail.notesPlaceholder': 'notes',
                 'espaceClient.mail.confirmSend': "Confirmer l'envoi postal",
@@ -100,5 +103,31 @@ describe('Mail — réexpédition physique', () => {
         }));
         expect(addMessage).toHaveBeenCalled();
         expect(await screen.findByText('Demande enregistrée !')).toBeInTheDocument();
+    });
+
+    it('ne préremplit pas avec l’adresse personnelle', () => {
+        render(<Mail mail={[]} clientData={{
+            id: 'cli_scan',
+            plan: 'Scan+',
+            address: '1 rue Maison 31000 Toulouse',
+            extra_info: { adressePerso: '1 rue Maison 31000 Toulouse' },
+        }} setActiveTab={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: /Demander une réexpédition physique/ }));
+        expect(screen.getByPlaceholderText('Ex: 12 Rue')).toHaveValue('');
+        expect(screen.getByRole('button', { name: /Utiliser l’adresse personnelle/ })).toBeInTheDocument();
+    });
+
+    it('préremplit avec l’adresse de réexpédition enregistrée', () => {
+        render(<Mail mail={[]} clientData={{
+            id: 'cli_scan',
+            plan: 'Scan+',
+            address: '1 rue Maison 31000 Toulouse',
+            extra_info: {
+                adressePerso: '1 rue Maison 31000 Toulouse',
+                adresseReexp: '99 rue Bureau 75001 Paris',
+            },
+        }} setActiveTab={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: /Demander une réexpédition physique/ }));
+        expect(screen.getByPlaceholderText('Ex: 12 Rue')).toHaveValue('99 rue Bureau 75001 Paris');
     });
 });

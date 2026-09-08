@@ -6,14 +6,14 @@ const hooksDir = path.join(gitDir, 'hooks');
 const hookFile = path.join(hooksDir, 'pre-push');
 
 const hookContent = `#!/bin/sh
-echo "🔍 Running pre-push verification tests..."
-npm run test
+echo "🔍 Running pre-push verification (tests + production build)..."
+npm run test:deploy
 if [ $? -ne 0 ]; then
-  echo "❌ Tests failed. Push aborted!"
+  echo "❌ Tests or production build failed. Push aborted!"
   exit 1
 fi
 
-echo "✅ All tests passed. Proceeding with push."
+echo "✅ Tests and production build passed. Proceeding with push."
 exit 0
 `;
 
