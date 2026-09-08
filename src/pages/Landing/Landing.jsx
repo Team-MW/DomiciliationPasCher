@@ -52,7 +52,6 @@ export default function Landing() {
 
             <main className="ld-main">
                 <div className="ld-badge">
-                    <span className="ld-badge-dot" aria-hidden="true" />
                     Offre créateurs — dès 20€ HT/mois
                 </div>
 
