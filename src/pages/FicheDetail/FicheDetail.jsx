@@ -1,170 +1,82 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { fichesData } from '../../data/fichesData';
+import { useTranslation } from '../../i18n/LanguageContext';
+import './FicheDetail.css';
 
 const FicheDetail = () => {
     const { slug } = useParams();
-    const fiche = fichesData[slug];
+    const { tr } = useTranslation();
+    const t = tr.fichesPratiques;
+    const base = fichesData[slug];
+    const fiche = base ? (t.fiches?.[slug] || base) : null;
 
-    // Remonter en haut au changement de slug
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [slug]);
+
+    useEffect(() => {
+        if (fiche?.title) {
+            document.title = `${fiche.title} — DomiciliationPasCher`;
+        }
+    }, [fiche?.title]);
 
     if (!fiche) {
         return <Navigate to="/fiches-pratiques" replace />;
     }
 
-    // Articles suggérés (tous sauf l'actuel)
     const otherFiches = Object.entries(fichesData)
         .filter(([key]) => key !== slug)
-        .slice(0, 5);
+        .slice(0, 5)
+        .map(([s, data]) => ({ slug: s, ...(t.fiches?.[s] || data) }));
 
     return (
         <div className="page-wrapper" style={{ background: '#FAFBFF' }}>
-            <header style={{
-                background: 'white',
-                borderBottom: '1px solid #E2E8F0',
-                padding: '60px 0 40px'
-            }}>
-                <div className="container" style={{ maxWidth: '1000px' }}>
-                    <Link to="/fiches-pratiques" style={{
-                        color: 'var(--primary)',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        marginBottom: '24px',
-                        textDecoration: 'none'
-                    }}>
+            <header className="fd-header">
+                <div className="container">
+                    <Link to="/fiches-pratiques" className="fd-back">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                        Retour aux fiches pratiques
+                        {t.backLink}
                     </Link>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                        <span style={{
-                            background: 'rgba(37, 99, 235, 0.1)',
-                            color: 'var(--primary)',
-                            padding: '6px 14px',
-                            borderRadius: '99px',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em'
-                        }}>
-                            {fiche.category}
-                        </span>
+                    <div className="fd-meta">
+                        <span className="fd-badge">{fiche.category}</span>
                     </div>
-                    <h1 style={{
-                        fontFamily: 'Outfit, sans-serif',
-                        fontSize: 'clamp(28px, 5vw, 48px)',
-                        fontWeight: 800,
-                        color: '#0F172A',
-                        lineHeight: 1.2,
-                        margin: 0
-                    }}>
-                        {fiche.title}
-                    </h1>
+                    <h1>{fiche.title}</h1>
                 </div>
             </header>
 
-            <section className="section">
-                <div className="container" style={{ maxWidth: '1000px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: '60px' }}>
-                    {/* Main Content */}
-                    <article style={{
-                        background: 'white',
-                        padding: '40px',
-                        borderRadius: '24px',
-                        border: '1px solid #E2E8F0',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
-                        minHeight: '500px'
-                    }}>
-                        <div style={{ fontSize: '64px', marginBottom: '24px' }}>{fiche.icon}</div>
-                        <div style={{
-                            fontSize: '20px',
-                            lineHeight: 1.8,
-                            color: '#334155',
-                            fontWeight: 400
-                        }}>
-                            <p style={{ marginBottom: '24px' }}>{fiche.content}</p>
-                            <p>L'entrepreneuriat est un voyage complexe mais passionnant. Chez <strong>DomiciliationPasCher</strong>, notre mission est de vous simplifier la vie administrative pour que vous puissiez vous concentrer sur ce qui compte vraiment : votre croissance.</p>
-
-                            <div style={{
-                                margin: '48px 0',
-                                padding: '32px',
-                                background: '#F8FAFF',
-                                borderRadius: '16px',
-                                borderLeft: '4px solid var(--primary)'
-                            }}>
-                                <h3 style={{ marginTop: 0, color: '#1E3A8A' }}>💡 Conseil d'expert</h3>
-                                <p style={{ marginBottom: 0 }}>N'attendez pas d'être submergé pour structurer vos démarches. Une bonne domiciliation est le socle d'une entreprise solide et crédible face au marché.</p>
+            <section className="section fd-body">
+                <div className="container fd-layout">
+                    <article className="fd-article">
+                        <div className="fd-icon">{fiche.icon || base.icon}</div>
+                        <div className="fd-prose">
+                            <p>{fiche.content}</p>
+                            <p>{t.genericContent}</p>
+                            <div className="fd-tip">
+                                <h3>{t.expertTip}</h3>
+                                <p>{t.expertTipText}</p>
                             </div>
-
-                            <p>Chaque situation étant unique, nous vous recommandons de consulter régulièrement nos fiches pratiques ou de contacter notre support pour un accompagnement personnalisé adapté à votre structure juridique.</p>
+                            <p>{t.genericContent2}</p>
                         </div>
                     </article>
 
-                    {/* Sidebar */}
-                    <aside>
-                        <div style={{
-                            position: 'sticky',
-                            top: '100px'
-                        }}>
-                            <div style={{
-                                background: '#1e293b',
-                                padding: '32px',
-                                borderRadius: '24px',
-                                color: 'white',
-                                marginBottom: '32px'
-                            }}>
-                                <h3 style={{ marginTop: 0, fontSize: '20px' }}>Besoin d'aide ?</h3>
-                                <p style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.5 }}>Nos conseillers vous accompagnent dans toutes vos démarches de domiciliation.</p>
-                                <Link to="/tarifs" className="btn btn-primary" style={{ width: '100%', marginTop: '16px' }}>
-                                    Voir nos offres
-                                </Link>
-                            </div>
+                    <aside className="fd-aside">
+                        <div className="fd-help">
+                            <h3>{t.sidebar.needHelp}</h3>
+                            <p>{t.sidebar.helpDesc}</p>
+                            <Link to="/tarifs" className="btn btn-primary">
+                                {t.sidebar.helpCta}
+                            </Link>
+                        </div>
 
-                            <h4 style={{
-                                fontSize: '16px',
-                                fontWeight: 700,
-                                color: '#0F172A',
-                                marginBottom: '20px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                            }}>
-                                Articles similaires
-                            </h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                {otherFiches.map(([s, f]) => (
-                                    <Link
-                                        key={s}
-                                        to={`/fiches-pratiques/${s}`}
-                                        style={{
-                                            textDecoration: 'none',
-                                            background: 'white',
-                                            padding: '16px',
-                                            borderRadius: '12px',
-                                            border: '1px solid #E2E8F0',
-                                            transition: 'all 0.2s ease',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '4px'
-                                        }}
-                                        onMouseOver={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--primary)';
-                                            e.currentTarget.style.transform = 'translateX(4px)';
-                                        }}
-                                        onMouseOut={(e) => {
-                                            e.currentTarget.style.borderColor = '#E2E8F0';
-                                            e.currentTarget.style.transform = 'none';
-                                        }}
-                                    >
-                                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>{f.category}</span>
-                                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#334155', lineHeight: 1.3 }}>{f.title}</span>
-                                    </Link>
-                                ))}
-                            </div>
+                        <h4 className="fd-similar-title">{t.sidebar.similarArticles}</h4>
+                        <div className="fd-similar">
+                            {otherFiches.map((f) => (
+                                <Link key={f.slug} to={`/fiches-pratiques/${f.slug}`} className="fd-similar-link">
+                                    <span className="fd-similar-cat">{f.category}</span>
+                                    <span className="fd-similar-title-link">{f.title}</span>
+                                </Link>
+                            ))}
                         </div>
                     </aside>
                 </div>

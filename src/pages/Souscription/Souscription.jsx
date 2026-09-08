@@ -255,7 +255,7 @@ export default function Souscription() {
     if (success) {
         return (
             <div className="souscription-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
-                <div className="success-message" style={{ textAlign: 'center', background: 'white', padding: '3rem', borderRadius: '16px', maxWidth: '600px', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
+                <div className="success-message">
                     <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
                     <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#10B981' }}>Demande envoyée !</h1>
                     <p style={{ fontSize: '1.1rem', color: '#475569', marginBottom: '1rem' }}>Nous avons bien reçu votre demande de consultation pour la création de votre entreprise.</p>
@@ -330,6 +330,19 @@ export default function Souscription() {
                     <div className="sous-progress-fill" style={{ width: `${((step + 1) / CURRENT_STEPS.length) * 100}%` }} />
                 </div>
 
+                <div className="sous-mobile-bar">
+                    <button type="button" onClick={handleBackClick} className="sous-mobile-back" aria-label={step > 0 ? 'Étape précédente' : 'Retour'}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                            <path d="M19 12H5M12 5l-7 7 7 7" />
+                        </svg>
+                    </button>
+                    <div className="sous-mobile-meta">
+                        <span>Étape {step + 1} / {CURRENT_STEPS.length}</span>
+                        <strong>{CURRENT_STEPS[step]?.label}</strong>
+                    </div>
+                    <span className="sous-mobile-plan">{currentPlanName}</span>
+                </div>
+
                 <div className="sous-content">
 
                     {/* ══ ÉTAPE 0 — Choix du projet ══ */}
@@ -399,7 +412,7 @@ export default function Souscription() {
                                 </div>
                                 <div className="sous-field">
                                     <label className="sous-label">E-mail *</label>
-                                    <input className={`sous-input ${errors.email ? 'error' : ''}`} type="email" placeholder="exemple@gmail.com" value={data.email} onChange={e => set('email', e.target.value)} />
+                                    <input className={`sous-input ${errors.email ? 'error' : ''}`} type="email" autoComplete="email" inputMode="email" placeholder="exemple@gmail.com" value={data.email} onChange={e => set('email', e.target.value)} />
                                     {errors.email && <div className="field-error">{errors.email}</div>}
                                 </div>
                                 <div className="sous-field">
@@ -407,8 +420,11 @@ export default function Souscription() {
                                     <div className="phone-field">
                                         <span className="phone-flag">🇫🇷 +33</span>
                                         <input 
-                                            className={`sous-input phone-input ${errors.telephone ? 'error' : ''}`} 
-                                            placeholder="06 XX XX XX XX" 
+                                            className={`sous-input phone-input ${errors.telephone ? 'error' : ''}`}
+                                            type="tel"
+                                            inputMode="numeric"
+                                            autoComplete="tel-national"
+                                            placeholder="06 XX XX XX XX"
                                             value={data.telephone} 
                                             maxLength={10}
                                             onChange={e => {
@@ -967,7 +983,7 @@ export default function Souscription() {
                     {/* ── Navigation ── */}
                     <div className="sous-nav-buttons">
                         {step > 0 && (
-                            <button className="sous-btn-prev" onClick={prev}>
+                            <button type="button" className="sous-btn-prev" onClick={prev}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M19 12H5M12 5l-7 7 7 7" />
                                 </svg>
@@ -975,7 +991,7 @@ export default function Souscription() {
                             </button>
                         )}
                         {step < CURRENT_STEPS.length - 1 && (
-                            <button className="sous-btn-next" onClick={next}>
+                            <button type="button" className="sous-btn-next" onClick={next}>
                                 Suivant
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M5 12h14M12 5l7 7-7 7" />
