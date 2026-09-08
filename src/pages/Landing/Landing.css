@@ -162,6 +162,89 @@
     flex-wrap: wrap;
 }
 
+.ld-how {
+    width: min(920px, 100%);
+    margin-top: 36px;
+    text-align: center;
+}
+
+.ld-how-kicker {
+    margin: 0 0 14px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1A56DB;
+}
+
+.ld-how-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 22px;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.07);
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+}
+
+.ld-how-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 20px;
+    position: relative;
+    text-align: center;
+}
+
+.ld-how-item + .ld-how-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 22px;
+    bottom: 22px;
+    width: 1px;
+    background: #E2E8F0;
+}
+
+.ld-how-n {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #3B82F6 0%, #1A56DB 100%);
+    color: white;
+    font-family: Outfit, Inter, sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(26, 86, 219, 0.22);
+}
+
+.ld-how-item strong {
+    display: block;
+    font-family: Outfit, Inter, sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+}
+
+.ld-how-item p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 500;
+    color: #64748B;
+    max-width: 220px;
+}
+
 .ld-stars {
     color: #F59E0B;
     letter-spacing: 1px;
@@ -286,8 +369,51 @@
 
     .ld-trust {
         grid-template-columns: 1fr;
-        margin-top: 22px;
+        margin-top: 16px;
         border-radius: 18px;
+    }
+
+    .ld-how {
+        margin-top: 22px;
+    }
+
+    .ld-how-list {
+        grid-template-columns: 1fr;
+        border-radius: 18px;
+    }
+
+    .ld-how-item {
+        flex-direction: row;
+        text-align: left;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+    }
+
+    .ld-how-item + .ld-how-item::before {
+        top: 0;
+        bottom: auto;
+        left: 16px;
+        right: 16px;
+        width: auto;
+        height: 1px;
+    }
+
+    .ld-how-n {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .ld-how-item p {
+        max-width: none;
+        font-size: 12.5px;
+    }
+
+    .ld-how-item strong {
+        font-size: 14px;
+        margin-bottom: 2px;
     }
 
     .ld-trust-item {

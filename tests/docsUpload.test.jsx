@@ -39,6 +39,7 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         window.localStorage.clear();
+        window.sessionStorage.clear();
         global.fetch = vi.fn().mockResolvedValue({ json: async () => ({ features: [] }) });
     });
 
@@ -46,10 +47,17 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         cleanup();
     });
 
+    const dismissCoach = () => {
+        const btn = screen.queryByRole('button', { name: /c'est compris/i });
+        if (btn) fireEvent.click(btn);
+    };
+
     test('should progress to document step, accept files, convert PDF, and submit correctly', async () => {
         await act(async () => {
             render(<Souscription />);
         });
+
+        dismissCoach();
 
         // 1. Step 0: Choix du projet
         fireEvent.click(screen.getByText('Domiciliation seule'));
@@ -74,6 +82,8 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         fireEvent.change(screen.getByPlaceholderText("Décrivez brièvement l'activité de votre entreprise…"), { target: { value: 'Consulting' } });
         fireEvent.click(screen.getByText('Suivant'));
 
+        dismissCoach();
+
         // 4. Step 3: Domiciliation
         fireEvent.click(screen.getByText('Toulouse (31)'));
         fireEvent.click(screen.getByText('Suivant'));
@@ -84,8 +94,10 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         // 6. Step 5: Frequence
         fireEvent.click(screen.getByText('Suivant'));
 
+        dismissCoach();
+
         // 7. Step 6: Documents justificatifs
-        expect(screen.getByText('Vos documents justificatifs')).toBeDefined();
+        expect(screen.getByText('Vos justificatifs')).toBeDefined();
 
         const fileInputsRaw = document.querySelectorAll('input[type="file"]');
         expect(fileInputsRaw.length).toBe(3);
@@ -107,7 +119,7 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         fireEvent.click(screen.getByText('Suivant'));
 
         // 8. Step 7: Recapitulatif & CGV
-        expect(screen.getByText('Vérifiez votre commande')).toBeDefined();
+        expect(screen.getByText('Vérifiez et payez')).toBeDefined();
 
         fireEvent.click(screen.getByRole('checkbox'));
 

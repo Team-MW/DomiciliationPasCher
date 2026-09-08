@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 import './Landing.css';
 
+const HOW_IT_WORKS = [
+    { n: '1', title: 'Vous remplissez', desc: '5 minutes, 100 % en ligne. Rien n’est débité avant la fin.' },
+    { n: '2', title: 'Vous payez', desc: 'Paiement sécurisé Stripe. Sans engagement au-delà de 3 mois.' },
+    { n: '3', title: 'Vous recevez', desc: 'Attestation de siège social immédiate, utilisable au greffe.' },
+];
+
 const TRUST_ITEMS = [
     {
         title: 'Agréé Préfecture',
@@ -73,6 +79,21 @@ export default function Landing() {
                     <span className="ld-stars" aria-hidden="true">★★★★★</span>
                     +2 000 entrepreneurs nous font déjà confiance
                 </p>
+
+                <section className="ld-how" aria-label="Comment ça se passe">
+                    <p className="ld-how-kicker">Comment ça se passe</p>
+                    <ol className="ld-how-list">
+                        {HOW_IT_WORKS.map((item) => (
+                            <li key={item.n} className="ld-how-item">
+                                <span className="ld-how-n">{item.n}</span>
+                                <div>
+                                    <strong>{item.title}</strong>
+                                    <p>{item.desc}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
+                </section>
 
                 <section className="ld-trust" aria-label="Garanties">
                     {TRUST_ITEMS.map((item) => (

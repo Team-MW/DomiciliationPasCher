@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { handleCheckout } from '../../utils/stripe';
 import { adminDataService } from '../../services/adminDataService';
@@ -6,16 +6,40 @@ import { uploadFile } from '../../utils/cloudinary';
 import { convertPdfToPng } from '../../utils/pdfConverter';
 import './Souscription.css';
 
-/* ─── Config des étapes ─── */
+/* ─── 3 phases lisibles pour le client (les 8 écrans restent inchangés) ─── */
+const PHASES = [
+    { id: 'situation', label: 'Votre situation', short: 'Situation' },
+    { id: 'offre', label: 'Votre offre', short: 'Offre' },
+    { id: 'validation', label: 'Documents & paiement', short: 'Paiement' },
+];
+
+const PHASE_COACH = [
+    {
+        kicker: 'Étape 1 sur 3',
+        title: 'Votre situation',
+        body: 'On commence simplement : qui vous êtes et votre entreprise. Rien n’est débité maintenant.',
+    },
+    {
+        kicker: 'Étape 2 sur 3',
+        title: 'Votre offre',
+        body: 'Choisissez l’adresse de domiciliation et la façon dont vous recevez votre courrier.',
+    },
+    {
+        kicker: 'Étape 3 sur 3',
+        title: 'Documents & paiement',
+        body: 'Dernière ligne droite. Justificatifs, puis paiement sécurisé Stripe.',
+    },
+];
+
 const STEPS = [
-    { id: 'projet', label: 'Choix du projet' },
-    { id: 'coordonnees', label: 'Coordonnées' },
-    { id: 'entreprise', label: 'Votre entreprise' },
-    { id: 'domiciliation', label: 'Domiciliation' },
-    { id: 'courrier', label: 'Offre courrier' },
-    { id: 'frequence', label: 'Fréquence' },
-    { id: 'documents', label: 'Documents justificatifs' },
-    { id: 'recapitulatif', label: 'Récapitulatif & Paiement' },
+    { id: 'projet', label: 'Votre projet', phase: 0, title: 'Quel est votre projet ?', hint: 'On commence simplement. Vous pouvez revenir en arrière à tout moment, rien n’est débité pour l’instant.' },
+    { id: 'coordonnees', label: 'Coordonnées', phase: 0, title: 'Vos informations personnelles', hint: 'Elles figurent sur le contrat de domiciliation. Cette étape n’engage aucun paiement.' },
+    { id: 'entreprise', label: 'Entreprise', phase: 0, title: 'Votre entreprise', hint: 'Quelques infos pour préparer votre attestation de siège social.' },
+    { id: 'domiciliation', label: 'Adresse', phase: 1, title: 'Où domicilier votre entreprise ?', hint: 'Adresse officielle, acceptée au greffe, aux impôts et en banque.' },
+    { id: 'courrier', label: 'Courrier', phase: 1, title: 'Comment gérer votre courrier ?', hint: 'Vous pourrez changer d’option plus tard depuis votre espace client.' },
+    { id: 'frequence', label: 'Fréquence', phase: 1, title: 'Mensuel ou annuel ?', hint: 'Sans engagement au-delà de 3 mois. Résiliable en ligne, quand vous voulez.' },
+    { id: 'documents', label: 'Justificatifs', phase: 2, title: 'Vos justificatifs', hint: 'Pièce d’identité + justificatif de domicile de moins de 3 mois. Fichiers chiffrés, jamais partagés.' },
+    { id: 'recapitulatif', label: 'Paiement', phase: 2, title: 'Vérifiez et payez', hint: 'Dernière étape. Paiement sécurisé Stripe. Votre attestation est envoyée juste après.' },
 ];
 
 const VILLES = ['Toulouse (31)'];
@@ -171,6 +195,8 @@ export default function Souscription() {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [coachOpen, setCoachOpen] = useState(false);
+    const lastCoachedPhase = useRef(null);
 
     // Sauvegarde automatique des données dans localStorage à chaque modification
     useEffect(() => {
@@ -188,6 +214,21 @@ export default function Souscription() {
         try {
             localStorage.setItem(STORAGE_STEP_KEY, step.toString());
         } catch (e) {}
+    }, [step]);
+
+    useEffect(() => {
+        const phase = CURRENT_STEPS[step]?.phase ?? 0;
+        if (lastCoachedPhase.current === phase) return;
+        const key = `dpc_coach_phase_${phase}`;
+        try {
+            if (sessionStorage.getItem(key)) {
+                lastCoachedPhase.current = phase;
+                return;
+            }
+            sessionStorage.setItem(key, '1');
+        } catch (e) {}
+        lastCoachedPhase.current = phase;
+        setCoachOpen(true);
     }, [step]);
 
     const set = (key, val) => setData(d => ({ ...d, [key]: val }));
@@ -241,6 +282,40 @@ export default function Souscription() {
 
     const currentPlanName = data.offre === 'scan' ? 'Scan+' : (data.offre === 'reexpedition' ? 'Physique+' : 'Essentiel');
     const currentPlanPrice = data.offre === 'scan' ? '24' : (data.offre === 'reexpedition' ? '38' : '20');
+    const currentMeta = CURRENT_STEPS[step] || CURRENT_STEPS[0];
+    const currentPhase = currentMeta.phase ?? 0;
+    const nextStepLabel = CURRENT_STEPS[step + 1]?.label;
+
+    const stepHint = currentStepId === 'entreprise'
+        ? (data.typeProjet === 'creation'
+            ? 'Renseignez les informations de votre future société. Rien n’est débité à cette étape.'
+            : 'Renseignez les informations de votre société. Rien n’est débité à cette étape.')
+        : currentMeta.hint;
+
+    const renderStepHeader = () => (
+        <div className="sous-step-header">
+            <div className="sous-phases" aria-label={`Phase ${currentPhase + 1} sur 3`}>
+                {PHASES.map((phase, i) => (
+                    <React.Fragment key={phase.id}>
+                        {i > 0 && <div className={`sous-phase-line ${i <= currentPhase ? 'is-on' : ''}`} aria-hidden="true" />}
+                        <div className={`sous-phase-chip ${i === currentPhase ? 'is-current' : ''} ${i < currentPhase ? 'is-done' : ''}`}>
+                            <span className="sous-phase-n">
+                                {i < currentPhase ? (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                ) : (
+                                    i + 1
+                                )}
+                            </span>
+                            <strong>{phase.short}</strong>
+                        </div>
+                    </React.Fragment>
+                ))}
+            </div>
+            <div className="sous-step-num">{PHASES[currentPhase].label} · écran {step + 1}/{CURRENT_STEPS.length}</div>
+            <h2>{currentMeta.title}</h2>
+            <p>{stepHint}</p>
+        </div>
+    );
 
     const getHT = () => {
         let base = parseInt(currentPlanPrice);
@@ -290,31 +365,40 @@ export default function Souscription() {
                     </div>
                 </div>
 
-                <nav className="sous-steps-nav">
-                    {CURRENT_STEPS.map((s, i) => (
-                        <div
-                            key={s.id}
-                            className={`sous-step-item ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`}
-                            onClick={() => {
-                                if (i < step) {
-                                    setStep(i);
-                                }
-                            }}
-                            style={{ cursor: i < step ? 'pointer' : 'default' }}
-                            title={i < step ? `Revenir à l'étape : ${s.label}` : ''}
-                        >
-                            <div className="ssi-dot">
-                                {i < step
-                                    ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                    : <span>{i + 1}</span>
-                                }
+                <nav className="sous-steps-nav" aria-label="Étapes de souscription">
+                    {PHASES.map((phase, pi) => (
+                        <div key={phase.id} className={`sous-phase-group ${currentPhase === pi ? 'is-current' : ''} ${currentPhase > pi ? 'is-done' : ''}`}>
+                            <div className="sous-phase-heading">
+                                <span>{pi + 1}</span>
+                                {phase.label}
                             </div>
-                            <span className="ssi-label">{s.label}</span>
+                            {CURRENT_STEPS.map((s, i) => s.phase !== pi ? null : (
+                                <div
+                                    key={s.id}
+                                    className={`sous-step-item ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`}
+                                    onClick={() => {
+                                        if (i < step) setStep(i);
+                                    }}
+                                    style={{ cursor: i < step ? 'pointer' : 'default' }}
+                                    title={i < step ? `Revenir à l'étape : ${s.label}` : ''}
+                                >
+                                    <div className="ssi-dot">
+                                        {i < step
+                                            ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                            : <span>{i + 1}</span>
+                                        }
+                                    </div>
+                                    <span className="ssi-label">{s.label}</span>
+                                </div>
+                            ))}
                         </div>
                     ))}
                 </nav>
 
                 <div className="sous-sidebar-footer">
+                    <div className="sous-reassure">
+                        Rien n’est débité avant la dernière étape.
+                    </div>
                     <div className="sous-secure">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                         Formulaire sécurisé SSL
@@ -337,8 +421,8 @@ export default function Souscription() {
                         </svg>
                     </button>
                     <div className="sous-mobile-meta">
-                        <span>Étape {step + 1} / {CURRENT_STEPS.length}</span>
-                        <strong>{CURRENT_STEPS[step]?.label}</strong>
+                        <span>Étape {currentPhase + 1} / 3 · {PHASES[currentPhase].short}</span>
+                        <strong>{currentMeta.label}</strong>
                     </div>
                     <span className="sous-mobile-plan">{currentPlanName}</span>
                 </div>
@@ -348,11 +432,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 0 — Choix du projet ══ */}
                     {currentStepId === 'projet' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 1 sur {CURRENT_STEPS.length}</div>
-                                <h2>Quel est votre projet ?</h2>
-                                <p>Sélectionnez la situation qui correspond à votre cas</p>
-                            </div>
+                            {renderStepHeader()}
 
                             <div className="type-projet-grid">
                                 {TYPES_PROJET.map(t => (
@@ -393,11 +473,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 1 — Coordonnées ══ */}
                     {currentStepId === 'coordonnees' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 2 sur {CURRENT_STEPS.length}</div>
-                                <h2>Saisissez vos coordonnées</h2>
-                                <p>Ces informations figurent sur votre contrat de domiciliation</p>
-                            </div>
+                            {renderStepHeader()}
 
                             <div className="sous-form-grid">
                                 <div className="sous-field">
@@ -502,11 +578,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 2 — Votre entreprise ══ */}
                     {currentStepId === 'entreprise' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 3 sur {CURRENT_STEPS.length}</div>
-                                <h2>Votre entreprise</h2>
-                                <p>{data.typeProjet === 'creation' ? 'Renseignez les informations de votre future société' : 'Renseignez les informations de votre société existante'}</p>
-                            </div>
+                            {renderStepHeader()}
 
                             <div className="sous-form-grid">
                                 <div className="sous-field sous-field-full">
@@ -554,11 +626,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 3 — Domiciliation ══ */}
                     {currentStepId === 'domiciliation' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 4 sur {CURRENT_STEPS.length}</div>
-                                <h2>Choisissez votre ville</h2>
-                                <p>Sélectionnez la ville où vous souhaitez domicilier votre entreprise</p>
-                            </div>
+                            {renderStepHeader()}
 
                             <div className="villes-grid">
                                 {VILLES.map(v => {
@@ -598,11 +666,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 4 — Offre courrier ══ */}
                     {currentStepId === 'courrier' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 5 sur {CURRENT_STEPS.length}</div>
-                                <h2>Gestion de votre courrier</h2>
-                                <p>Comment souhaitez-vous gérer votre courrier ?</p>
-                            </div>
+                            {renderStepHeader()}
 
                             <div className="courrier-options">
                                 {OFFRES_COURRIER.map(o => (
@@ -631,11 +695,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 5 — Fréquence ══ */}
                     {currentStepId === 'frequence' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 6 sur {CURRENT_STEPS.length}</div>
-                                <h2>Choisissez votre fréquence</h2>
-                                <p>Économisez 2 mois avec l'abonnement annuel</p>
-                            </div>
+                            {renderStepHeader()}
 
                             <div className="freq-options">
                                 <button
@@ -673,11 +733,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 6 — Documents ══ */}
                     {currentStepId === 'documents' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape 7 sur {CURRENT_STEPS.length}</div>
-                                <h2>Vos documents justificatifs</h2>
-                                <p>Veuillez télécharger les documents nécessaires pour votre dossier</p>
-                            </div>
+                            {renderStepHeader()}
                             
                             <div className="sous-form-grid">
 
@@ -817,11 +873,7 @@ export default function Souscription() {
                     {/* ══ ÉTAPE 7 — Récapitulatif ══ */}
                     {currentStepId === 'recapitulatif' && (
                         <div className="sous-step">
-                            <div className="sous-step-header">
-                                <div className="sous-step-num">Étape {step + 1} sur {CURRENT_STEPS.length}</div>
-                                <h2>Vérifiez votre commande</h2>
-                                <p>Relisez vos informations avant de passer au paiement</p>
-                            </div>
+                            {renderStepHeader()}
 
                             <div className="recap-grid">
                                 <div className="recap-card">
@@ -991,17 +1043,45 @@ export default function Souscription() {
                             </button>
                         )}
                         {step < CURRENT_STEPS.length - 1 && (
-                            <button type="button" className="sous-btn-next" onClick={next}>
-                                Suivant
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M5 12h14M12 5l7 7-7 7" />
-                                </svg>
-                            </button>
+                            <div className="sous-nav-next-wrap">
+                                {nextStepLabel && <span className="sous-next-hint">Ensuite : {nextStepLabel}</span>}
+                                <button type="button" className="sous-btn-next" onClick={next}>
+                                    Suivant
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
                         )}
                     </div>
 
                 </div>
             </main>
+
+            {coachOpen && (
+                <div className="sous-coach-overlay" role="presentation" onClick={() => setCoachOpen(false)}>
+                    <div
+                        className="sous-coach"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="sous-coach-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <p className="sous-coach-kicker">{PHASE_COACH[currentPhase]?.kicker}</p>
+                        <h3 id="sous-coach-title">{PHASE_COACH[currentPhase]?.title}</h3>
+                        <p className="sous-coach-body">{PHASE_COACH[currentPhase]?.body}</p>
+                        <div className="sous-coach-next">
+                            <span>À faire maintenant</span>
+                            <strong>{currentMeta.label}</strong>
+                            {nextStepLabel && <em>Ensuite : {nextStepLabel}</em>}
+                            {!nextStepLabel && <em>Ensuite : votre attestation, juste après le paiement</em>}
+                        </div>
+                        <button type="button" className="sous-coach-btn" onClick={() => setCoachOpen(false)}>
+                            C'est compris
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

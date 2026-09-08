@@ -443,6 +443,96 @@
     gap: 28px;
 }
 
+.ec-coach-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(5px);
+}
+
+.ec-coach {
+    width: min(420px, 100%);
+    background: white;
+    border-radius: 20px;
+    padding: 22px 22px 18px;
+    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.22);
+}
+
+.ec-coach-kicker {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1A56DB;
+}
+
+.ec-coach h3 {
+    margin: 0 0 8px;
+    font-family: Outfit, Inter, sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #0F172A;
+}
+
+.ec-coach-body {
+    margin: 0 0 16px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: #64748B;
+    font-weight: 500;
+}
+
+.ec-coach-next {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #EEF4FF;
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+}
+
+.ec-coach-next span {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #1A56DB;
+}
+
+.ec-coach-next strong {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0F172A;
+}
+
+.ec-coach-btn {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 14px;
+    background: #1A56DB;
+    color: white;
+    font-size: 15px;
+    font-weight: 800;
+    font-family: Inter, sans-serif;
+    cursor: pointer;
+}
+
+@media (min-width: 781px) {
+    .ec-coach-overlay {
+        align-items: center;
+        padding: 24px;
+    }
+}
+
 .ec-dash-progress {
     background: white;
     border-radius: 20px;

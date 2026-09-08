@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { appAlert } from '../../../components/AppDialog/dialogApi';
+import { parseExtraInfo } from '../../../utils/contractLegalFields';
 
 const ADDRESS_LINES = [
     '150 Rue Nicolas Louis Vauquelin',
@@ -12,6 +13,7 @@ const ADDRESS_LINES = [
 export default function Overview({ mail = [], documents = [], bookings = [], clientData, setActiveTab }) {
     const { t } = useTranslation();
     const [copied, setCopied] = useState(false);
+    const [coach, setCoach] = useState(null);
     const unreadMailCount = mail.filter(m => m.status === 'non lu').length;
     const company = clientData?.company || t('espaceClient.overview.companyFallback');
 
@@ -40,6 +42,48 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
     };
 
     const go = (tab) => setActiveTab && setActiveTab(tab);
+
+    useEffect(() => {
+        if (!clientData?.id) return;
+        const extra = parseExtraInfo(clientData.extra_info);
+        const status = clientData.status;
+        let next = null;
+        if (status === 'en_attente_validation') {
+            next = {
+                key: 'wait',
+                title: t('espaceClient.overview.coachWaitTitle'),
+                body: t('espaceClient.overview.coachWaitBody'),
+                next: t('espaceClient.overview.coachWaitNext'),
+                tab: null,
+                cta: t('espaceClient.overview.coachGotIt'),
+            };
+        } else if (status === 'actif' && !extra.contractSigned) {
+            next = {
+                key: 'sign',
+                title: t('espaceClient.overview.coachSignTitle'),
+                body: t('espaceClient.overview.coachSignBody'),
+                next: t('espaceClient.overview.coachSignNext'),
+                tab: 'docs',
+                cta: t('espaceClient.overview.coachGoSign'),
+            };
+        } else if (status === 'actif' && !extra.procurationSigned) {
+            next = {
+                key: 'proc',
+                title: t('espaceClient.overview.coachProcTitle'),
+                body: t('espaceClient.overview.coachProcBody'),
+                next: t('espaceClient.overview.coachProcNext'),
+                tab: 'docs',
+                cta: t('espaceClient.overview.coachGoSign'),
+            };
+        }
+        if (!next) return;
+        const storageKey = `dpc_ec_coach_${clientData.id}_${next.key}`;
+        try {
+            if (sessionStorage.getItem(storageKey)) return;
+            sessionStorage.setItem(storageKey, '1');
+        } catch {}
+        setCoach(next);
+    }, [clientData, t]);
 
     return (
         <div className="ec-tab-animate ec-dash">
@@ -202,6 +246,37 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
                     </div>
                 </div>
             </div>
+
+            {coach && (
+                <div className="ec-coach-overlay" role="presentation" onClick={() => setCoach(null)}>
+                    <div
+                        className="ec-coach"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="ec-coach-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <p className="ec-coach-kicker">{t('espaceClient.overview.coachKicker')}</p>
+                        <h3 id="ec-coach-title">{coach.title}</h3>
+                        <p className="ec-coach-body">{coach.body}</p>
+                        <div className="ec-coach-next">
+                            <span>{t('espaceClient.overview.coachNow')}</span>
+                            <strong>{coach.next}</strong>
+                        </div>
+                        <button
+                            type="button"
+                            className="ec-coach-btn"
+                            onClick={() => {
+                                const tab = coach.tab;
+                                setCoach(null);
+                                if (tab) go(tab);
+                            }}
+                        >
+                            {coach.cta}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
