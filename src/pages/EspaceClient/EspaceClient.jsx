@@ -417,12 +417,12 @@ export default function EspaceClient() {
 
                 <div className="ec-view-container">
                     {activeTab === 'overview' && (
-                        <Overview 
-                            mail={mail} 
-                            documents={documents} 
-                            bookings={bookings} 
-                            clientData={clientData} 
-                            setActiveTab={setActiveTab} 
+                        <Overview
+                            mail={mail}
+                            documents={documents}
+                            bookings={bookings}
+                            clientData={clientData}
+                            setActiveTab={setActiveTab}
                         />
                     )}
                     {activeTab === 'mail' && (
@@ -443,9 +443,9 @@ export default function EspaceClient() {
                         />
                     )}
                     {activeTab === 'adresse' && (
-                        <Adresse 
-                            clientData={clientData} 
-                            setActiveTab={setActiveTab} 
+                        <Adresse
+                            clientData={clientData}
+                            setActiveTab={setActiveTab}
                         />
                     )}
                     {activeTab === 'docs' && (
@@ -457,27 +457,27 @@ export default function EspaceClient() {
                         />
                     )}
                     {activeTab === 'abonnement' && (
-                        <Abonnement 
-                            clientData={clientData} 
+                        <Abonnement
+                            clientData={clientData}
                             setActiveTab={setActiveTab}
                             setClientData={setClientData}
                         />
                     )}
                     {activeTab === 'factures' && (
-                        <Factures 
-                            clientData={clientData} 
-                            setClientData={setClientData} 
+                        <Factures
+                            clientData={clientData}
+                            setClientData={setClientData}
                         />
                     )}
                     {activeTab === 'paiement' && (
-                        <MoyenPaiement 
-                            clientData={clientData} 
-                            setClientData={setClientData} 
+                        <MoyenPaiement
+                            clientData={clientData}
+                            setClientData={setClientData}
                         />
                     )}
                     {activeTab === 'compte-pro' && (
-                        <ComptePro 
-                            clientData={clientData} 
+                        <ComptePro
+                            clientData={clientData}
                         />
                     )}
                     {activeTab === 'meeting' && (
@@ -487,20 +487,20 @@ export default function EspaceClient() {
                         />
                     )}
                     {activeTab === 'messages' && (
-                        <Messages 
-                            clientData={clientData} 
+                        <Messages
+                            clientData={clientData}
                         />
                     )}
                     {activeTab === 'aide' && (
-                        <Aide 
-                            clientData={clientData} 
-                            setActiveTab={setActiveTab} 
+                        <Aide
+                            clientData={clientData}
+                            setActiveTab={setActiveTab}
                         />
                     )}
                     {activeTab === 'settings' && (
-                        <Settings 
-                            clientData={clientData} 
-                            setClientData={setClientData} 
+                        <Settings
+                            clientData={clientData}
+                            setClientData={setClientData}
                         />
                     )}
                 </div>

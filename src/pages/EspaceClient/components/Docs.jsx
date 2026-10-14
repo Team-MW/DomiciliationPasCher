@@ -1210,7 +1210,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                         color: '#334155', fontWeight: 600, fontSize: '13px'
                                                     }}
                                                 >
-                                                    👁️ {doc.title || doc.name || t('espaceClient.docs.untitled')}
+                                                    {doc.title || doc.name || t('espaceClient.docs.untitled')}
                                                 </a>
                                             </div>
                                         );

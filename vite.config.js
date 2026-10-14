@@ -541,7 +541,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
   },
   test: {
-    environment: 'jsdom',
+    // voir vitest.config.js (happy-dom) — ce bloc n'est plus utilisé si vitest.config.js existe
+    environment: 'happy-dom',
     setupFiles: ['./vitest.setup.js'],
     globals: true,
     fileParallelism: false,

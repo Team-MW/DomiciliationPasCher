@@ -81,6 +81,38 @@
     font-size: 15px;
 }
 
+.rdv-calendar-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+    min-height: 420px;
+    padding: 40px 24px;
+}
+
+.rdv-calendar-fallback h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #0F172A;
+}
+
+.rdv-calendar-fallback p {
+    margin: 0;
+    max-width: 420px;
+    color: #64748B;
+    line-height: 1.5;
+}
+
+.rdv-fallback-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 12px;
+}
+
 .rdv-footer-links {
     display: flex;
     justify-content: center;

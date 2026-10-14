@@ -54,35 +54,35 @@ export default async function handler(req, res) {
 
         // Définition des contenus selon le type
         if (type === 'payment_failed') {
-            subject = "Veuillez régler — sinon votre domiciliation sera résiliée";
-            textMessage = `Bonjour ${nom || 'Client'},\n\nNous vous informons qu'un incident est survenu lors de votre dernier règlement de ${amount || 'votre abonnement'}.\n\nVeuillez régler votre situation. Sans règlement sous 2 mois, votre contrat de domiciliation sera résilié et vous ne serez plus domicilié à notre adresse.\n\nVous pouvez régulariser la situation en vous connectant ici : ${paymentLink || baseUrl + '/connexion'}\n\nBien cordialement,\nLe service comptabilité`;
+            subject = "Action requise : régulariser votre paiement — Domiciliation Pas Cher";
+            textMessage = `Bonjour ${nom || 'Client'},\n\nNous vous informons qu'un incident est survenu lors de votre dernier règlement de ${amount || 'votre abonnement'}.\n\nMerci de mettre à jour votre moyen de paiement. Sans régularisation sous 2 mois, votre contrat de domiciliation pourra être résilié.\n\nVous pouvez régulariser ici : ${paymentLink || baseUrl + '/connexion'}\n\nBien cordialement,\nLe service comptabilité`;
             
             htmlMessage = `
                 <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                    <h2>Incident de paiement — action requise</h2>
+                    <h2>Action requise sur votre paiement</h2>
                     <p>Bonjour ${nom || 'Client'},</p>
                     <p>Nous vous informons qu'un incident est survenu lors de votre dernier règlement de <strong>${amount || 'votre abonnement'}</strong>.</p>
-                    <p><strong>Veuillez régler votre situation.</strong> Sans règlement sous 2 mois, votre contrat de domiciliation sera résilié et vous ne serez plus domicilié à notre adresse.</p>
+                    <p>Merci de mettre à jour votre moyen de paiement. Sans régularisation sous 2 mois, votre contrat de domiciliation pourra être résilié.</p>
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="${paymentLink || baseUrl + '/connexion'}" style="background-color: #DC2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Mettre à jour mon paiement</a>
+                        <a href="${paymentLink || baseUrl + '/connexion'}" style="background-color: #1A56DB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Mettre à jour mon paiement</a>
                     </div>
-                    <p>Bien cordialement,<br>Le service comptabilité</p>
+                    <p>Bien cordialement,<br>Le service comptabilité<br>Domiciliation Pas Cher<br>contact@domiciliation-pas-cher.com</p>
                 </div>
             `;
         } else if (type === 'payment_reminder') {
-            subject = "Relance de paiement - Domiciliation Pas Cher";
+            subject = "Rappel de paiement — Domiciliation Pas Cher";
             textMessage = `Bonjour ${nom || 'Client'},\n\nSauf erreur de notre part, nous n'avons pas reçu le règlement de votre facture d'un montant de ${amount || ''}.\n\nVous pouvez régulariser la situation en cliquant sur le lien suivant : ${paymentLink}\n\nBien cordialement,\nLe service comptabilité`;
             
             htmlMessage = `
                 <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                    <h2>Relance de paiement</h2>
+                    <h2>Rappel de paiement</h2>
                     <p>Bonjour ${nom || 'Client'},</p>
                     <p>Sauf erreur de notre part, nous n'avons pas reçu le règlement de votre facture d'un montant de <strong>${amount || ''}</strong>.</p>
                     <p>Vous pouvez régulariser la situation très simplement en cliquant sur le bouton ci-dessous :</p>
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="${paymentLink}" style="background-color: #3182ce; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Régler ma facture</a>
+                        <a href="${paymentLink}" style="background-color: #1A56DB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Régler ma facture</a>
                     </div>
-                    <p>Bien cordialement,<br>Le service comptabilité</p>
+                    <p>Bien cordialement,<br>Le service comptabilité<br>Domiciliation Pas Cher<br>contact@domiciliation-pas-cher.com</p>
                 </div>
             `;
         } else if (type === 'post_signature') {
@@ -227,6 +227,42 @@ export default async function handler(req, res) {
                     <p>Bien cordialement,<br>L'équipe Domiciliation Pas Cher</p>
                 </div>
             `;
+        } else if (type === 'souscription_lead') {
+            subject = `Lead souscription (abandon possible) — ${nom || email}`;
+            textMessage = `Un prospect a renseigné ses coordonnées dans le formulaire de souscription (pas forcément finalisé).\n\nNom : ${nom || ''}\nEmail : ${email}\nTéléphone : ${telephone || ''}\nAdresse : ${address || ''}\nDate de naissance : ${dateDispo || ''}\nLieu de naissance : ${projetType || ''}\nNationalité : ${company || ''}\nQualité : ${notes || ''}\nType de projet : ${msgContent || ''}\nForme juridique : ${customMsg || ''}`;
+            htmlMessage = `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+                    <h2>Lead souscription — à relancer</h2>
+                    <p>Ce prospect a rempli ses coordonnées dans le parcours. Il n'a peut-être pas terminé le paiement.</p>
+                    <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <p style="margin: 6px 0;"><strong>Nom :</strong> ${nom || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Email :</strong> ${email}</p>
+                        <p style="margin: 6px 0;"><strong>Téléphone :</strong> ${telephone || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Adresse :</strong> ${address || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Naissance :</strong> ${dateDispo || '—'} — ${projetType || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Nationalité / Qualité :</strong> ${company || '—'} / ${notes || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Projet / Forme :</strong> ${msgContent || '—'} / ${customMsg || '—'}</p>
+                    </div>
+                    <p style="font-size: 13px; color: #64748b;">Vous pouvez le recontacter même s'il n'a pas finalisé l'inscription.</p>
+                </div>
+            `;
+        } else if (type === 'contact_advisor') {
+            subject = `Demande conseiller — ${nom || email}`;
+            textMessage = `Nouvelle demande « Parler à un conseiller ».\n\nNom : ${nom || ''}\nEmail : ${email}\nTéléphone : ${telephone || ''}\nVille : ${address || ''}\nMessage : ${customMsg || msgContent || '—'}`;
+            htmlMessage = `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+                    <h2>Demande « Parler à un conseiller »</h2>
+                    <p>Un prospect souhaite être recontacté (ville / domiciliation).</p>
+                    <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <p style="margin: 6px 0;"><strong>Nom :</strong> ${nom || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Email :</strong> ${email}</p>
+                        <p style="margin: 6px 0;"><strong>Téléphone :</strong> ${telephone || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Ville souhaitée :</strong> ${address || '—'}</p>
+                        <p style="margin: 6px 0;"><strong>Message :</strong> ${customMsg || msgContent || '—'}</p>
+                    </div>
+                    <p style="font-size: 13px; color: #64748b;">Merci de recontacter ce prospect rapidement.</p>
+                </div>
+            `;
         } else if (type === 'approval') {
             subject = "Dossier validé - Bienvenue chez Domiciliation Pas Cher";
             textMessage = `Bonjour ${nom || 'Client'},\n\nVotre dossier de domiciliation a été validé avec succès !\n\nVous pouvez dès à présent accéder à votre espace client pour consulter vos documents et suivre la réception de votre courrier.\n\nAccédez à votre portail ici : ${baseUrl}/connexion\n\nBien cordialement,\nLe service client`;
@@ -282,16 +318,26 @@ export default async function handler(req, res) {
 
         // 3. Envoi de l'email
         let toAddress = email;
-        if (type === 'admin_new_message' || type === 'admin_reexpedition') {
-            toAddress = ADMIN_EMAIL;
+        if (type === 'admin_new_message' || type === 'admin_reexpedition' || type === 'contact_advisor' || type === 'souscription_lead') {
+            toAddress = (type === 'contact_advisor' || type === 'souscription_lead')
+                ? 'contact@domiciliation-pas-cher.com'
+                : ADMIN_EMAIL;
         }
 
         const info = await transporter.sendMail({
-            from: smtpFrom, // sender address
-            to: toAddress, // list of receivers
+            from: smtpFrom,
+            to: toAddress,
             subject: subject,
             text: textMessage,
             html: htmlMessage,
+            // Réponses clients → boîte pro (sauf lead/conseiller où on répond au prospect)
+            replyTo: (type === 'souscription_lead' || type === 'contact_advisor')
+                ? email
+                : 'contact@domiciliation-pas-cher.com',
+            headers: {
+                'X-Mailer': 'Domiciliation-Pas-Cher',
+                'X-Entity-Ref-ID': `${type || 'welcome'}-${Date.now()}`,
+            },
         });
 
         console.log("Message sent to %s: %s", toAddress, info.messageId);

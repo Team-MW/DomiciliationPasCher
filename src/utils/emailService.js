@@ -134,3 +134,50 @@ export const sendReexpeditionStatusEmail = async ({ email, nom, status, address 
         return false;
     }
 };
+
+/** Demande « Parler à un conseiller » → contact@domiciliation-pas-cher.com */
+export const sendContactAdvisorEmail = async ({ nom, email, telephone, city, message }) => {
+    const response = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            type: 'contact_advisor',
+            nom,
+            email,
+            telephone,
+            address: city || '',
+            message: message || '',
+        }),
+    });
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Email send failed');
+    }
+    return true;
+};
+
+/** Lead formulaire souscription (même si le parcours n'est pas terminé) */
+export const sendSouscriptionLeadEmail = async (lead) => {
+    const response = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            type: 'souscription_lead',
+            nom: lead.nom,
+            email: lead.email,
+            telephone: lead.telephone || '',
+            address: lead.address || '',
+            dateDispo: lead.dateNaissance || '',
+            projetType: lead.lieuNaissance || '',
+            company: lead.nationalite || '',
+            notes: lead.qualite || '',
+            content: lead.typeProjet || '',
+            message: lead.formeJuridique || '',
+        }),
+    });
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Lead email failed');
+    }
+    return true;
+};

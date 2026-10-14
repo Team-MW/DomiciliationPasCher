@@ -478,7 +478,7 @@
 /* ── Étape 0 — Type projet ── */
 .type-projet-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 14px;
     margin-bottom: 8px;
 }
@@ -1400,6 +1400,10 @@
         font-size: 11px;
         text-align: center;
         width: 100%;
+    }
+
+    .sous-nav-buttons.is-last {
+        display: none;
     }
 
     .sous-btn-next,

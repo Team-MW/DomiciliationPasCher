@@ -32,7 +32,6 @@ export default {
       reformesLegales: 'Réformes légales',
       podcast: 'Podcast',
       entrepreneuriat: 'Entrepreneuriat',
-      seDomicilier: 'SeDomicilier',
       tech: 'Tech',
       domiciliation: 'Domiciliation',
       lesAdresses: 'Les adresses',
@@ -63,8 +62,8 @@ export default {
   footer: {
     desc: 'La solution de domiciliation la plus compétitive de France. Basés à Toulouse, nous accompagnons les entrepreneurs avec une adresse prestigieuse.',
     stats: {
-      entreprises: { value: '+3 000', label: 'Entreprises' },
-      creations: { value: '+50', label: 'Créations/semaine' },
+      entreprises: { value: 'Toulouse', label: 'Adresse officielle' },
+      creations: { value: '24h', label: 'Attestation' },
     },
     columns: {
       services: {
@@ -145,10 +144,10 @@ export default {
     },
 
     stats: [
-      { prefix: '+', target: 3000, suffix: '', label: 'Entreprises domiciliées' },
-      { prefix: '+', target: 50, suffix: '', label: 'Nouvelles créations / semaine' },
-      { prefix: '', target: 1, suffix: '', label: 'Métropole française' },
-      { prefix: '', target: 20, suffix: '€', label: 'HT / mois seulement' },
+      { prefix: '', target: 2019, suffix: '', label: 'Année d’implantation à Toulouse' },
+      { prefix: '', target: 24, suffix: 'h', label: 'Délai d’attestation' },
+      { prefix: '', target: 1, suffix: '', label: 'Ville : Toulouse' },
+      { prefix: '', target: 20, suffix: '€', label: 'HT / mois à partir de' },
     ],
 
     features: {
@@ -252,7 +251,7 @@ export default {
           badge: 'Le plus populaire',
           price: '24',
           period: '€ HT / mois',
-          desc: 'Scan de vos courriers et réexpédition à votre adresse.',
+          desc: 'Scan de vos courriers et réexpédition à votre adresse. (Forfait Scan+ — pas un frais de changement de siège.)',
           features: [
             "Tout l'offre Essentiel",
             { text: 'Réexpédition physique', bold: true, suffix: ' à votre adresse' },
@@ -286,37 +285,11 @@ export default {
     },
 
     testimonials: {
-      eyebrow: 'Avis clients',
-      title: 'Ils nous font confiance',
-      subtitle: 'Plus de 3 000 entrepreneurs ont choisi Domiciliation-Pas-Cher.com pour leur adresse professionnelle.',
-      items: [
-        {
-          name: 'Marie L.',
-          role: 'Consultante indépendante',
-          city: 'Lyon',
-          rating: 5,
-          text: "Service impeccable, tarif imbattable. J'ai pu immatriculer ma société en 24h. Je recommande vivement !",
-        },
-        {
-          name: 'Thomas B.',
-          role: 'Fondateur startup',
-          city: 'Paris',
-          rating: 5,
-          text: 'La domiciliation avec scan est idéale pour moi qui suis souvent en déplacement. Tout est géré en ligne, zéro stress.',
-        },
-        {
-          name: 'Sophie M.',
-          role: 'Auto-entrepreneuse',
-          city: 'Marseille',
-          rating: 5,
-          text: 'Ultra simple à mettre en place. Le support répond rapidement et avec professionnalisme. Très bonne expérience.',
-        },
-      ],
-      platforms: [
-        { name: 'Trustpilot', score: '4.8 / 5' },
-        { name: 'Google Avis', score: '4.7 / 5' },
-        { name: 'Avis Vérifiés', score: '4.6 / 5' },
-      ],
+      eyebrow: 'Confiance',
+      title: 'Une domiciliation locale et transparente',
+      subtitle: 'Centre agréé à Toulouse. Pas d’avis inventés : nous préférons la conformité (DGCCRF) à des notes marketing.',
+      items: [],
+      platforms: [],
     },
 
     faqs: {
@@ -464,10 +437,10 @@ export default {
         },
         {
           icon: '📦',
-          name: 'Transfert Physique',
+          name: 'Réexpédition du courrier',
           price: '+18€',
           period: 'HT/mois',
-          desc: "Votre courrier vous est renvoyé à l'adresse de votre choix, sous enveloppe, une fois par mois.",
+          desc: "Votre courrier vous est renvoyé à l'adresse de votre choix, sous enveloppe, une fois par mois. (Ce n’est pas un frais de changement de siège.)",
         },
       ],
     },
@@ -606,6 +579,20 @@ export default {
       desc: 'Nous étendons notre réseau chaque mois. Contactez nos conseillers pour discuter de vos besoins spécifiques.',
       button: 'Parler à un conseiller',
       trust: 'Réponse en moins de 2h',
+      modalTitle: 'Parler à un conseiller',
+      modalHint: 'Laissez vos coordonnées : un conseiller vous recontacte rapidement.',
+      name: 'Nom complet',
+      email: 'E-mail',
+      phone: 'Téléphone',
+      message: 'Votre message (optionnel)',
+      city: 'Ville souhaitée (optionnel)',
+      submit: 'Envoyer ma demande',
+      sending: 'Envoi en cours…',
+      success: 'Merci ! Nous vous recontactons très bientôt.',
+      error: 'Impossible d’envoyer la demande. Réessayez ou écrivez-nous à contact@domiciliation-pas-cher.com',
+      cancel: 'Annuler',
+      required: 'Champ requis',
+      emailInvalid: 'E-mail invalide',
     },
   },
 
@@ -622,8 +609,8 @@ export default {
 
     stats: [
       { value: '2019', label: 'Année de création' },
-      { value: '+3 000', label: 'Entreprises domiciliées' },
-      { value: '+50/sem', label: 'Nouvelles créations' },
+      { value: 'Toulouse', label: 'Adresse officielle' },
+      { value: '24h', label: 'Attestation' },
       { value: '1', label: 'Ville partenaire' },
       { value: '20€', label: 'À partir de HT/mois' },
     ],
@@ -645,7 +632,7 @@ export default {
       cards: [
         '📍 Toulouse, siège historique',
         '🇫🇷 Adresse prestigieuse',
-        '⚡ +50 créations / semaine',
+        '⚡ Attestation sous 24h',
       ],
     },
 
@@ -682,10 +669,10 @@ export default {
       title: 'Une croissance',
       titleHighlight: 'constante',
       items: [
-        { year: '2019', title: 'Fondation à Toulouse', desc: 'Création de DomiciliationPasCher avec 50 premiers clients.' },
-        { year: '2021', title: 'Expansion nationale', desc: 'Ouverture dans 5 nouvelles villes françaises.' },
-        { year: '2023', title: '+1 000 entreprises', desc: 'Cap des 1 000 entreprises domiciliées franchi.' },
-        { year: '2025', title: '+3 000 entreprises', desc: 'Leader de la domiciliation abordable en France.' },
+        { year: '2019', title: 'Fondation à Toulouse', desc: 'Création de DomiciliationPasCher à Toulouse.' },
+        { year: '2021', title: 'Parcours 100 % en ligne', desc: 'Souscription et espace client entièrement digitalisés.' },
+        { year: '2023', title: 'Centre agréé', desc: 'Renforcement du cadre légal et de l’accompagnement local.' },
+        { year: '2025', title: 'Focus Toulouse', desc: 'Une adresse officielle claire, des tarifs transparents dès 20€ HT/mois.' },
       ],
     },
 
@@ -801,8 +788,8 @@ export default {
         },
         {
           icon: '📦',
-          name: 'Réexpédition physique',
-          desc: "Courrier envoyé à l'adresse de votre choix",
+          name: 'Réexpédition du courrier',
+          desc: "Courrier envoyé à l'adresse de votre choix (pas un frais de changement de siège)",
           price: '+18€',
           period: 'HT/mois',
         },
@@ -1157,12 +1144,6 @@ export default {
         content: "Malgré un contexte économique complexe, la création d'entreprise bat des records. Analyse des tendances par secteur, profil des nouveaux créateurs et opportunités de croissance dans l'économie circulaire et l'IA.",
         icon: '🚀'
       },
-      'sedomicilier': {
-        title: 'SeDomicilier : Les nouveautés de notre plateforme',
-        category: 'Actualités',
-        content: "Modernisation de l'espace client, nouvelles adresses, outils de comptabilité intégrés : découvrez comment nous facilitons votre quotidien d'entrepreneur.",
-        icon: '🏠'
-      },
       'tech': {
         title: 'Tech & Innovation : Les outils indispensables',
         category: 'Actualités',
@@ -1379,6 +1360,10 @@ export default {
       { icon: '🚀', title: 'Plan d\'action clair', desc: 'Les étapes et délais pour obtenir votre Kbis.' },
     ],
     loading: 'Chargement du calendrier...',
+    errorTitle: 'Calendrier temporairement indisponible',
+    errorBody: 'La prise de rendez-vous en ligne n’a pas pu se charger. Contactez-nous ou réessayez plus tard.',
+    contactCta: 'Écrire à contact@domiciliation-pas-cher.com',
+    openCalendly: 'Ouvrir le calendrier dans un nouvel onglet',
     backLink: 'Retour aux tarifs',
   },
 

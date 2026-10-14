@@ -4,6 +4,7 @@ import { handleCheckout } from '../../utils/stripe';
 import { adminDataService } from '../../services/adminDataService';
 import { uploadFile } from '../../utils/cloudinary';
 import { convertPdfToPng } from '../../utils/pdfConverter';
+import { sendSouscriptionLeadEmail } from '../../utils/emailService';
 import './Souscription.css';
 
 /* ─── 3 phases lisibles pour le client (les 8 écrans restent inchangés) ─── */
@@ -268,7 +269,35 @@ export default function Souscription() {
         return Object.keys(e).length === 0;
     };
 
-    const next = () => { if (validate()) setStep(s => Math.min(s + 1, CURRENT_STEPS.length - 1)); };
+    const next = () => {
+        if (!validate()) return;
+        if (currentStepId === 'coordonnees') {
+            const emailKey = (data.email || '').trim().toLowerCase();
+            const leadFlag = emailKey ? `dpc_lead_sent_${emailKey}` : null;
+            let alreadySent = false;
+            try {
+                alreadySent = leadFlag ? sessionStorage.getItem(leadFlag) === '1' : false;
+            } catch (e) {}
+            if (leadFlag && !alreadySent) {
+                const adressePerso = `${data.adresse}${data.complement ? `, ${data.complement}` : ''}, ${data.codePostal} ${data.villePerso}, ${data.pays}`.replace(/\s+/g, ' ').trim();
+                sendSouscriptionLeadEmail({
+                    nom: `${data.prenom} ${data.nom}`.trim(),
+                    email: data.email.trim(),
+                    telephone: data.telephone,
+                    address: adressePerso,
+                    dateNaissance: data.dateNaissance,
+                    lieuNaissance: data.lieuNaissance,
+                    nationalite: data.nationalite,
+                    qualite: data.qualite,
+                    typeProjet: data.typeProjet,
+                    formeJuridique: data.formeJuridique,
+                }).then(() => {
+                    try { sessionStorage.setItem(leadFlag, '1'); } catch (e) {}
+                }).catch((err) => console.error('Lead email:', err));
+            }
+        }
+        setStep(s => Math.min(s + 1, CURRENT_STEPS.length - 1));
+    };
     const prev = () => { setErrors({}); setStep(s => Math.max(s - 1, 0)); };
 
     const handleBackClick = (e) => {
@@ -276,7 +305,8 @@ export default function Souscription() {
         if (step > 0) {
             prev();
         } else {
-            navigate('/tarifs');
+            if (window.history.length > 1) navigate(-1);
+            else navigate('/offre');
         }
     };
 
@@ -922,7 +952,7 @@ export default function Souscription() {
 
                             <label className="cgv-field">
                                 <input type="checkbox" checked={data.cgv} onChange={e => set('cgv', e.target.checked)} />
-                                <span>J'accepte les <a href="#" className="cgv-link">Conditions Générales de Vente</a> et la politique de confidentialité</span>
+                                <span>J'accepte les <Link to="/mentions-legales" target="_blank" rel="noopener noreferrer" className="cgv-link">Conditions Générales de Vente</Link> et la politique de confidentialité</span>
                             </label>
 
                             <div style={{ marginTop: '2.5rem' }}>
@@ -1012,7 +1042,7 @@ export default function Souscription() {
                                                 productName,
                                                 data.frequence,
                                                 null,
-                                                null,
+                                                `${window.location.origin}/souscription`,
                                                 data.email,
                                                 `${data.prenom} ${data.nom}`,
                                                 { demande_id: demande.id }
@@ -1033,7 +1063,7 @@ export default function Souscription() {
                     )}
 
                     {/* ── Navigation ── */}
-                    <div className="sous-nav-buttons">
+                    <div className={`sous-nav-buttons ${step === CURRENT_STEPS.length - 1 ? 'is-last' : ''}`}>
                         {step > 0 && (
                             <button type="button" className="sous-btn-prev" onClick={prev}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

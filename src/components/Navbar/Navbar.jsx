@@ -109,7 +109,6 @@ export default function Navbar() {
                                                             <li><Link to="/fiches-pratiques/reformes-legales" onClick={() => setIsMegaOpen(false)}>{mm.reformesLegales}</Link></li>
                                                             <li><Link to="/fiches-pratiques/podcast" onClick={() => setIsMegaOpen(false)}>{mm.podcast}</Link></li>
                                                             <li><Link to="/fiches-pratiques/entrepreneuriat" onClick={() => setIsMegaOpen(false)}>{mm.entrepreneuriat}</Link></li>
-                                                            <li><Link to="/fiches-pratiques/sedomicilier" onClick={() => setIsMegaOpen(false)}>{mm.seDomicilier}</Link></li>
                                                             <li><Link to="/fiches-pratiques/tech" onClick={() => setIsMegaOpen(false)}>{mm.tech}</Link></li>
                                                         </ul>
                                                     </div>

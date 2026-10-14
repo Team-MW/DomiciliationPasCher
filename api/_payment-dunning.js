@@ -183,7 +183,7 @@ async function sendFailedPaymentEmail(transporter, failure) {
     await transporter.sendMail({
         from,
         to: failure.email,
-        subject: 'Veuillez régler — sinon votre domiciliation sera résiliée',
+        subject: 'Action requise : régulariser votre paiement — Domiciliation Pas Cher',
         text,
         html,
     });

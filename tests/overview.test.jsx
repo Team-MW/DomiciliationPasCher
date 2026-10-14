@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -45,8 +45,9 @@ import Overview from '../src/pages/EspaceClient/components/Overview.jsx';
 
 describe('Overview dashboard', () => {
     beforeEach(() => {
-        Object.assign(navigator, {
-            clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText: vi.fn().mockResolvedValue(undefined) },
         });
     });
 

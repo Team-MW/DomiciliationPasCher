@@ -1,4 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { PDFDocument } from 'pdf-lib';
 import { getClientExtraInfo, getPlanTariff, generateAttestationPdf, generateContratPdf, generateSignedContratBlob, generateSignedProcurationBlob, cleanForPdf } from '../src/utils/pdfGenerator.js';
 
 // Simulation (mock) de l'import dynamique de jsPDF
@@ -256,8 +257,7 @@ describe('Fonctions utilitaires du générateur PDF', () => {
     describe('generateSignedProcurationBlob', () => {
         let fakePage;
         
-        beforeEach(async () => {
-            const { PDFDocument } = await import('pdf-lib');
+        beforeEach(() => {
             fakePage = { drawText: vi.fn(), drawImage: vi.fn() };
             vi.spyOn(PDFDocument, 'load').mockResolvedValue({
                 getPages: () => [fakePage],

@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -48,6 +48,8 @@ vi.mock('../src/i18n/LanguageContext', () => ({
 
 import Meeting from '../src/pages/EspaceClient/components/Meeting.jsx';
 
+const FUTURE_DATE = `${new Date().getFullYear() + 1}-09-20`;
+
 const client = {
     id: 'cli_42',
     name: 'Jean Dupont',
@@ -83,7 +85,7 @@ describe('Meeting (espace client)', () => {
     it('lance Stripe one_time avec le tarif salle demi-journée et mémorise la ville', async () => {
         render(<Meeting clientData={client} setActiveTab={vi.fn()} />);
         fireEvent.change(screen.getByLabelText('Date souhaitée'), {
-            target: { value: '2026-09-20' },
+            target: { value: FUTURE_DATE },
         });
         fireEvent.click(screen.getByRole('button', { name: /25,00/ }));
 
@@ -97,12 +99,12 @@ describe('Meeting (espace client)', () => {
             expect.stringContaining('/app/espace-client?tab=meeting&booking_cancel=true'),
             'jean@test.fr',
             'Jean Dupont',
-            { client_id: 'cli_42', type: 'meeting_booking', meeting_type: 'Salle de réunion (6-8 pers)', date: '2026-09-20', duration: 'Matinée (9h-12h)', city: 'Toulouse' },
+            { client_id: 'cli_42', type: 'meeting_booking', meeting_type: 'Salle de réunion (6-8 pers)', date: FUTURE_DATE, duration: 'Matinée (9h-12h)', city: 'Toulouse' },
         ]);
         const pending = JSON.parse(sessionStorage.getItem('pendingBooking'));
         expect(pending).toMatchObject({
             type: 'Salle de réunion (6-8 pers)',
-            date: '2026-09-20',
+            date: FUTURE_DATE,
             duration: 'Matinée (9h-12h)',
             city: 'Toulouse',
         });

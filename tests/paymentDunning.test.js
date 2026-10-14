@@ -57,7 +57,7 @@ describe('politique impayé 2 mois', () => {
         );
         expect(transporter.sendMail).toHaveBeenCalledWith(expect.objectContaining({
             to: 'client@test.fr',
-            subject: expect.stringMatching(/Veuillez régler/i),
+            subject: expect.stringMatching(/Action requise|régulariser votre paiement/i),
         }));
         const dunningMail = transporter.sendMail.mock.calls.find((c) => c[0].to === 'client@test.fr');
         expect(dunningMail[0].text).toMatch(/ne serez plus domicilié/);

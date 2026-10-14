@@ -203,7 +203,7 @@ export default function Services() {
                                         </div>
                                     ))}
                                 </div>
-                                <Link to="/tarifs" className="svc-vc-btn">
+                                <Link to="/rendez-vous" className="svc-vc-btn">
                                     {tr.services.creation.card.cta}
                                 </Link>
                             </div>

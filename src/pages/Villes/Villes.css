@@ -436,3 +436,115 @@
         justify-content: center;
     }
 }
+
+/* Popup conseiller */
+.advisor-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(5px);
+}
+
+.advisor-modal {
+    position: relative;
+    width: min(440px, 100%);
+    background: #fff;
+    border-radius: 18px;
+    padding: 28px 24px 22px;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28);
+}
+
+.advisor-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    color: #94a3b8;
+    cursor: pointer;
+}
+
+.advisor-modal h3 {
+    margin: 0 0 8px;
+    font-family: Outfit, Inter, sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.advisor-hint {
+    margin: 0 0 18px;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.advisor-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.advisor-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.advisor-form input,
+.advisor-form textarea {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    color: #0f172a;
+}
+
+.advisor-form input.is-error,
+.advisor-form textarea.is-error {
+    border-color: #ef4444;
+}
+
+.advisor-form em {
+    font-style: normal;
+    font-size: 12px;
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.advisor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.advisor-error {
+    margin: 0;
+    font-size: 13px;
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.advisor-success {
+    text-align: center;
+    padding: 12px 0 4px;
+}
+
+.advisor-success p {
+    margin: 0 0 16px;
+    font-size: 15px;
+    color: #166534;
+    font-weight: 600;
+}

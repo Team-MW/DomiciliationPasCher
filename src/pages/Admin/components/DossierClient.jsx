@@ -296,11 +296,11 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
             const updatedMails = await adminDataService.getClientMail(client.id);
             setMails(Array.isArray(updatedMails) ? updatedMails : []);
-            
+
             setMailFile(null);
             setMailFrom('');
             setMailType('Lettre simple');
-            
+
             // Réinitialiser le champ fichier visuellement
             const fileInput = document.getElementById('mail-file-input');
             if (fileInput) fileInput.value = '';
@@ -639,7 +639,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     <div style={{ color: '#64748B', fontSize: '13px', marginTop: '2px' }}>Générez l'attestation ou le contrat pré-remplis instantanément.</div>
                                 </div>
                             </div>
-                            
+
                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '20px' }}>
                                 <button
                                     className="btn-primary-sm"
@@ -1131,9 +1131,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         onChange={handleFileChange}
                                         disabled={isUploading}
                                     />
-                                    <button 
-                                        style={{ background: '#0F172A', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }} 
-                                        onClick={handleUploadClick} 
+                                    <button
+                                        style={{ background: '#0F172A', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        onClick={handleUploadClick}
                                         disabled={isUploading}
                                     >
                                         {isUploading ? 'Envoi...' : <><span><Icons.UploadCloud style={{ width: '16px', height: '16px' }} /></span> Uploader</>}
@@ -1141,252 +1141,252 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 </div>
                             </div>
                             <div style={{ padding: '20px 24px' }}>
-                        <div
-                            className="card-body"
-                            onDragOver={onDragOver}
-                            onDrop={onDrop}
-                            style={{ minHeight: '250px', position: 'relative' }}
-                        >
-                            {isUploading && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: 0, left: 0, right: 0, bottom: 0,
-                                    background: 'rgba(255, 255, 255, 0.8)',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    zIndex: 10,
-                                    borderRadius: '12px',
-                                    backdropFilter: 'blur(2px)'
-                                }}>
-                                    <div style={{
-                                        width: '36px',
-                                        height: '36px',
-                                        border: '3.5px solid #e2e8f0',
-                                        borderTopColor: '#6366F1',
-                                        borderRadius: '50%',
-                                        animation: 'spin 0.8s linear infinite',
-                                        marginBottom: '12px'
-                                    }} />
-                                    <p style={{ margin: 0, fontWeight: 700, fontSize: '14px', color: '#1E293B' }}>
-                                        Traitement et envoi du document...
-                                    </p>
-                                </div>
-                            )}
-                            {isLoading && (!documents || documents.length === 0) ? (
-                                <div className="empty-state-full"><p>Chargement...</p></div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-                                    {/* Documents from Client */}
-                                    <div>
-                                        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                                            Documents déposés par le client
-                                        </h3>
-                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                            {(documents || []).filter(doc => {
-                                                if (!doc || doc.owner !== 'client') return false;
-                                                const name = doc.name?.toLowerCase() || '';
-                                                if (name.includes('kbis')) return false;
-                                                if (name.includes('contrat signé')) return false;
-                                                if (name.includes('procuration signée')) return false;
-                                                if (name.includes('procuration postale')) return false;
-                                                return true;
-                                            }).map(doc => {
-                                                return (
-                                                    <div key={doc.id} style={{
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                        background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
-                                                        padding: '12px 16px', width: '100%', maxWidth: '450px',
-                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)', position: 'relative'
-                                                    }}>
-                                                        {downloadingDocId === doc.id && (
-                                                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', zIndex: 10 }}>
-                                                                <div style={{ width: '16px', height: '16px', border: '2px solid #E2E8F0', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                                                            </div>
-                                                        )}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
-                                                                📄
-                                                            </div>
-                                                            <span style={{ fontWeight: 600, color: '#334155', fontSize: '13.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }} title={doc.title || doc.name || 'Document'}>
-                                                                {doc.title || doc.name || 'Document sans titre'}
-                                                            </span>
-                                                        </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <a
-                                                                href={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '#' : doc.url}
-                                                                onClick={async (e) => {
-                                                                    if (doc.url && doc.url.startsWith('data:')) {
-                                                                        e.preventDefault();
-                                                                        handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
-                                                                        return;
-                                                                    }
-                                                                    if (doc.url === '#local-signature') {
-                                                                        e.preventDefault();
-                                                                        if (downloadingDocId) return;
-                                                                        let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
-                                                                        if (extraInfo?.contractSignatureUrl) {
-                                                                            setDownloadingDocId(doc.id);
-                                                                            try {
-                                                                                const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
-                                                                                const blob = await generateSignedContratBlob(client, extraInfo.contractSignatureUrl);
-                                                                                const url = URL.createObjectURL(blob);
-                                                                                const a = document.createElement('a');
-                                                                                a.href = url;
-                                                                                a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
-                                                                                document.body.appendChild(a);
-                                                                                a.click();
-                                                                                document.body.removeChild(a);
-                                                                                URL.revokeObjectURL(url);
-                                                                            } catch (err) {
-                                                                                console.error(err);
-                                                                            } finally {
-                                                                                setDownloadingDocId(null);
-                                                                            }
-                                                                        }
-                                                                    } else if (doc.url === '#local-procuration') {
-                                                                        e.preventDefault();
-                                                                        if (downloadingDocId) return;
-                                                                        let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
-                                                                        if (extraInfo?.procurationSignatureUrl) {
-                                                                            setDownloadingDocId(doc.id);
-                                                                            try {
-                                                                                const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
-                                                                                const blob = await generateSignedProcurationBlob(client, extraInfo.procurationSignatureUrl, extraInfo.procurationData);
-                                                                                const url = URL.createObjectURL(blob);
-                                                                                const a = document.createElement('a');
-                                                                                a.href = url;
-                                                                                a.download = `Procuration_${client.company || client.id}.pdf`;
-                                                                                document.body.appendChild(a);
-                                                                                a.click();
-                                                                                document.body.removeChild(a);
-                                                                                URL.revokeObjectURL(url);
-                                                                            } catch (err) {
-                                                                                console.error(err);
-                                                                            } finally {
-                                                                                setDownloadingDocId(null);
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                target={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '_self' : '_blank'}
-                                                                rel="noopener noreferrer"
-                                                                style={{ color: '#0f172a', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}
-                                                            >
-                                                                Ouvrir
-                                                            </a>
-                                                            <button
-                                                                onClick={async (e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    if (await appConfirm("Supprimer ce document ?", { isDanger: true, confirmText: 'Supprimer', title: 'Supprimer le document' })) {
-                                                                        try {
-                                                                            await adminDataService.deleteDocument(doc.id);
-                                                                            const updatedDocs = await adminDataService.getDocuments(client.id);
-                                                                            setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
-                                                                        } catch (err) {
-                                                                            appAlert("Erreur lors de la suppression");
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                style={{ color: '#ef4444', background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                                                                title="Supprimer ce document"
-                                                            >
-                                                                Supprimer
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            {(documents || []).filter(doc => {
-                                                if (!doc || doc.owner !== 'client') return false;
-                                                const name = doc.name?.toLowerCase() || '';
-                                                if (name.includes('kbis')) return false;
-                                                if (name.includes('contrat signé')) return false;
-                                                if (name.includes('procuration signée')) return false;
-                                                if (name.includes('procuration postale')) return false;
-                                                return true;
-                                            }).length === 0 && (
-                                                    <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par le client.</div>
-                                                )}
+                                <div
+                                    className="card-body"
+                                    onDragOver={onDragOver}
+                                    onDrop={onDrop}
+                                    style={{ minHeight: '250px', position: 'relative' }}
+                                >
+                                    {isUploading && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 0, left: 0, right: 0, bottom: 0,
+                                            background: 'rgba(255, 255, 255, 0.8)',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            zIndex: 10,
+                                            borderRadius: '12px',
+                                            backdropFilter: 'blur(2px)'
+                                        }}>
+                                            <div style={{
+                                                width: '36px',
+                                                height: '36px',
+                                                border: '3.5px solid #e2e8f0',
+                                                borderTopColor: '#6366F1',
+                                                borderRadius: '50%',
+                                                animation: 'spin 0.8s linear infinite',
+                                                marginBottom: '12px'
+                                            }} />
+                                            <p style={{ margin: 0, fontWeight: 700, fontSize: '14px', color: '#1E293B' }}>
+                                                Traitement et envoi du document...
+                                            </p>
                                         </div>
-                                    </div>
+                                    )}
+                                    {isLoading && (!documents || documents.length === 0) ? (
+                                        <div className="empty-state-full"><p>Chargement...</p></div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+                                            {/* Documents from Client */}
+                                            <div>
+                                                <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                                                    Documents déposés par le client
+                                                </h3>
+                                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                                    {(documents || []).filter(doc => {
+                                                        if (!doc || doc.owner !== 'client') return false;
+                                                        const name = doc.name?.toLowerCase() || '';
+                                                        if (name.includes('kbis')) return false;
+                                                        if (name.includes('contrat signé')) return false;
+                                                        if (name.includes('procuration signée')) return false;
+                                                        if (name.includes('procuration postale')) return false;
+                                                        return true;
+                                                    }).map(doc => {
+                                                        return (
+                                                            <div key={doc.id} style={{
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                                background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
+                                                                padding: '12px 16px', width: '100%', maxWidth: '450px',
+                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)', position: 'relative'
+                                                            }}>
+                                                                {downloadingDocId === doc.id && (
+                                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', zIndex: 10 }}>
+                                                                        <div style={{ width: '16px', height: '16px', border: '2px solid #E2E8F0', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                                    </div>
+                                                                )}
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+                                                                        📄
+                                                                    </div>
+                                                                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }} title={doc.title || doc.name || 'Document'}>
+                                                                        {doc.title || doc.name || 'Document sans titre'}
+                                                                    </span>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <a
+                                                                        href={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '#' : doc.url}
+                                                                        onClick={async (e) => {
+                                                                            if (doc.url && doc.url.startsWith('data:')) {
+                                                                                e.preventDefault();
+                                                                                handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
+                                                                                return;
+                                                                            }
+                                                                            if (doc.url === '#local-signature') {
+                                                                                e.preventDefault();
+                                                                                if (downloadingDocId) return;
+                                                                                let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                                                                                if (extraInfo?.contractSignatureUrl) {
+                                                                                    setDownloadingDocId(doc.id);
+                                                                                    try {
+                                                                                        const { generateSignedContratBlob } = await import('../../../utils/pdfGenerator');
+                                                                                        const blob = await generateSignedContratBlob(client, extraInfo.contractSignatureUrl);
+                                                                                        const url = URL.createObjectURL(blob);
+                                                                                        const a = document.createElement('a');
+                                                                                        a.href = url;
+                                                                                        a.download = `Contrat_Signe_${client.company || client.id}.pdf`;
+                                                                                        document.body.appendChild(a);
+                                                                                        a.click();
+                                                                                        document.body.removeChild(a);
+                                                                                        URL.revokeObjectURL(url);
+                                                                                    } catch (err) {
+                                                                                        console.error(err);
+                                                                                    } finally {
+                                                                                        setDownloadingDocId(null);
+                                                                                    }
+                                                                                }
+                                                                            } else if (doc.url === '#local-procuration') {
+                                                                                e.preventDefault();
+                                                                                if (downloadingDocId) return;
+                                                                                let extraInfo = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+                                                                                if (extraInfo?.procurationSignatureUrl) {
+                                                                                    setDownloadingDocId(doc.id);
+                                                                                    try {
+                                                                                        const { generateSignedProcurationBlob } = await import('../../../utils/pdfGenerator');
+                                                                                        const blob = await generateSignedProcurationBlob(client, extraInfo.procurationSignatureUrl, extraInfo.procurationData);
+                                                                                        const url = URL.createObjectURL(blob);
+                                                                                        const a = document.createElement('a');
+                                                                                        a.href = url;
+                                                                                        a.download = `Procuration_${client.company || client.id}.pdf`;
+                                                                                        document.body.appendChild(a);
+                                                                                        a.click();
+                                                                                        document.body.removeChild(a);
+                                                                                        URL.revokeObjectURL(url);
+                                                                                    } catch (err) {
+                                                                                        console.error(err);
+                                                                                    } finally {
+                                                                                        setDownloadingDocId(null);
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        target={(doc.url === '#local-signature' || doc.url === '#local-procuration' || (doc.url && doc.url.startsWith('data:'))) ? '_self' : '_blank'}
+                                                                        rel="noopener noreferrer"
+                                                                        style={{ color: '#0f172a', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}
+                                                                    >
+                                                                        Ouvrir
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            if (await appConfirm("Supprimer ce document ?", { isDanger: true, confirmText: 'Supprimer', title: 'Supprimer le document' })) {
+                                                                                try {
+                                                                                    await adminDataService.deleteDocument(doc.id);
+                                                                                    const updatedDocs = await adminDataService.getDocuments(client.id);
+                                                                                    setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
+                                                                                } catch (err) {
+                                                                                    appAlert("Erreur lors de la suppression");
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        style={{ color: '#ef4444', background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                        title="Supprimer ce document"
+                                                                    >
+                                                                        Supprimer
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {(documents || []).filter(doc => {
+                                                        if (!doc || doc.owner !== 'client') return false;
+                                                        const name = doc.name?.toLowerCase() || '';
+                                                        if (name.includes('kbis')) return false;
+                                                        if (name.includes('contrat signé')) return false;
+                                                        if (name.includes('procuration signée')) return false;
+                                                        if (name.includes('procuration postale')) return false;
+                                                        return true;
+                                                    }).length === 0 && (
+                                                            <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document déposé par le client.</div>
+                                                        )}
+                                                </div>
+                                            </div>
 
-                                    {/* Documents from Admin */}
-                                    <div>
-                                        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                                            Documents déposés par MW CREA (Admin)
-                                        </h3>
-                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                            {(documents || []).filter(doc => doc && doc.owner !== 'client').map(doc => {
-                                                return (
-                                                    <div key={doc.id} style={{
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                        background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
-                                                        padding: '12px 16px', width: '100%', maxWidth: '450px',
-                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)', position: 'relative'
-                                                    }}>
-                                                        {downloadingDocId === doc.id && (
-                                                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', zIndex: 10 }}>
-                                                                <div style={{ width: '16px', height: '16px', border: '2px solid #E2E8F0', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                            {/* Documents from Admin */}
+                                            <div>
+                                                <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#475569', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                                                    Documents déposés par MW CREA (Admin)
+                                                </h3>
+                                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                                    {(documents || []).filter(doc => doc && doc.owner !== 'client').map(doc => {
+                                                        return (
+                                                            <div key={doc.id} style={{
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                                background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
+                                                                padding: '12px 16px', width: '100%', maxWidth: '450px',
+                                                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)', position: 'relative'
+                                                            }}>
+                                                                {downloadingDocId === doc.id && (
+                                                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', zIndex: 10 }}>
+                                                                        <div style={{ width: '16px', height: '16px', border: '2px solid #E2E8F0', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                                                    </div>
+                                                                )}
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+                                                                        📄
+                                                                    </div>
+                                                                    <span style={{ fontWeight: 600, color: '#334155', fontSize: '13.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }} title={doc.title || doc.name || 'Document'}>
+                                                                        {doc.title || doc.name || 'Document sans titre'}
+                                                                    </span>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <a
+                                                                        href={(doc.url && doc.url.startsWith('data:')) ? '#' : doc.url}
+                                                                        onClick={(e) => {
+                                                                            if (doc.url && doc.url.startsWith('data:')) {
+                                                                                e.preventDefault();
+                                                                                handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
+                                                                            }
+                                                                        }}
+                                                                        target={(doc.url && doc.url.startsWith('data:')) ? undefined : "_blank"}
+                                                                        rel="noopener noreferrer"
+                                                                        style={{ color: '#0f172a', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}
+                                                                    >
+                                                                        Ouvrir
+                                                                    </a>
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            if (await appConfirm("Supprimer ce document ?", { isDanger: true, confirmText: 'Supprimer', title: 'Supprimer le document' })) {
+                                                                                try {
+                                                                                    await adminDataService.deleteDocument(doc.id);
+                                                                                    const updatedDocs = await adminDataService.getDocuments(client.id);
+                                                                                    setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
+                                                                                } catch (err) {
+                                                                                    appAlert("Erreur lors de la suppression");
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        style={{ color: '#ef4444', background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                        title="Supprimer ce document"
+                                                                    >
+                                                                        Supprimer
+                                                                    </button>
+                                                                </div>
                                                             </div>
-                                                        )}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
-                                                                📄
-                                                            </div>
-                                                            <span style={{ fontWeight: 600, color: '#334155', fontSize: '13.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }} title={doc.title || doc.name || 'Document'}>
-                                                                {doc.title || doc.name || 'Document sans titre'}
-                                                            </span>
-                                                        </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <a
-                                                                href={(doc.url && doc.url.startsWith('data:')) ? '#' : doc.url}
-                                                                onClick={(e) => {
-                                                                    if (doc.url && doc.url.startsWith('data:')) {
-                                                                        e.preventDefault();
-                                                                        handleDataUrlDownload(doc.url, doc.name || 'document.pdf');
-                                                                    }
-                                                                }}
-                                                                target={(doc.url && doc.url.startsWith('data:')) ? undefined : "_blank"}
-                                                                rel="noopener noreferrer"
-                                                                style={{ color: '#0f172a', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, textDecoration: 'none', transition: 'all 0.2s' }}
-                                                            >
-                                                                Ouvrir
-                                                            </a>
-                                                            <button
-                                                                onClick={async (e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    if (await appConfirm("Supprimer ce document ?", { isDanger: true, confirmText: 'Supprimer', title: 'Supprimer le document' })) {
-                                                                        try {
-                                                                            await adminDataService.deleteDocument(doc.id);
-                                                                            const updatedDocs = await adminDataService.getDocuments(client.id);
-                                                                            setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
-                                                                        } catch (err) {
-                                                                            appAlert("Erreur lors de la suppression");
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                style={{ color: '#ef4444', background: '#fee2e2', border: '1px solid #fca5a5', padding: '6px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                                                                title="Supprimer ce document"
-                                                            >
-                                                                Supprimer
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            {(documents || []).filter(doc => doc && doc.owner !== 'client').length === 0 && (
-                                                <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document administratif.</div>
-                                            )}
+                                                        );
+                                                    })}
+                                                    {(documents || []).filter(doc => doc && doc.owner !== 'client').length === 0 && (
+                                                        <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>Aucun document administratif.</div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                        </div>
+                            </div>
                         </div>
                     </>
                 );
@@ -1509,23 +1509,23 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     <div style={{ color: '#64748B', fontSize: '13px', marginTop: '2px' }}>Numérisez et déposez les courriers reçus pour ce client. Une notification email lui sera envoyée.</div>
                                 </div>
                             </div>
-                            
+
                             <form onSubmit={confirmMailUpload} style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: '#F8FAFC', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                     <div>
                                         <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Expéditeur du courrier</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             value={mailFrom}
                                             onChange={e => setMailFrom(e.target.value)}
-                                            placeholder="Ex: URSSAF, Impôts, Fournisseur..." 
+                                            placeholder="Ex: URSSAF, Impôts, Fournisseur..."
                                             style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
                                             required
                                         />
                                     </div>
                                     <div>
                                         <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Type de courrier</label>
-                                        <select 
+                                        <select
                                             value={mailType}
                                             onChange={e => setMailType(e.target.value)}
                                             style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', boxSizing: 'border-box' }}
@@ -1539,7 +1539,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
                                 <div>
                                     <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Fichier numérisé (PDF ou Image)</label>
-                                    <input 
+                                    <input
                                         id="mail-file-input"
                                         type="file"
                                         accept=".pdf,image/*"
@@ -1548,7 +1548,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     />
                                 </div>
 
-                                <button 
+                                <button
                                     type="submit"
                                     disabled={isUploadingMail}
                                     style={{ background: '#0F172A', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: '600', cursor: isUploadingMail ? 'not-allowed' : 'pointer', fontSize: '14px', opacity: isUploadingMail ? 0.7 : 1, marginTop: '8px', display: 'flex', justifyContent: 'center', gap: '8px' }}
@@ -1566,7 +1566,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
                         }}>
                             <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', margin: '0 0 16px 0' }}>Historique des courriers</h3>
-                            
+
                             {(!mails || mails.length === 0) ? (
                                 <div style={{ textAlign: 'center', padding: '40px', color: '#64748B', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed #CBD5E1' }}>
                                     Aucun courrier numérisé pour ce client.
@@ -1589,15 +1589,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                <a 
-                                                    href={m.preview} 
-                                                    target="_blank" 
+                                                <a
+                                                    href={m.preview}
+                                                    target="_blank"
                                                     rel="noopener noreferrer"
                                                     style={{ padding: '8px 16px', background: '#F8FAFC', color: '#0F172A', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', cursor: 'pointer' }}
                                                 >
                                                     Ouvrir
                                                 </a>
-                                                <button 
+                                                <button
                                                     onClick={async () => {
                                                         if (await showConfirm('Supprimer ce courrier ?')) {
                                                             await adminDataService.deleteMail(m.id);

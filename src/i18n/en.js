@@ -32,7 +32,6 @@ export default {
       reformesLegales: 'Legal reforms',
       podcast: 'Podcast',
       entrepreneuriat: 'Entrepreneurship',
-      seDomicilier: 'Register a business address',
       tech: 'Tech',
       domiciliation: 'Business Address',
       lesAdresses: 'Our locations',
@@ -63,8 +62,8 @@ export default {
   footer: {
     desc: 'The most competitive business address solution in France. Based in Toulouse, we support entrepreneurs with a prestigious address.',
     stats: {
-      entreprises: { value: '+3,000', label: 'Businesses' },
-      creations: { value: '+50', label: 'Creations/week' },
+      entreprises: { value: 'Toulouse', label: 'Official address' },
+      creations: { value: '24h', label: 'Certificate' },
     },
     columns: {
       services: {
@@ -145,10 +144,10 @@ export default {
     },
 
     stats: [
-      { prefix: '+', target: 3000, suffix: '', label: 'Registered businesses' },
-      { prefix: '+', target: 50, suffix: '', label: 'New creations / week' },
-      { prefix: '', target: 1, suffix: '', label: 'French metropolis' },
-      { prefix: '', target: 20, suffix: '€', label: 'excl. VAT / month only' },
+      { prefix: '', target: 2019, suffix: '', label: 'Established in Toulouse' },
+      { prefix: '', target: 24, suffix: 'h', label: 'Certificate turnaround' },
+      { prefix: '', target: 1, suffix: '', label: 'City: Toulouse' },
+      { prefix: '', target: 20, suffix: '€', label: 'excl. VAT / month from' },
     ],
 
     features: {
@@ -286,37 +285,11 @@ export default {
     },
 
     testimonials: {
-      eyebrow: 'Customer reviews',
-      title: 'They trust us',
-      subtitle: 'More than 3,000 entrepreneurs have chosen Domiciliation-Pas-Cher.com for their professional address.',
-      items: [
-        {
-          name: 'Marie L.',
-          role: 'Independent Consultant',
-          city: 'Lyon',
-          rating: 5,
-          text: "Impeccable service, unbeatable price. I was able to register my company in 24h. I highly recommend!",
-        },
-        {
-          name: 'Thomas B.',
-          role: 'Startup Founder',
-          city: 'Paris',
-          rating: 5,
-          text: 'Domiciliation with scanning is ideal for me as I am often traveling. Everything is managed online, zero stress.',
-        },
-        {
-          name: 'Sophie M.',
-          role: 'Self-employed',
-          city: 'Marseille',
-          rating: 5,
-          text: 'Extremely simple to set up. Support answers quickly and professionally. Great experience.',
-        },
-      ],
-      platforms: [
-        { name: 'Trustpilot', score: '4.8 / 5' },
-        { name: 'Google Reviews', score: '4.7 / 5' },
-        { name: 'Verified Reviews', score: '4.6 / 5' },
-      ],
+      eyebrow: 'Trust',
+      title: 'Local and transparent domiciliation',
+      subtitle: 'Approved centre in Toulouse. No invented reviews: we prefer compliance over marketing scores.',
+      items: [],
+      platforms: [],
     },
 
     faqs: {
@@ -464,10 +437,10 @@ export default {
         },
         {
           icon: '📦',
-          name: 'Physical Forwarding',
+          name: 'Mail forwarding',
           price: '+18€',
           period: '/month',
-          desc: "Your mail is forwarded to the address of your choice, in an envelope, once a month.",
+          desc: "Your mail is forwarded to the address of your choice, in an envelope, once a month. (This is not a head-office change fee.)",
         },
       ],
     },
@@ -606,6 +579,20 @@ export default {
       desc: 'We are expanding our network every month. Contact our advisors to discuss your specific needs.',
       button: 'Speak to an advisor',
       trust: 'Response in less than 2 hours',
+      modalTitle: 'Speak to an advisor',
+      modalHint: 'Leave your details and an advisor will get back to you shortly.',
+      name: 'Full name',
+      email: 'Email',
+      phone: 'Phone',
+      message: 'Your message (optional)',
+      city: 'Desired city (optional)',
+      submit: 'Send my request',
+      sending: 'Sending…',
+      success: 'Thank you! We will contact you very soon.',
+      error: 'Could not send the request. Please try again or email contact@domiciliation-pas-cher.com',
+      cancel: 'Cancel',
+      required: 'Required',
+      emailInvalid: 'Invalid email',
     },
   },
 
@@ -622,8 +609,8 @@ export default {
 
     stats: [
       { value: '2019', label: 'Year founded' },
-      { value: '+3,000', label: 'Registered businesses' },
-      { value: '+50/wk', label: 'New creations' },
+      { value: 'Toulouse', label: 'Official address' },
+      { value: '24h', label: 'Certificate' },
       { value: '1', label: 'Partner city' },
       { value: '20€', label: 'Starting at / month' },
     ],
@@ -645,7 +632,7 @@ export default {
       cards: [
         '📍 Toulouse, historical HQ',
         '🇫🇷 Prestigious address',
-        '⚡ +50 creations / week',
+        '⚡ Certificate within 24h',
       ],
     },
 
@@ -682,10 +669,10 @@ export default {
       title: 'Constant',
       titleHighlight: 'Growth',
       items: [
-        { year: '2019', title: 'Founded in Toulouse', desc: 'Creation of DomiciliationPasCher with 50 early clients.' },
-        { year: '2021', title: 'National expansion', desc: 'Opening in 5 new French cities.' },
-        { year: '2023', title: '+1,000 businesses', desc: 'Passed the milestone of 1,000 registered businesses.' },
-        { year: '2025', title: '+3,000 businesses', desc: 'Leader in affordable domiciliation in France.' },
+        { year: '2019', title: 'Founded in Toulouse', desc: 'Creation of DomiciliationPasCher in Toulouse.' },
+        { year: '2021', title: '100% online journey', desc: 'Fully digitalised subscription and client area.' },
+        { year: '2023', title: 'Approved centre', desc: 'Stronger legal framework and local support.' },
+        { year: '2025', title: 'Focus Toulouse', desc: 'A clear official address, transparent pricing from 20€ excl. VAT/month.' },
       ],
     },
 
@@ -1157,12 +1144,7 @@ export default {
         content: 'Despite a complex economic context, business creation is breaking records. Analysis of sector trends, profiles of new founders, and growth opportunities in the circular economy and AI.',
         icon: '\ud83d\ude80'
       },
-      'sedomicilier': {
-        title: 'SeDomicilier: Our Platform Updates',
-        category: 'News',
-        content: 'Modernization of the client area, new addresses, integrated accounting tools: discover how we make your daily entrepreneurial life easier.',
-        icon: '\ud83c\udfe0'
-      },
+
       'tech': {
         title: 'Tech & Innovation: Must-Have Tools',
         category: 'News',
@@ -1379,6 +1361,10 @@ export default {
       { icon: '🚀', title: 'Clear action plan', desc: 'The steps and timeline to obtain your Kbis.' },
     ],
     loading: 'Loading calendar...',
+    errorTitle: 'Calendar temporarily unavailable',
+    errorBody: 'Online booking could not load. Contact us or try again later.',
+    contactCta: 'Email contact@domiciliation-pas-cher.com',
+    openCalendly: 'Open the calendar in a new tab',
     backLink: 'Back to pricing',
   },
 

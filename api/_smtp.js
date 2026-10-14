@@ -52,7 +52,10 @@ export function getSmtpConfig() {
     return { host, port: Number(port), user, pass, from };
 }
 
-/** Retourne un transporteur nodemailer, ou null si le SMTP n'est pas configuré. */
+/** Retourne un transporteur nodemailer, ou null si le SMTP n'est pas configuré.
+ *  Pour une bonne délivrabilité : mail.infomaniak.com + contact@domiciliation-pas-cher.com
+ *  (le SPF/DMARC du domaine n'autorise pas Gmail).
+ */
 export function getTransporter() {
     const config = getSmtpConfig();
     if (!config) return null;

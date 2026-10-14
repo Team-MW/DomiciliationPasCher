@@ -297,6 +297,10 @@ export default function Home() {
 
                     const demandIdToConfirm = pendingDemandeId || stripeData?.metadata?.demande_id;
 
+                    // Toujours nettoyer le brouillon après paiement validé (même sans demande_id).
+                    localStorage.removeItem('dpc_souscription_draft');
+                    localStorage.removeItem('dpc_souscription_step');
+
                     if (demandIdToConfirm) {
                         await adminDataService.confirmDemandePayment(demandIdToConfirm, sessionId, stripeCustomerId);
                         
@@ -607,6 +611,7 @@ export default function Home() {
             </section>
 
             {/* ══════════ TESTIMONIALS ══════════ */}
+            {tr.home.testimonials.items.length > 0 && (
             <section className="testimonials-section section" id="testimonials">
                 <div className="container">
                     <div className="section-header animate-in">
@@ -633,6 +638,7 @@ export default function Home() {
                             </div>
                         ))}
                     </div>
+                    {tr.home.testimonials.platforms.length > 0 && (
                     <div className="review-platforms animate-in">
                         {tr.home.testimonials.platforms.flatMap((platform, i) => [
                             ...(i > 0 ? [<div key={`sep-${i}`} className="review-sep" />] : []),
@@ -643,8 +649,10 @@ export default function Home() {
                             </div>,
                         ])}
                     </div>
+                    )}
                 </div>
             </section>
+            )}
 
             {/* ══════════ FAQ ══════════ */}
             <section className="faq-section section" id="faq">

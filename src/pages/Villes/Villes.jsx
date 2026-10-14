@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CityIcons } from '../../utils/cityIcons';
 import { useTranslation } from '../../i18n/LanguageContext';
+import { sendContactAdvisorEmail } from '../../utils/emailService';
 import './Villes.css';
 
 const cityImages = {
@@ -47,12 +48,60 @@ function useAnimateOnScroll() {
 
 export default function Villes() {
     const { tr } = useTranslation();
+    const help = tr.villes.helpCta;
 
     useEffect(() => {
         document.title = tr.villes.pageTitle;
     }, [tr.villes.pageTitle]);
 
     const pageRef = useAnimateOnScroll();
+    const [showAdvisor, setShowAdvisor] = useState(false);
+    const [form, setForm] = useState({ nom: '', email: '', telephone: '', city: '', message: '' });
+    const [formErrors, setFormErrors] = useState({});
+    const [sending, setSending] = useState(false);
+    const [sent, setSent] = useState(false);
+    const [sendError, setSendError] = useState('');
+
+    const openAdvisor = () => {
+        setForm({ nom: '', email: '', telephone: '', city: '', message: '' });
+        setFormErrors({});
+        setSent(false);
+        setSendError('');
+        setShowAdvisor(true);
+    };
+
+    const closeAdvisor = () => {
+        if (sending) return;
+        setShowAdvisor(false);
+    };
+
+    const submitAdvisor = async (ev) => {
+        ev.preventDefault();
+        const e = {};
+        if (!form.nom.trim()) e.nom = help.required;
+        if (!form.email.trim()) e.email = help.required;
+        else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = help.emailInvalid;
+        if (!form.telephone.trim()) e.telephone = help.required;
+        setFormErrors(e);
+        if (Object.keys(e).length || sending) return;
+
+        setSending(true);
+        setSendError('');
+        try {
+            await sendContactAdvisorEmail({
+                nom: form.nom.trim(),
+                email: form.email.trim(),
+                telephone: form.telephone.trim(),
+                city: form.city.trim(),
+                message: form.message.trim(),
+            });
+            setSent(true);
+        } catch {
+            setSendError(help.error);
+        } finally {
+            setSending(false);
+        }
+    };
 
     const cities = tr.villes.cities.map(city => ({
         ...city,
@@ -166,16 +215,100 @@ export default function Villes() {
                 <div className="container">
                     <div className="city-help-card animate-in">
                         <div className="ch-content">
-                            <h2 className="ch-title">{tr.villes.helpCta.title}</h2>
-                            <p className="ch-desc">{tr.villes.helpCta.desc}</p>
+                            <h2 className="ch-title">{help.title}</h2>
+                            <p className="ch-desc">{help.desc}</p>
                         </div>
                         <div className="ch-actions">
-                            <Link to="/tarifs" className="btn btn-white btn-lg">{tr.villes.helpCta.button}</Link>
-                            <div className="ch-trust">{tr.villes.helpCta.trust}</div>
+                            <button type="button" className="btn btn-white btn-lg" onClick={openAdvisor}>
+                                {help.button}
+                            </button>
+                            <div className="ch-trust">{help.trust}</div>
                         </div>
                     </div>
                 </div>
             </section>
+
+            {showAdvisor && (
+                <div className="advisor-overlay" role="presentation" onClick={closeAdvisor}>
+                    <div
+                        className="advisor-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="advisor-modal-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button type="button" className="advisor-close" onClick={closeAdvisor} aria-label={help.cancel}>×</button>
+                        <h3 id="advisor-modal-title">{help.modalTitle}</h3>
+                        <p className="advisor-hint">{help.modalHint}</p>
+
+                        {sent ? (
+                            <div className="advisor-success">
+                                <p>{help.success}</p>
+                                <button type="button" className="btn btn-primary" onClick={closeAdvisor}>{help.cancel}</button>
+                            </div>
+                        ) : (
+                            <form className="advisor-form" onSubmit={submitAdvisor} noValidate>
+                                <label>
+                                    <span>{help.name} *</span>
+                                    <input
+                                        value={form.nom}
+                                        onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))}
+                                        autoComplete="name"
+                                        className={formErrors.nom ? 'is-error' : ''}
+                                    />
+                                    {formErrors.nom && <em>{formErrors.nom}</em>}
+                                </label>
+                                <label>
+                                    <span>{help.email} *</span>
+                                    <input
+                                        type="email"
+                                        value={form.email}
+                                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                                        autoComplete="email"
+                                        className={formErrors.email ? 'is-error' : ''}
+                                    />
+                                    {formErrors.email && <em>{formErrors.email}</em>}
+                                </label>
+                                <label>
+                                    <span>{help.phone} *</span>
+                                    <input
+                                        type="tel"
+                                        value={form.telephone}
+                                        onChange={(e) => setForm((f) => ({ ...f, telephone: e.target.value }))}
+                                        autoComplete="tel"
+                                        className={formErrors.telephone ? 'is-error' : ''}
+                                    />
+                                    {formErrors.telephone && <em>{formErrors.telephone}</em>}
+                                </label>
+                                <label>
+                                    <span>{help.city}</span>
+                                    <input
+                                        value={form.city}
+                                        onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                                    />
+                                </label>
+                                <label>
+                                    <span>{help.message}</span>
+                                    <textarea
+                                        rows={3}
+                                        value={form.message}
+                                        onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+                                    />
+                                </label>
+                                {sendError && <p className="advisor-error">{sendError}</p>}
+                                <div className="advisor-actions">
+                                    <button type="button" className="btn btn-ghost" onClick={closeAdvisor} disabled={sending}>
+                                        {help.cancel}
+                                    </button>
+                                    <button type="submit" className="btn btn-primary" disabled={sending}>
+                                        {sending ? help.sending : help.submit}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

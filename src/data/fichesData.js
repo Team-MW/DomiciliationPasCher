@@ -50,12 +50,6 @@ export const fichesData = {
         content: "Malgré un contexte économique complexe, la création d'entreprise bat des records. Analyse des tendances par secteur, profil des nouveaux créateurs et opportunités de croissance dans l'économie circulaire et l'IA.",
         icon: '🚀'
     },
-    'sedomicilier': {
-        title: 'SeDomicilier : Les nouveautés de notre plateforme',
-        category: 'Actualités',
-        content: "Modernisation de l'espace client, nouvelles adresses à Bordeaux et Lyon, outils de comptabilité intégrés : découvrez comment nous facilitons votre quotidien d'entrepreneur.",
-        icon: '🏠'
-    },
     'tech': {
         title: 'Tech & Innovation : Les outils indispensables',
         category: 'Actualités',

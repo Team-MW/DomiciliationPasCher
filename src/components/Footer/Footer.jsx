@@ -93,8 +93,8 @@ export default function Footer() {
                         </div>
                         <div className="footer-legal">
                             <Link to="/mentions-legales">{footer.legal.mentionsLegales}</Link>
-                            <Link to="#">{footer.legal.cgv}</Link>
-                            <Link to="#">{footer.legal.confidentialite}</Link>
+                            <Link to="/mentions-legales">{footer.legal.cgv}</Link>
+                            <Link to="/mentions-legales">{footer.legal.confidentialite}</Link>
                         </div>
                     </div>
 
