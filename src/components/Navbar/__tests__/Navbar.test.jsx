@@ -34,6 +34,14 @@ describe('Navbar Component', () => {
         expect(tarifsLinks.length).toBeGreaterThan(0);
     });
 
+    it('renders the clickable phone number', () => {
+        renderNavbar();
+        const link = document.getElementById('nav-phone-link');
+        expect(link).toHaveAttribute('href', 'tel:+33960396907');
+        expect(link).toHaveTextContent('09 60 39 69 07');
+        expect(document.getElementById('nav-phone-mobile-btn')).toHaveAttribute('href', 'tel:+33960396907');
+    });
+
     it('renders SignedIn and SignedOut wrappers properly for auth state', () => {
         renderNavbar();
         

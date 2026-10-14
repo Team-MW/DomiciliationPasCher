@@ -1,4 +1,5 @@
 import React from 'react';
+import { CONTACT_PHONE_HREF } from '../../constants/contact';
 
 const MentionsLegales = () => {
     return (
@@ -53,8 +54,8 @@ const MentionsLegales = () => {
 
                         <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>6. Contact</h2>
                         <p>
-                            Par mail : contact@domiciliation-pas-cher.com<br />
-                            Par téléphone : +33 7 45 04 00 26
+                            Par mail : <a href="mailto:contact@domiciliation-pas-cher.com">contact@domiciliation-pas-cher.com</a><br />
+                            Par téléphone : <a href={CONTACT_PHONE_HREF}>09 60 39 69 07</a>
                         </p>
                     </div>
                 </div>

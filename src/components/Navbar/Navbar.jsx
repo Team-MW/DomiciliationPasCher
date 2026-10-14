@@ -3,9 +3,16 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { useTranslation } from '../../i18n/LanguageContext';
 import LanguageSwitcher from '../LanguageSwitcher/LanguageSwitcher';
+import { CONTACT_PHONE_HREF } from '../../constants/contact';
 import './Navbar.css';
 
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
+
+const PhoneIcon = ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+);
 
 const navLinkDefs = [
     { to: '/', labelKey: 'home' },
@@ -54,6 +61,7 @@ export default function Navbar() {
     };
 
     const mm = tr.nav.megaMenu;
+    const phone = tr.footer.contact.phone;
 
     return (
         <header className={`navbar ${scrolled ? 'scrolled' : ''}`} id="navbar">
@@ -169,6 +177,15 @@ export default function Navbar() {
 
                 {/* Desktop Actions */}
                 <div className="navbar-actions">
+                    <a
+                        href={CONTACT_PHONE_HREF}
+                        className="navbar-phone"
+                        id="nav-phone-link"
+                        aria-label={`${tr.nav.callAria} ${phone}`}
+                    >
+                        <PhoneIcon />
+                        <span className="navbar-phone-text">{phone}</span>
+                    </a>
                     <LanguageSwitcher />
                     <SignedOut>
                         <Link to="/connexion" className="btn btn-ghost" id="nav-signin-btn" onClick={() => setIsMegaOpen(false)}>
@@ -190,6 +207,15 @@ export default function Navbar() {
                         {tr.nav.cta}
                     </Link>
                 </div>
+
+                <a
+                    href={CONTACT_PHONE_HREF}
+                    className="navbar-phone-mobile"
+                    id="nav-phone-mobile-btn"
+                    aria-label={`${tr.nav.callAria} ${phone}`}
+                >
+                    <PhoneIcon size={18} />
+                </a>
 
                 {/* Hamburger */}
                 <button
@@ -224,6 +250,10 @@ export default function Navbar() {
                     </NavLink>
                 ))}
                 <div className="mobile-divider" />
+                <a href={CONTACT_PHONE_HREF} className="mobile-link mobile-phone" id="mobile-phone-link">
+                    <PhoneIcon />
+                    {phone}
+                </a>
                 <SignedOut>
                     <Link
                         to="/connexion"

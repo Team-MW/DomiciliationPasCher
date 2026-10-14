@@ -57,6 +57,7 @@ export default {
     cta: 'Начать →',
     mobileCta: 'Домицилировать мою компанию',
     menuAria: 'Меню',
+    callAria: 'Позвонить',
   },
 
   footer: {
@@ -84,7 +85,7 @@ export default {
     contact: {
       title: 'Контакты',
       address: '150 Rue Nicolas Louis Vauquelin\n3ème étage, Lot 308\n31100 Toulouse',
-      phone: '+33 7 45 04 00 26',
+      phone: '+33 9 60 39 69 07',
       email: 'contact@domiciliation-pas-cher.com',
     },
     cta: {
