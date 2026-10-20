@@ -455,8 +455,9 @@ export default {
           icon: '🤝',
           name: 'Meeting Room',
           prices: [
-            { duration: 'Half-day (4h)', amount: '25€' },
-            { duration: 'Full day (8h)', amount: '40€' },
+            { duration: '1 hour', amount: '25€ excl. VAT' },
+            { duration: 'Half-day (4h)', amount: '75€ excl. VAT' },
+            { duration: 'Full day (8h)', amount: '140€ excl. VAT' },
           ],
           features: [
             "Up to 10 people",
@@ -470,8 +471,9 @@ export default {
           icon: '💼',
           name: 'Private Office',
           prices: [
-            { duration: 'Half-day (4h)', amount: '20€' },
-            { duration: 'Full day (8h)', amount: '40€' },
+            { duration: '1 hour', amount: '25€ excl. VAT' },
+            { duration: 'Half-day (4h)', amount: '75€ excl. VAT' },
+            { duration: 'Full day (8h)', amount: '140€ excl. VAT' },
           ],
           features: [
             'Private individual office',

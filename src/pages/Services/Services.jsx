@@ -79,7 +79,7 @@ export default function Services() {
     const currentForme = formes.find(f => f.id === activeStatut);
 
     return (
-        <main ref={pageRef} style={{ paddingTop: '68px' }}>
+        <main ref={pageRef} style={{ paddingTop: 'var(--navbar-height)' }}>
 
             {/* ══ HEADER ══ */}
             <section className="page-header">

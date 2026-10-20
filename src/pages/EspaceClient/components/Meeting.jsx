@@ -188,7 +188,14 @@ export default function Meeting({ clientData }) {
                                     id="book-type"
                                     className="ec-input"
                                     value={form.type}
-                                    onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                                    onChange={(e) => {
+                                        const type = e.target.value;
+                                        setForm((f) => ({
+                                            ...f,
+                                            type,
+                                            duration: type === MEETING_TYPES.cowork && f.duration === MEETING_DURATIONS.hour ? MEETING_DURATIONS.morning : f.duration,
+                                        }));
+                                    }}
                                 >
                                     <option value={MEETING_TYPES.room}>{t('espaceClient.meeting.typeRoom')}</option>
                                     <option value={MEETING_TYPES.office}>{t('espaceClient.meeting.typeOffice')}</option>
@@ -215,6 +222,9 @@ export default function Meeting({ clientData }) {
                                         value={form.duration}
                                         onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
                                     >
+                                        {form.type !== MEETING_TYPES.cowork && (
+                                            <option value={MEETING_DURATIONS.hour}>{t('espaceClient.meeting.hour')}</option>
+                                        )}
                                         <option value={MEETING_DURATIONS.morning}>{t('espaceClient.meeting.morning')}</option>
                                         <option value={MEETING_DURATIONS.afternoon}>{t('espaceClient.meeting.afternoon')}</option>
                                         <option value={MEETING_DURATIONS.fullday}>{t('espaceClient.meeting.fullday')}</option>
@@ -246,7 +256,7 @@ export default function Meeting({ clientData }) {
                                     <div className="ec-activity-meta">{b.date} · {b.duration}</div>
                                 </div>
                                 <span className={`ec-status-chip ${b.status === 'en_attente' ? 'unread' : ''}`}>
-                                    {t(`espaceClient.meeting.statusLabel.${b.status === 'confirmée' || b.status === 'confirmee' ? 'confirmed' : b.status === 'refusee' ? 'refused' : 'pending'}`)}
+                                    {t(`espaceClient.meeting.statusLabel.${b.status === 'confirmée' || b.status === 'confirmee' ? 'confirmed' : b.status === 'refusée' || b.status === 'refusee' ? 'refused' : 'pending'}`)}
                                 </span>
                             </div>
                         ))}

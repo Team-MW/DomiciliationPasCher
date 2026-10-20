@@ -9,12 +9,14 @@ import {
 } from '../src/utils/meetingPrices.js';
 
 describe('tarifs salles & bureaux', () => {
-    it('matche la grille /tarifs (salle 25/40, bureau 20/40)', () => {
-        expect(meetingPriceHt(MEETING_TYPES.room, MEETING_DURATIONS.morning)).toBe(25);
-        expect(meetingPriceHt(MEETING_TYPES.room, MEETING_DURATIONS.afternoon)).toBe(25);
-        expect(meetingPriceHt(MEETING_TYPES.room, MEETING_DURATIONS.fullday)).toBe(40);
-        expect(meetingPriceHt(MEETING_TYPES.office, MEETING_DURATIONS.morning)).toBe(20);
-        expect(meetingPriceHt(MEETING_TYPES.office, MEETING_DURATIONS.fullday)).toBe(40);
+    it('matche la grille /tarifs (salle et bureau 25/75/140)', () => {
+        expect(meetingPriceHt(MEETING_TYPES.room, MEETING_DURATIONS.hour)).toBe(25);
+        expect(meetingPriceHt(MEETING_TYPES.room, MEETING_DURATIONS.morning)).toBe(75);
+        expect(meetingPriceHt(MEETING_TYPES.room, MEETING_DURATIONS.afternoon)).toBe(75);
+        expect(meetingPriceHt(MEETING_TYPES.room, MEETING_DURATIONS.fullday)).toBe(140);
+        expect(meetingPriceHt(MEETING_TYPES.office, MEETING_DURATIONS.hour)).toBe(25);
+        expect(meetingPriceHt(MEETING_TYPES.office, MEETING_DURATIONS.morning)).toBe(75);
+        expect(meetingPriceHt(MEETING_TYPES.office, MEETING_DURATIONS.fullday)).toBe(140);
         expect(meetingPriceHt(MEETING_TYPES.cowork, MEETING_DURATIONS.morning)).toBe(15);
         expect(meetingPriceHt(MEETING_TYPES.cowork, MEETING_DURATIONS.fullday)).toBe(30);
     });

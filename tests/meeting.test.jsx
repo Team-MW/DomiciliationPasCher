@@ -87,12 +87,12 @@ describe('Meeting (espace client)', () => {
         fireEvent.change(screen.getByLabelText('Date souhaitée'), {
             target: { value: FUTURE_DATE },
         });
-        fireEvent.click(screen.getByRole('button', { name: /25,00/ }));
+        fireEvent.click(screen.getByRole('button', { name: /75,00/ }));
 
         await waitFor(() => expect(handleCheckout).toHaveBeenCalledTimes(1));
         expect(handleCheckout.mock.calls[0]).toEqual([
             'salle',
-            25,
+            75,
             'Réservation Salle de réunion (6-8 pers) (Matinée (9h-12h))',
             'one_time',
             expect.stringContaining('/app/espace-client?tab=meeting&booking_success=true'),

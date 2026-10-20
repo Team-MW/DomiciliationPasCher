@@ -6,6 +6,7 @@ export const MEETING_TYPES = {
 };
 
 export const MEETING_DURATIONS = {
+    hour: '1 heure',
     morning: 'Matinée (9h-12h)',
     afternoon: 'Après-midi (14h-18h)',
     fullday: 'Journée complète',
@@ -13,8 +14,10 @@ export const MEETING_DURATIONS = {
 
 export function meetingPriceHt(type, duration) {
     const fullDay = duration === MEETING_DURATIONS.fullday;
-    if ((type || '').includes('Salle')) return fullDay ? 40 : 25;
-    if ((type || '').includes('Bureau')) return fullDay ? 40 : 20;
+    if ((type || '').includes('Salle') || (type || '').includes('Bureau')) {
+        if (duration === MEETING_DURATIONS.hour) return 25;
+        return fullDay ? 140 : 75;
+    }
     return fullDay ? 30 : 15;
 }
 

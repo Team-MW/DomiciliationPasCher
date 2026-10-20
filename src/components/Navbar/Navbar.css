@@ -26,8 +26,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 84px;
-    gap: 40px;
+    height: var(--navbar-height);
+    gap: 24px;
+    min-width: 0;
 }
 
 /* ── Logo wordmark ── */
@@ -44,20 +45,21 @@
 }
 
 .logo-img {
-    height: 140px;
+    height: 96px;
     width: auto;
+    max-width: 220px;
     display: block;
     position: absolute;
     top: 50%;
+    left: 0;
     transform: translateY(-50%);
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
 }
 
 .navbar-logo {
     position: relative;
-    width: 280px;
-    /* Give space for the overlapping logo */
-    height: 84px;
+    width: 220px;
+    height: var(--navbar-height);
 }
 
 /* ── Nav links ── */
@@ -160,7 +162,7 @@
 /* ── Mega Menu ── */
 .nav-item-wrapper {
     position: relative;
-    height: 84px;
+    height: var(--navbar-height);
     display: flex;
     align-items: center;
 }
@@ -177,7 +179,7 @@
 
 .mega-menu {
     position: fixed;
-    top: 84px;
+    top: var(--navbar-height);
     left: 0;
     right: 0;
     background: white;
@@ -363,8 +365,9 @@
 }
 
 .mobile-menu.open {
-    display: flex;
-    max-height: 640px;
+    max-height: min(70vh, 640px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .mobile-link {
@@ -409,15 +412,9 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 1366px) {
+@media (max-width: 1440px) {
     .navbar-inner {
-        gap: 16px;
-    }
-    .navbar-logo {
-        width: 220px;
-    }
-    .logo-img {
-        height: 110px;
+        gap: 12px;
     }
     .nav-link {
         padding: 6px 10px;
@@ -440,13 +437,13 @@
     }
 }
 
-@media (max-width: 1260px) {
-    .navbar-phone-text {
-        display: none;
+/* En dessous de ~1320px la rangée desktop (logo + liens + actions) déborde. */
+@media (max-width: 1320px) {
+    .navbar {
+        background: rgba(255, 255, 255, 0.94);
+        border-bottom: 1px solid #F1F5F9;
     }
-}
 
-@media (max-width: 1120px) {
     .navbar-nav {
         display: none;
     }
@@ -465,14 +462,33 @@
 
     .mobile-menu {
         display: none;
-        /* Reste caché sauf si .open est appliqué */
     }
 
     .mobile-menu.open {
         display: flex;
     }
 
+    .navbar-logo {
+        width: auto;
+        flex: 0 1 auto;
+        max-width: min(200px, calc(100% - 110px));
+    }
+
     .logo-img {
-        height: 80px;
+        position: static;
+        transform: none;
+        height: 52px;
+        max-width: 100%;
+        filter: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-logo {
+        max-width: min(168px, calc(100% - 110px));
+    }
+
+    .logo-img {
+        height: 44px;
     }
 }

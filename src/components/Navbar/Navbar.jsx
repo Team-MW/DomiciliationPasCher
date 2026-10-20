@@ -41,6 +41,19 @@ export default function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    useEffect(() => {
+        if (typeof window.matchMedia !== 'function') return undefined;
+        const mq = window.matchMedia('(max-width: 1320px)');
+        const onChange = () => {
+            if (!mq.matches) {
+                setMenuOpen(false);
+                setIsMegaOpen(false);
+            }
+        };
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
+
     const handleMouseEnter = () => {
         if (megaTimeout.current) clearTimeout(megaTimeout.current);
         setIsMegaOpen(true);

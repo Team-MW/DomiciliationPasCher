@@ -455,8 +455,9 @@ export default {
           icon: '🤝',
           name: 'Переговорная комната',
           prices: [
-            { duration: 'Полдня (4 ч)', amount: '25€ без НДС' },
-            { duration: 'Полный день (8 ч)', amount: '40€ без НДС' },
+            { duration: '1 час', amount: '25€ без НДС' },
+            { duration: 'Полдня (4 ч)', amount: '75€ без НДС' },
+            { duration: 'Полный день (8 ч)', amount: '140€ без НДС' },
           ],
           features: [
             'До 10 человек',
@@ -470,8 +471,9 @@ export default {
           icon: '💼',
           name: 'Частный офис',
           prices: [
-            { duration: 'Полдня (4 ч)', amount: '20€ без НДС' },
-            { duration: 'Полный день (8 ч)', amount: '40€ без НДС' },
+            { duration: '1 час', amount: '25€ без НДС' },
+            { duration: 'Полдня (4 ч)', amount: '75€ без НДС' },
+            { duration: 'Полный день (8 ч)', amount: '140€ без НДС' },
           ],
           features: [
             'Индивидуальный частный офис',

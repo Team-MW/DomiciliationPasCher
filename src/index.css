@@ -62,7 +62,7 @@
   --transition-slow: all 0.30s cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Layout — source unique de vérité */
-  --navbar-height: 68px;
+  --navbar-height: 72px;
   --container-width: 1200px;
   --container-pad: clamp(16px, 4vw, 32px);
   --section-pad-y: clamp(64px, 8vw, 96px);

@@ -455,8 +455,9 @@ export default {
           icon: '🤝',
           name: 'Salle de Réunion',
           prices: [
-            { duration: 'Demi-journée (4h)', amount: '25€ HT' },
-            { duration: 'Journée complète (8h)', amount: '40€ HT' },
+            { duration: '1 heure', amount: '25€ HT' },
+            { duration: 'Demi-journée (4h)', amount: '75€ HT' },
+            { duration: 'Journée complète (8h)', amount: '140€ HT' },
           ],
           features: [
             "Jusqu'à 10 personnes",
@@ -470,8 +471,9 @@ export default {
           icon: '💼',
           name: 'Bureau Privatif',
           prices: [
-            { duration: 'Demi-journée (4h)', amount: '20€ HT' },
-            { duration: 'Journée complète (8h)', amount: '40€ HT' },
+            { duration: '1 heure', amount: '25€ HT' },
+            { duration: 'Demi-journée (4h)', amount: '75€ HT' },
+            { duration: 'Journée complète (8h)', amount: '140€ HT' },
           ],
           features: [
             'Bureau individuel privatif',
