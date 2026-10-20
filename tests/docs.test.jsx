@@ -4,6 +4,7 @@ import React from 'react';
 
 vi.mock('../src/utils/pdfConverter', () => ({ convertPdfToPng: vi.fn() }));
 vi.mock('../src/utils/cloudinary', () => ({ uploadFile: vi.fn().mockResolvedValue({ url: 'https://res.cloudinary.com/test.pdf', publicId: 'test' }) }));
+vi.mock('../src/utils/emailService', () => ({ sendAdminDocumentUploadedEmail: vi.fn().mockResolvedValue(true) }));
 vi.mock('../src/utils/api', () => ({ fetchWithRetry: vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) }));
 
 vi.mock('@clerk/clerk-react', () => ({

@@ -3,12 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { addClient } = vi.hoisted(() => ({
+const { addClient, sendAccountCreatedEmail } = vi.hoisted(() => ({
     addClient: vi.fn().mockResolvedValue({ id: '1' }),
+    sendAccountCreatedEmail: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('../src/services/adminDataService', () => ({
     adminDataService: { addClient },
+}));
+
+vi.mock('../src/utils/emailService', () => ({
+    sendAccountCreatedEmail,
 }));
 
 import CreateClientModal from '../src/pages/Admin/components/CreateClientModal.jsx';
@@ -17,6 +22,8 @@ describe('CreateClientModal', () => {
     beforeEach(() => {
         addClient.mockClear();
         addClient.mockResolvedValue({ id: '1' });
+        sendAccountCreatedEmail.mockClear();
+        sendAccountCreatedEmail.mockResolvedValue(true);
     });
 
     it('submits a complete dossier and calls addClient then onCreated', async () => {
@@ -62,6 +69,14 @@ describe('CreateClientModal', () => {
             nomSociete: 'DPC SARL',
             offre: 'notification',
             typeProjet: 'creation',
+            frequence: 'mensuel',
+            payment_status: 'pending',
+        });
+        expect(payload.extra_info.payment_token).toMatch(/^[a-f0-9]{48}$/);
+        expect(sendAccountCreatedEmail).toHaveBeenCalledWith('jean.dupont@test.fr', 'Jean Dupont', {
+            paymentToken: payload.extra_info.payment_token,
+            plan: 'Essentiel',
+            frequence: 'mensuel',
         });
         expect(onCreated).toHaveBeenCalledTimes(1);
         expect(showAlert).not.toHaveBeenCalled();
@@ -86,6 +101,7 @@ describe('CreateClientModal', () => {
 
         await waitFor(() => expect(showAlert).toHaveBeenCalled());
         expect(showAlert.mock.calls[0][0]).toMatch(/déjà utilisée/i);
+        expect(sendAccountCreatedEmail).not.toHaveBeenCalled();
         expect(onCreated).not.toHaveBeenCalled();
     });
 });

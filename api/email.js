@@ -1,6 +1,9 @@
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import { ADMIN_EMAIL } from './_smtp.js';
+import { getDbConn } from './_db.js';
+import { sendBrandedMail, escapeHtml, emailButton } from './_email-kit.js';
+import { buildDocumentRequestEmail, buildAccountCreatedEmail, buildMailDigestEmail } from './_email-templates.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -21,7 +24,7 @@ export default async function handler(req, res) {
                 if (fs.existsSync('.env.local')) {
                     const content = fs.readFileSync('.env.local', 'utf-8');
                     const getEnv = (key) => {
-                        const match = content.match(new RegExp(`${key}=(.*)`));
+                        const match = content.match(new RegExp(`^${key}=(.*)$`, 'm'));
                         return match ? match[1].trim().replace(/^['"](.*)['"]$/, '$1') : null;
                     };
                     smtpHost = getEnv('SMTP_HOST') || smtpHost;
@@ -38,7 +41,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: "Configuration SMTP du serveur manquante." });
         }
 
-        const { email, nom, type, amount, paymentLink, content: msgContent, telephone, projetType, dateDispo, message: customMsg, address, notes, company } = req.body;
+        const { email, nom, type, amount, paymentLink, content: msgContent, telephone, projetType, dateDispo, message: customMsg, address, notes, company, plan, documents, isCreation, contractSignedAt, paymentToken, frequence, documentName, mailType, mailFrom, mailDate } = req.body;
 
         if (!email) {
             return res.status(400).json({ error: "L'email est requis." });
@@ -137,20 +140,12 @@ export default async function handler(req, res) {
                 </div>
             `;
         } else if (type === 'new_mail') {
-            subject = "Nouveau courrier reçu - Domiciliation Pas Cher";
-            textMessage = `Bonjour ${nom || 'Client'},\n\nUn nouveau courrier a été déposé dans votre boîte aux lettres numérisée.\n\nVous pouvez le consulter dès maintenant en vous connectant à votre espace client.\n\nAccédez à votre portail ici : ${baseUrl}/connexion\n\nBien cordialement,\nL'équipe Domiciliation Pas Cher`;
-
-            htmlMessage = `
-                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                    <h2>Nouveau courrier reçu 📬</h2>
-                    <p>Bonjour ${nom || 'Client'},</p>
-                    <p>Un nouveau courrier a été déposé dans votre boîte aux lettres numérisée.</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${baseUrl}/connexion" style="background-color: #0f172a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Consulter mon courrier</a>
-                    </div>
-                    <p>Bien cordialement,<br>L'équipe Domiciliation Pas Cher</p>
-                </div>
-            `;
+            ({ subject, text: textMessage, html: htmlMessage } = buildMailDigestEmail({
+                nom,
+                plan,
+                baseUrl,
+                mails: [{ type: mailType, from: mailFrom, date: mailDate || new Date().toISOString() }],
+            }));
         } else if (type === 'consultation_creation') {
             subject = "Confirmation de votre demande de consultation - Domiciliation Pas Cher";
             textMessage = `Bonjour ${nom || ''},\n\nNous avons bien reçu votre demande de consultation pour votre projet de création d'entreprise (${projetType || 'Projet de création'}).\n\nUn de nos juristes / conseillers experts prendra contact avec vous rapidement (par téléphone ou email) au ${telephone || ''} pour faire le point sur votre projet et vous orienter vers la meilleure forme juridique.\n\nBien cordialement,\nL'équipe Domiciliation Pas Cher`;
@@ -263,6 +258,31 @@ export default async function handler(req, res) {
                     <p style="font-size: 13px; color: #64748b;">Merci de recontacter ce prospect rapidement.</p>
                 </div>
             `;
+        } else if (type === 'request_documents') {
+            ({ subject, text: textMessage, html: htmlMessage } = buildDocumentRequestEmail({
+                nom,
+                missing: Array.isArray(documents) && documents.length ? documents : ['statuts', 'kbis'],
+                isCreation: Boolean(isCreation),
+                contractSignedAt,
+                baseUrl,
+            }));
+        } else if (type === 'account_created') {
+            const payUrl = paymentToken
+                ? `${baseUrl}/api/pay?token=${encodeURIComponent(paymentToken)}`
+                : `${baseUrl}/inscription`;
+            ({ subject, text: textMessage, html: htmlMessage } = buildAccountCreatedEmail({
+                nom, email, planName: plan, frequence, payUrl, baseUrl,
+            }));
+        } else if (type === 'admin_document_uploaded') {
+            subject = `Document à valider — ${company || nom || email}`;
+            textMessage = `Le client ${nom || ''} (${email}${company ? `, ${company}` : ''}) vient de déposer : ${documentName || 'un document'}.\n\nVérifiez-le et validez-le depuis l'onglet Documents de sa fiche : ${baseUrl}/admin`;
+            htmlMessage = `
+                <h2 style="margin-top:0;">Nouveau document à valider</h2>
+                <p><strong>${escapeHtml(nom || '—')}</strong> (${escapeHtml(email)}${company ? `, ${escapeHtml(company)}` : ''}) vient de déposer :</p>
+                <p style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 16px;border-radius:8px;"><strong>${escapeHtml(documentName || 'Document')}</strong></p>
+                <p>Vérifiez-le et validez-le depuis l'onglet <strong>Documents</strong> de la fiche client.</p>
+                ${emailButton(`${baseUrl}/admin`, 'Ouvrir l’administration', '#0f172a')}
+            `;
         } else if (type === 'approval') {
             subject = "Dossier validé - Bienvenue chez Domiciliation Pas Cher";
             textMessage = `Bonjour ${nom || 'Client'},\n\nVotre dossier de domiciliation a été validé avec succès !\n\nVous pouvez dès à présent accéder à votre espace client pour consulter vos documents et suivre la réception de votre courrier.\n\nAccédez à votre portail ici : ${baseUrl}/connexion\n\nBien cordialement,\nLe service client`;
@@ -318,26 +338,26 @@ export default async function handler(req, res) {
 
         // 3. Envoi de l'email
         let toAddress = email;
-        if (type === 'admin_new_message' || type === 'admin_reexpedition' || type === 'contact_advisor' || type === 'souscription_lead') {
+        if (type === 'admin_new_message' || type === 'admin_reexpedition' || type === 'admin_document_uploaded' || type === 'contact_advisor' || type === 'souscription_lead') {
             toAddress = (type === 'contact_advisor' || type === 'souscription_lead')
                 ? 'contact@domiciliation-pas-cher.com'
                 : ADMIN_EMAIL;
         }
 
-        const info = await transporter.sendMail({
+        const conn = getDbConn();
+        const info = await sendBrandedMail(transporter, {
+            conn,
             from: smtpFrom,
+            type: type || 'welcome',
             to: toAddress,
-            subject: subject,
-            text: textMessage,
+            clientEmail: type === 'contact_advisor' ? undefined : email,
+            subject,
+            text: textMessage || undefined,
             html: htmlMessage,
             // Réponses clients → boîte pro (sauf lead/conseiller où on répond au prospect)
             replyTo: (type === 'souscription_lead' || type === 'contact_advisor')
                 ? email
                 : 'contact@domiciliation-pas-cher.com',
-            headers: {
-                'X-Mailer': 'Domiciliation-Pas-Cher',
-                'X-Entity-Ref-ID': `${type || 'welcome'}-${Date.now()}`,
-            },
         });
 
         console.log("Message sent to %s: %s", toAddress, info.messageId);
@@ -358,9 +378,12 @@ export default async function handler(req, res) {
                     </div>
                 `;
                 
-                await transporter.sendMail({
+                await sendBrandedMail(transporter, {
+                    conn,
                     from: smtpFrom,
+                    type: type ? 'admin_consultation' : 'admin_new_client',
                     to: ADMIN_EMAIL,
+                    clientEmail: email,
                     subject: adminSubject,
                     html: adminHtml,
                 });
@@ -386,9 +409,12 @@ export default async function handler(req, res) {
                         <p style="font-size: 13px; color: #64748b;">Merci de recontacter ce prospect dans les plus brefs délais.</p>
                     </div>
                 `;
-                await transporter.sendMail({
+                await sendBrandedMail(transporter, {
+                    conn,
                     from: smtpFrom,
+                    type: type ? 'admin_consultation' : 'admin_new_client',
                     to: ADMIN_EMAIL,
+                    clientEmail: email,
                     subject: adminSubject,
                     html: adminHtml,
                 });

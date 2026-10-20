@@ -285,12 +285,6 @@ export default function Admin() {
                             try {
                                 await adminDataService.traiterDemande(id);
                                 refreshData();
-                                
-                                // Envoyer l'email d'approbation
-                                import('../../services/emailService').then(({ sendApprovalEmail }) => {
-                                    sendApprovalEmail(selectedDemande.email, selectedDemande.company);
-                                }).catch(err => console.error("Erreur chargement emailService:", err));
-
                                 setSelectedDemande(null);
                                 await showAlert("Accès créé avec succès ! L'email de validation a été envoyé.", { title: "Succès" });
                             } finally {

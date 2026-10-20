@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import AddressAutocomplete from '../../../components/AddressAutocomplete/AddressAutocomplete';
 import { PLAN_CATALOG, resolvePlanId } from '../../../data/plans';
+import { sendAccountCreatedEmail } from '../../../utils/emailService';
+
+function newPaymentToken() {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 export default function CreateClientModal({ onClose, onCreated, showAlert }) {
     const [formData, setFormData] = useState({
@@ -10,6 +17,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
         company: '',
         city: 'Toulouse',
         plan: 'Essentiel',
+        frequence: 'mensuel',
         prenom: '',
         nom: '',
         telephone: '',
@@ -34,6 +42,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
             setProgress('Création du profil client...');
             const composedName = [formData.prenom, formData.nom].filter(Boolean).join(' ').trim();
             const catalog = PLAN_CATALOG[resolvePlanId(formData.plan)];
+            const paymentToken = newPaymentToken();
             const clientData = {
                 ...formData,
                 name: formData.name.trim() || composedName,
@@ -56,10 +65,26 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                     formeJuridique: formData.formeJuridique,
                     typeProjet: formData.typeProjet,
                     offre: catalog?.offre || 'notification',
+                    frequence: formData.frequence,
+                    payment_token: paymentToken,
+                    payment_status: 'pending',
+                    payment_requested_at: new Date().toISOString(),
                 }
             };
 
             await adminDataService.addClient(clientData);
+
+            setProgress('Envoi de l\'email au client...');
+            try {
+                await sendAccountCreatedEmail(formData.email.trim(), clientData.name, {
+                    paymentToken,
+                    plan: formData.plan,
+                    frequence: formData.frequence,
+                });
+            } catch (mailErr) {
+                console.error("Email création compte:", mailErr);
+                await showAlert(`Dossier créé, mais l'email au client n'a pas pu être envoyé : ${mailErr.message || mailErr}`);
+            }
 
             onCreated();
         } catch (err) {
@@ -125,6 +150,17 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                                 <option value="Essentiel">Essentiel (20€ HT / 24€ TTC)</option>
                                 <option value="Scan+">Scan+ (24€ HT / 28.80€ TTC)</option>
                                 <option value="Physique+">Physique+ (38€ HT / 45.60€ TTC)</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Fréquence de paiement</label>
+                            <select
+                                id="admin-create-frequence"
+                                value={formData.frequence}
+                                onChange={e => setFormData({ ...formData, frequence: e.target.value })}
+                            >
+                                <option value="mensuel">Mensuel</option>
+                                <option value="annuel">Annuel (2 mois offerts)</option>
                             </select>
                         </div>
                     </div>
@@ -268,7 +304,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                     )}
 
                     <div style={{ padding: '16px 0 0', fontSize: '12px', color: '#64748B' }}>
-                        *Le client recevra son accès et devra se créer un compte avec cet e-mail sur la page /espace-client pour lier son compte.
+                        *Le client reçoit un email avec un lien sécurisé pour enregistrer sa carte bancaire et démarrer son abonnement, puis créer son accès avec cette adresse.
                     </div>
 
                     <div className="modal-footer" style={{ marginTop: '24px' }}>

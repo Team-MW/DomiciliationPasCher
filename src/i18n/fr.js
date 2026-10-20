@@ -48,9 +48,7 @@ export default {
       autoEntrepreneurAstuces: "Auto-entrepreneur : les 5 astuces pour payer moins d'impôt",
       questCeDomiciliation: "Qu'est-ce que la domiciliation ?",
       coutComptabilite: 'Combien coûte la gestion de votre comptabilité ?',
-      creerEntrepriseEnLigne: 'Comment créer son entreprise en ligne ?',
-      pourquoiDomicilierIdf: 'Pourquoi domicilier son entreprise en IDF ?',
-    },
+      creerEntrepriseEnLigne: 'Comment créer son entreprise en ligne ?',    },
     signIn: 'Se connecter',
     dashboard: 'ACCÈS ESPACE',
     dashboardMobile: 'Mon espace client',
@@ -202,7 +200,7 @@ export default {
           n: '01',
           tag: 'Choix libre',
           title: 'Choisissez votre adresse',
-          desc: 'Sélectionnez la ville et la formule adaptés à votre activité parmi nos 10 métropoles.',
+          desc: 'Choisissez la formule adaptée à votre activité pour votre adresse à Toulouse.',
         },
         {
           n: '02',
@@ -372,7 +370,7 @@ export default {
           { ok: true, text: "Notification d'arrivée par email" },
           { ok: true, text: 'Attestation de domiciliation' },
           { ok: true, text: 'Espace client 24h/24' },
-          { ok: true, text: 'Contrat legale conforme Dutreil' },
+          { ok: true, text: 'Contrat légal conforme Dutreil' },
           { ok: true, text: 'Scan numérique des courriers' },
           { ok: false, text: 'Réexpédition physique' },
           { ok: false, text: 'Accès physique sur place' },
@@ -394,7 +392,7 @@ export default {
           { ok: true, text: "Notification d'arrivée par email" },
           { ok: true, text: 'Attestation de domiciliation' },
           { ok: true, text: 'Espace client 24h/24' },
-          { ok: true, text: 'Contrat legale conforme Dutreil' },
+          { ok: true, text: 'Contrat légal conforme Dutreil' },
           { ok: true, text: 'Scan numérique des courriers' },
           { ok: true, text: 'Réexpédition physique' },
           { ok: false, text: 'Accès physique sur place' },
@@ -415,7 +413,7 @@ export default {
           { ok: true, text: "Notification d'arrivée par email" },
           { ok: true, text: 'Attestation de domiciliation' },
           { ok: true, text: 'Espace client 24h/24' },
-          { ok: true, text: 'Contrat legale conforme Dutreil' },
+          { ok: true, text: 'Contrat légal conforme Dutreil' },
           { ok: true, text: 'Scan numérique des courriers' },
           { ok: true, text: 'Réexpédition physique' },
           { ok: true, text: 'Accès physique sur place' },
@@ -1154,7 +1152,7 @@ export default {
       'les-adresses': {
         title: 'Choisir son adresse : Prestige et stratégie',
         category: 'Domiciliation',
-        content: "L'adresse de votre siège social est la vitrine de votre entreprise. Paris, Lyon ou Toulouse ? Découvrez comment le choix de la ville influence votre image de marque et accédez à nos adresses les plus prestigieuses à prix réduit.",
+        content: "L'adresse de votre siège social est la vitrine de votre entreprise. Découvrez comment le choix de l'adresse influence votre image de marque et profitez de notre adresse à Toulouse à prix réduit.",
         icon: '📍'
       },
       'gestion-du-courrier': {
@@ -1228,12 +1226,6 @@ export default {
         category: 'Sélection du mois',
         content: "Fini la paperasse papier. Découvrez les plateformes fiables pour immatriculer votre société en moins de 48h sans quitter votre canapé, tout en restant serein sur la conformité juridique.",
         icon: '🖱️'
-      },
-      'pourquoi-domicilier-en-idf': {
-        title: "Pourquoi domicilier son entreprise en IDF ? Les avantages",
-        category: 'Sélection du mois',
-        content: "L'Île-de-France reste le premier pôle économique européen. Bénéficiez du dynamisme de la capitale, accédez à des réseaux d'investisseurs uniques et boostez votre crédibilité internationale.",
-        icon: '🗼'
       },
     },
   },

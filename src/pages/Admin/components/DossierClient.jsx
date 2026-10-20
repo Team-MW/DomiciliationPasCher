@@ -5,7 +5,7 @@ import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
 import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { sendFailedPaymentEmail } from '../../../utils/emailService';
-import { sendNewMailNotification } from '../../../services/emailService';
+import { DOC_LABELS, DOC_REMINDER_DAYS } from '../../../../shared/documentRequest.js';
 import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
 import { resolveClientStatusFromStripe } from '../../../utils/stripeClientStatus';
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
@@ -77,6 +77,35 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [isUploadingMail, setIsUploadingMail] = useState(false);
     const [reexpeditions, setReexpeditions] = useState([]);
     const [isUpdatingReexp, setIsUpdatingReexp] = useState(false);
+    const [requestedDocs, setRequestedDocs] = useState({ statuts: true, kbis: true });
+    const [docRequest, setDocRequest] = useState(null);
+    const [emailLogs, setEmailLogs] = useState(null);
+
+    useEffect(() => {
+        try {
+            let info = typeof client?.extra_info === 'string' ? JSON.parse(client.extra_info) : client?.extra_info;
+            if (typeof info === 'string') info = JSON.parse(info);
+            setDocRequest(info?.doc_request || null);
+        } catch {
+            setDocRequest(null);
+        }
+    }, [client]);
+
+    useEffect(() => {
+        if (!client || activeDossierTab !== 'emails') return;
+        let cancelled = false;
+        setEmailLogs(null);
+        let courrierEmail = null;
+        try {
+            let info = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
+            if (typeof info === 'string') info = JSON.parse(info);
+            courrierEmail = info?.emailCourrier || null;
+        } catch { /* extra_info illisible */ }
+        adminDataService.getEmailLogs(client.email, courrierEmail).then((logs) => {
+            if (!cancelled) setEmailLogs(logs);
+        });
+        return () => { cancelled = true; };
+    }, [client, activeDossierTab]);
 
     useEffect(() => {
         if (client) {
@@ -289,11 +318,6 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 preview: finalUrl
             });
 
-            // Send notification
-            if (client.email) {
-                await sendNewMailNotification(client.email, client.name);
-            }
-
             const updatedMails = await adminDataService.getClientMail(client.id);
             setMails(Array.isArray(updatedMails) ? updatedMails : []);
 
@@ -305,7 +329,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             const fileInput = document.getElementById('mail-file-input');
             if (fileInput) fileInput.value = '';
 
-            showAlert("Courrier ajouté avec succès et notification envoyée.");
+            showAlert("Courrier ajouté. Le client recevra un email récapitulatif dans l'heure (un seul email pour tous les courriers du même passage).");
         } catch (err) {
             console.error("Erreur ajout courrier:", err);
             appAlert("Erreur de préparation : " + err.message);
@@ -569,6 +593,42 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         }
     };
 
+    const handleRequestDocuments = async () => {
+        if (!client.email) {
+            showAlert("Ce client n'a pas d'adresse email.");
+            return;
+        }
+        const missing = Object.keys(requestedDocs).filter((k) => requestedDocs[k]);
+        if (missing.length === 0) {
+            showAlert('Cochez au moins un document à demander.');
+            return;
+        }
+        const labels = missing.map((d) => DOC_LABELS[d]).join(' + ');
+        const confirmed = await showConfirm(`Envoyer à ${client.email} une demande de : ${labels} ?\nDes relances automatiques partiront à J+${DOC_REMINDER_DAYS.join(', J+')} tant que le document n'est pas déposé.`);
+        if (!confirmed) return;
+        setIsLoading(true);
+        try {
+            const request = await adminDataService.startDocumentRequest(client, missing);
+            setDocRequest(request);
+            showAlert('Demande envoyée au client. Les relances automatiques sont programmées.');
+        } catch (e) {
+            console.error(e);
+            showAlert(`Erreur lors de l'envoi de l'email : ${e.message || e}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleStopDocumentRequest = async () => {
+        const confirmed = await showConfirm('Arrêter les relances automatiques (document reçu par un autre moyen) ?');
+        if (!confirmed) return;
+        try {
+            setDocRequest(await adminDataService.stopDocumentRequest(client.id));
+        } catch (e) {
+            showAlert(`Erreur : ${e.message || e}`);
+        }
+    };
+
     const handleSendClerkInvitation = async () => {
         try {
             const confirmed = await showConfirm(`Envoyer une invitation Clerk à ${client.email} ?`);
@@ -721,6 +781,54 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         <Icons.Mail style={{ width: '16px', height: '16px', display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Procuration Postale.pdf
                                     </a>
                                 </div>
+                            </div>
+
+                            <div style={{ background: '#EFF6FF', borderRadius: '12px', padding: '16px', marginTop: '16px', border: '1px solid #BFDBFE' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '12.5px', fontWeight: '600', color: '#1E3A8A' }}>
+                                        Document manquant ? Le client reçoit un email puis des relances à J+{DOC_REMINDER_DAYS.join(', J+')}.
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                        {Object.keys(DOC_LABELS).map((doc) => (
+                                            <label key={doc} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#1E3A8A', fontWeight: 600 }}>
+                                                <input
+                                                    type="checkbox"
+                                                    id={`admin-request-doc-${doc}`}
+                                                    checked={requestedDocs[doc]}
+                                                    onChange={(e) => setRequestedDocs((r) => ({ ...r, [doc]: e.target.checked }))}
+                                                />
+                                                {DOC_LABELS[doc]}
+                                            </label>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            id="admin-request-documents-btn"
+                                            onClick={handleRequestDocuments}
+                                            disabled={isLoading}
+                                            style={{ background: '#1A56DB', color: 'white', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '12.5px', opacity: isLoading ? 0.7 : 1 }}
+                                        >
+                                            <Icons.Mail style={{ width: '16px', height: '16px' }} /> Demander le document
+                                        </button>
+                                    </div>
+                                </div>
+                                {docRequest?.requested_at && (
+                                    <div id="admin-doc-request-status" style={{ marginTop: '12px', fontSize: '12px', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                                        <span>
+                                            Demande du {new Date(docRequest.requested_at).toLocaleDateString('fr-FR')} : {(docRequest.missing || []).map((d) => DOC_LABELS[d] || d).join(', ')}
+                                            {' — '}
+                                            {docRequest.completed_at
+                                                ? `terminée le ${new Date(docRequest.completed_at).toLocaleDateString('fr-FR')}`
+                                                : docRequest.initial_pending
+                                                ? 'premier email prévu au prochain envoi quotidien (10 h)'
+                                                : `relances envoyées : ${(docRequest.reminders_sent || []).length ? (docRequest.reminders_sent || []).map((d) => `J+${d}`).join(', ') : 'aucune pour l’instant'}`}
+                                        </span>
+                                        {!docRequest.completed_at && (
+                                            <button type="button" onClick={handleStopDocumentRequest} style={{ background: 'white', color: '#475569', border: '1px solid #CBD5E1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                                                Arrêter les relances
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -1942,6 +2050,44 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     </>
                 );
 
+            case 'emails':
+                return (
+                    <div id="admin-email-history">
+                        <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0F172A' }}>Historique des emails envoyés</h3>
+                        {emailLogs === null ? (
+                            <p style={{ color: '#64748B', fontSize: '14px' }}>Chargement…</p>
+                        ) : emailLogs.length === 0 ? (
+                            <p style={{ color: '#64748B', fontSize: '14px' }}>Aucun email journalisé pour ce client.</p>
+                        ) : (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', background: '#F8FAFC', color: '#475569' }}>
+                                        <th style={{ padding: '8px' }}>Date</th>
+                                        <th style={{ padding: '8px' }}>Objet</th>
+                                        <th style={{ padding: '8px' }}>Destinataire</th>
+                                        <th style={{ padding: '8px' }}>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {emailLogs.map((log) => (
+                                        <tr key={log.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                                            <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{new Date(log.sent_at).toLocaleString('fr-FR')}</td>
+                                            <td style={{ padding: '8px' }}>{log.subject}</td>
+                                            <td style={{ padding: '8px' }}>
+                                                {log.client_email && log.to_email !== log.client_email
+                                                    ? <span title={log.to_email}>Équipe (alerte admin)</span>
+                                                    : log.to_email}
+                                            </td>
+                                            <td style={{ padding: '8px', color: log.status === 'sent' ? '#16A34A' : '#DC2626', fontWeight: 600 }} title={log.error || ''}>
+                                                {log.status === 'sent' ? 'Envoyé' : 'Échec'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                );
             case 'details':
             default:
                 return (
@@ -2159,6 +2305,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 </button>
             </div>
 
+            {extra?.payment_status === 'pending' && (
+                <div id="admin-payment-pending-banner" style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', fontWeight: 600 }}>
+                    Paiement en attente : le client n'a pas encore enregistré sa carte bancaire
+                    {extra.payment_requested_at ? ` (lien envoyé le ${new Date(extra.payment_requested_at).toLocaleDateString('fr-FR')}` : ' ('}
+                    {(extra.payment_reminders_sent || []).length ? `, relances : ${extra.payment_reminders_sent.map((d) => `J+${d}`).join(', ')})` : ')'}.
+                    Relances automatiques à J+2 et J+5.
+                </div>
+            )}
+
             <div style={{ display: 'inline-flex', padding: '4px', background: '#F1F5F9', borderRadius: '8px', marginBottom: '24px', gap: '4px' }}>
                 <button
                     data-testid="tab-details"
@@ -2209,6 +2364,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'facturation' ? 'white' : 'transparent', color: activeDossierTab === 'facturation' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'facturation' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
                     Facturation
+                </button>
+                <button
+                    data-testid="tab-emails"
+                    onClick={() => setActiveDossierTab('emails')}
+                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeDossierTab === 'emails' ? 'white' : 'transparent', color: activeDossierTab === 'emails' ? '#0F172A' : '#64748B', fontWeight: 600, boxShadow: activeDossierTab === 'emails' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                    Emails
                 </button>
             </div>
 

@@ -173,6 +173,7 @@ export const sendSouscriptionLeadEmail = async (lead) => {
             notes: lead.qualite || '',
             content: lead.typeProjet || '',
             message: lead.formeJuridique || '',
+            plan: lead.plan || '',
         }),
     });
     if (!response.ok) {
@@ -181,3 +182,24 @@ export const sendSouscriptionLeadEmail = async (lead) => {
     }
     return true;
 };
+
+const postClientEmail = async (type, email, nom, extra = {}) => {
+    const response = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...extra, type, email, nom: nom || 'Client' }),
+    });
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Email send failed');
+    }
+    return true;
+};
+
+/** Dossier créé depuis l'administration : lien pour enregistrer la carte et démarrer l'abonnement */
+export const sendAccountCreatedEmail = (email, nom, { paymentToken, plan, frequence } = {}) =>
+    postClientEmail('account_created', email, nom, { paymentToken, plan, frequence });
+
+/** Prévient l'admin qu'un client a déposé un document à valider */
+export const sendAdminDocumentUploadedEmail = ({ email, nom, company, documentName }) =>
+    postClientEmail('admin_document_uploaded', email, nom, { company, documentName });

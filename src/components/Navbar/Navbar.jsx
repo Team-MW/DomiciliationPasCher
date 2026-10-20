@@ -145,9 +145,7 @@ export default function Navbar() {
                                                     <li><Link to="/fiches-pratiques/auto-entrepreneur-astuces-impot" onClick={() => setIsMegaOpen(false)}>{mm.autoEntrepreneurAstuces}</Link></li>
                                                     <li><Link to="/fiches-pratiques/qu-est-ce-que-la-domiciliation" onClick={() => setIsMegaOpen(false)}>{mm.questCeDomiciliation}</Link></li>
                                                     <li><Link to="/fiches-pratiques/cout-gestion-comptabilite" onClick={() => setIsMegaOpen(false)}>{mm.coutComptabilite}</Link></li>
-                                                    <li><Link to="/fiches-pratiques/creer-entreprise-en-ligne" onClick={() => setIsMegaOpen(false)}>{mm.creerEntrepriseEnLigne}</Link></li>
-                                                    <li><Link to="/fiches-pratiques/pourquoi-domicilier-en-idf" onClick={() => setIsMegaOpen(false)}>{mm.pourquoiDomicilierIdf}</Link></li>
-                                                </ul>
+                                                    <li><Link to="/fiches-pratiques/creer-entreprise-en-ligne" onClick={() => setIsMegaOpen(false)}>{mm.creerEntrepriseEnLigne}</Link></li>                                                </ul>
                                             </div>
                                         </div>
                                     </div>

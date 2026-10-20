@@ -3,18 +3,21 @@ import { adminDataService } from '../../../services/adminDataService';
 
 export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showConfirm, showAlert }) {
     const [loadingId, setLoadingId] = useState(null);
+    const [nonFinalisees, setNonFinalisees] = useState([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        adminDataService.getInscriptionsNonFinalisees?.()
+            .then(rows => { if (!cancelled) setNonFinalisees(Array.isArray(rows) ? rows : []); })
+            .catch(err => console.error('Erreur chargement inscriptions non finalisées:', err));
+        return () => { cancelled = true; };
+    }, [demandes]);
 
     const handleAccepter = async (demande) => {
         setLoadingId(demande.id);
         try {
             await adminDataService.traiterDemande(demande.id);
             onUpdate();
-            
-            // Envoyer l'email d'approbation
-            import('../../../services/emailService').then(({ sendApprovalEmail }) => {
-                sendApprovalEmail(demande.email, demande.company);
-            }).catch(err => console.error("Erreur chargement emailService:", err));
-            
             await showAlert(`Accès créé avec succès ! L'email de validation a été envoyé.`);
         } finally {
             setLoadingId(null);
@@ -119,6 +122,40 @@ export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showC
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {nonFinalisees.length > 0 && (
+                <div id="admin-inscriptions-non-finalisees" style={{ marginTop: '40px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--admin-text-main)' }}>
+                        Inscriptions non finalisées ({nonFinalisees.length})
+                    </h3>
+                    <p style={{ color: 'var(--admin-text-sub)', fontSize: '13px', margin: '4px 0 16px' }}>
+                        Le client n'a pas terminé son inscription : rien à valider. Il reçoit automatiquement des relances pour reprendre là où il s'est arrêté.
+                    </p>
+                    <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--admin-border)', overflow: 'hidden' }}>
+                        {nonFinalisees.map(item => (
+                            <div key={`${item.kind}-${item.id || item.email}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--admin-border)', fontSize: '13px' }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontWeight: 700, color: 'var(--admin-text-main)' }}>
+                                        {item.kind === 'paiement' ? (item.company || item.clientName) : (item.first_name || 'Prospect')}
+                                    </div>
+                                    <div style={{ color: 'var(--admin-text-sub)' }}>{item.email}</div>
+                                </div>
+                                <div style={{ color: 'var(--admin-text-sub)' }}>Offre : <strong>{item.plan || '—'}</strong></div>
+                                <span className="case-badge" style={item.kind === 'paiement'
+                                    ? { background: '#FFF7ED', color: '#C2410C', border: '1px solid #FED7AA' }
+                                    : { background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0' }}>
+                                    {item.kind === 'paiement'
+                                        ? 'Paiement non effectué'
+                                        : (item.unsubscribed_at ? 'Formulaire abandonné (relances désactivées)' : `Formulaire abandonné — étape ${item.step || 1}`)}
+                                </span>
+                                <span style={{ color: 'var(--admin-text-sub)' }}>
+                                    {new Date(item.kind === 'paiement' ? item.date : item.updated_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>

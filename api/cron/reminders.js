@@ -2,6 +2,10 @@ import { getStripe } from '../_stripe-client.js';
 import { getTransporter, getSmtpConfig } from '../_smtp.js';
 import { getDbConn } from '../_db.js';
 import { processFailedPayments } from '../_payment-dunning.js';
+import { sendBrandedMail, getBaseUrl } from '../_email-kit.js';
+import { processMailNotifications, processDocumentRequests, processSouscriptionLeads, processPendingPayments } from '../_notifications.js';
+
+const DAILY_RUN_HOUR_UTC = 8;
 
 export default async function handler(req, res) {
     // Vercel envoie CRON_SECRET en Bearer sur chaque invocation planifiée. Sans ce secret
@@ -14,6 +18,38 @@ export default async function handler(req, res) {
     }
     if (req.headers.authorization !== `Bearer ${cronSecret}`) {
         return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const conn = getDbConn();
+    const transporter = getTransporter();
+    const from = getSmtpConfig()?.from;
+    const baseUrl = process.env.PUBLIC_SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : getBaseUrl(req));
+    const ctx = { conn, transporter, from, baseUrl };
+
+    // Toutes les heures, de 8 h à 20 h (Paris) : récap courrier et relances d'inscription.
+    // La nuit, les envois attendent le premier passage du matin.
+    const parisHour = Number(new Intl.DateTimeFormat('fr-FR', { hour: 'numeric', hour12: false, timeZone: 'Europe/Paris' }).format(new Date()));
+    const hourlyTasks = parisHour >= 8 && parisHour <= 20 ? [processMailNotifications, processSouscriptionLeads] : [];
+    const hourly = {};
+    for (const task of hourlyTasks) {
+        try {
+            Object.assign(hourly, await task(ctx));
+        } catch (err) {
+            console.error(`Cron ${task.name}:`, err);
+        }
+    }
+
+    const runDaily = new Date().getUTCHours() === DAILY_RUN_HOUR_UTC || req.query?.daily === '1';
+    if (!runDaily) {
+        return res.status(200).json({ success: true, daily: false, ...hourly });
+    }
+
+    for (const task of [processDocumentRequests, processPendingPayments]) {
+        try {
+            Object.assign(hourly, await task(ctx));
+        } catch (err) {
+            console.error(`Cron ${task.name}:`, err);
+        }
     }
 
     try {
@@ -66,7 +102,7 @@ export default async function handler(req, res) {
                         const customer = await stripe.customers.retrieve(customerId);
                         
                         if (customer && customer.email && !customer.deleted) {
-                            await sendReminderEmail(customer.email, customer.name);
+                            await sendReminderEmail(customer.email, customer.name, conn);
                             remindersSent++;
                         }
                     }
@@ -79,16 +115,16 @@ export default async function handler(req, res) {
             }
         }
 
-        const dunning = await processFailedPayments(stripe, { conn: getDbConn() });
+        const dunning = await processFailedPayments(stripe, { conn });
 
-        return res.status(200).json({ success: true, remindersSent, ...dunning });
+        return res.status(200).json({ success: true, daily: true, remindersSent, ...hourly, ...dunning });
     } catch (error) {
         console.error("Cron Reminder Error:", error);
         return res.status(500).json({ error: error.message });
     }
 }
 
-async function sendReminderEmail(email, name) {
+async function sendReminderEmail(email, name, conn) {
     try {
         const transporter = getTransporter();
         if (!transporter) {
@@ -110,7 +146,9 @@ async function sendReminderEmail(email, name) {
             </div>
         `;
 
-        await transporter.sendMail({
+        await sendBrandedMail(transporter, {
+            conn,
+            type: 'renewal_reminder',
             from: smtpFrom,
             to: email,
             subject: "Rappel d'échéance - Domiciliation Pas Cher",

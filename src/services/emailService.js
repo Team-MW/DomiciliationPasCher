@@ -53,3 +53,24 @@ export const sendNewMailNotification = async (clientEmail, clientName) => {
         return { success: false, error: error.message };
     }
 };
+
+/** Demande au client de déposer les pièces manquantes (statuts / Kbis) */
+export const sendDocumentRequestEmail = async (clientEmail, clientName, { documents, isCreation, contractSignedAt } = {}) => {
+    const response = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: clientEmail,
+            nom: clientName || 'Client',
+            type: 'request_documents',
+            documents,
+            isCreation,
+            contractSignedAt,
+        }),
+    });
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Email send failed');
+    }
+    return true;
+};

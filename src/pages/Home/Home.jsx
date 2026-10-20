@@ -267,8 +267,14 @@ export default function Home() {
         
         // --- EMAIL JS ON PAYMENT SUCCESS ---
         const params = new URLSearchParams(window.location.search);
-        if (params.get('success') === 'true') {
-            const sessionId = params.get('session_id');
+        const successSessionId = params.get('session_id');
+        const handledKey = successSessionId ? `dpc_payment_handled_${successSessionId}` : null;
+        // Une session Stripe n'est traitée qu'une fois : rechargement, retour arrière et
+        // double exécution des effets en dev renvoyaient l'email de bienvenue et l'alerte admin.
+        const alreadyHandled = handledKey && localStorage.getItem(handledKey) === '1';
+        if (params.get('success') === 'true' && !alreadyHandled) {
+            const sessionId = successSessionId;
+            if (handledKey) localStorage.setItem(handledKey, '1');
             const pendingDemandeId = localStorage.getItem('pending_demande_id');
 
             const verifyAndConfirm = async () => {
@@ -308,6 +314,8 @@ export default function Home() {
                         const nameToUse = pendingName || stripeData?.metadata?.clientName;
                         if (emailToUse) {
                             sendWelcomeEmail(emailToUse, nameToUse || '');
+                            adminDataService.completeSouscriptionLead(emailToUse)
+                                .catch((err) => console.error('Fin des relances inscription:', err));
                         }
                         
                         localStorage.setItem('last_successful_session', sessionId);
@@ -317,6 +325,7 @@ export default function Home() {
                         localStorage.setItem('allow_registration', 'true');
                     }
                 } else {
+                    if (handledKey) localStorage.removeItem(handledKey);
                     console.error("Paiement non valide selon Stripe.");
                 }
             };

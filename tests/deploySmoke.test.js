@@ -83,7 +83,7 @@ describe('filet de déploiement', () => {
             { source: '/(.*)', destination: '/index.html' },
         ]);
         expect(vercel.crons).toEqual([
-            { path: '/api/cron/reminders', schedule: '0 8 * * *' },
+            { path: '/api/cron/reminders', schedule: '0 * * * *' },
         ]);
     });
 

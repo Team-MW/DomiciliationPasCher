@@ -11,6 +11,7 @@ vi.mock('../src/lib/db.js', () => ({
 
 vi.mock('../src/services/emailService.js', () => ({
     sendApprovalEmail: vi.fn(),
+    sendDocumentRequestEmail: vi.fn(),
 }));
 
 vi.mock('../src/utils/api.js', () => ({
@@ -18,13 +19,14 @@ vi.mock('../src/utils/api.js', () => ({
 }));
 
 import { adminDataService } from '../src/services/adminDataService.js';
-import { sendApprovalEmail } from '../src/services/emailService.js';
+import { sendApprovalEmail, sendDocumentRequestEmail } from '../src/services/emailService.js';
 
 describe('intégrité des données client (déploiement)', () => {
     beforeEach(() => {
         execute.mockReset();
         execute.mockResolvedValue({ rows: [] });
         sendApprovalEmail.mockClear();
+        sendDocumentRequestEmail.mockClear();
     });
 
     it('fusionne extra_info double-encodé sans perdre stripe_customer_id', async () => {
@@ -135,5 +137,12 @@ describe('intégrité des données client (déploiement)', () => {
         expect(insert[1][0]).not.toBe('req_9');
         expect(created.id).toBe(insert[1][0]);
         expect(sendApprovalEmail).toHaveBeenCalledWith('a@test.fr', 'Ada Lovelace');
+        expect(sendDocumentRequestEmail).not.toHaveBeenCalled();
+        const docRequestUpdate = execute.mock.calls.find(([sql, params]) =>
+            /UPDATE clients SET extra_info/.test(sql) && String(params?.[0]).includes('doc_request'));
+        expect(JSON.parse(docRequestUpdate[1][0]).doc_request).toMatchObject({
+            missing: ['statuts', 'kbis'],
+            initial_pending: true,
+        });
     });
 });

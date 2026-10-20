@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { canRequestPhysicalForward } from '../../../data/plans';
@@ -335,7 +336,7 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
                 </div>
             )}
 
-            {reexpModalOpen && canForward && (
+            {reexpModalOpen && canForward && typeof document !== 'undefined' && createPortal(
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
                     <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '520px', padding: '32px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -440,7 +441,8 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
                             </form>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

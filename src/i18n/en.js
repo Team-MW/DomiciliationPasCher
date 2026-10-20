@@ -48,9 +48,7 @@ export default {
       autoEntrepreneurAstuces: "Auto-entrepreneur: 5 tips to pay less taxes",
       questCeDomiciliation: "What is a business address?",
       coutComptabilite: 'How much does accounting cost?',
-      creerEntrepriseEnLigne: 'How to create your business online?',
-      pourquoiDomicilierIdf: 'Why register your business in Île-de-France?',
-    },
+      creerEntrepriseEnLigne: 'How to create your business online?',    },
     signIn: 'Log in',
     dashboard: 'CLIENT AREA',
     dashboardMobile: 'My client area',
@@ -202,7 +200,7 @@ export default {
           n: '01',
           tag: 'Free choice',
           title: 'Choose your address',
-          desc: 'Select the city and formula suited to your activity among our 10 metropolises.',
+          desc: 'Choose the plan suited to your activity for your Toulouse address.',
         },
         {
           n: '02',
@@ -1155,7 +1153,7 @@ export default {
       'les-adresses': {
         title: 'Choosing Your Address: Prestige and Strategy',
         category: 'Business Address',
-        content: 'Your registered office address is the storefront of your business. Paris, Lyon or Toulouse? Discover how the choice of city influences your brand image and access our most prestigious addresses at reduced prices.',
+        content: 'Your registered office address is the storefront of your business. Discover how the choice of address influences your brand image and get our Toulouse address at a reduced price.',
         icon: '\ud83d\udccd'
       },
       'gestion-du-courrier': {
@@ -1229,12 +1227,6 @@ export default {
         category: 'Monthly Selection',
         content: 'No more paper paperwork. Discover reliable platforms to register your company in less than 48 hours without leaving your couch, while remaining confident about legal compliance.',
         icon: '\ud83d\uddb1\ufe0f'
-      },
-      'pourquoi-domicilier-en-idf': {
-        title: 'Why Register Your Business in Île-de-France? The Benefits',
-        category: 'Monthly Selection',
-        content: 'Île-de-France remains the leading economic hub in Europe. Benefit from the dynamism of the capital, access unique investor networks, and boost your international credibility.',
-        icon: '\ud83d\uddfc'
       },
     },
   },

@@ -11,6 +11,7 @@ import AddressAutocomplete from '../../../components/AddressAutocomplete/Address
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { parseExtraInfo, getContractLegalFields } from '../../../utils/contractLegalFields';
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
+import { sendAdminDocumentUploadedEmail } from '../../../utils/emailService';
 
 const blobToBase64 = (blob) => {
     return new Promise((resolve, reject) => {
@@ -179,6 +180,15 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         }
     };
 
+    const notifyAdminUpload = (documentName) => {
+        sendAdminDocumentUploadedEmail({
+            email: clientData?.email,
+            nom: clientData?.name,
+            company: clientData?.company,
+            documentName,
+        }).catch((err) => console.error('Notification admin document:', err));
+    };
+
     const handleKbisUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -208,6 +218,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             const updatedExtra = await adminDataService.updateClientExtraInfo(clientData.id, {
                 kbisUrl: finalUrl
             });
+            notifyAdminUpload(finalName);
             if (setClientData) {
                 setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra) }));
             }
@@ -300,6 +311,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 folder: 'Documents',
                 url: finalUrl
             });
+            notifyAdminUpload(finalName);
             const updatedDocs = await adminDataService.getDocuments(clientData.id);
             setDocuments(updatedDocs);
         } catch (err) {

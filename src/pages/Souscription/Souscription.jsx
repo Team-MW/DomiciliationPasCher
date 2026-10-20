@@ -62,6 +62,19 @@ const PLANS = {
 
 const STORAGE_KEY = 'dpc_souscription_draft';
 const STORAGE_STEP_KEY = 'dpc_souscription_step';
+const OFFRE_TO_PLAN = { notification: 'essentiel', scan: 'scan-plus', reexpedition: 'physique' };
+
+function leadTokenFor(email) {
+    const key = `dpc_lead_token_${email.toLowerCase()}`;
+    let token = localStorage.getItem(key);
+    if (!token) {
+        const bytes = new Uint8Array(24);
+        crypto.getRandomValues(bytes);
+        token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem(key, token);
+    }
+    return { key, token };
+}
 
 function AddressAutocomplete({ onSelectAddress, value, onChange, error }) {
     const [suggestions, setSuggestions] = useState([]);
@@ -192,6 +205,46 @@ export default function Souscription() {
     });
 
     const currentStepId = CURRENT_STEPS[step]?.id || 'projet';
+    const repriseToken = searchParams.get('reprise');
+
+    // Lien « Reprendre mon inscription » des emails de relance : on recharge le brouillon et l'écran.
+    useEffect(() => {
+        if (!repriseToken) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const lead = await adminDataService.getSouscriptionLeadByToken(repriseToken);
+                if (cancelled || !lead) return;
+                setData(d => ({ ...d, ...lead.draft }));
+                setStep(Math.min(Math.max(Number(lead.step) || 0, 0), CURRENT_STEPS.length - 1));
+                if (lead.email) localStorage.setItem(`dpc_lead_token_${lead.email}`, repriseToken);
+            } catch (err) {
+                console.error('Reprise inscription:', err);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [repriseToken]);
+
+    const persistLead = async (nextStep) => {
+        try {
+            const email = (data.email || '').trim();
+            if (!/\S+@\S+\.\S+/.test(email)) return;
+            const { key, token } = leadTokenFor(email);
+            const draft = Object.fromEntries(Object.entries(data).filter(([k, v]) =>
+                !k.endsWith('File') && !(typeof v === 'string' && v.length > 2000)));
+            const saved = await adminDataService.saveSouscriptionLead({
+                email,
+                token,
+                firstName: data.prenom,
+                plan: OFFRE_TO_PLAN[data.offre] || planId,
+                step: nextStep,
+                draft,
+            });
+            if (saved && saved !== token) localStorage.setItem(key, saved);
+        } catch (err) {
+            console.error('Sauvegarde inscription:', err);
+        }
+    };
 
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
@@ -291,12 +344,15 @@ export default function Souscription() {
                     qualite: data.qualite,
                     typeProjet: data.typeProjet,
                     formeJuridique: data.formeJuridique,
+                    plan: planId,
                 }).then(() => {
                     try { sessionStorage.setItem(leadFlag, '1'); } catch (e) {}
                 }).catch((err) => console.error('Lead email:', err));
             }
         }
-        setStep(s => Math.min(s + 1, CURRENT_STEPS.length - 1));
+        const nextStep = Math.min(step + 1, CURRENT_STEPS.length - 1);
+        if (step >= CURRENT_STEPS.findIndex(s => s.id === 'coordonnees')) persistLead(nextStep);
+        setStep(nextStep);
     };
     const prev = () => { setErrors({}); setStep(s => Math.max(s - 1, 0)); };
 

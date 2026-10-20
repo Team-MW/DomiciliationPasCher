@@ -13,6 +13,7 @@ const makeVercelRes = (res) => {
       return wrapper;
     },
     send: (data) => { res.end(data); return wrapper; },
+    setHeader: (name, value) => { res.setHeader(name, value); return wrapper; },
   };
   return wrapper;
 };
@@ -478,8 +479,10 @@ const localStripePlugin = {
         'get-payment-method',
         'stripe-customers',
         'verify-session',
+        'pay',
+        'unsubscribe',
       ];
-      const passthrough = passthroughGetRoutes.find(name => req.url.startsWith(`/api/${name}`));
+      const passthrough = passthroughGetRoutes.find(name => req.url === `/api/${name}` || req.url.startsWith(`/api/${name}?`));
       if (passthrough && req.method === 'GET') {
         try {
           const { default: handler } = await import(`./api/${passthrough}.js`);

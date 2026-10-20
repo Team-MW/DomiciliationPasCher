@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { appAlert } from '../../../components/AppDialog/dialogApi';
@@ -247,7 +248,7 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
                 </div>
             </div>
 
-            {coach && (
+            {coach && typeof document !== 'undefined' && createPortal(
                 <div className="ec-coach-overlay" role="presentation" onClick={() => setCoach(null)}>
                     <div
                         className="ec-coach"
@@ -297,7 +298,8 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
                             {coach.cta}
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

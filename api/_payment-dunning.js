@@ -1,5 +1,6 @@
 import { getTransporter, getSmtpConfig, ADMIN_EMAIL } from './_smtp.js';
 import { scanFailedPayments } from './_stripe-failures.js';
+import { sendBrandedMail } from './_email-kit.js';
 import { isPaymentGraceExpired, paymentGraceDeadline, formatDateFr } from '../shared/paymentGrace.js';
 
 const formatAmount = (amount, currency = 'eur') =>
@@ -102,7 +103,7 @@ export async function applyPaymentGracePolicy({
             if (!transporter || !failure.email || !failure.invoiceId) continue;
             if (String(failure.lastDunningAttempt) === String(failure.attemptCount)) continue;
 
-            await sendFailedPaymentEmail(transporter, failure);
+            await sendFailedPaymentEmail(transporter, failure, conn);
             await stripe.invoices.update(failure.invoiceId, {
                 metadata: { dpc_last_dunning_attempt: String(failure.attemptCount) },
             });
@@ -114,7 +115,7 @@ export async function applyPaymentGracePolicy({
 
     if (transporter) {
         try {
-            await sendAdminFailureDigest(transporter, openFailures, dunningEmailsSent, terminated);
+            await sendAdminFailureDigest(transporter, openFailures, dunningEmailsSent, terminated, conn);
         } catch (err) {
             console.error('Cron: récapitulatif admin non envoyé:', err.message);
         }
@@ -151,11 +152,11 @@ async function terminateDomiciliation({ stripe, failure, conn, client, transport
     }
 
     if (transporter && failure.email) {
-        await sendTerminationEmail(transporter, failure);
+        await sendTerminationEmail(transporter, failure, conn);
     }
 }
 
-async function sendFailedPaymentEmail(transporter, failure) {
+async function sendFailedPaymentEmail(transporter, failure, conn) {
     const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
     const amount = formatAmount(failure.amountDue, failure.currency);
     const link = failure.invoiceUrl || 'https://domiciliation-pas-cher.fr/connexion';
@@ -180,7 +181,9 @@ async function sendFailedPaymentEmail(transporter, failure) {
         </div>
     `;
 
-    await transporter.sendMail({
+    await sendBrandedMail(transporter, {
+        conn,
+        type: 'payment_failed',
         from,
         to: failure.email,
         subject: 'Action requise : régulariser votre paiement — Domiciliation Pas Cher',
@@ -189,7 +192,7 @@ async function sendFailedPaymentEmail(transporter, failure) {
     });
 }
 
-async function sendTerminationEmail(transporter, failure) {
+async function sendTerminationEmail(transporter, failure, conn) {
     const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
     const amount = formatAmount(failure.amountDue, failure.currency);
 
@@ -206,7 +209,9 @@ async function sendTerminationEmail(transporter, failure) {
         </div>
     `;
 
-    await transporter.sendMail({
+    await sendBrandedMail(transporter, {
+        conn,
+        type: 'domicile_terminated',
         from,
         to: failure.email,
         subject: 'Domiciliation résiliée — défaut de paiement',
@@ -215,7 +220,7 @@ async function sendTerminationEmail(transporter, failure) {
     });
 }
 
-async function sendAdminFailureDigest(transporter, failures, dunningEmailsSent, terminated) {
+async function sendAdminFailureDigest(transporter, failures, dunningEmailsSent, terminated, conn) {
     const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
     const rows = failures.map((f) => `
         <tr>
@@ -226,7 +231,9 @@ async function sendAdminFailureDigest(transporter, failures, dunningEmailsSent, 
             <td style="padding:8px;border-bottom:1px solid #eee;">${formatDateFr(paymentGraceDeadline(f.failedAt)) || '—'}</td>
         </tr>`).join('');
 
-    await transporter.sendMail({
+    await sendBrandedMail(transporter, {
+        conn,
+        type: 'admin_payment_failures',
         from,
         to: ADMIN_EMAIL,
         subject: `${failures.length} paiement(s) en échec — ${terminated} résiliation(s) auto`,

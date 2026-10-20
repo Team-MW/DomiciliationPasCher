@@ -11,6 +11,7 @@ vi.mock('../src/lib/db.js', () => ({
 
 vi.mock('../src/services/emailService.js', () => ({
     sendApprovalEmail: vi.fn(),
+    sendDocumentRequestEmail: vi.fn(),
 }));
 
 vi.mock('../src/utils/api.js', () => ({

@@ -61,7 +61,7 @@ export const fichesData = {
     'les-adresses': {
         title: 'Choisir son adresse : Prestige et stratégie',
         category: 'Domiciliation',
-        content: "L'adresse de votre siège social est la vitrine de votre entreprise. Paris, Lyon ou Toulouse ? Découvrez comment le choix de la ville influence votre image de marque et accédez à nos adresses les plus prestigieuses à prix réduit.",
+        content: "L'adresse de votre siège social est la vitrine de votre entreprise. Découvrez comment le choix de l'adresse influence votre image de marque et profitez de notre adresse à Toulouse à prix réduit.",
         icon: '📍'
     },
     'gestion-du-courrier': {
@@ -139,11 +139,5 @@ export const fichesData = {
         category: 'Sélection du mois',
         content: "Fini la paperasse papier. Découvrez les plateformes fiables pour immatriculer votre société en moins de 48h sans quitter votre canapé, tout en restant serein sur la conformité juridique.",
         icon: '🖱️'
-    },
-    'pourquoi-domicilier-en-idf': {
-        title: 'Pourquoi domicilier son entreprise en IDF ? Les avantages',
-        category: 'Sélection du mois',
-        content: "L'Île-de-France reste le premier pôle économique européen. Bénéficiez du dynamisme de la capitale, accédez à des réseaux d'investisseurs uniques et boostez votre crédibilité internationale.",
-        icon: '🗼'
     }
 };

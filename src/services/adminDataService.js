@@ -1,7 +1,9 @@
 import { conn } from '../lib/db';
 import { fetchWithRetry } from '../utils/api';
-import { sendApprovalEmail } from './emailService';
+import { sendApprovalEmail, sendDocumentRequestEmail } from './emailService';
 import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward } from '../../shared/plans.js';
+import { computeMissingDocuments } from '../../shared/documentRequest.js';
+import { EMAIL_LOGS_DDL, EMAIL_LOGS_ADD_CLIENT_COLUMN, SOUSCRIPTION_LEADS_DDL } from '../../shared/emailTables.js';
 import { parseExtraInfo, normalizeSubscriptionExtra, resolvePersonalAddress } from '../utils/contractLegalFields';
 
 /**
@@ -190,6 +192,31 @@ export const adminDataService = {
         return res.rows;
     },
 
+    async getInscriptionsNonFinalisees() {
+        const unpaid = await conn.execute(
+            "SELECT id, clientName, email, company, plan, amount, date FROM demandes WHERE status = 'en_attente_paiement' ORDER BY date DESC"
+        );
+        const items = unpaid.rows.map(d => ({ ...d, kind: 'paiement' }));
+        const known = new Set(items.map(d => (d.email || '').toLowerCase()));
+        try {
+            await conn.execute(SOUSCRIPTION_LEADS_DDL);
+            const leads = await conn.execute(
+                `SELECT l.email, l.first_name, l.plan, l.step, l.updated_at, l.reminders_sent, l.unsubscribed_at
+                 FROM souscription_leads l
+                 WHERE l.completed_at IS NULL
+                   AND NOT EXISTS (SELECT 1 FROM clients c WHERE c.email = l.email)
+                 ORDER BY l.updated_at DESC LIMIT 100`
+            );
+            for (const l of leads.rows) {
+                if (known.has((l.email || '').toLowerCase())) continue;
+                items.push({ ...l, kind: 'formulaire' });
+            }
+        } catch (err) {
+            console.warn('[getInscriptionsNonFinalisees] leads indisponibles:', err.message);
+        }
+        return items;
+    },
+
     async addDemande(d) {
         const cleanEmail = d.email ? d.email.trim().toLowerCase() : '';
         // Vérifier si une demande en attente (ou attente paiement) existe déjà pour cet email
@@ -324,10 +351,123 @@ export const adminDataService = {
             // Envoyer l'email d'approbation au client
             if (d.email) {
                 await sendApprovalEmail(d.email, d.clientName);
+                try {
+                    const docs = await conn.execute('SELECT name FROM documents WHERE clientId = ?', [clientId]);
+                    const missing = computeMissingDocuments(['statuts', 'kbis'], { extra: finalExtraInfo, documents: docs.rows || [] });
+                    if (missing.length > 0) {
+                        await this.startDocumentRequest(
+                            { id: clientId, email: d.email, name: displayName, extra_info: finalExtraInfo },
+                            missing,
+                            { sendNow: false }
+                        );
+                    }
+                } catch (err) {
+                    console.error('Demande de documents non envoyée :', err);
+                }
             }
 
             return { ...d, id: clientId };
         }
+    },
+
+    /**
+     * Demande de statuts / Kbis puis relances J+7/30/60/80 par le cron tant que les pièces
+     * ne sont pas déposées. Avec sendNow: false, le premier email part au prochain passage
+     * quotidien du cron (évite de doubler l'email « Dossier validé »).
+     */
+    async startDocumentRequest(client, missing, { sendNow = true } = {}) {
+        const extra = parseExtraInfo(client.extra_info);
+        const isCreation = /creation/i.test(String(extra.typeProjet || ''));
+        if (sendNow) {
+            await sendDocumentRequestEmail(client.email, client.name, {
+                documents: missing,
+                isCreation,
+                contractSignedAt: extra.contractSignedAt,
+            });
+        }
+        const docRequest = {
+            missing,
+            is_creation: isCreation,
+            requested_at: new Date().toISOString(),
+            initial_pending: !sendNow,
+            reminders_sent: [],
+            completed_at: null,
+        };
+        const current = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [client.id]);
+        const base = current.rows?.[0] ? parseExtraInfo(current.rows[0].extra_info) : extra;
+        await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [
+            JSON.stringify({ ...base, doc_request: docRequest }),
+            client.id,
+        ]);
+        return docRequest;
+    },
+
+    async stopDocumentRequest(clientId) {
+        const res = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId]);
+        const extra = parseExtraInfo(res.rows[0]?.extra_info);
+        if (!extra.doc_request) return null;
+        const docRequest = { ...extra.doc_request, completed_at: new Date().toISOString() };
+        await this.updateClientExtraInfo(clientId, { doc_request: docRequest });
+        return docRequest;
+    },
+
+    /** Historique des emails envoyés à une adresse (journalisés par l'API). */
+    async getEmailLogs(...emails) {
+        const addresses = [...new Set(emails.filter(Boolean).map((e) => String(e).trim().toLowerCase()))];
+        if (addresses.length === 0) return [];
+        try {
+            await conn.execute(EMAIL_LOGS_DDL);
+            try {
+                await conn.execute(EMAIL_LOGS_ADD_CLIENT_COLUMN);
+            } catch {
+                // colonne déjà présente
+            }
+            const placeholders = addresses.map(() => '?').join(', ');
+            const res = await conn.execute(
+                `SELECT * FROM email_logs WHERE to_email IN (${placeholders}) OR client_email IN (${placeholders}) ORDER BY sent_at DESC LIMIT 200`,
+                [...addresses, ...addresses]
+            );
+            return res.rows || [];
+        } catch (err) {
+            console.error('Historique emails indisponible :', err);
+            return [];
+        }
+    },
+
+    // --- INSCRIPTIONS COMMENCÉES (relances) ---
+    async saveSouscriptionLead({ email, token, firstName, plan, step, draft }) {
+        const cleanEmail = String(email || '').trim().toLowerCase();
+        if (!cleanEmail || !token) return;
+        await conn.execute(SOUSCRIPTION_LEADS_DDL);
+        const now = new Date().toISOString();
+        await conn.execute(
+            `INSERT INTO souscription_leads (email, token, first_name, plan, step, draft, created_at, updated_at, reminders_sent)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+             ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), plan = VALUES(plan), step = VALUES(step),
+                draft = VALUES(draft), updated_at = VALUES(updated_at)`,
+            [cleanEmail, token, firstName || '', plan || 'essentiel', step || 0, JSON.stringify(draft || {}), now, now]
+        );
+        const res = await conn.execute('SELECT token FROM souscription_leads WHERE email = ?', [cleanEmail]);
+        return res.rows[0]?.token || token;
+    },
+
+    async getSouscriptionLeadByToken(token) {
+        if (!token) return null;
+        await conn.execute(SOUSCRIPTION_LEADS_DDL);
+        const res = await conn.execute('SELECT * FROM souscription_leads WHERE token = ? LIMIT 1', [token]);
+        const lead = res.rows[0];
+        if (!lead) return null;
+        return { ...lead, draft: parseExtraInfo(lead.draft) };
+    },
+
+    async completeSouscriptionLead(email) {
+        const cleanEmail = String(email || '').trim().toLowerCase();
+        if (!cleanEmail) return;
+        await conn.execute(SOUSCRIPTION_LEADS_DDL);
+        await conn.execute(
+            'UPDATE souscription_leads SET completed_at = ? WHERE email = ? AND completed_at IS NULL',
+            [new Date().toISOString(), cleanEmail]
+        );
     },
 
     async deleteDemande(id) {
