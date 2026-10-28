@@ -251,14 +251,21 @@ export const adminDataService = {
     },
 
     async confirmDemandePayment(id, sessionId = null, customerId = null) {
-        if (sessionId) {
-            await conn.execute(
-                "UPDATE demandes SET status = 'en_attente', extra_info = JSON_SET(COALESCE(extra_info, '{}'), '$.stripe_session_id', ?, '$.stripe_customer_id', ?) WHERE id = ?",
-                [sessionId, customerId, id]
-            );
-        } else {
+        if (!sessionId) {
             await conn.execute("UPDATE demandes SET status = 'en_attente' WHERE id = ?", [id]);
+            return;
         }
+        const res = await conn.execute('SELECT extra_info FROM demandes WHERE id = ?', [id]);
+        const existing = parseExtraInfo(res.rows[0]?.extra_info);
+        const merged = {
+            ...existing,
+            stripe_session_id: sessionId,
+            ...(customerId ? { stripe_customer_id: customerId } : {}),
+        };
+        await conn.execute(
+            "UPDATE demandes SET status = 'en_attente', extra_info = ? WHERE id = ?",
+            [JSON.stringify(merged), id]
+        );
     },
 
     async getDemandeBySessionId(sessionId) {
@@ -349,8 +356,10 @@ export const adminDataService = {
             await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
 
             // Envoyer l'email d'approbation au client
+            let emailSent = false;
             if (d.email) {
-                await sendApprovalEmail(d.email, d.clientName);
+                const mailResult = await sendApprovalEmail(d.email, d.clientName);
+                emailSent = mailResult?.success !== false;
                 try {
                     const docs = await conn.execute('SELECT name FROM documents WHERE clientId = ?', [clientId]);
                     const missing = computeMissingDocuments(['statuts', 'kbis'], { extra: finalExtraInfo, documents: docs.rows || [] });
@@ -366,7 +375,7 @@ export const adminDataService = {
                 }
             }
 
-            return { ...d, id: clientId };
+            return { ...d, id: clientId, emailSent };
         }
     },
 

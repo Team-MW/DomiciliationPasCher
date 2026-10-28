@@ -27,13 +27,12 @@ function StepCard({ step, index, last }) {
     );
 }
 
-function FaqItem({ q, a }) {
-    const [open, setOpen] = useState(false);
+function FaqItem({ q, a, open, onToggle }) {
     return (
         <div className={`faq-item ${open ? 'open' : ''}`}>
-            <button className="faq-question" onClick={() => setOpen(!open)}>
+            <button className="faq-question" onClick={onToggle} aria-expanded={open}>
                 <span>{q}</span>
-                <span className="faq-chevron">
+                <span className="faq-chevron" aria-hidden="true">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -69,6 +68,7 @@ export default function Services() {
     const courrierSteps = tr.services.courrier.steps;
     const creationSteps = tr.services.creation.steps;
     const serviceFaqs = tr.services.faqs.items;
+    const [openFaq, setOpenFaq] = useState(null);
 
     useEffect(() => {
         document.title = tr.services.pageTitle;
@@ -301,7 +301,12 @@ export default function Services() {
                     </div>
                     <div className="faq-grid animate-in">
                         {serviceFaqs.map((faq, i) => (
-                            <FaqItem key={i} {...faq} />
+                            <FaqItem
+                                key={i}
+                                {...faq}
+                                open={openFaq === i}
+                                onToggle={() => setOpenFaq(openFaq === i ? null : i)}
+                            />
                         ))}
                     </div>
                 </div>

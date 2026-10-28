@@ -16,9 +16,11 @@ export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showC
     const handleAccepter = async (demande) => {
         setLoadingId(demande.id);
         try {
-            await adminDataService.traiterDemande(demande.id);
+            const created = await adminDataService.traiterDemande(demande.id);
             onUpdate();
-            await showAlert(`Accès créé avec succès ! L'email de validation a été envoyé.`);
+            await showAlert(created?.emailSent === false
+                ? "Accès créé, mais l'email de validation n'a pas pu être envoyé. Vérifiez la configuration SMTP."
+                : "Accès créé avec succès ! L'email de validation a été envoyé.");
         } finally {
             setLoadingId(null);
         }

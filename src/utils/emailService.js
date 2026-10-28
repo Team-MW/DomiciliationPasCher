@@ -11,12 +11,14 @@ export const sendWelcomeEmail = async (email, nom) => {
 
         if (response.ok) {
             console.log("Email automatique envoyé de manière sécurisée (backend) !");
-        } else {
-            const errorData = await response.json();
-            console.error("Erreur Backend lors de l'envoi de l'email :", errorData.error);
+            return true;
         }
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Erreur Backend lors de l'envoi de l'email :", errorData.error || response.status);
+        return false;
     } catch (err) {
         console.error("Erreur serveur lors de la requête Backend Email :", err);
+        return false;
     }
 };
 

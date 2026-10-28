@@ -283,10 +283,12 @@ export default function Admin() {
                         onAccept={async (id) => {
                             setLoadingId(id);
                             try {
-                                await adminDataService.traiterDemande(id);
+                                const created = await adminDataService.traiterDemande(id);
                                 refreshData();
                                 setSelectedDemande(null);
-                                await showAlert("Accès créé avec succès ! L'email de validation a été envoyé.", { title: "Succès" });
+                                await showAlert(created?.emailSent === false
+                                    ? "Accès créé, mais l'email de validation n'a pas pu être envoyé. Vérifiez la configuration SMTP."
+                                    : "Accès créé avec succès ! L'email de validation a été envoyé.", { title: "Succès" });
                             } finally {
                                 setLoadingId(null);
                             }

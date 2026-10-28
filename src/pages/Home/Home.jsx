@@ -191,13 +191,12 @@ function StepsAnimator({ steps }) {
     );
 }
 
-function FaqItem({ q, a }) {
-    const [open, setOpen] = useState(false);
+function FaqItem({ q, a, open, onToggle }) {
     return (
         <div className={`faq-item ${open ? 'open' : ''}`}>
-            <button className="faq-question" onClick={() => setOpen(!open)}>
+            <button className="faq-question" onClick={onToggle} aria-expanded={open}>
                 <span>{q}</span>
-                <span className="faq-chevron">
+                <span className="faq-chevron" aria-hidden="true">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -212,6 +211,7 @@ function FaqItem({ q, a }) {
 
 export default function Home() {
     const { tr } = useTranslation();
+    const [openFaq, setOpenFaq] = useState(null);
     const pageRef = useAnimateOnScroll();
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -307,22 +307,32 @@ export default function Home() {
                     localStorage.removeItem('dpc_souscription_draft');
                     localStorage.removeItem('dpc_souscription_step');
 
+                    const emailToUse = pendingEmail || stripeData?.metadata?.email || stripeData?.customer_email;
+                    const nameToUse = pendingName || stripeData?.metadata?.clientName;
+
                     if (demandIdToConfirm) {
-                        await adminDataService.confirmDemandePayment(demandIdToConfirm, sessionId, stripeCustomerId);
-                        
-                        const emailToUse = pendingEmail || stripeData?.metadata?.email || stripeData?.customer_email;
-                        const nameToUse = pendingName || stripeData?.metadata?.clientName;
-                        if (emailToUse) {
-                            sendWelcomeEmail(emailToUse, nameToUse || '');
-                            adminDataService.completeSouscriptionLead(emailToUse)
-                                .catch((err) => console.error('Fin des relances inscription:', err));
+                        try {
+                            await adminDataService.confirmDemandePayment(demandIdToConfirm, sessionId, stripeCustomerId);
+                        } catch (err) {
+                            console.error('Confirmation du paiement en base :', err);
                         }
-                        
+                    }
+
+                    let emailOk = true;
+                    if (emailToUse) {
+                        emailOk = await sendWelcomeEmail(emailToUse, nameToUse || '');
+                        adminDataService.completeSouscriptionLead(emailToUse)
+                            .catch((err) => console.error('Fin des relances inscription:', err));
+                    }
+
+                    if (emailOk) {
                         localStorage.setItem('last_successful_session', sessionId);
                         localStorage.removeItem('pending_demande_id');
                         localStorage.removeItem('pending_emailjs');
                         localStorage.removeItem('pending_namejs');
                         localStorage.setItem('allow_registration', 'true');
+                    } else if (handledKey) {
+                        localStorage.removeItem(handledKey);
                     }
                 } else {
                     if (handledKey) localStorage.removeItem(handledKey);
@@ -680,7 +690,14 @@ export default function Home() {
                             </Link>
                         </div>
                         <div className="faq-list animate-in" style={{ animationDelay: '0.1s' }}>
-                            {tr.home.faqs.items.map((faq, i) => <FaqItem key={i} {...faq} />)}
+                            {tr.home.faqs.items.map((faq, i) => (
+                                <FaqItem
+                                    key={i}
+                                    {...faq}
+                                    open={openFaq === i}
+                                    onToggle={() => setOpenFaq(openFaq === i ? null : i)}
+                                />
+                            ))}
                         </div>
                     </div>
                 </div>

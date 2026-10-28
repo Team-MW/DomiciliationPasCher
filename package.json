@@ -8,8 +8,8 @@
     "build": "npx vite build",
     "lint": "eslint .",
     "preview": "npx vite preview",
-    "test": "vitest run --pool=forks",
-    "test:deploy": "vitest run --pool=forks && npx vite build",
+    "test": "vitest run --pool=threads --maxWorkers=1",
+    "test:deploy": "node scripts/deploy-check.mjs && npx vite build",
     "prepare": "node scripts/install-hooks.js",
     "db:clean-docs": "node scripts/reset-test-client.cjs"
   },
