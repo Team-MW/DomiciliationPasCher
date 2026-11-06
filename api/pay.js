@@ -3,6 +3,7 @@ import { getDbConn } from './_db.js';
 import { getBaseUrl, escapeHtml, wrapEmail, emailButton, sendBrandedMail, PHONE_DISPLAY } from './_email-kit.js';
 import { getTransporter, getSmtpConfig, ADMIN_EMAIL } from './_smtp.js';
 import { clientPlanPricing } from '../shared/plans.js';
+import { adminPaymentPatch } from './_checkout-fulfillment.js';
 
 function parseExtra(raw) {
     try {
@@ -69,13 +70,7 @@ export default async function handler(req, res) {
             if (client.extra.stripe_session_id === session.id) {
                 return redirect(res, `${baseUrl}/inscription`);
             }
-            const patch = {
-                payment_status: 'paid',
-                paid_at: new Date().toISOString(),
-                stripe_customer_id: session.customer || client.extra.stripe_customer_id,
-                stripe_subscription_id: session.subscription || null,
-                stripe_session_id: session.id,
-            };
+            const patch = adminPaymentPatch(session, client.extra);
             await conn.execute(
                 'UPDATE clients SET extra_info = ? WHERE id = ?',
                 [JSON.stringify({ ...client.extra, ...patch }), client.id],
@@ -114,6 +109,28 @@ export default async function handler(req, res) {
             const existing = await stripe.customers.list({ email, limit: 1 });
             customerId = existing.data[0]?.id
                 || (await stripe.customers.create({ email, name: client.name || undefined })).id;
+        }
+
+        // Déjà abonné (le client a payé sans revenir sur le site, ou clique deux fois sur le lien) :
+        // on n'ouvre PAS une 2e session, ce qui créerait un 2e abonnement et un 2e prélèvement.
+        if (customerId) {
+            try {
+                const active = await stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 1 });
+                const existingSub = active?.data?.[0];
+                if (existingSub) {
+                    const patch = {
+                        payment_status: 'paid',
+                        paid_at: new Date().toISOString(),
+                        stripe_customer_id: customerId,
+                        stripe_subscription_id: existingSub.id,
+                    };
+                    await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify({ ...client.extra, ...patch }), client.id]);
+                    return redirect(res, `${baseUrl}/inscription`);
+                }
+            } catch (subErr) {
+                // Stripe injoignable : on continue comme avant plutôt que de bloquer un client qui veut payer.
+                console.error('Pay link: vérification des abonnements impossible', subErr.message);
+            }
         }
 
         const metadata = { admin_client_id: client.id, email, clientName: client.name || '', planId: plan.id };

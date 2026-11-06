@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 
+import { parseExtraInfo } from './contractLegalFields';
 const TYPE_PROJET_LABELS = {
     creation: "Création d'entreprise",
     transfert: 'Transfert de siège',
@@ -26,16 +27,6 @@ const CLERK_STATUS_LABELS = {
     invitation_sent: 'Invitation envoyée',
     mock_initial: 'Initial',
 };
-
-function parseExtraInfo(extraInfo) {
-    if (!extraInfo) return {};
-    try {
-        const parsed = typeof extraInfo === 'string' ? JSON.parse(extraInfo) : extraInfo;
-        return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch {
-        return {};
-    }
-}
 
 function formatDate(dateStr) {
     if (!dateStr) return '';

@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from '../../../assets/DomiciliationPasCher-Logo.png';
+import logo from '../../../assets/DomiciliationPasCher-Logo-11.svg';
 import { CONTACT_EMAIL, CONTACT_PHONE_DISPLAY, CONTACT_PHONE_HREF } from '../../../constants/contact';
 import { DOMICILIATION_ADDRESS, AGREMENT_NUMBER } from '../../../../shared/company.js';
 import './AccountStateScreen.css';

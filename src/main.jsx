@@ -4,7 +4,7 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import { frFR } from '@clerk/localizations'
 import './index.css'
 import App from './App.jsx'
-import { LanguageProvider } from './i18n/LanguageContext.jsx'
+import { LanguageProvider, preloadInitialLanguage } from './i18n/LanguageContext.jsx'
 import { installApiAuth } from './utils/apiAuth.js'
 
 // Jeton Clerk joint automatiquement à chaque appel /api/* (contrôle d'accès côté serveur).
@@ -35,7 +35,8 @@ if (!clerkPublishableKey) {
     `;
   }
 } else {
-  createRoot(rootElement).render(
+  // Visiteur en anglais / russe : la langue (chargée à la demande) est prête avant l'affichage.
+  preloadInitialLanguage().finally(() => createRoot(rootElement).render(
     <StrictMode>
       <ClerkProvider
         publishableKey={clerkPublishableKey}
@@ -48,5 +49,5 @@ if (!clerkPublishableKey) {
         </LanguageProvider>
       </ClerkProvider>
     </StrictMode>,
-  )
+  ))
 }

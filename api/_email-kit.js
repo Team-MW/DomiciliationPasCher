@@ -15,6 +15,17 @@ export const SITE_URL = 'https://www.domiciliation-pas-cher.com';
 /** Signature commune à tous les emails envoyés aux clients et prospects. */
 export const SIGNATURE = "L'équipe Domiciliation Pas Cher";
 
+/**
+ * UNE seule adresse email valide (pas de liste « a@x.fr, b@y.fr », pas de « > » ni de saut de ligne) :
+ * nodemailer transforme une liste en plusieurs destinataires et un « \r\nBcc: » en destinataire caché,
+ * ce qui transformait le formulaire public en relais de phishing depuis notre domaine.
+ */
+export function isSingleEmail(value) {
+    if (typeof value !== 'string') return false;
+    const email = value.trim();
+    return email.length > 0 && email.length <= 254 && /^[^\s@,;<>"'()\\]+@[^\s@,;<>"'()\\]+\.[^\s@,;<>"'()\\]+$/.test(email);
+}
+
 export function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')

@@ -2651,3 +2651,16 @@ select.ec-input {
     box-shadow: 0 0 0 2px #FFFFFF;
 }
 .ec-chat-row-logo { align-self: flex-end; margin-bottom: 20px; }
+
+/* Chargement partiel de l'espace client (une liste n'a pas répondu) */
+.ec-partial-load {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 12px 24px 0; padding: 10px 14px; border-radius: 10px;
+    background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; font-size: 14px;
+}
+.ec-partial-load button {
+    flex-shrink: 0; padding: 6px 12px; border-radius: 8px; border: 1px solid #F59E0B;
+    background: #FFFFFF; color: #92400E; font: inherit; font-weight: 700; cursor: pointer;
+}
+
+.ec-chat-error { margin: 0; padding: 8px 16px; font-size: 13px; color: #B91C1C; background: #FEF2F2; border-top: 1px solid #FECACA; }

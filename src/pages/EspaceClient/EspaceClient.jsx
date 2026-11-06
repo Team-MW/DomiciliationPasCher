@@ -6,7 +6,8 @@ import { parseExtraInfo, resolvePersonalAddress } from '../../utils/contractLega
 import { resolveClientStatusFromStripe } from '../../utils/stripeClientStatus';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { setPreviewMode } from '../../utils/apiAuth';
-import { PRICING_GRID } from '../../../shared/plans.js';
+import { PRICING_GRID, clientPlanPricing } from '../../../shared/plans.js';
+import { appAlert } from '../../components/AppDialog/dialogApi';
 import './EspaceClient.css';
 
 // Components
@@ -61,6 +62,10 @@ export default function EspaceClient() {
     const [hasNewFactures, setHasNewFactures] = useState(false);
     const [pendingDemande, setPendingDemande] = useState(null);
     const [checkingPayment, setCheckingPayment] = useState(false);
+    // Une des listes (courrier, documents, réservations, messages) n'a pas pu être chargée : on le dit, sans masquer le dossier.
+    const [partialLoad, setPartialLoad] = useState(false);
+    // Échec du chargement du compte (session, email non vérifié, serveur) : à ne PAS confondre avec « dossier introuvable ».
+    const [loadError, setLoadError] = useState(null);
     const [openingPortal, setOpeningPortal] = useState(false);
 
     useEffect(() => {
@@ -175,16 +180,20 @@ export default function EspaceClient() {
                 if (data) {
                     setClientData(data);
 
-                    const [m, d, b, msgs] = await Promise.all([
+                    // allSettled : une liste en panne ne doit plus faire croire au client que son dossier n'existe pas.
+                    const settled = await Promise.allSettled([
                         data.isTemporary ? Promise.resolve([]) : adminDataService.getClientMail(data.id),
                         adminDataService.getDocuments(data.id),
                         adminDataService.getClientBookings(data.id),
                         adminDataService.getMessages(data.id)
                     ]);
+                    const listOf = (r) => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value.filter(Boolean) : []);
+                    const [m, d, b, msgs] = settled.map(listOf);
                     if (isMounted) {
                         setMail(m);
                         setDocuments(d);
                         setBookings(b);
+                        setPartialLoad(settled.some((r) => r.status === 'rejected'));
                         const unread = msgs.filter(x => x.sender === 'admin' && x.status === 'sent').length;
                         setUnreadMsgsCount(unread);
                     }
@@ -194,7 +203,10 @@ export default function EspaceClient() {
               } catch (err) {
                 // Sans ce garde, une erreur réseau laissait l'écran « chargement » indéfiniment.
                 console.error('Chargement de l’espace client impossible:', err);
-                if (isMounted) setClientData(null);
+                if (isMounted) {
+                    setClientData(null);
+                    setLoadError(String(err?.message || '').includes('EMAIL_NOT_VERIFIED') ? 'email' : (err?.status === 401 || err?.status === 403 ? 'auth' : 'server'));
+                }
               } finally {
                 if (isMounted) setIsLoading(false);
               }
@@ -205,12 +217,19 @@ export default function EspaceClient() {
 
         return () => {
             isMounted = false;
+            // Le verrou d'écriture de l'aperçu ne doit pas survivre à la page (sinon les POST sont refusés ailleurs sur le site).
+            setPreviewMode(false);
         };
     }, [isLoaded, user?.id]);
 
     const handleLogout = async () => {
-        await signOut();
-        navigate('/');
+        try {
+            await signOut();
+        } catch (err) {
+            console.error('Déconnexion :', err);
+        } finally {
+            navigate('/');
+        }
     };
 
     const stripeCustomerIdFromClient = (client) => {
@@ -241,6 +260,7 @@ export default function EspaceClient() {
             }
         } catch (e) {
             console.error(e);
+            await appAlert(t('espaceClient.shell.paymentCheckError'));
         } finally {
             setCheckingPayment(false);
         }
@@ -261,8 +281,8 @@ export default function EspaceClient() {
                         company: clientData.company,
                     }),
                 });
-                const data = await res.json();
-                if (data.customerId) {
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.customerId) {
                     stripeId = data.customerId;
                     const merged = await adminDataService.updateClientExtraInfo(clientData.id, {
                         stripe_customer_id: stripeId,
@@ -270,11 +290,16 @@ export default function EspaceClient() {
                     setClientData((prev) => ({ ...prev, extra_info: JSON.stringify(merged) }));
                 }
             }
-            if (!stripeId) return;
+            if (!stripeId) {
+                await appAlert(t('espaceClient.payment.portalError'));
+                return;
+            }
             const url = await adminDataService.createStripePortalSession(stripeId);
             if (url) window.location.href = url;
+            else await appAlert(t('espaceClient.payment.portalOpenError'));
         } catch (e) {
             console.error(e);
+            await appAlert(t('espaceClient.payment.portalError'));
         } finally {
             setOpeningPortal(false);
         }
@@ -296,6 +321,27 @@ export default function EspaceClient() {
         helpHours: t('espaceClient.shell.stateHelpHours'),
     };
     const accountEmail = user?.primaryEmailAddress?.emailAddress || '';
+
+    if (!isLoading && !clientData && loadError) {
+        return (
+            <AccountStateScreen
+                tone="warning"
+                icon="clock"
+                kicker={t('espaceClient.shell.loadErrorKicker')}
+                title={t('espaceClient.shell.loadErrorTitle')}
+                body={<p>{t(`espaceClient.shell.loadError_${loadError}`)}</p>}
+                accountEmail={accountEmail}
+                accountLabel={t('espaceClient.shell.connectedAs')}
+                actions={(
+                    <>
+                        <button type="button" className="ecs-btn ecs-btn-primary" onClick={() => window.location.reload()}>{t('espaceClient.shell.refresh')}</button>
+                        <button type="button" className="ecs-btn ecs-btn-ghost" onClick={handleLogout}>{t('espaceClient.shell.logout')}</button>
+                    </>
+                )}
+                labels={stateLabels}
+            />
+        );
+    }
 
     if (!isLoading && !clientData && pendingDemande) {
         return (
@@ -424,6 +470,12 @@ export default function EspaceClient() {
             </div>
 
             <main className="ec-main">
+                {partialLoad && (
+                    <div className="ec-partial-load" role="alert">
+                        <span>{t('espaceClient.shell.partialLoad')}</span>
+                        <button type="button" onClick={() => window.location.reload()}>{t('espaceClient.shell.partialLoadRetry')}</button>
+                    </div>
+                )}
                 <header className="ec-header">
                     <div className="ec-header-left">
                         <button className="ec-mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
@@ -445,7 +497,7 @@ export default function EspaceClient() {
                         ) : (
                             <div className="ec-status-tag">
                                 <span className="status-dot-green"></span>
-                                {t('espaceClient.shell.planActive').replace('{plan}', clientData?.plan)}
+                                {t('espaceClient.shell.planActive').replace('{plan}', clientPlanPricing(clientData?.plan, parseExtraInfo(clientData?.extra_info)).name)}
                             </div>
                         )}
                     </div>

@@ -73,13 +73,20 @@ export async function fulfillCheckoutSession(session, { conn, baseUrl, sendEmail
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
         const firstTime = await service.confirmDemandePayment(meta.demande_id, session.id, customerId);
         const email = String(demande.email || meta.email || session.customer_details?.email || '').trim().toLowerCase();
-        if (firstTime && email) {
+        // Bienvenue : au premier passage, OU si le premier envoi a échoué (marqueur welcome_pending) :
+        // sans ça, un incident SMTP ponctuel faisait perdre définitivement l'email.
+        if ((firstTime || extra.welcome_pending) && email) {
             const nom = String(meta.clientName || demande.clientName || '').replace(/\s*-?\s*📞.*$/, '').trim();
+            let welcomeSent = false;
             try {
                 // Email de bienvenue (type absent) + notification « nouveau client » à l'admin.
                 await send({ email, nom });
+                welcomeSent = true;
             } catch (err) {
-                console.error('[fulfillment] email de bienvenue non envoyé:', err);
+                console.error('[fulfillment] email de bienvenue non envoyé (sera retenté):', err);
+            }
+            if (!welcomeSent || extra.welcome_pending) {
+                await setDemandeFlag(conn, meta.demande_id, 'welcome_pending', welcomeSent ? undefined : true);
             }
             try {
                 await service.completeSouscriptionLead(email);
@@ -90,5 +97,51 @@ export async function fulfillCheckoutSession(session, { conn, baseUrl, sendEmail
         return { kind: 'demande', ok: true, firstTime, demandeId: meta.demande_id };
     }
 
+    // Dossier créé par l'admin, payé via /api/pay : si le client ferme l'onglet avant le retour sur le
+    // site, c'est le webhook qui enregistre le paiement (sinon le dossier restait « en attente » et
+    // recevait des relances alors qu'il avait payé).
+    if (meta.admin_client_id) {
+        const clientId = String(meta.admin_client_id);
+        const res = await conn.execute('SELECT id, name, email, extra_info FROM clients WHERE id = ?', [clientId]);
+        const row = res?.rows?.[0];
+        if (!row) return { kind: 'admin_payment', ok: false, reason: 'client_not_found' };
+        const previous = parseExtraInfo(row.extra_info);
+        if (previous.stripe_session_id === session.id) return { kind: 'admin_payment', ok: true, firstTime: false };
+        const patch = adminPaymentPatch(session, previous);
+        await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify({ ...previous, ...patch }), clientId]);
+        try {
+            await send({ type: 'admin_payment_received', email: row.email, nom: row.name });
+        } catch (err) {
+            console.error('[fulfillment] alerte « abonnement démarré » non envoyée:', err);
+        }
+        return { kind: 'admin_payment', ok: true, firstTime: true, clientId };
+    }
+
     return { kind: 'other', ok: true };
+}
+
+/** Champs d'extra_info posés quand un dossier créé par l'admin est payé (partagé avec api/pay.js). */
+export function adminPaymentPatch(session, previous = {}) {
+    return {
+        payment_status: 'paid',
+        paid_at: new Date().toISOString(),
+        stripe_customer_id: (typeof session.customer === 'string' ? session.customer : session.customer?.id) || previous.stripe_customer_id,
+        stripe_subscription_id: (typeof session.subscription === 'string' ? session.subscription : session.subscription?.id) || null,
+        stripe_session_id: session.id,
+    };
+}
+
+/** Pose (ou retire, si value est undefined) un marqueur dans extra_info d'une demande, sans écraser le reste. */
+async function setDemandeFlag(conn, demandeId, key, value) {
+    try {
+        const res = await conn.execute('SELECT extra_info FROM demandes WHERE id = ?', [demandeId]);
+        const row = res?.rows?.[0];
+        if (!row) return;
+        const extra = parseExtraInfo(row.extra_info);
+        if (value === undefined) delete extra[key];
+        else extra[key] = value;
+        await conn.execute('UPDATE demandes SET extra_info = ? WHERE id = ?', [JSON.stringify(extra), demandeId]);
+    } catch (err) {
+        console.error(`[fulfillment] marqueur ${key} non enregistré:`, err?.message || err);
+    }
 }

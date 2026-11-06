@@ -132,6 +132,89 @@ async function checkPage(context, base, pagePath, { expect, viewport, shell }) {
     }
 }
 
+/**
+ * Parcours de souscription réel (étape justificatifs → paiement), serveur simulé.
+ * Garantit qu'on ne crée JAMAIS de dossier sans les 3 justificatifs (bug de nov. 2026 : noms de
+ * fichiers restaurés sans les fichiers) et que les liens des documents partent bien avec la demande.
+ */
+async function checkSubscriptionFunnel(browser, base) {
+    const where = '/souscription (parcours complet)';
+    const draft = {
+        typeProjet: 'domiciliation', formeJuridique: 'SCI', nom: 'Test', prenom: 'Parcours', email: 'parcours@example.com', telephone: '0600000000',
+        dateNaissance: '2000-01-01', lieuNaissance: 'TOULOUSE, France', nomSociete: 'TEST SCI', siren: '', activite: 'Gestion', nationalite: 'Française', qualite: 'Gérant',
+        ville: 'Toulouse (31)', offre: 'notification', frequence: 'mensuel', cgv: true,
+        adresse: '1 rue Test', complement: '', codePostal: '31000', villePerso: 'Toulouse', pays: 'France',
+        pieceIdentiteRecto: 'cni.pdf', pieceIdentiteVerso: 'cni.pdf', justificatifDomicile: 'edf.pdf', // noms restaurés SANS fichiers
+    };
+    const context = await browser.newContext({ viewport: VIEWPORTS[0], locale: 'fr-FR' });
+    await context.addInitScript((d) => {
+        try {
+            localStorage.setItem('dpc_cookie_consent', JSON.stringify({ value: 'denied', ts: Date.now() }));
+            localStorage.setItem('dpc_souscription_draft', JSON.stringify(d));
+            localStorage.setItem('dpc_souscription_step', '6');
+        } catch { /* stockage indisponible */ }
+    }, draft);
+    await context.route('**/*', (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));
+    let demande = null;
+    let checkoutCalled = false;
+    await context.route('**/api/**', async (route) => {
+        const url = route.request().url();
+        const body = route.request().postData() || '';
+        if (url.includes('/api/checkout')) {
+            checkoutCalled = true;
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: `${base}/?funnel_checkout_ok=1` }) });
+        }
+        let result = null;
+        if (body.includes('"addDemande"')) {
+            demande = JSON.parse(body).args[0];
+            result = { id: 'dem_smoke', status: 'en_attente' };
+        }
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ result }) });
+    });
+    await context.route('https://api.cloudinary.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ secure_url: `https://res.cloudinary.com/smoke/${Date.now()}.png` }) }));
+
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    try {
+        await page.goto(`${base}/souscription`, { waitUntil: 'networkidle' });
+        const closeCoach = async () => {
+            const btn = page.locator('.sous-coach-btn');
+            if (await btn.count()) { await btn.first().click(); await page.waitForTimeout(250); }
+        };
+        await closeCoach();
+        const text = async () => (await page.locator('main').innerText()).replace(/\s+/g, ' ');
+
+        if (!/Vos justificatifs/.test(await text())) fail(where, 'l’étape « Vos justificatifs » ne s’affiche pas');
+        if (await page.locator('.doc-upload-btn.uploaded').count() !== 0) fail(where, 'des justificatifs apparaissent « déposés » alors qu’aucun fichier n’est joint');
+        await page.getByRole('button', { name: /continuer|suivant/i }).first().click();
+        await page.waitForTimeout(300);
+        if (!/Vos justificatifs/.test(await text())) fail(where, 'on peut passer au paiement SANS joindre les justificatifs');
+
+        const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+        const inputs = page.locator('input[type=file]');
+        for (let i = 0; i < await inputs.count(); i++) await inputs.nth(i).setInputFiles({ name: `piece${i}.png`, mimeType: 'image/png', buffer: png });
+        await page.getByRole('button', { name: /continuer|suivant/i }).first().click();
+        await page.waitForTimeout(400);
+        await closeCoach();
+        if (!/Vérifiez et payez/.test(await text())) { fail(where, 'le récapitulatif de paiement ne s’affiche pas avec les 3 justificatifs'); return; }
+
+        await page.locator('.sous-pay-btn').click();
+        await page.waitForFunction(() => location.search.includes('funnel_checkout_ok'), null, { timeout: 8000 }).catch(() => {});
+        if (!demande) fail(where, 'aucune demande envoyée au serveur');
+        else {
+            const e = demande.extra_info || {};
+            for (const k of ['pieceIdentiteUrl', 'pieceIdentiteVersoUrl', 'justificatifDomicileUrl']) {
+                if (!/^https:\/\//.test(e[k] || '')) fail(where, `la demande part SANS ${k}`);
+            }
+        }
+        if (!checkoutCalled) fail(where, 'le paiement Stripe n’est jamais lancé');
+        for (const e of errors) fail(where, `erreur JavaScript : ${e}`);
+    } finally {
+        await context.close();
+    }
+}
+
 async function main() {
     const started = Date.now();
     process.env.VITE_CLERK_PUBLISHABLE_KEY = `pk_test_${Buffer.from('verify.clerk.accounts.dev$').toString('base64')}`;
@@ -183,6 +266,9 @@ async function main() {
             if (info && info.url !== '/') fail(`/page-qui-n-existe-pas (${viewport.name})`, `pas de retour à l’accueil (reste sur ${info.url})`);
             await context.close();
         }
+
+        console.log('• Parcours de souscription complet (justificatifs → paiement)');
+        await checkSubscriptionFunnel(browser, base);
 
         // Chaque page publique doit avoir son propre titre (SEO).
         const seen = new Map();

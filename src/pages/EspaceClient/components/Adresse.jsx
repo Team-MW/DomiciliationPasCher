@@ -12,23 +12,38 @@ export default function Adresse({ clientData, setActiveTab }) {
     const personalAddress = resolvePersonalAddress(clientData, extra);
     const forwardingAddress = resolveForwardingAddress(extra);
     const companyName = clientData?.company || t('espaceClient.address.companyFallback');
-    const city = clientData?.city || "Toulouse";
     const { street, building, postalCode, city: domCity, country } = DOMICILIATION_ADDRESS;
+    // Le centre est à Toulouse : clientData.city est la ville PERSONNELLE du client (ou « À définir »).
+    const city = domCity;
     const fullAddressText = postalAddressFor(companyName);
 
-    const handleCopy = () => {
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(fullAddressText);
-        } else {
-            const ta = document.createElement('textarea');
-            ta.value = fullAddressText;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
+    const handleCopy = async () => {
+        let ok = false;
+        try {
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(fullAddressText);
+                ok = true;
+            }
+        } catch {
+            ok = false; // refusé (permission, page non sécurisée) : essai de la méthode de secours
         }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
+        if (!ok) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = fullAddressText;
+                document.body.appendChild(ta);
+                ta.select();
+                ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+            } catch {
+                ok = false;
+            }
+        }
+        // Jamais « copiée ! » si le presse-papiers a refusé.
+        if (ok) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2500);
+        }
     };
 
     return (

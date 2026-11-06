@@ -1,6 +1,6 @@
 
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
-import 'pdfjs-dist/build/pdf.worker.mjs';
+// Le worker est chargé à part (new Worker ci-dessous) : pas d'import statique, il doublait ~1,1 Mo dans le bundle.
 
 // Configuration du moteur avec le worker importé directement
 if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {

@@ -1,12 +1,46 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import fr from './fr';
-import ru from './ru';
-import en from './en';
 import { detectLanguageFromIP } from './detectLanguage';
 
 const STORAGE_KEY = 'dpc_lang';
 
-const translations = { fr, ru, en };
+/**
+ * Le français est dans le bundle ; l'anglais et le russe (~150 Ko) ne sont chargés que si on les affiche.
+ * main.jsx appelle preloadInitialLanguage() avant le premier rendu : pas de flash en français
+ * pour un visiteur russophone ou anglophone.
+ */
+const LOADERS = {
+    en: () => import('./en'),
+    ru: () => import('./ru'),
+};
+const translations = { fr };
+
+export async function loadLanguage(lang) {
+    if (translations[lang]) return translations[lang];
+    const loader = LOADERS[lang];
+    if (!loader) return fr;
+    const mod = await loader();
+    translations[lang] = mod.default;
+    return translations[lang];
+}
+
+function browserLanguage() {
+    const prefs = typeof navigator !== 'undefined'
+        ? [...(navigator.languages || []), navigator.language].filter(Boolean)
+        : [];
+    for (const raw of prefs) {
+        const base = String(raw).toLowerCase().split('-')[0];
+        if (base === 'fr' || base === 'en' || base === 'ru') return base;
+    }
+    return 'fr';
+}
+
+/** Langue du premier affichage, chargée avant le rendu (échec réseau : on affiche le français). */
+export async function preloadInitialLanguage() {
+    try {
+        await loadLanguage(readSavedLang() || browserLanguage());
+    } catch { /* hors ligne : repli français */ }
+}
 
 function readSavedLang() {
     try {
@@ -23,17 +57,20 @@ export function LanguageProvider({ children }) {
     const [lang, setLangState] = useState(() => {
         const saved = readSavedLang();
         if (saved) return saved;
-
         // Langue du navigateur (ex: téléphone en russe) — aucune géolocalisation IP.
-        const prefs = typeof navigator !== 'undefined'
-            ? [...(navigator.languages || []), navigator.language].filter(Boolean)
-            : [];
-        for (const raw of prefs) {
-            const base = String(raw).toLowerCase().split('-')[0];
-            if (base === 'fr' || base === 'en' || base === 'ru') return base;
-        }
-        return 'fr';
+        return browserLanguage();
     });
+    // Incrémenté quand une langue finit de charger, pour réafficher les textes.
+    const [, setLoadedTick] = useState(0);
+
+    useEffect(() => {
+        if (translations[lang]) return undefined;
+        let cancelled = false;
+        loadLanguage(lang)
+            .then(() => { if (!cancelled) setLoadedTick((n) => n + 1); })
+            .catch((err) => console.error('Chargement de la langue impossible :', err));
+        return () => { cancelled = true; };
+    }, [lang]);
     const [isDetecting, setIsDetecting] = useState(false);
 
     useEffect(() => {

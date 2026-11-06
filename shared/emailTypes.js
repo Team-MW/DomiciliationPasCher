@@ -33,6 +33,7 @@ export const EMAIL_TYPE_INFO = Object.freeze({
     admin_document_uploaded: { label: 'Alerte : document déposé', category: 'Interne', source: 'interne' },
     admin_consultation: { label: 'Alerte : demande de consultation', category: 'Interne', source: 'interne' },
     admin_payment_received: { label: 'Alerte : abonnement démarré', category: 'Interne', source: 'interne' },
+    admin_payment_problem: { label: 'Alerte : paiement non activé', category: 'Interne', source: 'interne' },
     admin_payment_failures: { label: 'Alerte : récap des impayés', category: 'Interne', source: 'interne' },
     souscription_lead: { label: 'Alerte : prospect (formulaire)', category: 'Interne', source: 'interne' },
     contact_advisor: { label: 'Alerte : demande conseiller', category: 'Interne', source: 'interne' },

@@ -14,16 +14,42 @@ export default function InscriptionPage() {
     const [showFallback, setShowFallback] = useState(false);
     const [fallbackEmail, setFallbackEmail] = useState('');
     const [isChecking, setIsChecking] = useState(false);
+    // Email du lien reçu par email (?email=) : prérempli dans le formulaire de création d'accès.
+    const [prefillEmail] = useState(() => {
+        const raw = new URLSearchParams(window.location.search).get('email') || '';
+        return /^\S+@\S+\.\S+$/.test(raw.trim()) ? raw.trim().toLowerCase() : '';
+    });
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const hasTicket = urlParams.has('__clerk_ticket');
-        const canRegister = localStorage.getItem('allow_registration');
-        
+        let canRegister = null;
+        try { canRegister = localStorage.getItem('allow_registration'); } catch { /* stockage indisponible */ }
+
         if (canRegister === 'true' || hasTicket) {
             setIsAllowed(true);
+            return undefined;
         }
-    }, []);
+        // Lien des emails de bienvenue / validation, souvent ouvert sur un autre appareil (téléphone) :
+        // on vérifie le paiement de cet email : plus besoin d'ouvrir le lien sur l'appareil du paiement.
+        if (!prefillEmail) return undefined;
+        let cancelled = false;
+        setIsChecking(true);
+        adminDataService.checkPaymentStatus(prefillEmail)
+            .then((paid) => {
+                if (cancelled) return;
+                if (paid) {
+                    try { localStorage.setItem('allow_registration', 'true'); } catch { /* */ }
+                    setIsAllowed(true);
+                } else {
+                    setFallbackEmail(prefillEmail);
+                    setShowFallback(true);
+                }
+            })
+            .catch(() => { if (!cancelled) { setFallbackEmail(prefillEmail); setShowFallback(true); } })
+            .finally(() => { if (!cancelled) setIsChecking(false); });
+        return () => { cancelled = true; };
+    }, [prefillEmail]);
 
     const handleVerifyPayment = async (e) => {
         e.preventDefault();
@@ -31,7 +57,7 @@ export default function InscriptionPage() {
         try {
             const paid = await adminDataService.checkPaymentStatus(fallbackEmail);
             if (paid) {
-                localStorage.setItem('allow_registration', 'true');
+                try { localStorage.setItem('allow_registration', 'true'); } catch { /* navigation privée : on autorise quand même cette session */ }
                 setIsAllowed(true);
                 setShowFallback(false);
             } else {
@@ -44,6 +70,14 @@ export default function InscriptionPage() {
         }
     };
 
+    if (!isAllowed && isChecking && !showFallback) {
+        return (
+            <main className="auth-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
+                <p role="status" style={{ color: '#475569', fontWeight: 600 }}>Vérification de votre souscription…</p>
+            </main>
+        );
+    }
+
     if (!isAllowed) {
         return (
             <main className="auth-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -51,7 +85,7 @@ export default function InscriptionPage() {
                     <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>🛡️</div>
                     <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>Accès réservé</h2>
                     <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '24px' }}>
-                        Cette page est réservée aux clients ayant validé leur paiement. Si vous venez de payer, assurez-vous d'utiliser le même navigateur.
+                        Cette page sert à créer l’accès des clients ayant souscrit. Indiquez l’adresse e-mail utilisée lors de votre paiement pour continuer.
                     </p>
                     
                     {!showFallback ? (
@@ -127,6 +161,8 @@ export default function InscriptionPage() {
 
             <div className="auth-right">
                 <SignUp
+                    initialValues={prefillEmail ? { emailAddress: prefillEmail } : undefined}
+                    signInUrl="/connexion"
                     fallbackRedirectUrl="/app/espace-client"
                     forceRedirectUrl="/app/espace-client"
                     appearance={{

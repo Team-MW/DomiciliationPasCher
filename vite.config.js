@@ -2,7 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import fs from 'fs'
 import path from 'path'
-import { pathToFileURL } from 'url'
 
 // Adapte une réponse Node à l'interface `res` attendue par les handlers Vercel.
 export const makeVercelRes = (res) => {
@@ -78,7 +77,10 @@ const localApiPlugin = {
             try { req.body = text ? JSON.parse(text) : {}; } catch { req.body = text; }
           }
         }
-        const { default: handler } = await import(`${pathToFileURL(file).href}?t=${Date.now()}`);
+        // ssrLoadModule (et non un import mis en cache) : une modification d'un fichier de api/ OU de shared/ est reprise
+        // sans redémarrer. Avant, seul le fichier d'entrée était relu : les fichiers qu'il importe restaient en mémoire
+        // dans leur ancienne version (erreur « does not provide an export named … » → 500 sur tout /api/data).
+        const { default: handler } = await server.ssrLoadModule(file);
         await handler(req, makeVercelRes(res));
       } catch (e) {
         console.error(`Vite API Error (${req.url}):`, e);

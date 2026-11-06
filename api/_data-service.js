@@ -1,6 +1,11 @@
 import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward, PRICING_GRID } from '../shared/plans.js';
 import { computeMissingDocuments } from '../shared/documentRequest.js';
-import { EMAIL_LOGS_DDL, EMAIL_LOGS_MIGRATIONS, SOUSCRIPTION_LEADS_DDL } from '../shared/emailTables.js';
+import { SOUSCRIPTION_LEADS_DDL } from '../shared/emailTables.js';
+import { ensureEmailLogTable } from './_email-kit.js';
+import { lightenExtraInfo } from './_client-extra.js';
+
+const BOOKING_STATUSES = new Set(['en_attente', 'confirmée', 'refusée', 'annulée']);
+const REEXPEDITION_STATUSES = new Set(['en_attente', 'expediee', 'refusee']);
 import { parseExtraInfo, normalizeSubscriptionExtra, resolvePersonalAddress } from '../src/utils/contractLegalFields.js';
 
 /**
@@ -38,7 +43,8 @@ export function createDataService({
                 FROM clients c
                 ORDER BY since DESC
             `);
-            return res.rows;
+            // Liste légère : les gros fichiers (Kbis en base64) se chargent à l'ouverture de la fiche (getClientById).
+            return res.rows.map((row) => ({ ...row, extra_info: lightenExtraInfo(row.extra_info) }));
         },
 
         async getClientById(id) {
@@ -183,25 +189,29 @@ export function createDataService({
             const client = await service.getClientById(id);
             const email = String(client?.email || '').trim().toLowerCase();
             const protectedAccount = Boolean(email) && isProtectedEmail(email);
-            const report = { clientId: id, email: email || null, clerkAccountsDeleted: 0, clerkSkipped: protectedAccount };
+            const report = { clientId: id, email: email || null, clerkAccountsDeleted: 0, clerkSkipped: protectedAccount, errors: [] };
+            // Suppression « au mieux » : une table absente est normale, tout autre échec est signalé à l'admin.
+            const soft = async (label, sql, params) => {
+                try {
+                    await conn.execute(sql, params);
+                } catch (err) {
+                    if (/doesn't exist|unknown table|unknown column/i.test(err?.message || '')) return;
+                    console.error(`Suppression client : ${label} non effectuée`, err?.message || err);
+                    report.errors.push(label);
+                }
+            };
 
-            // 1. Comptes de connexion : celui lié à la fiche + ceux créés avec le même email.
+            // 1. Comptes de connexion à supprimer (ceux de la fiche et ceux créés avec le même email) :
+            // listés maintenant, supprimés APRÈS la base (si la base échoue, le client garde son accès).
+            const clerkIds = new Set();
             if (!protectedAccount) {
-                const clerkIds = new Set();
                 if (client?.clerkId && client.clerkId !== 'user_unknown') clerkIds.add(client.clerkId);
                 if (email) {
                     try {
                         for (const clerkId of await findClerkUserIdsByEmail(email)) clerkIds.add(clerkId);
                     } catch (err) {
                         console.warn('Recherche des comptes Clerk impossible:', err?.message || err);
-                    }
-                }
-                for (const clerkId of clerkIds) {
-                    try {
-                        await deleteClerkUser(clerkId);
-                        report.clerkAccountsDeleted += 1;
-                    } catch (err) {
-                        console.warn('Suppression du compte Clerk impossible:', err?.message || err);
+                        report.errors.push('recherche des comptes de connexion');
                     }
                 }
             }
@@ -212,20 +222,47 @@ export function createDataService({
             await conn.execute('DELETE FROM documents WHERE clientId = ?', [id]);
             await conn.execute('DELETE FROM bookings WHERE clientId = ?', [id]);
             await conn.execute('DELETE FROM payments WHERE clientId = ?', [id]);
-            await conn.execute('DELETE FROM mail WHERE clientId = ?', [id]).catch(() => {});
-            await conn.execute('DELETE FROM reexpeditions WHERE clientId = ?', [id]).catch(() => {});
-            await conn.execute('DELETE FROM signature_logs WHERE client_id = ?', [id]).catch(() => {});
+            await soft('courrier', 'DELETE FROM mail WHERE clientId = ?', [id]);
+            await soft('réexpéditions', 'DELETE FROM reexpeditions WHERE clientId = ?', [id]);
+            await soft('preuves de signature', 'DELETE FROM signature_logs WHERE client_id = ?', [id]);
 
             // 3. Traces de son email dans les autres tables (tables optionnelles : erreurs ignorées).
             if (email) {
-                const demandes = await conn.execute('SELECT id FROM demandes WHERE LOWER(email) = ?', [email]).catch(() => ({ rows: [] }));
-                for (const row of demandes.rows || []) {
-                    await conn.execute('DELETE FROM messages WHERE clientId = ?', [row.id]).catch(() => {});
+                // Demandes rattachées par email OU par compte de connexion (email différent à la souscription).
+                const clerkRef = client?.clerkId && client.clerkId !== 'user_unknown' ? client.clerkId : '';
+                let demandes = { rows: [] };
+                try {
+                    demandes = await conn.execute("SELECT id FROM demandes WHERE LOWER(email) = ? OR (clerkId = ? AND clerkId <> '')", [email, clerkRef]);
+                } catch {
+                    demandes = await conn.execute('SELECT id FROM demandes WHERE LOWER(email) = ?', [email]).catch(() => ({ rows: [] }));
                 }
-                await conn.execute('DELETE FROM demandes WHERE LOWER(email) = ?', [email]).catch(() => {});
-                await conn.execute('DELETE FROM souscription_leads WHERE LOWER(email) = ?', [email]).catch(() => {});
-                await conn.execute('DELETE FROM email_logs WHERE LOWER(client_email) = ? OR LOWER(to_email) = ?', [email, email]).catch(() => {});
-                await conn.execute('DELETE FROM signature_logs WHERE LOWER(signee_email) = ?', [email]).catch(() => {});
+                for (const row of demandes.rows || []) {
+                    await soft('messages de la demande', 'DELETE FROM messages WHERE clientId = ?', [row.id]);
+                }
+                try {
+                    await conn.execute("DELETE FROM demandes WHERE LOWER(email) = ? OR (clerkId = ? AND clerkId <> '')", [email, clerkRef]);
+                } catch (err) {
+                    if (/unknown column/i.test(err?.message || '')) {
+                        await soft('demande', 'DELETE FROM demandes WHERE LOWER(email) = ?', [email]); // base ancienne sans clerkId
+                    } else if (!/doesn't exist|unknown table/i.test(err?.message || '')) {
+                        console.error('Suppression client : demande non effectuée', err?.message || err);
+                        report.errors.push('demande');
+                    }
+                }
+                await soft('prospect', 'DELETE FROM souscription_leads WHERE LOWER(email) = ?', [email]);
+                await soft('journal des emails', 'DELETE FROM email_logs WHERE LOWER(client_email) = ? OR LOWER(to_email) = ?', [email, email]);
+                await soft('preuves de signature (email)', 'DELETE FROM signature_logs WHERE LOWER(signee_email) = ?', [email]);
+            }
+
+            // 4. Comptes de connexion, en dernier.
+            for (const clerkId of clerkIds) {
+                try {
+                    await deleteClerkUser(clerkId);
+                    report.clerkAccountsDeleted += 1;
+                } catch (err) {
+                    console.warn('Suppression du compte Clerk impossible:', err?.message || err);
+                    report.errors.push('compte de connexion');
+                }
             }
             return report;
         },
@@ -355,7 +392,7 @@ export function createDataService({
             const d = res.rows[0];
             if (!d) return undefined;
 
-            const existingClientRes = await conn.execute('SELECT id FROM clients WHERE email = ?', [d.email]);
+            const existingClientRes = await conn.execute('SELECT id, extra_info, clerkId, clerkStatus FROM clients WHERE email = ?', [d.email]);
             let clientId;
             const since = new Date().toISOString().split('T')[0];
 
@@ -364,14 +401,19 @@ export function createDataService({
                 || String(d.clientName || '').replace(/\s*-?\s*📞.*$/, '').trim();
             const address = resolvePersonalAddress({}, finalExtraInfo).slice(0, 255);
             const phone = String(finalExtraInfo.telephone || '').slice(0, 50);
-            const extraInfoStr = JSON.stringify(finalExtraInfo);
+            let extraInfoStr = JSON.stringify(finalExtraInfo);
 
             if (existingClientRes.rows.length > 0) {
-                clientId = existingClientRes.rows[0].id;
+                const existingRow = existingClientRes.rows[0];
+                clientId = existingRow.id;
+                // Réactivation : on FUSIONNE avec la fiche existante (signatures, identifiants Stripe, grille
+                // tarifaire…) au lieu de la remplacer, et on garde le compte de connexion déjà lié.
+                extraInfoStr = JSON.stringify({ ...parseExtraInfo(existingRow.extra_info), ...finalExtraInfo });
+                const keptClerkId = d.clerkId || existingRow.clerkId || '';
                 await conn.execute(
-                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = 'linked', address = ?, phone = ?
+                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = ?, address = ?, phone = ?
                      WHERE id = ?`,
-                    [displayName, d.company, d.city || 'À définir', d.plan, since, extraInfoStr, d.clerkId || '', address, phone, clientId]
+                    [displayName, d.company, d.city || 'À définir', d.plan, since, extraInfoStr, keptClerkId, keptClerkId ? 'linked' : (existingRow.clerkStatus || 'invitation_sent'), address, phone, clientId]
                 );
             } else {
                 clientId = `${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
@@ -473,14 +515,7 @@ export function createDataService({
             const addresses = [...new Set(emails.filter(Boolean).map((e) => String(e).trim().toLowerCase()))];
             if (addresses.length === 0) return [];
             try {
-                await conn.execute(EMAIL_LOGS_DDL);
-                for (const sql of EMAIL_LOGS_MIGRATIONS) {
-                    try {
-                        await conn.execute(sql);
-                    } catch {
-                        // colonne déjà présente
-                    }
-                }
+                await ensureEmailLogTable(conn);
                 const placeholders = addresses.map(() => '?').join(', ');
                 const res = await conn.execute(
                     `SELECT * FROM email_logs WHERE to_email IN (${placeholders}) OR client_email IN (${placeholders}) ORDER BY sent_at DESC LIMIT 300`,
@@ -655,6 +690,7 @@ export function createDataService({
         },
 
         async updateBookingStatus(bookingId, status) {
+            if (!BOOKING_STATUSES.has(status)) throw new Error(`Statut de réservation invalide : ${String(status).slice(0, 40)} (introuvable dans la liste autorisée)`);
             await conn.execute('UPDATE bookings SET status = ? WHERE id = ?', [status, bookingId]);
             return { id: bookingId, status };
         },
@@ -711,11 +747,12 @@ export function createDataService({
 
         async addReexpeditionRequest(clientId, data) {
             const clientRes = await conn.execute(
-                'SELECT id, plan, extra_info FROM clients WHERE id = ?',
+                'SELECT id, plan, status, extra_info FROM clients WHERE id = ?',
                 [clientId]
             );
             const client = clientRes.rows[0];
             if (!client) throw new Error('Client introuvable');
+            if (client.status === 'résilié') throw new Error('Votre domiciliation est résiliée : la réexpédition n’est plus disponible (dossier introuvable pour cette demande).');
             const extra = parseExtraInfo(client.extra_info);
             if (!canRequestPhysicalForward(client.plan, extra)) {
                 throw new Error('La réexpédition physique n’est pas incluse dans votre contrat actuel (réservée aux forfaits Scan+ et Physique+ de l’ancienne grille).');
@@ -734,6 +771,7 @@ export function createDataService({
         },
 
         async updateReexpeditionStatus(id, status) {
+            if (!REEXPEDITION_STATUSES.has(status)) throw new Error(`Statut de réexpédition invalide : ${String(status).slice(0, 40)} (introuvable dans la liste autorisée)`);
             await conn.execute('UPDATE reexpeditions SET status = ? WHERE id = ?', [status, id]);
             return { id, status };
         },
@@ -861,8 +899,11 @@ export function createDataService({
             for (const sql of statements) {
                 try {
                     await conn.execute(sql);
-                } catch {
-                    // colonne / table déjà présente
+                } catch (err) {
+                    // « déjà présent » est normal ; tout autre échec (base injoignable, droits) doit se voir.
+                    if (!/duplicate column|already exists|duplicate key name/i.test(err?.message || '')) {
+                        console.error('[schéma] instruction non appliquée :', err?.message || err);
+                    }
                 }
             }
         },

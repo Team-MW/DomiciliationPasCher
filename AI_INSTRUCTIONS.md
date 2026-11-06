@@ -20,6 +20,9 @@ devenue fausse est pire qu'une instruction absente : corrige-la ou supprime-la.
    autre client. Les lectures de la base de production par l'IA sont bloquées par les permissions :
    ne pas les contourner.
 4. **Fichiers verrouillés** (hook `pre-commit`) : `src/utils/pdfGenerator.js`, `src/utils/cloudinary.js`.
+   Exception accordée par le propriétaire (6 nov. 2026) : le CONTENU de `pdfGenerator.js` (textes, adresses, numéros,
+   dates) peut être corrigé ; la façon de générer et de télécharger les PDF ne change pas. Adresse = `shared/company.js`
+   (`DOMICILIATION_ADDRESS`, `COMPANY_SIRET`), jamais écrite à la main. Tests : `tests/pdfContent.test.js`.
    Ne pas les modifier. Pour changer le contrat, passer par `src/utils/contractBuilder*.js` (section 5).
 5. **Aucun secret côté navigateur** : tout ce qui commence par `VITE_` est publié dans le JavaScript du
    site. Mots de passe, clés secrètes, SMTP → variables serveur sans `VITE_`, lues via `api/_env.js`.
@@ -159,6 +162,15 @@ Navigateur ── fetch /api/* (jeton Clerk ajouté par src/utils/apiAuth.js)
   dans l'en-tête de la messagerie et à côté de chaque message de l'admin (test `messagesAvatar.test.jsx`).
 
 ---
+
+### Performance (nov. 2026, test `tests/performance.test.jsx`)
+- Bundle principal = accueil + /offre (pages Google Ads) seulement. Toute autre page : `lazy()` dans
+  `App.jsx` + ajout à `PREFETCH_PAGES` (préchargement quand le navigateur est libre).
+- Gros modules (pdfjs, jspdf, xlsx…) : `await import()` au moment de l'action, jamais d'import statique.
+- Langues : `fr` dans le bundle, `en` / `ru` via `loadLanguage()` ; `main.jsx` précharge la langue
+  initiale avant le rendu. Un test qui affiche en/ru doit faire `await loadLanguage('en')` avant.
+- Images : logo = SVG (`DomiciliationPasCher-Logo-11.svg`). Le PNG 8434 px ne sert qu'aux PDF.
+- Polling : jamais quand l'onglet est caché (`document.hidden`).
 
 ## 7. Emails
 
@@ -336,4 +348,41 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
   client. → Verrou `setPreviewMode` dans l'intercepteur `/api/`.
 - **2026-11-06** — « Moyen de paiement : Enregistré & Sécurisé ✔ » s'affichait même sans carte. → Règle :
   jamais de statut inventé.
-
+- **2026-11-06 — William R. ne pouvait pas se connecter après son paiement** : le paiement ne crée pas de compte de
+  connexion, mais les emails renvoyaient vers « Se connecter » (compte introuvable) et /inscription exigeait « le même
+  navigateur ». → Bienvenue/validation pointent vers `/inscription?email=…` (vérifié côté serveur). Ne jamais supposer
+  qu'un client payeur a déjà un compte Clerk.
+- **2026-11-06 — Le connecteur Stripe de l'assistant n'est pas forcément le compte du site** : une session introuvable
+  ne prouve rien. Ne pas écrire « paiement vérifié » sans l'avoir retrouvé ; demander un contrôle au tableau de bord Stripe.
+- **2026-11-06 — Erreurs silencieuses** : un `try { await … } finally {}` sans `catch` dans un clic/formulaire laisse le
+  client sans message (bouton « Payer » : dossier non créé, aucune alerte). Toujours un `catch` qui affiche l'erreur.
+  Le parcours de souscription est testé de bout en bout dans `scripts/browser-smoke.mjs` (justificatifs → paiement).
+- **2026-11-06 — Audit croisé (4 analyses parallèles) : motifs à ne plus écrire** :
+  - Propriété d'une ressource Stripe : lire la CLÉ `extra_info.stripe_customer_id` (`stripeCustomerIdOf`), jamais une regex
+    sur le texte entier (un client pouvait écrire `cus_…` d'un autre dans un champ libre → accès à son portail Stripe).
+  - Données saisies par un visiteur ou un client : toujours `sanitizeClientExtra` (même liste noire partout, y compris
+    `addDemande` publique), jamais un filtre local plus faible.
+  - Écrire `extra_info` : si le JSON existant est illisible, REFUSER (500), ne jamais repartir de `{}` (efface Stripe, signature, grille).
+  - Un paiement encaissé mais non activé (`ok:false` dans `fulfillCheckoutSession`) alerte l'admin (`admin_payment_problem`) ;
+    marquer « traité/envoyé » seulement après réussite (bienvenue : marqueur `welcome_pending` retenté au rejeu).
+  - Impayés : la date de départ du délai de grâce et le statut « résilié » viennent de l'impayé EN COURS (abonnement/facture
+    ouverte), pas d'anciennes factures irrécouvrables.
+  - Lien de paiement admin (`/api/pay`) : jamais de 2e session si un abonnement actif existe ; le webhook rattrape un paiement
+    dont le client n'est pas revenu sur le site (`meta.admin_client_id`).
+  - Le centre de domiciliation est TOUJOURS Toulouse (`DOMICILIATION_ADDRESS.city`) : `clientData.city` est la ville du client.
+  - Date « Fait à Toulouse, le … » d'un contrat signé = date de SIGNATURE (`contractSignedAt`), pas celle du téléchargement.
+  - Lien « Choisir <formule> » : toujours `?plan=<id>` ; l'URL prime sur un ancien brouillon localStorage.
+  - Admin e-mails : `isAdminEmail` (trim + minuscules), identique au serveur.
+  - Un `useEffect`/`useCallback` dont la dépendance est l'onglet actif ne doit pas recharger toutes les données : lire l'onglet via une ref.
+  - Sous-agents d'audit : leurs rapports sont des hypothèses. Vérifier chaque bug dans le code avant de corriger.
+- **2026-11-06 — 2e vague d'audit** :
+  - Cron : l'heure de Paris vient de `getParisHour()` (format `en-GB` + `formatToParts`). `Number("09 h")` = NaN avait empêché
+    pendant des semaines tout email « nouveau courrier » et toute relance d'inscription (la colonne `mail.notified_at` n'existait
+    même pas en production). Quand un automatisme semble marcher, vérifier qu'il a laissé une trace réelle (`email_logs`, colonne créée).
+  - Le cron relit `extra_info` juste avant d'écrire (`mergeClientExtra`) et ne modifie que ses clés ; il vérifie l'état frais avant d'envoyer une relance.
+  - Signature : preuve du BON document (`contract_ref`), date posée par le serveur, jamais écrasée ; signature = PNG ; document = hébergeur de confiance.
+  - Email public : UNE adresse valide (`isSingleEmail`), champs libres plafonnés, objet sans saut de ligne.
+  - Liste admin légère (`lightenExtraInfo`) : les gros fichiers se chargent à l'ouverture de la fiche. Vercel refuse > 4,5 Mo de réponse.
+  - Écran du compte : une ERREUR (serveur, session, email non vérifié) n'est jamais présentée comme « Aucun dossier trouvé ».
+  - En local, la base est CELLE DE PRODUCTION : se connecter avec l'email d'un vrai client lie le compte Clerk de test à sa fiche.
+    Tester uniquement avec le compte de test dédié.

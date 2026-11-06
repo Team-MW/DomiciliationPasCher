@@ -31,3 +31,7 @@ export function postalAddressFor(companyName) {
 }
 
 export const AGREMENT_NUMBER = 'AG/DOM/2026/06';
+
+/** Identité légale du domiciliataire (SIRET = SIREN + établissement 00019 : voir mentions légales et CGV). */
+export const COMPANY_SIREN = '101512531';
+export const COMPANY_SIRET = '10151253100019';

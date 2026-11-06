@@ -1,6 +1,7 @@
 import logoUrl from '../assets/DomiciliationPasCher-Logo.png';
 import { parseExtraInfo, resolvePersonalAddress } from './contractLegalFields';
 import { appAlert } from '../components/AppDialog/dialogApi';
+import { DOMICILIATION_ADDRESS, COMPANY_SIRET } from '../../shared/company.js';
 
 /**
  * Nettoie une chaîne de caractères pour s'assurer qu'elle n'induit pas d'erreur d'encodage WinAnsi dans pdf-lib (comme les Emojis)
@@ -97,8 +98,8 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFontSize(8);
             doc.setTextColor(100, 116, 139); // slate-500
             doc.text('DOMICILIATION PAS CHER', 135, 18);
-            doc.text('150 Rue Nicolas Louis Vauquelin', 135, 22);
-            doc.text('3ème étage, Lot 308 - 31100 Toulouse', 135, 26);
+            doc.text(DOMICILIATION_ADDRESS.street, 135, 22);
+            doc.text(`${DOMICILIATION_ADDRESS.building} - ${DOMICILIATION_ADDRESS.postalCode} ${DOMICILIATION_ADDRESS.city}`, 135, 26);
             doc.text('Agrément Préfectoral : AG/DOM/2026/06', 135, 30);
             doc.text('contact@domiciliation-pas-cher.com', 135, 34);
 
@@ -166,7 +167,7 @@ export const generateAttestationPdf = async (clientData) => {
             doc.setFont("helvetica", "bold");
             doc.setFontSize(12);
             doc.setTextColor(30, 64, 175); // blue-800
-            doc.text("150 RUE NICOLAS LOUIS VAUQUELIN, 3È ETAGE, LOT 308", 105, currentY + 8, { align: 'center' });
+            doc.text(`${DOMICILIATION_ADDRESS.street}, ${DOMICILIATION_ADDRESS.building}`.toUpperCase(), 105, currentY + 8, { align: 'center' });
             doc.text("31100 TOULOUSE, FRANCE", 105, currentY + 14, { align: 'center' });
 
             currentY += 30;
@@ -293,7 +294,7 @@ export const generateContratPdf = async (clientData) => {
  * @param {string} signatureDataUrl - Data URL base64 de la signature
  * @returns {Promise<Blob>}
  */
-export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
+export const generateSignedContratBlob = (clientData, signatureDataUrl, signProof = null) => {
     return new Promise(async (resolve, reject) => {
         try {
             const { default: jsPDF } = await import('jspdf');
@@ -317,7 +318,7 @@ export const generateSignedContratBlob = (clientData, signatureDataUrl) => {
 
             const buildPdf = async (logoImg, sigImg) => {
                 const { buildContractContent } = await import('./contractBuilder');
-                buildContractContent(doc, clientData, extra, planDetails, true, sigImg, dateDebut, signedAtDate, logoImg);
+                buildContractContent(doc, clientData, extra, planDetails, true, sigImg, dateDebut, signedAtDate, logoImg, signProof);
 
                 const dataUrl = doc.output('datauristring');
                 const arr = dataUrl.split(',');
@@ -387,8 +388,11 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         const mandantPrenoms = clientData.company ? `(REP. PAR ${clientName.toUpperCase()})` : (extra.prenom || '').toUpperCase();
         const fullName = `${mandantNom} ${mandantPrenoms}`.trim();
 
-        const dateStr = new Date().toLocaleDateString('fr-FR');
-        const placeStr = (procurationData.lieuNaissance || 'TOULOUSE').toUpperCase();
+        // Date de la procuration = date de SIGNATURE (et non celle du téléchargement) ; lieu = Toulouse, comme le contrat
+        // (avant : la ville de NAISSANCE du client, ou « Toulouse » inventé si absente).
+        const signedOn = extra.procurationSignedAt ? new Date(extra.procurationSignedAt) : null;
+        const dateStr = (signedOn && !Number.isNaN(signedOn.getTime()) ? signedOn : new Date()).toLocaleDateString('fr-FR');
+        const placeStr = DOMICILIATION_ADDRESS.city.toUpperCase();
 
         // Signature image embedding
         let signatureImage = null;
@@ -443,12 +447,12 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
         page1.drawText('X', { x: 596.5, y: 355, size: 10, font: helveticaBold, color: rgb(0, 0, 0) });
 
         // 2. Mandataire details
-        drawInBoxes('LUDOVIC CASIN', 360.4488, 287.8911, helveticaBold, 9);
+        drawInBoxes('LUDOVIC CASSIN', 360.4488, 287.8911, helveticaBold, 9);
         // Point de remise empty
-        drawInBoxes('LOT 308', 360.4488, 246.8991, helveticaFont, 9);
-        drawInBoxes('150 RUE NICOLAS LOUIS VAUQUELIN', 360.4488, 226.8191, helveticaFont, 9);
-        drawInBoxes('31100', 360.4488, 185.6671, helveticaFont, 9, 5);
-        drawInBoxes('TOULOUSE', 437.3128, 185.6671, helveticaFont, 9, 32);
+        drawInBoxes(DOMICILIATION_ADDRESS.building.replace(/[âÂ]/g, 'A').replace(',', ''), 360.4488, 246.8991, helveticaFont, 9); // BATIMENT B LOT 308
+        drawInBoxes(DOMICILIATION_ADDRESS.street, 360.4488, 226.8191, helveticaFont, 9);
+        drawInBoxes(DOMICILIATION_ADDRESS.postalCode, 360.4488, 185.6671, helveticaFont, 9, 5);
+        drawInBoxes(DOMICILIATION_ADDRESS.city, 437.3128, 185.6671, helveticaFont, 9, 32);
 
         // 3. À / Le
         page1.drawText(cleanForPdf(placeStr), { x: 55, y: 111.7, size: 9, font: helveticaFont, color: rgb(0, 0, 0) });
@@ -512,7 +516,7 @@ export const generateSignedProcurationBlob = async (clientData, signatureDataUrl
 
         // N° SIRET / SIREN (Utilise les petites cases standard, centrage parfait)
         drawInBoxes(clientSiret, 654.5, 513, helveticaFont, 9, 14); // Client SIRET
-        drawInBoxes('101512531', 654.5, 304, helveticaFont, 9, 14); // Prestataire SIREN (DOMICILIATION PAS CHER)
+        drawInBoxes(COMPANY_SIRET, 654.5, 304, helveticaFont, 9, 14); // Prestataire : SIRET complet (14 chiffres) dans les cases SIRET
 
         page1.drawText(cleanForPdf(idP + (idNum ? ' N° ' + idNum : '')), { x: 165, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
         page1.drawText(cleanForPdf(idDelivrance), { x: 465, y: 41, size: 8, font: helveticaFont, color: rgb(0, 0, 0) });
@@ -558,7 +562,7 @@ export const generateLocalInvoicePdf = async (clientData, facture) => {
             doc.text('Domiciliation Pas Cher', 15, 48);
             doc.setFontSize(10);
             doc.setTextColor(100, 116, 139);
-            doc.text('150 Rue Nicolas Louis Vauquelin', 15, 54);
+            doc.text(`${DOMICILIATION_ADDRESS.street}, ${DOMICILIATION_ADDRESS.building}`, 15, 54);
             doc.text('31100 Toulouse, FRANCE', 15, 60);
             doc.text('N° SIREN : 101 512 531', 15, 66);
             doc.text('contact@domiciliation-pas-cher.com', 15, 72);

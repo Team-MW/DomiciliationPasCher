@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback , useRef } from 'react';
 import { useUser, useClerk, SignIn, UserButton } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
@@ -18,6 +18,7 @@ import DossierClient from './components/DossierClient';
 import CreateClientModal from './components/CreateClientModal';
 import { DemandeDetailsModal } from './components/DemandesTab';
 
+import { isAdminEmail } from '../../utils/adminEmail';
 export default function Admin() {
     const { user, isLoaded } = useUser();
     const { signOut } = useClerk();
@@ -34,6 +35,8 @@ export default function Admin() {
     const [stats, setStats] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClientId, setSelectedClientId] = useState(null);
+    // Fiche complète du client ouvert : la liste ne contient pas les gros fichiers (Kbis) pour rester légère.
+    const [fullClient, setFullClient] = useState(null);
     const [selectedDemande, setSelectedDemande] = useState(null);
     const [isCreatingClient, setIsCreatingClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -46,9 +49,13 @@ export default function Admin() {
     const showConfirm = useCallback((message, options = {}) => appConfirm(message, options), []);
     const showAlert = useCallback((message, options = {}) => appAlert(message, options), []);
 
-    const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
     const userEmail = user?.primaryEmailAddress?.emailAddress;
-    const isAdmin = ADMIN_EMAILS.includes(userEmail);
+    const isAdmin = isAdminEmail(userEmail);
+
+    // L'onglet actif est lu au moment du calcul des pastilles ; le mettre en dépendance relançait TOUS les chargements
+    // (clients, courriers, stats Stripe…) à chaque clic sur un onglet.
+    const activeTabRef = useRef(activeTab);
+    useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
     const refreshData = useCallback(async () => {
         setIsLoading(true);
@@ -85,13 +92,14 @@ export default function Admin() {
             const d = value.demandes || [];
             const b = value['rendez-vous'] || [];
             const r = value['réexpéditions'] || [];
-            if (d.length > seen('admin_seen_demandes') && activeTab !== 'demandes') setHasNewDemande(true);
-            if (b.length > seen('admin_seen_bookings') && activeTab !== 'meeting') setHasNewBooking(true);
-            if (r.length > seen('admin_seen_reexpeditions') && activeTab !== 'courrier') setHasNewReexp(true);
+            const current = activeTabRef.current;
+            if (d.length > seen('admin_seen_demandes') && current !== 'demandes') setHasNewDemande(true);
+            if (b.length > seen('admin_seen_bookings') && current !== 'meeting') setHasNewBooking(true);
+            if (r.length > seen('admin_seen_reexpeditions') && current !== 'courrier') setHasNewReexp(true);
         } finally {
             setIsLoading(false);
         }
-    }, [activeTab]);
+    }, []);
 
 
     useEffect(() => {
@@ -131,6 +139,15 @@ export default function Admin() {
             refreshData();
         }
     }, [isLoaded, isAdmin, refreshData]);
+
+    useEffect(() => {
+        if (!selectedClientId) { setFullClient(null); return undefined; }
+        let cancelled = false;
+        Promise.resolve(adminDataService.getClientById(selectedClientId))
+            .then((row) => { if (!cancelled && row) setFullClient(row); })
+            .catch((err) => console.error('Fiche complète indisponible :', err));
+        return () => { cancelled = true; };
+    }, [selectedClientId, clients]);
 
     if (!isLoaded) {
         return (
@@ -185,7 +202,8 @@ export default function Admin() {
         );
     }
 
-    const selectedClient = selectedClientId ? clients.find(c => c.id === selectedClientId) : null;
+    const listedClient = selectedClientId ? clients.find(c => c.id === selectedClientId) : null;
+    const selectedClient = listedClient && fullClient?.id === listedClient.id ? { ...listedClient, ...fullClient } : listedClient;
 
     return (
         <div className="admin-layout">

@@ -3,12 +3,12 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { handleCheckout } from '../../utils/stripe';
 import { adminDataService } from '../../services/adminDataService';
 import { uploadFile } from '../../utils/cloudinary';
-import { convertPdfToPng } from '../../utils/pdfConverter';
 import { sendSouscriptionLeadEmail } from '../../utils/emailService';
 import usePageMeta from '../../components/Seo/usePageMeta';
 import { PLAN_CATALOG, annualHt, planAmountTtc, EXTRA_FEES_HT } from '../../data/plans';
 import { DOMICILIATION_ADDRESS_ONE_LINE, AGREMENT_NUMBER } from '../../../shared/company.js';
 import { NO_DOCUMENT_FILES, REQUIRED_DOCUMENTS, missingDocumentErrors } from './souscriptionDocuments.js';
+import { normalizeFrenchPhone, isValidFrenchPhone } from './souscriptionPhone.js';
 import './Souscription.css';
 
 /* ─── 3 phases lisibles pour le client (les 8 écrans restent inchangés) ─── */
@@ -146,7 +146,7 @@ function AddressAutocomplete({ onSelectAddress, value, onChange, error }) {
 export default function Souscription() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    usePageMeta({ path: '/souscription', noindex: true });
+    usePageMeta({ title: 'Souscription — Domiciliation Pas Cher', path: '/souscription', noindex: true });
     const planId = searchParams.get('plan') || 'essentiel';
 
     const defaultData = {
@@ -181,9 +181,14 @@ export default function Souscription() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
+                // Le choix fait sur Tarifs / l'accueil (?plan, ?frequence) l'emporte sur un ancien brouillon.
+                const fromUrl = {};
+                if (searchParams.has('plan')) fromUrl.offre = defaultData.offre;
+                if (searchParams.has('frequence')) fromUrl.frequence = defaultData.frequence;
                 return {
                     ...defaultData,
                     ...parsed,
+                    ...fromUrl,
                     ...NO_DOCUMENT_FILES,
                 };
             }
@@ -301,7 +306,7 @@ export default function Souscription() {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(data.email.trim())) e.email = 'Adresse email invalide';
             const phoneDigits = data.telephone.replace(/\D/g, '');
             if (!phoneDigits) e.telephone = 'Requis';
-            else if (phoneDigits.length < 9 || phoneDigits.length > 15) e.telephone = 'Numéro de téléphone invalide';
+            else if (!isValidFrenchPhone(phoneDigits)) e.telephone = 'Numéro invalide : 10 chiffres, par exemple 06 12 34 56 78';
             if (!data.adresse.trim()) e.adresse = 'Requis';
             if (!data.codePostal.trim()) e.codePostal = 'Requis';
             else if (/^france$/i.test(data.pays.trim()) && !/^\d{5}$/.test(data.codePostal.trim())) e.codePostal = 'Code postal à 5 chiffres';
@@ -609,11 +614,7 @@ export default function Souscription() {
                                             autoComplete="tel-national"
                                             placeholder="06 XX XX XX XX"
                                             value={data.telephone} 
-                                            maxLength={10}
-                                            onChange={e => {
-                                                const val = e.target.value.replace(/\D/g, '');
-                                                if (val.length <= 10) set('telephone', val);
-                                            }} 
+                                            onChange={e => set('telephone', normalizeFrenchPhone(e.target.value))}
                                         />
                                     </div>
                                     {errors.telephone && <div className="field-error">{errors.telephone}</div>}
@@ -1088,6 +1089,8 @@ export default function Souscription() {
                                                 try {
                                                     let fileToUpload = file;
                                                     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                                                        // Chargé à la demande : le lecteur PDF pèse ~1,5 Mo, inutile pour une photo.
+                                                        const { convertPdfToPng } = await import('../../utils/pdfConverter');
                                                         fileToUpload = await convertPdfToPng(file);
                                                     }
                                                     const res = await uploadFile(fileToUpload, { folder: 'demandes' });
@@ -1160,6 +1163,10 @@ export default function Souscription() {
                                                 `${data.prenom} ${data.nom}`,
                                                 { demande_id: demande.id }
                                             );
+                                        } catch (err) {
+                                            // Dossier non créé ou paiement non lancé : le client doit le savoir et pouvoir réessayer.
+                                            console.error('Paiement :', err);
+                                            setPayError(`${err?.message || 'Une erreur est survenue.'} Si le problème continue, contactez-nous au 09 60 39 69 07.`);
                                         } finally {
                                             setLoading(false);
                                         }

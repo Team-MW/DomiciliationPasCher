@@ -34,3 +34,14 @@ describe('Souscription : les 3 justificatifs sont obligatoires et arrivent vraim
         expect(pay).not.toMatch(/catch\s*\(e\)\s*\{\s*console\.error\('Upload/);
     });
 });
+
+describe('Souscription : le paiement ne meurt jamais en silence', () => {
+    it('une erreur serveur est affichée au client (catch + message), et Stripe.js n’est plus un prérequis', () => {
+        const src = fs.readFileSync('src/pages/Souscription/Souscription.jsx', 'utf8');
+        const pay = src.slice(src.indexOf("setPayError('');"), src.indexOf("{loading ? 'Envoi de vos documents"));
+        expect(pay).toMatch(/catch \(err\) \{[\s\S]*setPayError\(/);
+        const stripe = fs.readFileSync('src/utils/stripe.js', 'utf8');
+        expect(stripe).not.toContain('loadStripe');
+        expect(stripe).not.toMatch(/await getStripe\(\)/);
+    });
+});

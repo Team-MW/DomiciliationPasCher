@@ -22,11 +22,11 @@ describe('Adresse de domiciliation : source unique et toujours complète', () =>
     });
 
     it('aucun composant ni module serveur ne réécrit l’adresse à la main', () => {
-        // Textes juridiques figés (CGV, mentions, confidentialité, contrats), traductions et fichier verrouillé.
+        // Textes juridiques figés (CGV, mentions, confidentialité, contrats) et traductions.
         const allowed = [
             'shared/company.js', 'src/pages/CGV/CGV.jsx', 'src/pages/MentionsLegales/MentionsLegales.jsx',
             'src/pages/Confidentialite/Confidentialite.jsx', 'src/utils/contractBuilder.js',
-            'src/utils/contractBuilderCurrent.js', 'src/utils/pdfGenerator.js', 'src/constants/contact.js',
+            'src/utils/contractBuilderCurrent.js', 'src/constants/contact.js',
         ];
         const offenders = [...listFiles(path.join(root, 'src')), ...listFiles(path.join(root, 'api'))]
             .map((f) => path.relative(root, f))

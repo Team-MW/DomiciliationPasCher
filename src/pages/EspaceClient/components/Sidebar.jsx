@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { Icons } from './Icons';
-import logoSvg from '../../../assets/DomiciliationPasCher-Logo.png';
+import logoSvg from '../../../assets/DomiciliationPasCher-Logo-11.svg';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { parseExtraInfo } from '../../../utils/contractLegalFields';
 

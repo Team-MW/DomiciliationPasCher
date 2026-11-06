@@ -12,6 +12,17 @@ import { parseExtraInfo, getContractLegalFields } from '../../../utils/contractL
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
 import { sendAdminDocumentUploadedEmail } from '../../../utils/emailService';
 
+
+/**
+ * Les PDF sont envoyés au serveur en base64 (+33 %) dans une requête limitée à 1,5 Mo (api/data.js) :
+ * au-delà d'environ 1 Mo le serveur refuse. On le dit AVANT l'envoi, avec la marche à suivre.
+ */
+export const PDF_MAX_BYTES = 1_000_000;
+const isPdfTooLarge = (file) => (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) && file.size > PDF_MAX_BYTES;
+
+/** Nom du signataire : celui de la fiche (jamais un « Client » inventé). */
+const signerNameOf = (clientData) => getContractLegalFields(clientData).cName || clientData?.name || '';
+
 const blobToBase64 = (blob) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -201,6 +212,11 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
     const handleKbisUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        if (isPdfTooLarge(file)) {
+            e.target.value = '';
+            await appAlert(t('espaceClient.docs.pdfTooLarge'));
+            return;
+        }
         setIsUploadingKbis(true);
         try {
             const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -299,6 +315,11 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
         setFileToName(null);
         setCustomFileName('');
 
+        if (isPdfTooLarge(originalFile)) {
+            await appAlert(t('espaceClient.docs.pdfTooLarge'));
+            return;
+        }
+
         try {
             const isPdf = originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf');
             let finalUrl = '';
@@ -348,8 +369,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 body: JSON.stringify({
                     clientId: clientData.id,
                     contractRef: 'contrat_domiciliation',
-                    signeeName: clientData.representant?.nom || clientData.nom || 'Client',
-                    signeeEmail: clientData.email || 'client@example.com'
+                    signeeName: signerNameOf(clientData) || clientData.email || '',
+                    signeeEmail: clientData.email || ''
                 })
             });
             if (!logRes.ok) throw new Error(`Erreur logs de signature: ${logRes.status}`);
@@ -393,18 +414,22 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             }
 
             step = 'Enregistrement BD document';
-            await adminDataService.addDocument(clientData.id, {
-                name: '✅ Contrat signé électroniquement.pdf',
-                size: fileSizeStr,
-                type: 'application/pdf',
-                owner: 'client',
-                folder: 'Contrats',
-                url: finalUrl
-            });
-
-            // Recharger localement
-            const updatedDocs = await adminDataService.getDocuments(clientData.id);
-            setDocuments(updatedDocs);
+            // La signature est DÉJÀ enregistrée : un échec ici ne doit pas faire croire qu'elle a échoué (ni l'inverse).
+            try {
+                await adminDataService.addDocument(clientData.id, {
+                    name: '✅ Contrat signé électroniquement.pdf',
+                    size: fileSizeStr,
+                    type: 'application/pdf',
+                    owner: 'client',
+                    folder: 'Contrats',
+                    url: finalUrl
+                });
+                const updatedDocs = await adminDataService.getDocuments(clientData.id);
+                setDocuments(Array.isArray(updatedDocs) ? updatedDocs : []);
+            } catch (docErr) {
+                console.error('Contrat signé, mais ajout à « Mes documents » impossible :', docErr);
+                appAlert(t('espaceClient.docs.signSavedPartial'));
+            }
 
             setSignedUrl(finalUrl);
             setLocalSignatureUrl(signatureDataUrl);
@@ -417,7 +442,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: clientData.email,
-                        nom: clientData.representant?.nom || clientData.nom || 'Client',
+                        nom: signerNameOf(clientData),
                         type: 'post_signature'
                     })
                 });
@@ -449,7 +474,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                 body: JSON.stringify({
                     clientId: clientData.id,
                     contractRef: 'procuration_postale',
-                    signeeName: clientData.representant?.nom || clientData.nom || 'Client',
+                    signeeName: signerNameOf(clientData) || clientData.email || '',
                     signeeEmail: clientData.email || 'client@example.com'
                 })
             });
@@ -532,7 +557,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: clientData.email,
-                        nom: clientData.representant?.nom || clientData.nom || 'Client',
+                        nom: signerNameOf(clientData),
                         type: 'procuration_postale'
                     })
                 });
@@ -1030,9 +1055,9 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
                 <div style={{ padding: '24px', minHeight: '300px', display: 'flex', flexDirection: 'column', gap: '32px' }} onDragOver={onDragOver} onDrop={onDrop}>
                     {(() => {
-                        const idDoc = documents?.find(d => d.name.toLowerCase().match(/identit|séjour|passeport|cni/));
-                        const domicileDoc = documents?.find(d => d.name.toLowerCase().match(/domicile|justificatif/));
-                        const statutDoc = documents?.find(d => d.name.toLowerCase().match(/statut|kbis/));
+                        const idDoc = documents?.find(d => (d?.name || '').toLowerCase().match(/identit|séjour|passeport|cni/));
+                        const domicileDoc = documents?.find(d => (d?.name || '').toLowerCase().match(/domicile|justificatif/));
+                        const statutDoc = documents?.find(d => (d?.name || '').toLowerCase().match(/statut|kbis/));
 
                         const requiredDocs = [
                             {

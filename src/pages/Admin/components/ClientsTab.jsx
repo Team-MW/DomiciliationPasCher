@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
-import { exportClientsToExcel } from '../../../utils/exportClientsExcel';
 
+
+/** Statut réel du dossier (données de la fiche, rien d'inventé). */
+const DOSSIER_STATUS = {
+    actif: { label: 'Actif', bg: '#ECFDF5', color: '#047857' },
+    echec_paiement: { label: 'Paiement en échec', bg: '#FFF7ED', color: '#C2410C' },
+    'impayé': { label: 'Impayé', bg: '#FEF2F2', color: '#B91C1C' },
+    'résilié': { label: 'Résilié', bg: '#F1F5F9', color: '#475569' },
+};
 const formatDateShort = (dateStr) => {
     if (!dateStr) return 'Non définie';
     const parts = dateStr.split('-');
@@ -25,6 +32,8 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onCreateCli
         if (clients.length === 0) return;
         setIsExporting(true);
         try {
+            // xlsx (~400 Ko) chargé au clic seulement.
+            const { exportClientsToExcel } = await import('../../../utils/exportClientsExcel');
             exportClientsToExcel(clients);
         } catch (err) {
             console.error('Export Excel échoué:', err);
@@ -80,7 +89,7 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onCreateCli
                             <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Client / Entreprise</th>
                             <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Formule</th>
                             <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</th>
-                            <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dossier</th>
+                            <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Statut</th>
                             <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Compte Clerk</th>
                             <th style={{ padding: '16px 20px', fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Action</th>
                         </tr>
@@ -117,12 +126,10 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onCreateCli
                                 </td>
                                 <td style={{ padding: '16px 20px', fontSize: '13px', color: '#64748B' }}>{formatDateShort(c.since)}</td>
                                 <td style={{ padding: '16px 20px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <div style={{ width: '60px', height: '6px', background: '#E2E8F0', borderRadius: '10px', overflow: 'hidden' }}>
-                                            <div style={{ width: c.clerkId ? '100%' : '50%', height: '100%', background: '#0F172A', borderRadius: '10px' }}></div>
-                                        </div>
-                                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#0F172A' }}>{c.clerkId ? '100%' : '50%'}</span>
-                                    </div>
+                                    {(() => {
+                                        const tone = DOSSIER_STATUS[c.status] || { label: c.status || 'Non défini', bg: '#F1F5F9', color: '#475569' };
+                                        return <span style={{ padding: '4px 10px', borderRadius: '9999px', background: tone.bg, color: tone.color, fontSize: '12px', fontWeight: '700' }}>{tone.label}</span>;
+                                    })()}
                                 </td>
                                 <td style={{ padding: '16px 20px' }}>
                                     <span style={{ padding: '4px 10px', borderRadius: '9999px', background: c.clerkId ? '#ECFDF5' : '#F1F5F9', color: c.clerkId ? '#059669' : '#64748B', fontSize: '12px', fontWeight: '600' }}>

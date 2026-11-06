@@ -38,6 +38,7 @@ export default function Messages({ clientData }) {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [sendError, setSendError] = useState('');
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -55,8 +56,16 @@ export default function Messages({ clientData }) {
     useEffect(() => {
         if (clientData) {
             fetchMessages();
-            const interval = setInterval(fetchMessages, 10000);
-            return () => clearInterval(interval);
+            // Onglet en arrière-plan : on arrête d'interroger le serveur (batterie, quota base de données).
+            const interval = setInterval(() => {
+                if (typeof document === 'undefined' || !document.hidden) fetchMessages();
+            }, 10000);
+            const onVisible = () => { if (!document.hidden) fetchMessages(); };
+            document.addEventListener('visibilitychange', onVisible);
+            return () => {
+                clearInterval(interval);
+                document.removeEventListener('visibilitychange', onVisible);
+            };
         }
     }, [clientData]);
 
@@ -71,6 +80,7 @@ export default function Messages({ clientData }) {
         const content = newMessage.trim();
         if (!content || isLoading) return;
 
+        setSendError('');
         setIsLoading(true);
         try {
             const msg = await adminDataService.addMessage(clientData.id, {
@@ -88,7 +98,9 @@ export default function Messages({ clientData }) {
                 );
             }).catch((err) => console.error('Erreur chargement emailService:', err));
         } catch (err) {
+            // Le texte reste dans le champ : le client peut renvoyer, mais il doit savoir que ça n'est pas parti.
             console.error(err);
+            setSendError(t('espaceClient.messages.sendError'));
         } finally {
             setIsLoading(false);
             inputRef.current?.focus();
@@ -170,6 +182,7 @@ export default function Messages({ clientData }) {
                     )}
                 </div>
 
+                {sendError && <p className="ec-chat-error" role="alert">{sendError}</p>}
                 <form className="ec-chat-composer" onSubmit={handleSend}>
                     <label className="ec-chat-input-wrap">
                         <span className="sr-only">{t('espaceClient.messages.placeholder')}</span>

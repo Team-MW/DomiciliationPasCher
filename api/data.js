@@ -6,7 +6,7 @@ import { getBaseUrl } from './_email-kit.js';
 import { deliverEmail } from './_email-core.js';
 import { createDataService } from './_data-service.js';
 import { getAuthUser, getOwnership, userOwnsStripeCustomer, isAdminEmail } from './_auth.js';
-import { sanitizeClientExtra, isSafeDocumentUrl } from './_client-extra.js';
+import { sanitizeClientExtra, isSafeDocumentUrl, isTrustedDocumentUrl } from './_client-extra.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { fulfillCheckoutSession } from './_checkout-fulfillment.js';
 import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
@@ -53,11 +53,10 @@ const PUBLIC_METHODS = {
         demande.amount = planAmountTtc(catalog.ht, extra.frequence === 'annuel' ? 'year' : 'month').toFixed(2);
         // Champs posés par le serveur (paiement, signature) retirés ; liens non sûrs retirés
         // (ils sont ouverts tels quels dans l'admin) ; offre alignée sur le forfait choisi.
-        const safeExtra = { ...extra };
-        for (const [key, value] of Object.entries(safeExtra)) {
-            if (/^(stripe|payment|dpc_|doc_request|(contract|procuration)Signed)/i.test(key)) delete safeExtra[key];
-            else if (/url$/i.test(key) && !isSafeDocumentUrl(value)) delete safeExtra[key];
-        }
+        // Même liste noire que pour un client connecté (signature, version du contrat, tarifs, clerk…) :
+        // un visiteur anonyme ne doit pas pouvoir fabriquer un contrat « signé » ni un identifiant Stripe.
+        const safeExtra = sanitizeClientExtra(extra);
+        if (typeof extra.email === 'string') safeExtra.email = extra.email.trim().toLowerCase().slice(0, 254);
         safeExtra.offre = catalog.offre;
         safeExtra.grille_tarifaire = PRICING_GRID; // souscrit avec la grille et le contrat actuels
         demande.extra_info = safeExtra;
@@ -87,6 +86,52 @@ const CLIENT_OWNED_ARG = {
 };
 
 const CLIENT_METHODS = {
+    /**
+     * ADMIN — comptes de connexion (Clerk) qui pourraient être ceux de ce client : par son adresse ET par son nom.
+     * Sert quand « le client s'est inscrit mais ne trouve pas son dossier » : adresse relais iCloud (« Masquer mon
+     * e-mail »), autre adresse, compte jamais relié… Le compte de l'environnement courant (prod en ligne, dev en local).
+     */
+    async clerkAccountsForClient(ctx, [clientId]) {
+        if (!ctx.user?.isAdmin) throw new HttpError(403, 'Accès réservé à l’administration');
+        const client = await ctx.service.getClientById(clientId);
+        if (!client) throw new HttpError(404, 'Client introuvable');
+        const extra = parseExtraInfo(client.extra_info);
+        const lastWord = String(client.name || '').trim().split(/\s+/).pop();
+        const terms = [...new Set([extra.nom, lastWord].map((t) => String(t || '').trim()).filter((t) => t.length >= 3))];
+        const email = String(client.email || '').trim().toLowerCase();
+        const users = await listClerkUsers({ email, terms });
+        const accounts = [];
+        for (const user of users) {
+            const taken = await ctx.conn.execute('SELECT id FROM clients WHERE clerkId = ? AND id <> ? LIMIT 1', [user.id, clientId]);
+            accounts.push({
+                ...user,
+                sameEmail: Boolean(email) && user.email.toLowerCase() === email,
+                linkedHere: client.clerkId === user.id,
+                linkedElsewhere: Boolean(taken.rows?.length),
+            });
+        }
+        return { clientId, clientEmail: email, accounts };
+    },
+
+    /** ADMIN — relie un compte de connexion à la fiche : le client y accède avec CE compte, quelle que soit son adresse. */
+    async linkClerkAccount(ctx, [clientId, clerkUserId]) {
+        if (!ctx.user?.isAdmin) throw new HttpError(403, 'Accès réservé à l’administration');
+        if (!/^user_[A-Za-z0-9]+$/.test(String(clerkUserId || ''))) throw new HttpError(400, 'Identifiant de compte invalide');
+        const client = await ctx.service.getClientById(clientId);
+        if (!client) throw new HttpError(404, 'Client introuvable');
+        const secretKey = readServerEnv('CLERK_SECRET_KEY');
+        if (!secretKey) throw new HttpError(500, 'Clerk non configuré');
+        try {
+            await createClerkClient({ secretKey }).users.getUser(clerkUserId);
+        } catch {
+            throw new HttpError(404, 'Compte de connexion introuvable dans Clerk');
+        }
+        const taken = await ctx.conn.execute('SELECT id FROM clients WHERE clerkId = ? AND id <> ? LIMIT 1', [clerkUserId, clientId]);
+        if (taken.rows?.length) throw new HttpError(409, 'Ce compte de connexion est déjà relié à un autre dossier');
+        await ctx.service.updateClientClerkId(clientId, clerkUserId);
+        return { linked: true, clientId, clerkUserId };
+    },
+
     /** Fiche client (ou demande en cours) de l'utilisateur connecté ; lie le compte Clerk. */
     async getMyAccount(ctx, [options]) {
         const { service, conn, user } = ctx;
@@ -146,7 +191,12 @@ const CLIENT_METHODS = {
 
     async addDocument(ctx, [clientId, fileInfo]) {
         const info = { ...(fileInfo || {}), owner: 'client' };
-        if (!isSafeDocumentUrl(info.url)) throw new HttpError(400, 'URL de document invalide');
+        // Seulement un fichier hébergé chez nous (Cloudinary, signature locale, PDF/image encodé) : pas un lien arbitraire
+        // qu'un client pourrait présenter comme « Contrat signé » et que l'admin ouvrirait.
+        if (!isTrustedDocumentUrl(info.url)) throw new HttpError(400, 'URL de document invalide');
+        for (const [key, max] of [['name', 255], ['folder', 100], ['type', 100], ['size', 50]]) {
+            if (info[key] !== undefined && info[key] !== null) info[key] = String(info[key]).slice(0, max);
+        }
         return ctx.service.addDocument(clientId, info);
     },
 
@@ -253,7 +303,9 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
             }
 
             const user = await getAuth(req);
-            if (!user || !user.email) return res.status(401).json({ error: 'Authentification requise' });
+            if (!user) return res.status(401).json({ error: 'Authentification requise' });
+            // Connecté mais email NON vérifié : on le dit (avant : 401 générique, que le site affichait « Aucun dossier trouvé »).
+            if (!user.email) return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED' });
             ctx.user = user;
 
             if (!schemaReady) schemaReady = service.init().catch(() => { schemaReady = null; });
@@ -293,6 +345,10 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
             return res.status(200).json({ result: result ?? null });
         } catch (err) {
             if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+            // Doublon d'email (création de client) : message affichable, pas un « Erreur serveur » qui pousse à réessayer.
+            if (err?.code === 'ER_DUP_ENTRY' || /duplicate entry/i.test(err?.message || '')) {
+                return res.status(409).json({ error: 'Cette adresse email est déjà utilisée par un autre client.' });
+            }
             // Erreurs métier volontaires (ex. réexpédition hors forfait) : message affichable.
             if (err?.message && /réservée|requise|introuvable/i.test(err.message)) {
                 return res.status(400).json({ error: err.message });
@@ -311,6 +367,28 @@ async function deleteClerkUser(clerkId) {
     } catch (err) {
         if (err?.status !== 404) throw err;
     }
+}
+
+/** Comptes Clerk retrouvés par adresse exacte puis par recherche de nom (dédoublonnés). */
+async function listClerkUsers({ email, terms = [] }) {
+    const secretKey = readServerEnv('CLERK_SECRET_KEY');
+    if (!secretKey) throw new HttpError(500, 'Clerk non configuré');
+    const clerk = createClerkClient({ secretKey });
+    const found = new Map();
+    const collect = (result) => { for (const user of (result?.data || result || [])) if (user?.id) found.set(user.id, user); };
+    if (email) collect(await clerk.users.getUserList({ emailAddress: [email], limit: 10 }));
+    for (const term of terms) collect(await clerk.users.getUserList({ query: term, limit: 10 }));
+    return [...found.values()].map((user) => {
+        const primary = user.emailAddresses?.find((e) => e.id === user.primaryEmailAddressId) || user.emailAddresses?.[0];
+        return {
+            id: user.id,
+            email: primary?.emailAddress || '',
+            verified: primary?.verification?.status === 'verified',
+            name: [user.firstName, user.lastName].filter(Boolean).join(' '),
+            createdAt: user.createdAt || null,
+            lastSignInAt: user.lastSignInAt || null,
+        };
+    });
 }
 
 async function findClerkUserIdsByEmail(email) {

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { pathToFileURL } from 'node:url';
 import viteConfig from '../vite.config.js';
 
 vi.mock('stripe', () => {
@@ -46,7 +47,8 @@ describe('Plugin Vite : API locale', () => {
     beforeEach(() => {
         const plugin = viteConfig.plugins.find(p => p && p.name === 'local-stripe-api');
         const middlewares = [];
-        plugin.configureServer({ middlewares: { use: (mw) => middlewares.push(mw) } });
+        // ssrLoadModule : en dev, c'est Vite qui charge les fichiers de api/ (et reprend leurs modifications).
+        plugin.configureServer({ middlewares: { use: (mw) => middlewares.push(mw) }, ssrLoadModule: (file) => import(pathToFileURL(file).href) });
         middleware = middlewares[0];
         process.env.STRIPE_SECRET_KEY = 'sk_test_123';
     });

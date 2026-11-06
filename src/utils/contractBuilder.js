@@ -2,6 +2,7 @@ import { cleanForPdf } from './pdfGenerator';
 import { resolvePersonalAddress } from './contractLegalFields';
 import { buildCurrentContractContent } from './contractBuilderCurrent';
 import { isLegacySignedContract } from '../../shared/contract.js';
+import { clientPlanPricing } from '../../shared/plans.js';
 
 /**
  * Point d'entrée appelé par pdfGenerator.js (fichier verrouillé, signature inchangée).
@@ -10,6 +11,13 @@ import { isLegacySignedContract } from '../../shared/contract.js';
  *   signature est réappliquée à chaque téléchargement (#local-signature).
  */
 export const buildContractContent = (doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof = null) => {
+    // Contrat DÉJÀ signé : « Fait à Toulouse, le … » porte la date de la signature, pas celle du téléchargement.
+    if (isSigned && extra?.contractSignedAt) {
+        const signedOn = new Date(extra.contractSignedAt);
+        if (!Number.isNaN(signedOn.getTime())) {
+            signedAtDate = signedOn.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+    }
     if (isLegacySignedContract(extra)) {
         return buildLegacyContractContent(doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof);
     }
@@ -17,12 +25,16 @@ export const buildContractContent = (doc, clientData, extra, planDetails, isSign
 };
 
 /** Ancien texte — uniquement pour regénérer les contrats DÉJÀ SIGNÉS avec ce texte. NE PAS MODIFIER. */
-const buildLegacyContractContent = (doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof = null) => {
+const buildLegacyContractContent = (doc, clientData, extra, planDetailsInput, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof = null) => {
     let currentY = 45;
     let pageCount = 1;
 
     const isAnnuel = extra.frequence === 'annuel';
-    const clientName = cleanForPdf(extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData.name || '[NOM, PRÉNOM]'));
+    // Formule et prix de l'ancienne grille, reconnus pour TOUS les noms de formule (Confort, Premium, Scan+…),
+    // et prix annuel = 10 mensualités (le tarif mensuel était affiché « / An »). Le TEXTE reste figé.
+    const legacyPricing = clientPlanPricing(clientData.plan, extra);
+    const planDetails = { ...planDetailsInput, name: legacyPricing.name, ht: isAnnuel ? legacyPricing.annualHt : legacyPricing.ht };
+    const clientName = cleanForPdf(extra.nom ? `${extra.prenom || ''} ${extra.nom}`.trim() : (clientData.name || '[NOM, PRÉNOM]'));
     const companyName = cleanForPdf(String(clientData.company || extra.nomSociete || '[DÉNOMINATION SOCIALE DU DOMICILIÉ]'));
     const siretValue = extra.siret || clientData.siret || extra.siren || clientData.siren || '';
     const sirenText = cleanForPdf(siretValue ? `immatriculée sous le n° ${siretValue.replace(/\s/g, '')}` : 'en cours d\'immatriculation');

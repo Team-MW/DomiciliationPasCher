@@ -1,3 +1,4 @@
+import { deliverEmail } from './_email-core.js';
 import { getStripe } from './_stripe-client.js';
 import { getDbConn } from './_db.js';
 import { readServerEnv } from './_env.js';
@@ -56,6 +57,21 @@ export default async function handler(req, res) {
             const baseUrl = readServerEnv('PUBLIC_SITE_URL') || 'https://www.domiciliation-pas-cher.com';
             const result = await fulfillCheckoutSession(event.data.object, { conn: getDbConn(), baseUrl });
             console.log('[stripe-webhook]', event.type, event.data.object?.id, result?.kind, result?.ok);
+            // Argent encaissé mais dossier non activé : sans alerte, personne ne le saurait (Stripe ne rejoue pas un 200).
+            if (result && result.ok === false && result.kind !== 'unpaid') {
+                const session = event.data.object || {};
+                try {
+                    await deliverEmail({
+                        type: 'admin_payment_problem',
+                        email: String(session.customer_details?.email || session.metadata?.email || 'inconnu@example.invalid'),
+                        nom: String(session.metadata?.clientName || session.customer_details?.name || ''),
+                        notes: result.reason,
+                        documentName: session.id,
+                    }, { baseUrl, source: 'interne' });
+                } catch (mailErr) {
+                    console.error('[stripe-webhook] alerte admin non envoyée:', mailErr);
+                }
+            }
         } catch (err) {
             console.error('[stripe-webhook] traitement impossible:', err);
             // 500 → Stripe réessaiera plus tard.

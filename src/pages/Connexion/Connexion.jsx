@@ -48,7 +48,13 @@ export default function ConnexionPage() {
             </div>
 
             <div className="auth-right">
+                <p className="auth-first-login">
+                    <strong>Première connexion après votre souscription ?</strong>{' '}
+                    Créez d’abord votre accès avec l’adresse e-mail utilisée lors du paiement :{' '}
+                    <a href="/inscription">créer mon accès</a>.
+                </p>
                 <SignIn
+                    signUpUrl="/inscription"
                     fallbackRedirectUrl={afterAuth}
                     forceRedirectUrl={afterAuth}
                     appearance={{

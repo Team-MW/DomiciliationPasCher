@@ -58,7 +58,9 @@ export function installApiAuth({ getToken = getClerkSessionToken, target = globa
         const url = typeof input === 'string' || input instanceof URL ? String(input) : input?.url;
         if (!isSameOriginApiUrl(url, target.location?.origin)) return originalFetch(input, init);
 
-        if (target.__dpcPreviewMode && !isAllowedInPreview(url, init)) {
+        // fetch(new Request(url, { method: 'POST' })) : la méthode est sur l'objet Request, pas dans init.
+        const effectiveInit = init.method || typeof input !== 'object' || !input?.method ? init : { ...init, method: input.method };
+        if (target.__dpcPreviewMode && !isAllowedInPreview(url, effectiveInit)) {
             return new Response(JSON.stringify({ error: 'Aperçu : action désactivée (aucune donnée réelle n’est modifiée).' }), {
                 status: 403,
                 headers: { 'Content-Type': 'application/json' },

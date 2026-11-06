@@ -6,6 +6,10 @@ import { useTranslation } from '../../i18n/LanguageContext';
 import usePageMeta from '../../components/Seo/usePageMeta';
 import './Home.css';
 
+
+/** Ordre des formules dans home.pricing.plans (fr / en / ru) : Essentiel, Confort, Premium. */
+export const HOME_PLAN_IDS = ['essentiel', 'scan-plus', 'physique'];
+
 const FEATURE_ICONS = [
     (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>),
     (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>),
@@ -550,7 +554,7 @@ export default function Home() {
                         </div>
 
                         <div className="ps-cards animate-in" style={{ animationDelay: '0.15s' }}>
-                            {tr.home.pricing.plans.map((plan) => (
+                            {tr.home.pricing.plans.map((plan, planIndex) => (
                                 <div key={plan.name} className={`ps-card${plan.badge ? ' ps-card-featured' : ''}`}>
                                     {plan.badge && <div className="psc-badge">{plan.badge}</div>}
                                     <div className="psc-header">
@@ -567,7 +571,7 @@ export default function Home() {
                                         ))}
                                     </ul>
                                     {plan.cta && (
-                                        <Link to="/souscription" className="psc-btn-featured">{plan.cta}</Link>
+                                        <Link to={`/souscription?plan=${HOME_PLAN_IDS[planIndex] || 'essentiel'}`} className="psc-btn-featured">{plan.cta}</Link>
                                     )}
                                 </div>
                             ))}

@@ -116,6 +116,18 @@ export async function requireAdmin(req, res) {
     return user;
 }
 
+/** Identifiant Stripe (cus_…) enregistré par le serveur dans extra_info, ou null. */
+export function stripeCustomerIdOf(rawExtra) {
+    try {
+        let extra = typeof rawExtra === 'string' ? JSON.parse(rawExtra) : rawExtra;
+        if (typeof extra === 'string') extra = JSON.parse(extra);
+        const id = extra && typeof extra === 'object' ? extra.stripe_customer_id : null;
+        return typeof id === 'string' && /^cus_[A-Za-z0-9]+$/.test(id) ? id : null;
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Ce que l'utilisateur possède : fiches clients / demandes au même email vérifié, ou déjà
  * liées à son compte Clerk. Renvoie { ids, emails, stripeCustomerIds } (des Set).
@@ -134,8 +146,10 @@ export async function getOwnership(conn, user) {
         for (const row of rows || []) {
             ids.add(String(row.id));
             if (row.email) emails.add(String(row.email).trim().toLowerCase());
-            const raw = String(row.extra_info || '');
-            for (const m of raw.matchAll(/cus_[A-Za-z0-9]+/g)) stripeCustomerIds.add(m[0]);
+            // Uniquement la clé posée par le serveur : un client peut écrire n'importe quoi dans les
+            // autres champs libres de sa fiche (ex. « cus_… » d'un autre client → accès à son portail Stripe).
+            const customerId = stripeCustomerIdOf(row.extra_info);
+            if (customerId) stripeCustomerIds.add(customerId);
         }
     };
     const where = "(email = ? AND email <> '') OR (clerkId = ? AND clerkId <> '')";

@@ -9,7 +9,7 @@ const FicheDetail = () => {
     const { slug } = useParams();
     const { tr } = useTranslation();
     const t = tr.fichesPratiques;
-    const base = fichesData[slug];
+    const base = Object.hasOwn(fichesData, slug) ? fichesData[slug] : null; // pas « constructor », « __proto__ »…
     const fiche = base ? (t.fiches?.[slug] || base) : null;
 
     useEffect(() => {

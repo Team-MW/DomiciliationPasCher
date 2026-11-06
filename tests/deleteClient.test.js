@@ -43,7 +43,8 @@ describe('Suppression définitive d’un client (deleteClient)', () => {
         await createDataService({ conn, deleteClerkUser, findClerkUserIdsByEmail }).deleteClient('cl_42');
 
         const email = 'jean.dupont@example.com'; // normalisé en minuscules
-        expect(findDelete(calls, 'demandes')[0].params).toEqual([email]);
+        // Par email ET par compte de connexion lié (demande faite avec un autre email).
+        expect(findDelete(calls, 'demandes')[0].params).toEqual([email, 'user_linked']);
         expect(findDelete(calls, 'souscription_leads')[0].params).toEqual([email]);
         expect(findDelete(calls, 'email_logs')[0].params).toEqual([email, email]);
         expect(findDelete(calls, 'signature_logs').some((c) => c.params[0] === email)).toBe(true);
@@ -80,7 +81,7 @@ describe('Suppression définitive d’un client (deleteClient)', () => {
         const { conn, calls } = makeConn(client, { demandeIds: ['dem_1'] });
         await createDataService({ conn, deleteClerkUser, findClerkUserIdsByEmail }).deleteClient('cl_42');
 
-        const allowed = new Set(['cl_42', 'dem_1', 'jean.dupont@example.com']);
+        const allowed = new Set(['cl_42', 'dem_1', 'jean.dupont@example.com', 'user_linked']); // user_linked = compte de connexion de CE client
         for (const c of deletes(calls)) {
             expect(c.sql, 'jamais de DELETE sans WHERE').toMatch(/ WHERE /);
             expect(c.params.length, c.sql).toBeGreaterThan(0);
@@ -110,5 +111,49 @@ describe('Suppression définitive d’un client (deleteClient)', () => {
         expect(findDelete(calls, 'demandes')).toHaveLength(0);
         expect(findDelete(calls, 'souscription_leads')).toHaveLength(0);
         expect(deleteClerkUser).not.toHaveBeenCalled();
+    });
+});
+
+describe('deleteClient : ordre et erreurs', () => {
+    it('la base est nettoyée AVANT les comptes de connexion (si la base échoue, le client garde son accès)', async () => {
+        const order = [];
+        const execute = vi.fn(async (sql) => {
+            if (/^SELECT \* FROM clients WHERE id/i.test(sql)) return { rows: [{ id: 'c1', email: 'a@b.fr', clerkId: 'user_a' }] };
+            if (/^DELETE FROM clients/i.test(sql)) { order.push('base'); throw new Error('base indisponible'); }
+            return { rows: [] };
+        });
+        const deleteClerkUser = vi.fn(async () => { order.push('clerk'); });
+        await expect(createDataService({ conn: { execute }, deleteClerkUser, findClerkUserIdsByEmail: async () => [] }).deleteClient('c1')).rejects.toThrow('base indisponible');
+        expect(order).toEqual(['base']);
+        expect(deleteClerkUser).not.toHaveBeenCalled();
+    });
+
+    it('un échec sur une table optionnelle est REMONTÉ dans le rapport (plus de faux succès)', async () => {
+        const execute = vi.fn(async (sql) => {
+            if (/^SELECT \* FROM clients WHERE id/i.test(sql)) return { rows: [{ id: 'c1', email: 'a@b.fr', clerkId: '' }] };
+            if (/FROM email_logs/.test(sql)) throw new Error('timeout base');
+            return { rows: [] };
+        });
+        const report = await createDataService({ conn: { execute }, deleteClerkUser: vi.fn(), findClerkUserIdsByEmail: async () => [] }).deleteClient('c1');
+        expect(report.errors).toContain('journal des emails');
+    });
+});
+
+describe('deleteClient : tout ce qui concerne le client, base et compte de connexion', () => {
+    it('efface chaque table rattachée ET supprime les comptes de connexion, et le rapport le dit', async () => {
+        const calls = [];
+        const execute = vi.fn(async (sql, params = []) => {
+            calls.push({ sql: sql.replace(/\s+/g, ' ').trim(), params });
+            if (/^SELECT \* FROM clients WHERE id/i.test(sql)) return { rows: [{ id: 'cl_9', email: 'Elmaine@Gmail.com', clerkId: 'user_9' }] };
+            return { rows: [] };
+        });
+        const deleteClerkUser = vi.fn(async () => {});
+        const report = await createDataService({ conn: { execute }, deleteClerkUser, findClerkUserIdsByEmail: async () => ['user_9', 'user_10'] }).deleteClient('cl_9');
+        const tables = calls.filter((c) => c.sql.startsWith('DELETE')).map((c) => /FROM (\w+)/.exec(c.sql)[1]);
+        for (const t of ['clients', 'messages', 'documents', 'bookings', 'payments', 'mail', 'reexpeditions', 'signature_logs', 'demandes', 'souscription_leads', 'email_logs']) {
+            expect(tables, t).toContain(t);
+        }
+        expect(deleteClerkUser.mock.calls.map((c) => c[0]).sort()).toEqual(['user_10', 'user_9']);
+        expect(report).toMatchObject({ clerkAccountsDeleted: 2, errors: [] });
     });
 });

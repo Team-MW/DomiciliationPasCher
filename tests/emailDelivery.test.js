@@ -22,7 +22,7 @@ vi.mock('../api/_smtp.js', async (importOriginal) => ({
     getSmtpConfig: () => (smtp.transporter ? { from: 'expediteur@test.fr' } : null),
 }));
 
-const { EMAIL_TYPES, isKnownEmailType, buildTransactionalEmail, deliverEmail } = await import('../api/_email-core.js');
+const { EMAIL_TYPES, ADMIN_INBOX_TYPES, isKnownEmailType, buildTransactionalEmail, deliverEmail } = await import('../api/_email-core.js');
 const { ADMIN_EMAIL } = await import('../api/_smtp.js');
 const { CONTACT_EMAIL } = await import('../api/_email-kit.js');
 const emailHandler = (await import('../api/email.js')).default;
@@ -118,7 +118,7 @@ describe('types d’email : liste fermée', () => {
         for (const part of [mail.subject, mail.html, mail.text || '']) {
             expect(part).not.toMatch(/undefined|\bNaN\b|\[object Object\]|Bonjour Client/);
         }
-        const toAdmin = ['admin_new_message', 'admin_reexpedition', 'admin_document_uploaded'].includes(type);
+        const toAdmin = ADMIN_INBOX_TYPES.has(type);
         const toContact = ['contact_advisor', 'souscription_lead'].includes(type);
         expect(mail.to).toBe(toAdmin ? ADMIN_EMAIL : toContact ? CONTACT_EMAIL : 'client@exemple.fr');
         if (type === 'welcome') expect(mail.adminCopy?.type).toBe('admin_new_client');
@@ -364,5 +364,52 @@ describe('SMTP non configuré : l’échec apparaît dans l’historique', () =>
         const block = src.slice(src.indexOf('if (!smtpHost || !smtpUser || !smtpPass)'), src.indexOf("throw new Error('Configuration SMTP du serveur manquante.')"));
         expect(block).toContain('await logEmail(conn');
         expect(block).toContain("status: 'failed'");
+    });
+});
+
+describe('Première connexion : un client qui vient de payer sait créer son accès', () => {
+    it('bienvenue et validation : lien « Créer mon accès » avec l’email prérempli + lien « Se connecter »', () => {
+        for (const type of [undefined, 'approval']) {
+            const mail = buildTransactionalEmail({ email: 'William.Rouzee@icloud.com', nom: 'William', type }, { baseUrl: 'https://site.test' });
+            expect(mail.html).toContain('https://site.test/inscription?email=william.rouzee%40icloud.com');
+            expect(mail.text).toContain('https://site.test/inscription?email=william.rouzee%40icloud.com');
+            expect(mail.html).toContain('william.rouzee@icloud.com');
+        }
+        const welcome = buildTransactionalEmail({ email: 'a@b.fr' }, { baseUrl: 'https://site.test' });
+        expect(welcome.html).toContain('Créer mon accès');
+        expect(welcome.html).toContain('https://site.test/connexion');
+    });
+
+    it('/inscription : lien ?email= vérifié automatiquement (plus de piège « même navigateur »), email prérempli', () => {
+        const src = fs.readFileSync(path.join(ROOT, 'src/pages/Connexion/Inscription.jsx'), 'utf8');
+        expect(src).toContain('checkPaymentStatus(prefillEmail)');
+        expect(src).toContain('initialValues={prefillEmail ? { emailAddress: prefillEmail } : undefined}');
+        expect(src).not.toContain('même navigateur');
+        const login = fs.readFileSync(path.join(ROOT, 'src/pages/Connexion/Connexion.jsx'), 'utf8');
+        expect(login).toContain('signUpUrl="/inscription"');
+    });
+});
+
+
+describe('Formulaires publics : plus de relais d’emails depuis notre domaine', () => {
+    const publicPost = async (body) => {
+        authUser.current = null;
+        const r = mockRes();
+        await emailHandler({ method: 'POST', headers: { host: 'site.test' }, body }, r);
+        return r;
+    };
+
+    it.each(['a@x.fr, b@y.fr', 'v@x.fr>\r\nBcc: evil@x.fr', 'a@x.fr;b@y.fr', ''])('adresse « %s » refusée, rien n’est envoyé', async (email) => {
+        const r = await publicPost({ type: 'consultation_creation', email, nom: 'X', message: 'Cliquez http://phish.example' });
+        expect(r.statusCode).toBe(400);
+        expect(sendMail).not.toHaveBeenCalled();
+    });
+
+    it('textes libres plafonnés (message 2000 caractères)', async () => {
+        const r = await publicPost({ type: 'contact_advisor', email: 'prospect@x.fr', nom: 'N'.repeat(500), message: 'm'.repeat(6000) });
+        expect(r.statusCode).toBe(200);
+        const html = sendMail.mock.calls[0][0].html;
+        expect(html).not.toContain('m'.repeat(2001));
+        expect(html).not.toContain('N'.repeat(121));
     });
 });

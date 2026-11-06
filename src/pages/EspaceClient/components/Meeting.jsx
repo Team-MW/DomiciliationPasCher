@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { handleCheckout } from '../../../utils/stripe';
+import { DOMICILIATION_ADDRESS } from '../../../../shared/company.js';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import {
     MEETING_TYPES,
@@ -87,7 +88,7 @@ export default function Meeting({ clientData }) {
 
         setIsSubmitting(true);
         try {
-            const cache = { type, date, duration, city: clientData.city || 'À définir' };
+            const cache = { type, date, duration, city: DOMICILIATION_ADDRESS.city };
             sessionStorage.setItem('pendingBooking', JSON.stringify(cache));
             const successUrl = `${window.location.origin}/app/espace-client?tab=meeting&booking_success=true`;
             const cancelUrl = `${window.location.origin}/app/espace-client?tab=meeting&booking_cancel=true`;
@@ -107,7 +108,7 @@ export default function Meeting({ clientData }) {
                     meeting_type: type,
                     date,
                     duration,
-                    city: clientData.city || '',
+                    city: DOMICILIATION_ADDRESS.city,
                 }
             );
         } catch (error) {
@@ -128,13 +129,13 @@ export default function Meeting({ clientData }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                             <h2>{t('espaceClient.meeting.title')}</h2>
                             <span className="ec-status-tag" style={{ background: '#EEF2FF', color: '#4F46E5', fontWeight: 600 }}>
-                                {t('espaceClient.meeting.centre').replace('{city}', clientData.city || 'Toulouse')}
+                                {t('espaceClient.meeting.centre').replace('{city}', DOMICILIATION_ADDRESS.city)}
                             </span>
                         </div>
                     </div>
                     <div className="ec-card-body" style={{ padding: '24px' }}>
                         <p style={{ color: '#64748B', fontSize: '14px', marginBottom: '20px' }}>
-                            {t('espaceClient.meeting.intro').replace('{city}', clientData.city || 'Toulouse')}
+                            {t('espaceClient.meeting.intro').replace('{city}', DOMICILIATION_ADDRESS.city)}
                         </p>
 
                         {showSuccess && (

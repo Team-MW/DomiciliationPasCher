@@ -476,3 +476,24 @@ button {
     margin-bottom: 40px;
   }
 }
+/* Chargement de page (App.jsx) : apparaît après 250 ms pour éviter tout flash. */
+.dpc-page-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F8FAFF;
+  animation: dpc-page-loading-in 0.2s ease-out 0.25s both;
+}
+.dpc-page-loading.is-inline { min-height: 60vh; background: transparent; }
+.dpc-page-loading-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #DBEAFE;
+  border-top-color: #1A56DB;
+  animation: dpc-page-loading-spin 0.8s linear infinite;
+}
+@keyframes dpc-page-loading-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dpc-page-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dpc-page-loading-spinner { animation-duration: 2.4s; } }

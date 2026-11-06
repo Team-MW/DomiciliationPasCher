@@ -1,18 +1,3 @@
-import { loadStripe } from '@stripe/stripe-js';
-
-let stripePromise;
-
-/**
- * Initialise Stripe avec la clé publique fournie dans le .env
- */
-export const getStripe = () => {
-    if (!stripePromise) {
-        const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.split(' ')[0];
-        stripePromise = loadStripe(key || 'pk_test_placeholder');
-    }
-    return stripePromise;
-};
-
 /**
  * Redirige vers un Stripe Checkout asynchrone sécurisé par backend
  * @param {string} planId - Identifiant du plan choisi
@@ -22,8 +7,8 @@ export const getStripe = () => {
  */
 export const handleCheckout = async (planId, amount, productName = '', interval = 'month', customSuccessUrl = null, customCancelUrl = null, email = '', clientName = '', metadata = {}) => {
     try {
-        await getStripe();
-
+        // Pas de Stripe.js ici : le serveur crée la session et on redirige vers son URL. Charger Stripe.js
+        // ajoutait un délai et un point de panne (bloqueur de publicité, réseau d'entreprise).
         console.log(`Initialisation paiement Stripe pour le plan ${planId} : ${amount}€ (${interval})`);
 
         let finalInterval = interval;

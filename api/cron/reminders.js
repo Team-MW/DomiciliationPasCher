@@ -11,6 +11,16 @@ import { processMailNotifications, processDocumentRequests, processSouscriptionL
 
 const DAILY_RUN_HOUR_UTC = 8;
 
+/**
+ * Heure (0-23) à Paris. Avant : Number(Intl fr-FR « 09 h ») = NaN → « NaN >= 8 » faux → le récap courrier et les
+ * relances d'inscription ne partaient JAMAIS (aucun email « nouveau courrier » n'a été envoyé en production).
+ */
+export function getParisHour(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Paris' }).formatToParts(date);
+    const hour = Number(parts.find((p) => p.type === 'hour')?.value);
+    return Number.isFinite(hour) ? hour : 12; // valeur neutre : mieux vaut tourner que ne jamais tourner
+}
+
 export default async function handler(req, res) {
     // Vercel envoie CRON_SECRET en Bearer sur chaque invocation planifiée. Sans ce secret
     // l'URL est publiquement appelable, et ce cron envoie des emails aux clients : on refuse
@@ -32,7 +42,7 @@ export default async function handler(req, res) {
 
     // Toutes les heures, de 8 h à 20 h (Paris) : récap courrier et relances d'inscription.
     // La nuit, les envois attendent le premier passage du matin.
-    const parisHour = Number(new Intl.DateTimeFormat('fr-FR', { hour: 'numeric', hour12: false, timeZone: 'Europe/Paris' }).format(new Date()));
+    const parisHour = getParisHour();
     const hourlyTasks = parisHour >= 8 && parisHour <= 20 ? [processMailNotifications, processSouscriptionLeads] : [];
     const hourly = {};
     for (const task of hourlyTasks) {
@@ -111,6 +121,8 @@ export async function sendRenewalReminders(stripe, conn, now = new Date()) {
                 if (!item) continue;
                 const interval = item.plan?.interval || item.price?.recurring?.interval;
                 if (interval !== 'year') continue;
+                // Résiliation déjà demandée (portail Stripe) : un « votre abonnement se renouvelle » serait faux.
+                if (sub.cancel_at_period_end || sub.cancel_at) continue;
                 // Depuis l'API 2025-03-31, current_period_end est porté par l'item.
                 const currentPeriodEnd = item.current_period_end ?? sub.current_period_end;
                 if (!currentPeriodEnd) continue;

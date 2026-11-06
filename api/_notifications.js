@@ -13,6 +13,27 @@ function parseExtra(raw) {
     }
 }
 
+/** extra_info FRAIS d'un client (repli : l'instantané déjà lu si la relecture échoue). */
+async function readFreshExtra(conn, clientId, fallback) {
+    try {
+        const res = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId]);
+        if (res?.rows?.[0]) return parseExtra(res.rows[0].extra_info);
+    } catch {
+        // on garde l'instantané
+    }
+    return fallback;
+}
+
+/**
+ * Écrit extra_info en ne modifiant QUE les clés du cron, à partir de la valeur la plus récente. Avant, le cron
+ * réécrivait la copie lue au début de sa boucle : un paiement (webhook) ou un dépôt de document survenu pendant
+ * les envois d'emails était écrasé (le client payé redevenait « en attente » et recevait la relance suivante).
+ */
+async function mergeClientExtra(conn, clientId, fallback, mutate) {
+    const fresh = await readFreshExtra(conn, clientId, fallback);
+    await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify(mutate({ ...fresh })), clientId]);
+}
+
 /**
  * Ajoute mail.notified_at. À la création de la colonne, l'historique est marqué « legacy »
  * pour ne pas renvoyer d'email pour d'anciens courriers.
@@ -84,10 +105,7 @@ export async function processDocumentRequests({ conn, transporter, from, baseUrl
         try {
             const docsRes = await conn.execute('SELECT name FROM documents WHERE clientId = ?', [client.id]);
             const missing = computeMissingDocuments(request.missing, { extra, documents: docsRes.rows || [] });
-            const save = (patch) => conn.execute(
-                'UPDATE clients SET extra_info = ? WHERE id = ?',
-                [JSON.stringify({ ...extra, doc_request: { ...request, ...patch } }), client.id],
-            );
+            const save = (patch) => mergeClientExtra(conn, client.id, extra, (e) => ({ ...e, doc_request: { ...(e.doc_request || request), ...patch } }));
 
             if (missing.length === 0) {
                 await save({ completed_at: now.toISOString() });
@@ -125,6 +143,9 @@ export async function processDocumentRequests({ conn, transporter, from, baseUrl
     return { documentRemindersSent: sent };
 }
 
+/** Au-delà de 7 jours après la saisie de l'email, un prospect n'est plus relancé. */
+export const LEAD_REMINDER_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** Relances 1 h / J+1 / J+3 pour les inscriptions commencées et non terminées. */
 export async function processSouscriptionLeads({ conn, transporter, from, baseUrl, now = new Date() }) {
     if (!conn || !transporter) return { leadRemindersSent: 0 };
@@ -151,6 +172,9 @@ export async function processSouscriptionLeads({ conn, transporter, from, baseUr
             if (lead.updated_at && now.getTime() - new Date(lead.updated_at).getTime() < 30 * 60 * 1000) continue;
 
             const elapsed = now.getTime() - new Date(lead.created_at).getTime();
+            // Prospect trop ancien : pas de relance tardive (« reprenez votre inscription » 3 semaines après serait déplacé).
+            // Important depuis la réparation du cron horaire : d'anciens prospects abandonnés ne doivent pas être relancés d'un coup.
+            if (elapsed > LEAD_REMINDER_MAX_AGE_MS) continue;
             const reached = LEAD_REMINDER_OFFSETS_MS.filter((offset) => elapsed >= offset).length;
             const already = Number(lead.reminders_sent) || 0;
             if (reached <= already) continue;
@@ -201,6 +225,9 @@ export async function processPendingPayments({ conn, transporter, from, baseUrl,
         if (due.length === 0) continue;
 
         try {
+            // Le client a peut-être payé depuis le début du passage du cron : on ne relance pas quelqu'un qui a déjà payé.
+            const latest = await readFreshExtra(conn, client.id, extra);
+            if (latest.payment_status !== 'pending' || latest.stripe_subscription_id) continue;
             const { subject, text, html } = buildAccountCreatedEmail({
                 nom: client.name,
                 email: client.email,
@@ -212,10 +239,10 @@ export async function processPendingPayments({ conn, transporter, from, baseUrl,
                 extra,
             });
             await sendBrandedMail(transporter, { conn, from, to: client.email, subject, text, html, type: 'payment_link_reminder' });
-            await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [
-                JSON.stringify({ ...extra, payment_reminders_sent: [...already, ...due] }),
-                client.id,
-            ]);
+            await mergeClientExtra(conn, client.id, extra, (e) => ({
+                ...e,
+                payment_reminders_sent: [...new Set([...(e.payment_reminders_sent || []), ...already, ...due])],
+            }));
             sent++;
         } catch (err) {
             console.error('Cron paiement: relance échouée pour', client.email, err.message);

@@ -211,7 +211,7 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
                             </span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: status === 'actif' ? '#ecfdf5' : '#fff7ed', color: status === 'actif' ? '#059669' : '#d97706', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
                                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: status === 'actif' ? '#10b981' : '#f59e0b', display: 'inline-block' }}></span>
-                                {status === 'actif' ? t('espaceClient.subscription.active') : status}
+                                {status === 'actif' ? t('espaceClient.subscription.active') : (/valid/i.test(status) ? t('espaceClient.subscription.statusValidation') : String(status).replace(/_/g, ' '))}
                             </span>
                         </div>
 

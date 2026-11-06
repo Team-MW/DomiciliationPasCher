@@ -421,7 +421,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     } else {
                         setPayments(currentPayments);
                     }
-                    showAlert('Synchronisation Stripe terminée. Historique mis à jour en direct depuis Stripe.');
+                    addedCount = formattedStripe.filter((sp) => !(currentPayments || []).some((cp) => cp.id === sp.id)).length;
                 }
             }
 
@@ -475,19 +475,28 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
     const handleDelete = async () => {
         const nameOrCompany = client.company || client.name || "ce client";
+        const hasStripeCustomer = Boolean(parseExtraInfo(client.extra_info).stripe_customer_id);
         const confirmed = await showConfirm(
             `Supprimer définitivement ${nameOrCompany} (${client.email || 'sans email'}) ?\n\n`
             + `Tout sera effacé de la base de données : fiche, messages, documents, courriers, rendez-vous, paiements, `
-            + `demande d'inscription, relances, historique des emails et preuves de signature, ainsi que son compte de connexion.\n\n`
+            + `demande d'inscription, relances, historique des emails et preuves de signature, ainsi que son compte de connexion (Clerk).\n\n`
+            + (hasStripeCustomer ? `⚠ Son abonnement Stripe n'est PAS annulé par cette suppression : annulez-le dans Stripe si les prélèvements doivent s'arrêter.\n\n` : '')
             + `Cette action est irréversible.`,
             { isDanger: true, title: 'Suppression définitive', confirmText: 'Tout supprimer' }
         );
         if (confirmed) {
             setIsLoading(true);
             try {
-                await adminDataService.deleteClient(client.id);
+                const report = await adminDataService.deleteClient(client.id);
                 onUpdate();
-                await showAlert("Client supprimé définitivement : toutes ses données ont été effacées de la base.", { title: 'Suppression effectuée' });
+                // On dit ce qui a VRAIMENT été fait (base, compte de connexion, échecs éventuels), au lieu d'un « tout est effacé » générique.
+                const lines = ['Fiche et données rattachées effacées de la base.'];
+                if (report?.clerkSkipped) lines.push('Compte de connexion conservé : adresse administrateur protégée.');
+                else if (report?.clerkAccountsDeleted > 0) lines.push(`Compte de connexion supprimé (${report.clerkAccountsDeleted}).`);
+                else lines.push('Aucun compte de connexion à supprimer.');
+                const failures = Array.isArray(report?.errors) ? report.errors : [];
+                if (failures.length) lines.push(`⚠ Non effacé : ${failures.join(', ')}. Relancez la suppression ou vérifiez ces éléments.`);
+                await showAlert(lines.join('\n'), { title: failures.length ? 'Suppression incomplète' : 'Suppression effectuée', isWarning: failures.length > 0 });
                 onBack();
             } catch (err) {
                 console.error("Error deleting client:", err);
@@ -599,6 +608,46 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             setDocRequest(await adminDataService.stopDocumentRequest(client.id));
         } catch (e) {
             showAlert(`Erreur : ${e.message || e}`);
+        }
+    };
+
+    // Retrouve le compte de connexion du client (par adresse ET par nom) et le relie à la fiche : cas « il s'est inscrit
+    // mais ne trouve pas son dossier » (adresse relais iCloud, autre adresse, compte jamais relié).
+    const handleFindClerkAccount = async () => {
+        setIsLoading(true);
+        try {
+            const { accounts } = await adminDataService.clerkAccountsForClient(client.id);
+            const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString('fr-FR') : 'jamais');
+            if (!accounts.length) {
+                await showAlert("Aucun compte de connexion trouvé pour ce client (ni à son adresse, ni à son nom).\n\nIl ne s'est donc pas encore inscrit : envoyez-lui l'invitation (bouton violet) ou demandez-lui d'ouvrir le lien de l'email « Créer mon accès ».", { title: 'Aucun compte trouvé' });
+                return;
+            }
+            if (accounts.some((a) => a.linkedHere)) {
+                await showAlert('Un compte de connexion est déjà relié à ce dossier.', { title: 'Déjà relié' });
+                return;
+            }
+            const candidates = accounts.filter((a) => !a.linkedElsewhere);
+            if (!candidates.length) {
+                await showAlert('Les comptes trouvés sont déjà reliés à d’autres dossiers.', { title: 'Aucun compte disponible' });
+                return;
+            }
+            for (const a of candidates) {
+                const detail = `${a.email || '(sans email)'} · ${a.name || 'sans nom'} · créé le ${fmt(a.createdAt)} · dernière connexion : ${fmt(a.lastSignInAt)}`
+                    + (a.verified ? '' : '\n⚠ Adresse email NON vérifiée')
+                    + (a.sameEmail ? '' : `\n⚠ Adresse différente de la fiche (${client.email}) : vérifiez qu'il s'agit bien du même client`);
+                const ok = await showConfirm(`Compte de connexion trouvé :\n${detail}\n\nLe relier à ce dossier ?`, { title: 'Relier le compte', confirmText: 'Relier' });
+                if (ok) {
+                    await adminDataService.linkClerkAccount(client.id, a.id);
+                    await showAlert('Compte relié : le client accède maintenant à son espace avec ce compte.', { title: 'Compte relié' });
+                    onUpdate();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            await showAlert(`Recherche impossible : ${e.message || e}`);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -1986,7 +2035,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                 Stripe
                                                             </button>
                                                         ) : null}
-                                                        <button
+                                                        {/* Une facture Stripe (in_…) n'existe pas dans notre base : elle reviendrait à chaque synchro. */}
+                                                        {!String(p.id).startsWith('in_') && <button
                                                             onClick={async () => {
                                                                 const confirmed = await showConfirm(`Supprimer le paiement ${p.invoice_ref} ?`);
                                                                 if (confirmed) {
@@ -2009,7 +2059,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                             title="Supprimer"
                                                         >
                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                                        </button>
+                                                        </button>}
                                                     </td>
                                                 </tr>
                                             ))
@@ -2331,6 +2381,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>CLERK USER ID</span>
                                 <code style={{ fontSize: '11px', background: '#F8FAFC', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', wordBreak: 'break-all', color: '#334155' }}>{client.clerkId || "user_unknown"}</code>
+                                {(!client.clerkId || client.clerkId === "user_unknown") && (
+                                    <button
+                                        onClick={handleFindClerkAccount}
+                                        style={{ marginTop: '8px', padding: '6px 12px', fontSize: '11px', background: '#0F172A', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+                                    >
+                                        Chercher son compte de connexion
+                                    </button>
+                                )}
                                 {(!client.clerkId || client.clerkId === "user_unknown") && (
                                     <button
                                         onClick={handleSendClerkInvitation}

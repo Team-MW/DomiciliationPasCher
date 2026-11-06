@@ -27,6 +27,22 @@ export function sameOriginUrl(url, origin, fallback) {
 const MEETING_TYPE_VALUES = new Set(Object.values(MEETING_TYPES));
 const MEETING_DURATION_VALUES = new Set(Object.values(MEETING_DURATIONS));
 
+/** « 2026-02-31 » ou « 2026-13-45 » ne sont pas des dates : on refuse (le format seul laissait tout passer). */
+export function isRealCalendarDate(value) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!m) return false;
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const date = new Date(Date.UTC(y, mo - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+}
+
+/** Date du jour à Paris (YYYY-MM-DD). */
+export function todayInParis(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Europe/Paris' }).formatToParts(now);
+    const get = (type) => parts.find((p) => p.type === type)?.value;
+    return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
 /**
  * Le prix n'est JAMAIS lu dans la requête : il est déduit du forfait (PLAN_CATALOG) ou de la
  * prestation réservée (meetingPrices). Un `amount` envoyé par le navigateur est ignoré.
@@ -38,8 +54,11 @@ export function resolveCheckoutPrice({ planId, interval, metadata = {} }) {
         if (metadata.type !== 'meeting_booking' || !MEETING_TYPE_VALUES.has(type) || !MEETING_DURATION_VALUES.has(duration)) {
             throw Object.assign(new Error('Réservation invalide'), { statusCode: 400 });
         }
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(metadata.date || ''))) {
+        if (!isRealCalendarDate(String(metadata.date || ''))) {
             throw Object.assign(new Error('Date de réservation invalide'), { statusCode: 400 });
+        }
+        if (String(metadata.date) < todayInParis()) {
+            throw Object.assign(new Error('La date de réservation est déjà passée'), { statusCode: 400 });
         }
         // Tarifs affichés HT : on encaisse le TTC (TVA 20 %). Avant, le HT était encaissé tel quel.
         return { amount: meetingPriceTtc(type, duration), mode: 'payment' };

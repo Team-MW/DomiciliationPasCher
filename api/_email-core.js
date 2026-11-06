@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import { ADMIN_EMAIL } from './_smtp.js';
 import { readServerEnv } from './_env.js';
 import { getDbConn } from './_db.js';
-import { sendBrandedMail, logEmail, htmlToText, escapeHtml, escapeMultiline, emailButton, displayName, CONTACT_EMAIL, SITE_URL } from './_email-kit.js';
+import { sendBrandedMail, logEmail, htmlToText, isSingleEmail, escapeHtml, escapeMultiline, emailButton, displayName, CONTACT_EMAIL, SITE_URL } from './_email-kit.js';
 import {
     buildDocumentRequestEmail, buildAccountCreatedEmail, buildMailDigestEmail, buildWelcomeEmail, buildApprovalEmail,
     buildPostSignatureEmail, buildNewMessageEmail, buildProcurationEmail, buildConsultationEmail,
@@ -29,6 +29,7 @@ export const EMAIL_TYPES = Object.freeze([
     'new_message', 'admin_new_message', 'new_mail', 'consultation_creation', 'admin_reexpedition',
     'reexpedition_sent', 'reexpedition_refused', 'souscription_lead', 'contact_advisor',
     'request_documents', 'account_created', 'admin_document_uploaded',
+    'admin_payment_received', 'admin_payment_problem',
 ]);
 
 export function isKnownEmailType(type) {
@@ -36,7 +37,7 @@ export function isKnownEmailType(type) {
 }
 
 /** Types envoyés à la boîte interne (jamais au client). */
-const ADMIN_INBOX_TYPES = new Set(['admin_new_message', 'admin_reexpedition', 'admin_document_uploaded']);
+export const ADMIN_INBOX_TYPES = new Set(['admin_new_message', 'admin_reexpedition', 'admin_document_uploaded', 'admin_payment_received', 'admin_payment_problem']);
 const CONTACT_INBOX_TYPES = new Set(['contact_advisor', 'souscription_lead']);
 
 const field = (label, value, fallback = '—') =>
@@ -177,11 +178,38 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
                 <p>Vérifiez-le et validez-le depuis l'onglet <strong>Documents</strong> de la fiche client.</p>
                 ${emailButton(adminUrl, 'Ouvrir l’administration', '#0f172a')}`,
         };
+    } else if (type === 'admin_payment_received') {
+        built = {
+            subject: `Abonnement démarré — ${company || who}`,
+            text: `${nom ? `${nom} ` : ''}(${email}) a enregistré sa carte : l'abonnement Stripe est actif.\n\nFiche : ${adminUrl}`,
+            html: `
+                <h2 style="margin-top:0;color:#0f172a;">Abonnement démarré</h2>
+                <p><strong>${escapeHtml(nom || '—')}</strong> (${escapeHtml(email)}) a enregistré sa carte : l'abonnement Stripe est actif.</p>
+                ${emailButton(adminUrl, 'Ouvrir l’administration', '#0f172a')}`,
+        };
+    } else if (type === 'admin_payment_problem') {
+        const reasons = {
+            plan_mismatch: 'la formule ou la fréquence payée ne correspond plus à la demande (demande modifiée pendant le paiement)',
+            amount_mismatch: 'le montant encaissé est inférieur au tarif attendu',
+            missing_metadata: 'la session de paiement est incomplète',
+            no_db: 'la base de données était indisponible au moment du paiement',
+        };
+        const why = reasons[notes] || `cause : ${notes || 'inconnue'}`;
+        built = {
+            subject: `⚠ Paiement reçu mais dossier NON activé — ${who}`,
+            text: `Un paiement a été encaissé mais le dossier n'a pas pu être activé automatiquement : ${why}.\n\nSession Stripe : ${documentName || '—'}\nClient : ${who}\n\nVérifiez le paiement dans Stripe puis traitez le dossier à la main : ${adminUrl}`,
+            html: `
+                <h2 style="margin-top:0;color:#B91C1C;">Paiement reçu, dossier non activé</h2>
+                <p>Un client a payé mais son dossier n'a pas pu être activé automatiquement : <strong>${escapeHtml(why)}</strong>.</p>
+                ${box([field('Client', who), field('Session Stripe', documentName)].join(''))}
+                <p>Vérifiez le paiement dans Stripe, puis validez ou traitez le dossier à la main.</p>
+                ${emailButton(adminUrl, 'Ouvrir l’administration', '#0f172a')}`,
+        };
     } else if (type === 'approval') {
-        built = buildApprovalEmail({ nom, baseUrl });
+        built = buildApprovalEmail({ nom, baseUrl, email });
     } else {
         // Bienvenue (type absent) : paiement de la souscription confirmé.
-        built = buildWelcomeEmail({ nom, baseUrl });
+        built = buildWelcomeEmail({ nom, baseUrl, email });
         adminCopy = {
             type: 'admin_new_client',
             subject: `Nouveau client inscrit : ${who}`,
@@ -200,6 +228,8 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
 
     return {
         ...built,
+        // Un saut de ligne dans l'objet pourrait injecter un en-tête (le nom du client y est repris).
+        subject: String(built.subject || '').replace(/[\r\n]+/g, ' ').trim(),
         to,
         logType: type || 'welcome',
         clientEmail: type === 'contact_advisor' ? undefined : email,
@@ -226,6 +256,11 @@ export async function deliverEmail(body = {}, { baseUrl = SITE_URL, source } = {
         err.statusCode = 400;
         throw err;
     }
+    if (!isSingleEmail(body.email)) {
+        const err = new Error('Adresse email invalide.');
+        err.statusCode = 400;
+        throw err;
+    }
 
     const mail = buildTransactionalEmail(body, { baseUrl });
     const conn = getDbConn();
@@ -248,6 +283,9 @@ export async function deliverEmail(body = {}, { baseUrl = SITE_URL, source } = {
             user: smtpUser,
             pass: smtpPass,
         },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
     });
 
     const info = await sendBrandedMail(transporter, {

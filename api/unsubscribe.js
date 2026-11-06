@@ -18,6 +18,8 @@ export default async function handler(req, res) {
         const conn = getDbConn();
         if (!conn) throw new Error('db');
         await conn.execute(SOUSCRIPTION_LEADS_DDL);
+        const known = await conn.execute('SELECT 1 FROM souscription_leads WHERE token = ? LIMIT 1', [token]);
+        if (known?.rows && known.rows.length === 0) throw new Error('unknown token');
         await conn.execute(
             'UPDATE souscription_leads SET unsubscribed_at = ? WHERE token = ? AND unsubscribed_at IS NULL',
             [new Date().toISOString(), token],

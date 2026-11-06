@@ -109,7 +109,10 @@ export function canRequestPhysicalForward(plan, extra = {}) {
  * @returns {Date} minuit (heure locale) du début de la période courante
  */
 export function currentQuotaPeriodStart(sinceIso, now = new Date()) {
-    const since = new Date(sinceIso);
+    // « 2026-11-06 » est lu comme une DATE (jour tel qu'écrit), pas comme minuit UTC : sinon le jour d'anniversaire
+    // reculait d'un jour pour un navigateur à l'ouest de Greenwich.
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(sinceIso || ''));
+    const since = dateOnly ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])) : new Date(sinceIso);
     const day = Number.isNaN(since.getTime()) ? 1 : since.getDate();
     const anniversary = (year, month) => {
         const lastDay = new Date(year, month + 1, 0).getDate();

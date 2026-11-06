@@ -28,6 +28,18 @@ const formatDate = (value) => {
 const plural = (n, one, many) => (n > 1 ? many : one);
 const clientSpace = (baseUrl, tab) => `${baseUrl}/app/espace-client${tab ? `?tab=${tab}` : ''}`;
 const heading = (title) => `<h2 style="margin-top:0;color:#0f172a;">${escapeHtml(title)}</h2>`;
+/**
+ * Accès à l'espace client depuis un email. Un client qui vient de payer n'a PAS encore de compte de
+ * connexion : il doit d'abord le créer (/inscription, email prérempli et vérifié), sinon la page
+ * « Se connecter » lui répond « compte introuvable » (cas réel : William R., nov. 2026).
+ */
+export const signupUrl = (baseUrl, email) => `${baseUrl}/inscription${email ? `?email=${encodeURIComponent(String(email).trim().toLowerCase())}` : ''}`;
+const normEmail = (email) => (email ? String(email).trim().toLowerCase() : '');
+const accessBlockHtml = (baseUrl, rawEmail, email = normEmail(rawEmail)) => `
+        ${emailButton(signupUrl(baseUrl, email), 'Créer mon accès à l’espace client')}
+        <p style="font-size:14px;color:#475569;text-align:center;margin-top:-12px;">Première connexion : choisissez votre mot de passe avec l’adresse <strong>${escapeHtml(email || 'utilisée lors de votre souscription')}</strong>.<br>Vous avez déjà créé votre accès ? <a href="${escapeHtml(`${baseUrl}/connexion`)}" style="color:#1A56DB;">Se connecter</a></p>`;
+const accessBlockText = (baseUrl, rawEmail, email = normEmail(rawEmail)) => `Première connexion : créez votre accès (mot de passe) avec l'adresse ${email || 'utilisée lors de votre souscription'} : ${signupUrl(baseUrl, email)}
+Vous avez déjà créé votre accès ? Se connecter : ${baseUrl}/connexion`;
 const infoBox = (inner) => `<p style="background:#eff6ff;border-left:4px solid #1A56DB;padding:12px 16px;border-radius:6px;">${inner}</p>`;
 const alertBox = (inner) => `<p style="background:#fff7ed;border-left:4px solid #ea580c;padding:12px 16px;border-radius:6px;">${inner}</p>`;
 
@@ -244,15 +256,14 @@ export function buildAccountCreatedEmail({ nom, email, planName, frequence, payU
 
 /* ---------- Bienvenue (paiement de la souscription confirmé) ---------- */
 
-export function buildWelcomeEmail({ nom, baseUrl }) {
-    const url = clientSpace(baseUrl, 'docs');
+export function buildWelcomeEmail({ nom, baseUrl, email }) {
     const subject = 'Bienvenue chez Domiciliation Pas Cher : prochaines étapes';
     const steps = [
         ['Vérification de votre dossier', 'notre équipe contrôle votre demande. Vous recevrez un email dès sa validation.'],
         ['Pièces justificatives', 'complétez si besoin votre dossier depuis votre espace client, rubrique « Mes documents » (pièce d\'identité, justificatif de domicile de moins de 3 mois, statuts, extrait Kbis).'],
         ['Signature du contrat', 'signez électroniquement votre contrat de domiciliation depuis la même rubrique.'],
     ];
-    const text = `${greetingText(nom)}\n\nMerci pour votre souscription : votre paiement est confirmé.\n\nVos prochaines étapes :\n${steps.map(([t, d], i) => `${i + 1}. ${t} : ${d}`).join('\n')}\n\nAccéder à mon espace client : ${url}\n\n${signatureText()}`;
+    const text = `${greetingText(nom)}\n\nMerci pour votre souscription : votre paiement est confirmé.\n\nVos prochaines étapes :\n${steps.map(([t, d], i) => `${i + 1}. ${t} : ${d}`).join('\n')}\n\n${accessBlockText(baseUrl, email)}\n\n${signatureText()}`;
     const html = `
         ${heading('Bienvenue chez Domiciliation Pas Cher')}
         <p>${greetingHtml(nom)}</p>
@@ -261,18 +272,18 @@ export function buildWelcomeEmail({ nom, baseUrl }) {
         <ol style="padding-left:20px;">
             ${steps.map(([t, d]) => `<li style="margin-bottom:6px;"><strong>${escapeHtml(t)}</strong> : ${escapeHtml(d)}</li>`).join('\n            ')}
         </ol>
-        ${emailButton(url, 'Accéder à mon espace client')}
+        ${accessBlockHtml(baseUrl, email)}
         ${signatureHtml()}`;
     return { subject, text, html };
 }
 
 /* ---------- Dossier validé ---------- */
 
-export function buildApprovalEmail({ nom, baseUrl }) {
+export function buildApprovalEmail({ nom, baseUrl, email }) {
     const url = clientSpace(baseUrl);
     const subject = 'Votre dossier de domiciliation est validé';
     const addressText = DOMICILIATION_ADDRESS_LINES.join('\n');
-    const text = `${greetingText(nom)}\n\nBonne nouvelle : votre dossier de domiciliation est validé.\n\nVotre adresse de domiciliation, à communiquer en entier à vos correspondants (précédée du nom de votre société), bâtiment et lot compris :\n\n${addressText}\n\nSans le bâtiment et le numéro de lot, votre courrier risque de ne pas être distribué.\n\nDepuis votre espace client, vous consultez vos documents et suivez la réception de votre courrier : ${url}\n\nMerci pour votre confiance.\n\n${signatureText()}`;
+    const text = `${greetingText(nom)}\n\nBonne nouvelle : votre dossier de domiciliation est validé.\n\nVotre adresse de domiciliation, à communiquer en entier à vos correspondants (précédée du nom de votre société), bâtiment et lot compris :\n\n${addressText}\n\nSans le bâtiment et le numéro de lot, votre courrier risque de ne pas être distribué.\n\nDepuis votre espace client, vous consultez vos documents et suivez la réception de votre courrier : ${url}\n${accessBlockText(baseUrl, email)}\n\nMerci pour votre confiance.\n\n${signatureText()}`;
     const html = `
         ${heading('Votre dossier est validé')}
         <p>${greetingHtml(nom)}</p>
@@ -282,6 +293,7 @@ export function buildApprovalEmail({ nom, baseUrl }) {
         <p style="font-size:14px;">Sans le bâtiment et le numéro de lot, votre courrier risque de ne pas être distribué.</p>
         <p>Depuis votre espace client, vous consultez vos documents et suivez la réception de votre courrier.</p>
         ${emailButton(url, 'Accéder à mon espace client')}
+        <p style="font-size:14px;color:#475569;text-align:center;margin-top:-12px;">Pas encore d’accès ? <a href="${escapeHtml(signupUrl(baseUrl, email))}" style="color:#1A56DB;">Créez-le ici</a> avec l’adresse <strong>${escapeHtml(normEmail(email) || 'de votre souscription')}</strong>.</p>
         <p>Merci pour votre confiance.</p>
         ${signatureHtml()}`;
     return { subject, text, html };

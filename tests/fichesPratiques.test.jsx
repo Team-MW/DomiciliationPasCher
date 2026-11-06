@@ -1,9 +1,15 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { LanguageProvider } from '../src/i18n/LanguageContext';
+import { LanguageProvider, loadLanguage } from '../src/i18n/LanguageContext';
+
+// Comme main.jsx (preloadInitialLanguage) : en / ru sont chargés à la demande, avant l'affichage.
+beforeAll(async () => {
+    await loadLanguage('en');
+    await loadLanguage('ru');
+});
 import { fichesData } from '../src/data/fichesData';
 import fr from '../src/i18n/fr.js';
 import en from '../src/i18n/en.js';

@@ -1,40 +1,76 @@
 
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import Navbar from './components/Navbar/Navbar';
+import { isAdminEmail } from './utils/adminEmail';
 import Footer from './components/Footer/Footer';
 import Home from './pages/Home/Home';
-import Tarifs from './pages/Tarifs/Tarifs';
-import Villes from './pages/Villes/Villes';
-import Services from './pages/Services/Services';
-import About from './pages/About/About';
-import ConnexionPage from './pages/Connexion/Connexion';
-import InscriptionPage from './pages/Connexion/Inscription';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
 import Landing from './pages/Landing/Landing';
-import RendezVous from './pages/RendezVous/RendezVous';
 import CookieConsent from './components/CookieConsent/CookieConsent';
 
 import { useTranslation } from './i18n/LanguageContext';
 import { DialogProvider } from './components/AppDialog/DialogProvider.jsx';
 
-/* Lazy loading pour les grosses pages */
+/* Pages chargées à la demande : l'accueil et /offre (pages d'arrivée Google Ads) restent dans le bundle
+   principal ; les autres sont préchargées dès que le navigateur est libre (navigation instantanée). */
+const loadTarifs = () => import('./pages/Tarifs/Tarifs');
+const loadSouscription = () => import('./pages/Souscription/Souscription');
+const loadVilles = () => import('./pages/Villes/Villes');
+const loadServices = () => import('./pages/Services/Services');
+const loadAbout = () => import('./pages/About/About');
+const loadConnexion = () => import('./pages/Connexion/Connexion');
+const loadInscription = () => import('./pages/Connexion/Inscription');
+const loadRendezVous = () => import('./pages/RendezVous/RendezVous');
+const Tarifs = lazy(loadTarifs);
+const Villes = lazy(loadVilles);
+const Services = lazy(loadServices);
+const About = lazy(loadAbout);
+const ConnexionPage = lazy(loadConnexion);
+const InscriptionPage = lazy(loadInscription);
+const RendezVous = lazy(loadRendezVous);
 const EspaceClient = lazy(() => import('./pages/EspaceClient/EspaceClient'));
 const Admin = lazy(() => import('./pages/Admin/Admin'));
-const Souscription = lazy(() => import('./pages/Souscription/Souscription'));
+const Souscription = lazy(loadSouscription);
+
+/** Ordre de préchargement : parcours d'achat d'abord. */
+export const PREFETCH_PAGES = [loadTarifs, loadSouscription, loadConnexion, loadVilles, loadServices, loadRendezVous, loadAbout, loadInscription];
+
+function usePrefetchPages() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    // Pas de préchargement en mode « économie de données » ou en 2G.
+    const conn = navigator.connection;
+    if (conn?.saveData || /2g/.test(conn?.effectiveType || '')) return undefined;
+    let cancelled = false;
+    const idle = window.requestIdleCallback || ((cb) => window.setTimeout(cb, 2000));
+    const run = async () => {
+      for (const load of PREFETCH_PAGES) {
+        if (cancelled) return;
+        try { await load(); } catch { /* hors ligne : la page se chargera au clic */ }
+      }
+    };
+    const handle = idle(run, { timeout: 4000 });
+    return () => {
+      cancelled = true;
+      (window.cancelIdleCallback || window.clearTimeout)(handle);
+    };
+  }, []);
+}
 const MentionsLegales = lazy(() => import('./pages/MentionsLegales/MentionsLegales'));
 const CGV = lazy(() => import('./pages/CGV/CGV'));
 const Confidentialite = lazy(() => import('./pages/Confidentialite/Confidentialite'));
 const FichesPratiques = lazy(() => import('./pages/FichesPratiques/FichesPratiques'));
 const FicheDetail = lazy(() => import('./pages/FicheDetail/FicheDetail'));
 
-/* Loading fallback */
-function LoadingFallback() {
+/* Chargement d'une page : rien pendant 250 ms (pas de flash si c'est rapide), puis un indicateur discret. */
+function LoadingFallback({ inline = false }) {
   const { tr } = useTranslation();
   return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFF', color: '#1A56DB', fontWeight: 700 }}>
-      {tr.common.loading}
+    <div className={`dpc-page-loading${inline ? ' is-inline' : ''}`} role="status" aria-live="polite">
+      <span className="dpc-page-loading-spinner" aria-hidden="true" />
+      <span className="sr-only">{tr.common.loading}</span>
     </div>
   );
 }
@@ -68,8 +104,7 @@ export function PublicOnlyRoute({ children }) {
   const { user, isLoaded } = useUser();
   
   if (isLoaded && user) {
-    const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
-    if (ADMIN_EMAILS.includes(user.primaryEmailAddress?.emailAddress)) {
+    if (isAdminEmail(user.primaryEmailAddress?.emailAddress)) {
       return <Navigate to="/app/admin" replace />;
     }
     const redirect = safeAppRedirect(new URLSearchParams(window.location.search).get('redirect'));
@@ -88,13 +123,15 @@ function PublicLayout({ children }) {
   return (
     <>
       <Navbar />
-      {children}
+      {/* Suspense ici : la barre de navigation reste affichée pendant le chargement de la page. */}
+      <Suspense fallback={<LoadingFallback inline />}>{children}</Suspense>
       <Footer />
     </>
   );
 }
 
 function App() {
+  usePrefetchPages();
   return (
     <BrowserRouter>
       <DialogProvider>
