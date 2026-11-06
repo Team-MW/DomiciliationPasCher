@@ -4,15 +4,13 @@ import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { appAlert } from '../../../components/AppDialog/dialogApi';
 import { parseExtraInfo } from '../../../utils/contractLegalFields';
+import { PLAN_CATALOG, clientPlanPricing, scanQuotaFor, currentQuotaPeriodStart } from '../../../data/plans';
+import { computeMissingDocuments } from '../../../../shared/documentRequest.js';
 
-const ADDRESS_LINES = [
-    '150 Rue Nicolas Louis Vauquelin',
-    '31100 Toulouse',
-    'FRANCE',
-];
+import { DOMICILIATION_ADDRESS, postalAddressFor } from '../../../../shared/company.js';
 
-export default function Overview({ mail = [], documents = [], bookings = [], clientData, setActiveTab }) {
-    const { t } = useTranslation();
+export default function Overview({ mail = [], documents = [], bookings = [], clientData, setActiveTab, welcomeName = '' }) {
+    const { t, lang } = useTranslation();
     const [copied, setCopied] = useState(false);
     const [coach, setCoach] = useState(null);
     const unreadMailCount = mail.filter(m => m.status === 'non lu').length;
@@ -23,7 +21,7 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
         : t(mail.length > 1 ? 'espaceClient.overview.mailCountPlural' : 'espaceClient.overview.mailCount').replace('{n}', mail.length);
 
     const handleCopyAddress = async () => {
-        const text = `${company}\n${ADDRESS_LINES.join('\n')}`;
+        const text = postalAddressFor(company);
         try {
             if (navigator.clipboard?.writeText) {
                 await navigator.clipboard.writeText(text);
@@ -82,12 +80,54 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
         try {
             if (sessionStorage.getItem(storageKey)) return;
             sessionStorage.setItem(storageKey, '1');
-        } catch {}
+        } catch { /* stockage indisponible : on ignore */ }
         setCoach(next);
     }, [clientData, t]);
 
+    // ── Données du tableau de bord ──
+    const extra = parseExtraInfo(clientData?.extra_info);
+    const pricing = clientPlanPricing(clientData?.plan, extra);
+    const planName = PLAN_CATALOG[pricing.id]?.name || clientData?.plan || '';
+    const scanQuota = scanQuotaFor(clientData?.plan, extra);
+    const periodStart = currentQuotaPeriodStart(clientData?.since);
+    const scansThisPeriod = mail.filter((m) => m?.preview && new Date(m.date) >= periodStart).length;
+    const scanValue = scanQuota === 0
+        ? t('espaceClient.overview.scanNone')
+        : scanQuota === null
+            ? t('espaceClient.overview.scanIncluded')
+            : t('espaceClient.overview.scanUsed').replace('{used}', scansThisPeriod).replace('{quota}', scanQuota);
+
+    // « Finalisez votre dossier » : ce qu'il reste à faire, dans l'ordre.
+    const docsMissing = computeMissingDocuments(['statuts', 'kbis'], { extra, documents });
+    const checklist = [
+        { key: 'paid', label: t('espaceClient.overview.itemPaid'), done: extra.payment_status !== 'pending', tab: 'paiement' },
+        { key: 'contract', label: t('espaceClient.overview.itemContract'), done: Boolean(extra.contractSigned), tab: 'docs' },
+        { key: 'procuration', label: t('espaceClient.overview.itemProcuration'), done: Boolean(extra.procurationSigned), tab: 'docs' },
+        { key: 'docs', label: t('espaceClient.overview.itemDocs'), done: docsMissing.length === 0, tab: 'docs' },
+    ];
+    const doneCount = checklist.filter((c) => c.done).length;
+    const showChecklist = clientData?.status !== 'en_attente_validation' && doneCount < checklist.length;
+
+    const locale = lang === 'en' ? 'en-GB' : lang === 'ru' ? 'ru-RU' : 'fr-FR';
+    const formatDate = (value) => {
+        const d = new Date(value);
+        return Number.isNaN(d.getTime()) ? (value || '') : d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+    };
+    const recentMail = [...mail].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
+    const today = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
+
     return (
-        <div className="ec-tab-animate ec-dash">
+        <div className="ec-tab-animate ecd">
+            <header className="ecd-hero">
+                <div>
+                    <p className="ecd-hero-date">{today}</p>
+                    <h1 className="ecd-hero-title">
+                        {welcomeName ? t('espaceClient.shell.welcome').replace('{name}', welcomeName) : t('espaceClient.shell.welcomeNoName')}
+                    </h1>
+                    <p className="ecd-hero-sub">{t('espaceClient.overview.heroSub').replace('{company}', company)}</p>
+                </div>
+            </header>
+
             {clientData?.status === 'en_attente_validation' && (
                 <div className="ec-dash-progress">
                     <h2>{t('espaceClient.overview.progressTitle')}</h2>
@@ -123,128 +163,139 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
                 </div>
             )}
 
-            <div className="ec-stats-row">
-                <button type="button" className="ec-stat-card ec-dash-stat ec-dash-stat--mail" onClick={() => go('mail')}>
-                    <div className="ec-dash-stat-top">
-                        <span className="ec-dash-stat-icon"><Icons.Mail style={{ width: 20, height: 20 }} /></span>
-                        {unreadMailCount > 0 && <span className="ec-dash-stat-badge">{unreadMailCount}</span>}
-                    </div>
-                    <div>
-                        <div className="ec-stat-label">{t('espaceClient.overview.mailLabel')}</div>
-                        <div className="ec-stat-value" style={{ color: unreadMailCount > 0 ? '#c2410c' : undefined }}>{mailValue}</div>
-                    </div>
-                    <div className="ec-stat-footer">{t('espaceClient.overview.mailFooter')}</div>
-                </button>
 
-                <button type="button" className="ec-stat-card ec-dash-stat ec-dash-stat--docs" onClick={() => go('docs')}>
-                    <div className="ec-dash-stat-top">
-                        <span className="ec-dash-stat-icon"><Icons.Docs style={{ width: 20, height: 20 }} /></span>
+            {showChecklist && (
+                <section className="ecd-card ecd-checklist" aria-labelledby="ecd-checklist-title">
+                    <div className="ecd-card-head">
+                        <h2 id="ecd-checklist-title" className="ecd-card-title">{t('espaceClient.overview.checklistTitle')}</h2>
+                        <span className="ecd-muted">{t('espaceClient.overview.checklistProgress').replace('{done}', doneCount).replace('{total}', checklist.length)}</span>
                     </div>
-                    <div>
-                        <div className="ec-stat-label">{t('espaceClient.overview.docsLabel')}</div>
-                        <div className="ec-stat-value">{documents.length}</div>
+                    <div className="ecd-progress" role="progressbar" aria-valuemin={0} aria-valuemax={checklist.length} aria-valuenow={doneCount}>
+                        <span style={{ width: `${(doneCount / checklist.length) * 100}%` }} />
                     </div>
-                    <div className="ec-stat-footer">{t('espaceClient.overview.docsFooter')}</div>
-                </button>
+                    <ol className="ecd-steps">
+                        {checklist.map((item) => (
+                            <li key={item.key} className={`ecd-step ${item.done ? 'is-done' : ''}`}>
+                                <span className="ecd-step-check" aria-hidden="true">{item.done && <Icons.Check style={{ width: 13, height: 13 }} />}</span>
+                                <span className="ecd-step-label">{item.label}</span>
+                                {!item.done && setActiveTab && (
+                                    <button type="button" className="ecd-step-action" onClick={() => go(item.tab)}>
+                                        {t('espaceClient.overview.actionGo')}
+                                        <Icons.ArrowRight style={{ width: 13, height: 13 }} />
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ol>
+                </section>
+            )}
 
-                <button type="button" className="ec-stat-card ec-dash-stat ec-dash-stat--plan" onClick={() => go('abonnement')}>
-                    <div className="ec-dash-stat-top">
-                        <span className="ec-dash-stat-icon"><Icons.Subscription style={{ width: 20, height: 20 }} /></span>
-                    </div>
-                    <div>
-                        <div className="ec-stat-label">{t('espaceClient.overview.planLabel')}</div>
-                        <div className="ec-stat-value" style={{ fontSize: '26px' }}>{clientData?.plan || 'Essentiel'}</div>
-                    </div>
-                    <div className="ec-stat-footer ec-dash-stat-live">
-                        <Icons.Check style={{ width: 12, height: 12 }} />
-                        {t('espaceClient.overview.planActive')}
-                    </div>
+            <div className="ecd-kpis">
+                <button type="button" className="ecd-kpi" onClick={() => go('mail')}>
+                    <span className="ecd-kpi-icon is-blue"><Icons.Mail style={{ width: 18, height: 18 }} /></span>
+                    <span className="ecd-kpi-label">{t('espaceClient.overview.mailLabel')}</span>
+                    <span className={`ecd-kpi-value ${unreadMailCount > 0 ? 'is-alert' : ''}`}>{mailValue}</span>
                 </button>
-
-                <button type="button" className="ec-stat-card ec-dash-stat ec-dash-stat--book" onClick={() => go('meeting')}>
-                    <div className="ec-dash-stat-top">
-                        <span className="ec-dash-stat-icon"><Icons.Calendar style={{ width: 20, height: 20 }} /></span>
-                    </div>
-                    <div>
-                        <div className="ec-stat-label">{t('espaceClient.overview.bookingsLabel')}</div>
-                        <div className="ec-stat-value">{bookings.length}</div>
-                    </div>
-                    <div className="ec-stat-footer">{t('espaceClient.overview.bookingsFooter')}</div>
+                <button type="button" className="ecd-kpi" onClick={() => go('mail')}>
+                    <span className="ecd-kpi-icon is-green"><Icons.Docs style={{ width: 18, height: 18 }} /></span>
+                    <span className="ecd-kpi-label">{t('espaceClient.overview.scanLabel')}</span>
+                    <span className="ecd-kpi-value">{scanValue}</span>
+                </button>
+                <button type="button" className="ecd-kpi" onClick={() => go('docs')}>
+                    <span className="ecd-kpi-icon is-violet"><Icons.Folder style={{ width: 18, height: 18 }} /></span>
+                    <span className="ecd-kpi-label">{t('espaceClient.overview.docsLabel')}</span>
+                    <span className="ecd-kpi-value">{documents.length}</span>
+                </button>
+                <button type="button" className="ecd-kpi" onClick={() => go('meeting')}>
+                    <span className="ecd-kpi-icon is-amber"><Icons.Calendar style={{ width: 18, height: 18 }} /></span>
+                    <span className="ecd-kpi-label">{t('espaceClient.overview.bookingsLabel')}</span>
+                    <span className="ecd-kpi-value">{bookings.length}</span>
                 </button>
             </div>
 
-            <div className="ec-dash-main">
-                <div className="ec-dash-address">
-                    <div className="ec-dash-address-photo" />
-                    <div className="ec-dash-address-shade" />
-                    <div className="ec-dash-address-top">
-                        <div className="ec-dash-address-kicker">
-                            <Icons.Pin style={{ width: 14, height: 14 }} />
-                            {t('espaceClient.overview.cityKicker')}
-                        </div>
-                        <button type="button" className={`ec-dash-copy ${copied ? 'is-copied' : ''}`} onClick={handleCopyAddress}>
-                            {copied ? <Icons.Check style={{ width: 13, height: 13 }} /> : <Icons.Copy style={{ width: 13, height: 13 }} />}
-                            {copied ? t('espaceClient.overview.copied') : t('espaceClient.overview.copy')}
-                        </button>
-                    </div>
-                    <div className="ec-dash-address-glass">
-                        <div className="ec-dash-address-label">{t('espaceClient.overview.officialAddress')}</div>
-                        <div className="ec-dash-address-company">{company}</div>
-                        <div className="ec-dash-address-lines">
-                            {ADDRESS_LINES[0]}<br />
-                            {ADDRESS_LINES[1]} — {ADDRESS_LINES[2]}
-                        </div>
-                        <div className="ec-dash-approval">
-                            <Icons.Shield style={{ width: 14, height: 14 }} />
-                            {t('espaceClient.overview.approval')}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="ec-dash-side">
-                    <div className="ec-dash-pro">
-                        <div className="ec-dash-pro-glow" />
-                        <div className="ec-dash-pro-row">
-                            <div>
-                                <span className="ec-dash-pro-badge">{t('espaceClient.overview.proBadge')}</span>
-                                <h4>{t('espaceClient.overview.proTitle')}</h4>
-                                <p>{t('espaceClient.overview.proHint')}</p>
-                            </div>
-                            <div className="ec-dash-card-visual" aria-hidden="true">
-                                <span className="ec-dash-card-chip" />
-                                <span className="ec-dash-card-num">FR76 ••••</span>
-                            </div>
-                        </div>
-                        {setActiveTab && (
-                            <button type="button" className="ec-dash-pro-cta" onClick={() => go('compte-pro')}>
-                                {t('espaceClient.overview.discover')}
-                                <Icons.ArrowRight style={{ width: 14, height: 14 }} />
+            <div className="ecd-grid">
+                <section className="ecd-card" aria-labelledby="ecd-recent-title">
+                    <div className="ecd-card-head">
+                        <h2 id="ecd-recent-title" className="ecd-card-title">{t('espaceClient.overview.recentTitle')}</h2>
+                        {mail.length > 0 && setActiveTab && (
+                            <button type="button" className="ecd-link" onClick={() => go('mail')}>
+                                {t('espaceClient.overview.seeAll')} <Icons.ArrowRight style={{ width: 13, height: 13 }} />
                             </button>
                         )}
                     </div>
+                    {recentMail.length === 0 ? (
+                        <div className="ecd-empty">
+                            <span className="ecd-empty-icon"><Icons.Mail style={{ width: 22, height: 22 }} /></span>
+                            <p>{t('espaceClient.overview.recentEmpty')}</p>
+                        </div>
+                    ) : (
+                        <ul className="ecd-mail-list">
+                            {recentMail.map((m) => {
+                                const isParcel = /colis/i.test(m.type || '');
+                                return (
+                                    <li key={m.id}>
+                                        <button type="button" className="ecd-mail-row" onClick={() => go('mail')}>
+                                            <span className={`ecd-mail-icon ${isParcel ? 'is-parcel' : ''}`} aria-hidden="true">
+                                                {isParcel ? <Icons.Folder style={{ width: 16, height: 16 }} /> : <Icons.Mail style={{ width: 16, height: 16 }} />}
+                                            </span>
+                                            <span className="ecd-mail-main">
+                                                <span className="ecd-mail-from">{m.from || t('espaceClient.mail.defaultFrom')}</span>
+                                                <span className="ecd-mail-meta">
+                                                    {m.type || t('espaceClient.mail.defaultType')} · {m.preview ? t('espaceClient.overview.scanned') : (isParcel ? t('espaceClient.overview.parcel') : t('espaceClient.overview.envelopeOnly'))}
+                                                </span>
+                                            </span>
+                                            <span className="ecd-mail-side">
+                                                {m.status === 'non lu' && <span className="ecd-badge-new">{t('espaceClient.overview.newBadge')}</span>}
+                                                <span className="ecd-mail-date">{formatDate(m.date)}</span>
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
 
-                    <div className="ec-dash-shortcuts">
-                        {setActiveTab && (
-                            <>
-                                <button type="button" className="ec-dash-shortcut" onClick={() => go('factures')}>
-                                    <span className="ec-dash-shortcut-icon" style={{ background: '#eff6ff', color: '#2563eb' }}><Icons.Invoice style={{ width: 18, height: 18 }} /></span>
-                                    {t('espaceClient.overview.invoices')}
-                                </button>
-                                <button type="button" className="ec-dash-shortcut" onClick={() => go('paiement')}>
-                                    <span className="ec-dash-shortcut-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}><Icons.CreditCard style={{ width: 18, height: 18 }} /></span>
-                                    {t('espaceClient.overview.payment')}
-                                </button>
-                                <button type="button" className="ec-dash-shortcut" onClick={() => go('aide')}>
-                                    <span className="ec-dash-shortcut-icon" style={{ background: '#ecfdf5', color: '#059669' }}><Icons.Help style={{ width: 18, height: 18 }} /></span>
-                                    {t('espaceClient.overview.help')}
-                                </button>
-                                <button type="button" className="ec-dash-shortcut" onClick={() => go('messages')}>
-                                    <span className="ec-dash-shortcut-icon" style={{ background: '#fff7ed', color: '#ea580c' }}><Icons.Chat style={{ width: 18, height: 18 }} /></span>
-                                    {t('espaceClient.overview.support')}
-                                </button>
-                            </>
-                        )}
-                    </div>
+                <div className="ecd-side">
+                    <section className="ecd-address" aria-labelledby="ecd-address-title">
+                        <div className="ecd-address-head">
+                            <span className="ecd-address-pin"><Icons.Pin style={{ width: 16, height: 16 }} /></span>
+                            <h2 id="ecd-address-title">{t('espaceClient.overview.addressTitle')}</h2>
+                        </div>
+                        <p className="ecd-address-company">{company}</p>
+                        <p className="ecd-address-lines">
+                            {DOMICILIATION_ADDRESS.street}<br />
+                            {DOMICILIATION_ADDRESS.building}<br />
+                            {DOMICILIATION_ADDRESS.postalCode} {DOMICILIATION_ADDRESS.city}
+                        </p>
+                        <div className="ecd-address-foot">
+                            <span className="ecd-address-approval"><Icons.Shield style={{ width: 13, height: 13 }} /> {t('espaceClient.overview.approval')}</span>
+                            <button type="button" className={`ecd-copy ${copied ? 'is-copied' : ''}`} onClick={handleCopyAddress}>
+                                {copied ? <Icons.Check style={{ width: 13, height: 13 }} /> : <Icons.Copy style={{ width: 13, height: 13 }} />}
+                                {copied ? t('espaceClient.overview.copied') : t('espaceClient.overview.copy')}
+                            </button>
+                        </div>
+                    </section>
+
+                    {setActiveTab && (
+                        <section className="ecd-card" aria-labelledby="ecd-quick-title">
+                            <h2 id="ecd-quick-title" className="ecd-card-title">{t('espaceClient.overview.quickTitle')}</h2>
+                            <div className="ecd-quick">
+                                <button type="button" onClick={() => go('factures')}><span className="is-blue"><Icons.Invoice style={{ width: 16, height: 16 }} /></span>{t('espaceClient.overview.invoices')}</button>
+                                <button type="button" onClick={() => go('paiement')}><span className="is-violet"><Icons.CreditCard style={{ width: 16, height: 16 }} /></span>{t('espaceClient.overview.payment')}</button>
+                                <button type="button" onClick={() => go('messages')}><span className="is-amber"><Icons.Chat style={{ width: 16, height: 16 }} /></span>{t('espaceClient.overview.support')}</button>
+                                <button type="button" onClick={() => go('aide')}><span className="is-green"><Icons.Help style={{ width: 16, height: 16 }} /></span>{t('espaceClient.overview.help')}</button>
+                            </div>
+                        </section>
+                    )}
+
+                    {setActiveTab && (
+                        <button type="button" className="ecd-promo" onClick={() => go('compte-pro')}>
+                            <span className="ecd-promo-badge">{t('espaceClient.overview.proBadge')}</span>
+                            <span className="ecd-promo-title">{t('espaceClient.overview.proTitle')}</span>
+                            <span className="ecd-promo-cta">{t('espaceClient.overview.discover')} <Icons.ArrowRight style={{ width: 13, height: 13 }} /></span>
+                        </button>
+                    )}
                 </div>
             </div>
 

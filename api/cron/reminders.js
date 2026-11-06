@@ -4,7 +4,8 @@ import { getDbConn } from '../_db.js';
 import { processFailedPayments } from '../_payment-dunning.js';
 import crypto from 'crypto';
 import { readServerEnv } from '../_env.js';
-import { sendBrandedMail, getBaseUrl, escapeHtml } from '../_email-kit.js';
+import { sendBrandedMail, getBaseUrl, publicSiteUrl } from '../_email-kit.js';
+import { buildRenewalReminderEmail } from '../_email-templates.js';
 import { addCalendarMonths } from '../../shared/paymentGrace.js';
 import { processMailNotifications, processDocumentRequests, processSouscriptionLeads, processPendingPayments } from '../_notifications.js';
 
@@ -124,7 +125,10 @@ export async function sendRenewalReminders(stripe, conn, now = new Date()) {
 
                 const customer = await stripe.customers.retrieve(sub.customer);
                 if (customer && customer.email && !customer.deleted) {
-                    await sendReminderEmail(customer.email, customer.name, conn);
+                    // Rappel légal : l'abonnement n'est marqué « rappelé » QUE si l'email est parti.
+                    // Sinon il repart au passage suivant (rattrapage sur 7 jours).
+                    const sent = await sendReminderEmail(customer.email, customer.name, conn, periodEndDay);
+                    if (!sent) continue;
                     await stripe.subscriptions.update(sub.id, {
                         metadata: { ...(sub.metadata || {}), dpc_renewal_reminded: periodEndDay },
                     });
@@ -141,38 +145,33 @@ export async function sendRenewalReminders(stripe, conn, now = new Date()) {
     return remindersSent;
 }
 
-async function sendReminderEmail(email, name, conn) {
+/** @returns {Promise<boolean>} true si l'email est parti. */
+export async function sendReminderEmail(email, name, conn, periodEndDay) {
     try {
         const transporter = getTransporter();
         if (!transporter) {
             console.error("Cron: configuration SMTP manquante, rappel non envoyé à", email);
-            return;
+            return false;
         }
         const { from: smtpFrom } = getSmtpConfig();
-
-        const message = `Bonjour,\n\nNous vous informons que votre contrat de domiciliation arrive à échéance dans 2 mois. Conformément à la législation, ce message a pour but de vous rappeler la possibilité d'exercer votre droit de résiliation si vous ne souhaitez pas renouveler votre abonnement.\n\nSans action de votre part, le contrat sera reconduit tacitement.\n\nCordialement,\nL'équipe Domiciliation-Pas-Cher.com`;
-
-        const htmlMessage = `
-            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                <h2>Rappel d'échéance de contrat</h2>
-                <p>Bonjour ${escapeHtml(name || 'Client')},</p>
-                <p>Nous vous informons que votre contrat de domiciliation arrive à échéance dans 2 mois.</p>
-                <p>Conformément à la législation, ce message a pour but de vous rappeler la possibilité d'exercer votre droit de résiliation si vous ne souhaitez pas renouveler votre abonnement.</p>
-                <p>Sans action de votre part, le contrat sera reconduit tacitement.</p>
-                <p>Cordialement,<br>L'équipe Domiciliation-Pas-Cher.com</p>
-            </div>
-        `;
+        const { subject, text, html } = buildRenewalReminderEmail({
+            nom: name,
+            periodEndIso: periodEndDay,
+            baseUrl: publicSiteUrl(),
+        });
 
         await sendBrandedMail(transporter, {
             conn,
             type: 'renewal_reminder',
             from: smtpFrom,
             to: email,
-            subject: "Rappel d'échéance - Domiciliation Pas Cher",
-            text: message,
-            html: htmlMessage,
+            subject,
+            text,
+            html,
         });
+        return true;
     } catch (err) {
         console.error("Erreur envoi email rappel:", err);
+        return false;
     }
 }

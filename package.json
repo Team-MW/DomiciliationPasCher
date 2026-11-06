@@ -15,7 +15,7 @@
     "test": "vitest run --pool=threads --maxWorkers=1",
     "test:deploy": "node scripts/verify.mjs",
     "prepare": "node scripts/install-hooks.js",
-    "db:clean-docs": "node scripts/reset-test-client.cjs",
+    "db:clean-docs": "CONFIRM=oui node scripts/maintenance/reset-test-client.cjs",
     "test:smtp": "node scripts/smtp-check.mjs",
     "smoke": "node scripts/smoke-check.mjs",
     "verify": "node scripts/verify.mjs",

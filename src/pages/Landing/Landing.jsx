@@ -20,13 +20,13 @@ const LEGAL_FOOTER_STYLE = {
 
 const HOW_IT_WORKS = [
     { n: '1', title: 'Vous remplissez', desc: '5 minutes, 100 % en ligne. Rien n’est débité avant la fin.' },
-    { n: '2', title: 'Vous payez', desc: 'Paiement sécurisé Stripe. Sans engagement au-delà de 3 mois.' },
-    { n: '3', title: 'Vous recevez', desc: 'Attestation de siège social immédiate, utilisable au greffe.' },
+    { n: '2', title: 'Vous payez', desc: 'Paiement sécurisé Stripe. Engagement légal de 3 mois, puis résiliable avec 1 mois de préavis.' },
+    { n: '3', title: 'Vous recevez', desc: 'Votre attestation de domiciliation sous 24 h après validation du dossier, utilisable au greffe.' },
 ];
 
 const TRUST_ITEMS = [
     {
-        title: 'Agréé Préfecture',
+        title: 'Agréé par la préfecture',
         desc: 'Adresse officielle acceptée au greffe, aux impôts et en banque.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -37,8 +37,8 @@ const TRUST_ITEMS = [
         ),
     },
     {
-        title: 'Attestation immédiate',
-        desc: 'Document de siège social délivré en ligne, dès la souscription.',
+        title: 'Attestation sous 24 h',
+        desc: 'Attestation de domiciliation émise sous 24 h après validation de votre dossier.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M13 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" />
@@ -48,8 +48,8 @@ const TRUST_ITEMS = [
         ),
     },
     {
-        title: 'Sans engagement',
-        desc: 'Résiliable à tout moment, au-delà de la durée légale de 3 mois.',
+        title: 'Résiliation simple',
+        desc: 'Engagement légal de 3 mois, puis résiliable depuis votre espace client avec 1 mois de préavis.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -61,7 +61,7 @@ const TRUST_ITEMS = [
 
 export default function Landing() {
     // Landing des campagnes publicitaires : hors sitemap et non indexée (doublon de l'accueil).
-    usePageMeta({ title: 'Domiciliation à Toulouse dès 20 € HT/mois — Domiciliation Pas Cher', path: '/offre', noindex: true });
+    usePageMeta({ title: 'Domiciliation à Toulouse dès 16 € HT/mois — Domiciliation Pas Cher', path: '/offre', noindex: true });
     const navigate = useNavigate();
 
     return (
@@ -75,7 +75,7 @@ export default function Landing() {
 
             <main className="ld-main">
                 <div className="ld-badge">
-                    Offre créateurs — dès 20€ HT/mois
+                    Offre créateurs — dès 16 € HT/mois
                 </div>
 
                 <h1 className="ld-title">
@@ -83,7 +83,7 @@ export default function Landing() {
                 </h1>
 
                 <p className="ld-lead">
-                    Attestation de siège social immédiate. 100 % en ligne, sécurisé, sans paperasse.
+                    Attestation de domiciliation sous 24 h. 100 % en ligne, sécurisé, sans paperasse.
                 </p>
 
                 <button type="button" className="ld-cta" onClick={() => navigate('/souscription')}>
@@ -93,8 +93,7 @@ export default function Landing() {
                     </svg>
                 </button>
                 <p className="ld-social">
-                    <span className="ld-stars" aria-hidden="true">★★★★★</span>
-                    +2 000 entrepreneurs nous font déjà confiance
+                    Plus de 2 000 entrepreneurs nous font déjà confiance
                 </p>
 
                 <section className="ld-how" aria-label="Comment ça se passe">

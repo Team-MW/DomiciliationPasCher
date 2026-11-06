@@ -14,6 +14,17 @@ export const EMAIL_LOGS_DDL = `CREATE TABLE IF NOT EXISTS email_logs (
 /** Tables créées avant l'ajout de client_email (email concerné, même si l'envoi part à l'admin). */
 export const EMAIL_LOGS_ADD_CLIENT_COLUMN = 'ALTER TABLE email_logs ADD COLUMN client_email VARCHAR(255) NULL';
 
+/** Colonnes ajoutées en nov. 2026 pour l'historique complet (contenu, origine, identifiant SMTP). */
+export const EMAIL_LOGS_MIGRATIONS = Object.freeze([
+    EMAIL_LOGS_ADD_CLIENT_COLUMN,
+    'ALTER TABLE email_logs ADD COLUMN body_text MEDIUMTEXT NULL',
+    'ALTER TABLE email_logs ADD COLUMN source VARCHAR(16) NULL',
+    'ALTER TABLE email_logs ADD COLUMN message_id VARCHAR(255) NULL',
+]);
+
+/** Taille maximale du contenu texte archivé par email. */
+export const EMAIL_LOG_BODY_MAX = 12000;
+
 export const SOUSCRIPTION_LEADS_DDL = `CREATE TABLE IF NOT EXISTS souscription_leads (
     email VARCHAR(255) PRIMARY KEY,
     token VARCHAR(64) NOT NULL,

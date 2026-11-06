@@ -1,3 +1,4 @@
+import './_confirm.cjs';
 /**
  * Test d'intégration Stripe de bout en bout, en mode TEST uniquement.
  *
@@ -8,7 +9,7 @@
  */
 import Stripe from 'stripe';
 import fs from 'fs';
-import { resolveClientStatusFromStripe } from '../src/utils/stripeClientStatus.js';
+import { resolveClientStatusFromStripe } from '../../src/utils/stripeClientStatus.js';
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:5173';
 const TAG = 'integration_test_stripe';

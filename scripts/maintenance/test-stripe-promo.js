@@ -1,3 +1,4 @@
+import './_confirm.cjs';
 import Stripe from 'stripe';
 import fs from 'fs';
 

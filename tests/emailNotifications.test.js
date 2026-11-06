@@ -8,8 +8,8 @@ const DAY = 24 * 60 * 60 * 1000;
 
 describe('kit email commun', () => {
     it('impose le nom d’expéditeur et le pied de page légal', () => {
-        expect(brandedFrom('contact@domiciliation-pas-cher.com')).toBe('"Domiciliation Pas Cher" <contact@domiciliation-pas-cher.com>');
-        expect(brandedFrom('Autre <x@y.fr>')).toBe('"Domiciliation Pas Cher" <x@y.fr>');
+        expect(brandedFrom('contact@domiciliation-pas-cher.com')).toBe('"domiciliation-pas-cher.com" <contact@domiciliation-pas-cher.com>');
+        expect(brandedFrom('Autre <x@y.fr>')).toBe('"domiciliation-pas-cher.com" <x@y.fr>');
         const html = wrapEmail('<p>Salut</p>', { unsubscribeUrl: 'https://x/unsub' });
         expect(html).toContain('AG/DOM/2026/06');
         expect(html).toContain('150 rue Nicolas Louis Vauquelin');
@@ -111,7 +111,7 @@ describe('enchaînement des emails', () => {
 
 describe('nouveau courrier', () => {
     it('met en avant colis et recommandé dans l’objet', () => {
-        expect(buildMailDigestEmail({ mails: [{ type: 'Colis' }], baseUrl: '' }).subject).toBe('📦 Un colis vous attend');
+        expect(buildMailDigestEmail({ mails: [{ type: 'Colis' }], baseUrl: '' }).subject).toBe('Un colis vous attend');
         expect(buildMailDigestEmail({ mails: [{ type: 'Lettre recommandée' }], baseUrl: '' }).subject).toMatch(/recommandé/);
         expect(buildMailDigestEmail({ mails: [{ type: 'Lettre simple' }], baseUrl: '' }).subject).toBe('Vous avez reçu un nouveau courrier');
         const colis = buildMailDigestEmail({ mails: [{ type: 'Colis', from: 'Amazon', date: '2026-10-19' }], baseUrl: 'https://s' });
@@ -140,7 +140,7 @@ describe('nouveau courrier', () => {
         expect(result).toEqual({ mailDigestsSent: 2 });
         const recipients = transporter.sendMail.mock.calls.map(([m]) => m.to);
         expect(recipients).toEqual(['c1@test.fr', 'courrier@deux.fr']);
-        expect(transporter.sendMail.mock.calls[0][0].subject).toMatch(/📦/);
+        expect(transporter.sendMail.mock.calls[0][0].subject).toBe('Un colis et 1 autre courrier vous attendent');
         const marks = conn.execute.mock.calls.filter(([sql]) => sql.startsWith('UPDATE mail SET notified_at = ?'));
         expect(marks[0][1].slice(1)).toEqual(['m1', 'm2']);
     });
@@ -190,11 +190,178 @@ describe('inscription non terminée', () => {
     });
 
     it('mentionne la formule, les étapes restantes et les avantages', () => {
-        const { html } = buildLeadReminderEmail({ firstName: 'Paul', planId: 'essentiel', step: 6, resumeUrl: 'https://s/r', reminderIndex: 0 });
-        expect(html).toContain('Essentiel');
+        const { html, text } = buildLeadReminderEmail({ firstName: 'Paul', planId: 'essentiel', step: 6, resumeUrl: 'https://s/r', reminderIndex: 0 });
+        expect(html).toContain('Essentiel — 16,00 € HT/mois (19,20 € TTC)');
         expect(html).toContain('Justificatifs → Paiement');
-        expect(html).toContain('Sans frais d\'ouverture');
-        expect(html).toContain('2 mois offerts');
+        expect(html).toContain('Sans frais d&#39;ouverture');
+        expect(text).toContain('Sans frais d\'ouverture');
+        expect(text).toContain('Attestation de domiciliation sous 24 h');
+        expect(html).toContain('20 % de remise en paiement annuel');
         expect(html).toContain('sauvegardées');
+    });
+});
+
+/* ------------------------------------------------------------------------------------------
+ * Qualité de tous les emails automatiques : faits, liens, données manquantes, échappement.
+ * ---------------------------------------------------------------------------------------- */
+import { buildTransactionalEmail } from '../api/_email-core.js';
+import {
+    buildAccountCreatedEmail, buildPaymentFailedEmail, buildTerminationEmail, buildRenewalReminderEmail, mailStatusLabel,
+} from '../api/_email-templates.js';
+import { displayName, greetingText, formatEuro, textFooter, SIGNATURE } from '../api/_email-kit.js';
+
+const BASE = 'https://www.domiciliation-pas-cher.com';
+const ALL_TYPES = [
+    'payment_failed', 'payment_reminder', 'post_signature', 'new_message', 'admin_new_message', 'new_mail',
+    'consultation_creation', 'procuration_postale', 'admin_reexpedition', 'reexpedition_sent', 'reexpedition_refused',
+    'souscription_lead', 'contact_advisor', 'request_documents', 'account_created', 'admin_document_uploaded',
+    'approval', undefined,
+];
+const CLIENT_TYPES = ALL_TYPES.filter((t) => !['admin_new_message', 'admin_reexpedition', 'admin_document_uploaded', 'souscription_lead', 'contact_advisor'].includes(t));
+
+describe('tous les emails transactionnels', () => {
+    it.each(ALL_TYPES.map((t) => [t || 'welcome', t]))('%s : aucun trou si les données optionnelles manquent', (_label, type) => {
+        const mail = buildTransactionalEmail({ type, email: 'jean@test.fr', nom: 'Client' }, { baseUrl: BASE });
+        const all = [mail.subject, mail.text, mail.html, mail.adminCopy?.subject, mail.adminCopy?.html].join('\n');
+        expect(all).not.toMatch(/undefined|null|NaN|\[object/);
+        expect(all).not.toMatch(/Bonjour Client|Bonjour ,/);
+        expect(all).not.toContain('domiciliation-pas-cher.fr');
+        expect(all).not.toMatch(/Scan\+|Physique\+|BIENVENUE|immédiat/);
+        expect(mail.subject).not.toMatch(/[!\u{1F300}-\u{1FAFF}☀-➿]/u);
+        expect(mail.subject).not.toMatch(/^[^a-z]*$/); // pas tout en majuscules
+        expect(mail.html).not.toMatch(/href="(?!https:|mailto:|tel:)/); // liens absolus uniquement
+        expect(mail.text).toBeTruthy();
+    });
+
+    it.each(CLIENT_TYPES.map((t) => [t || 'welcome', t]))('%s : vouvoiement, signature commune, « Bonjour, » sans nom', (_label, type) => {
+        const mail = buildTransactionalEmail({ type, email: 'jean@test.fr' }, { baseUrl: BASE });
+        expect(mail.text).toMatch(/^Bonjour,/);
+        expect(mail.html).toContain('Bonjour,');
+        expect(mail.text).toContain(SIGNATURE);
+        expect(mail.html).toContain(SIGNATURE);
+        expect(`${mail.text}${mail.html}`).not.toMatch(/\b(tu|ton|ta|tes)\b /);
+    });
+
+    it.each(ALL_TYPES.map((t) => [t || 'welcome', t]))('%s : toute donnée saisie est échappée', (_label, type) => {
+        const evil = '<img src=x onerror=alert(1)>';
+        const body = { type, email: 'jean@test.fr' };
+        for (const k of ['nom', 'content', 'address', 'notes', 'company', 'telephone', 'projetType', 'dateDispo', 'message', 'documentName', 'mailFrom', 'mailType', 'amount']) body[k] = evil;
+        const mail = buildTransactionalEmail(body, { baseUrl: BASE });
+        expect(mail.html).not.toContain('<img src=x');
+        expect(mail.adminCopy?.html || '').not.toContain('<img src=x');
+    });
+
+    it('routage inchangé : interne vers la boîte admin, prospect en reply-to', () => {
+        expect(buildTransactionalEmail({ type: 'contact_advisor', email: 'p@test.fr' }).to).toBe('contact@domiciliation-pas-cher.com');
+        expect(buildTransactionalEmail({ type: 'contact_advisor', email: 'p@test.fr' }).replyTo).toBe('p@test.fr');
+        expect(buildTransactionalEmail({ type: 'approval', email: 'c@test.fr' }).to).toBe('c@test.fr');
+        expect(buildTransactionalEmail({ type: 'approval', email: 'c@test.fr' }).replyTo).toBe('contact@domiciliation-pas-cher.com');
+        expect(buildTransactionalEmail({ email: 'c@test.fr' }).adminCopy.type).toBe('admin_new_client');
+    });
+
+    it('validation : adresse de domiciliation complète (bâtiment et lot)', () => {
+        const { text, html } = buildTransactionalEmail({ type: 'approval', email: 'c@test.fr', nom: 'Ada' }, { baseUrl: BASE });
+        expect(text).toContain('Bâtiment B, Lot 308');
+        expect(html).toContain('Bâtiment B, Lot 308');
+        expect(html).toContain(`${BASE}/app/espace-client`);
+    });
+
+    it('message de l’équipe : retours à la ligne conservés, lien vers la messagerie', () => {
+        const { html } = buildTransactionalEmail({ type: 'new_message', email: 'c@test.fr', content: 'Ligne 1\nLigne 2' }, { baseUrl: BASE });
+        expect(html).toContain('Ligne 1<br>Ligne 2');
+        expect(html).toContain(`${BASE}/app/espace-client?tab=messages`);
+    });
+
+    it('lien de paiement manuel non http(s) : repli sur l’espace client', () => {
+        const { html } = buildTransactionalEmail({ type: 'payment_reminder', email: 'c@test.fr', paymentLink: 'javascript:alert(1)' }, { baseUrl: BASE });
+        expect(html).not.toContain('javascript:');
+        expect(html).toContain(`${BASE}/app/espace-client?tab=factures`);
+    });
+});
+
+describe('faits affichés dans les emails', () => {
+    it('pied de page : adresse complète, agrément, téléphone, contact et site .com', () => {
+        const html = wrapEmail('<p>x</p>');
+        const text = textFooter();
+        for (const out of [html, text]) {
+            expect(out).toContain('150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse');
+            expect(out).toContain('AG/DOM/2026/06');
+            expect(out).toContain('09 60 39 69 07');
+            expect(out).toContain('contact@domiciliation-pas-cher.com');
+            expect(out).toContain('https://www.domiciliation-pas-cher.com');
+        }
+    });
+
+    it('formule d’appel et montants au format français', () => {
+        expect(greetingText(undefined)).toBe('Bonjour,');
+        expect(greetingText('  Client ')).toBe('Bonjour,');
+        expect(greetingText('Ada')).toBe('Bonjour Ada,');
+        expect(displayName('null')).toBe('');
+        expect(formatEuro(28.8)).toBe('28,80 €');
+        expect(formatEuro(1234.5)).toBe('1 234,50 €');
+        expect(formatEuro(undefined)).toBe('');
+    });
+
+    it('dossier créé par l’admin : prix réel du client (clientPlanPricing) et noms actuels', () => {
+        const current = buildAccountCreatedEmail({ nom: 'A', email: 'a@t.fr', planName: 'scan-plus', frequence: 'mensuel', payUrl: 'https://s/p', baseUrl: 'https://s' });
+        expect(current.text).toContain('Confort — 24,00 € HT par mois (28,80 € TTC)');
+        expect(current.text).toContain('Engagement minimum de 3 mois');
+        // Ancien client (sans marqueur de grille) : il garde son prix (Essentiel 20 €, annuel = 10 mois).
+        const legacy = buildAccountCreatedEmail({ nom: 'A', email: 'a@t.fr', planName: 'Essentiel', frequence: 'annuel', payUrl: 'https://s/p', baseUrl: 'https://s', extra: {}, isReminder: true });
+        expect(legacy.text).toContain('Essentiel — 200,00 € HT par an (240,00 € TTC)');
+        const legacyScan = buildAccountCreatedEmail({ nom: 'A', email: 'a@t.fr', planName: 'Scan+', frequence: 'mensuel', payUrl: 'https://s/p', baseUrl: 'https://s', extra: {} });
+        expect(legacyScan.text).toContain('Confort — 24,00 € HT par mois');
+        expect(legacyScan.text).not.toContain('Scan+');
+    });
+
+    it('relance de paiement en attente : prix de l’ancienne grille pour un ancien client', async () => {
+        const now = new Date('2026-10-20T08:00:00Z');
+        const extra = { payment_status: 'pending', payment_token: 'c'.repeat(48), frequence: 'mensuel', payment_requested_at: new Date(now.getTime() - 2 * DAY).toISOString() };
+        const transporter = { sendMail: vi.fn().mockResolvedValue({}) };
+        const conn = { execute: vi.fn(async (sql) => (sql.startsWith('SELECT id, email, name, plan') ? { rows: [{ id: 'c1', email: 'c@test.fr', name: 'C', plan: 'Essentiel', status: 'actif', extra_info: JSON.stringify(extra) }] } : { rows: [] })) };
+        await processPendingPayments({ conn, transporter, baseUrl: 'https://s', now });
+        expect(transporter.sendMail.mock.calls[0][0].text).toContain('Essentiel — 20,00 € HT par mois (24,00 € TTC)');
+    });
+
+    it('impayé : annonce le délai de grâce réel (2 mois), jamais 15 ou 30 jours', () => {
+        const auto = buildPaymentFailedEmail({ nom: 'Jean', amount: '24,00 €', payUrl: 'https://pay', deadlineIso: '2026-10-01', nextAttemptIso: '2026-08-05' });
+        expect(auto.text).toContain('avant le 1er octobre 2026 (2 mois après l\'incident)');
+        expect(auto.text).toContain('5 août 2026');
+        const manual = buildTransactionalEmail({ type: 'payment_failed', email: 'c@test.fr' }, { baseUrl: BASE });
+        expect(manual.text).toContain('délai de 2 mois');
+        expect(manual.html).toContain(`${BASE}/app/espace-client?tab=paiement`);
+        for (const m of [auto, manual, buildTerminationEmail({ nom: 'J', amount: null })]) {
+            expect(`${m.text}${m.html}`).not.toMatch(/15 jours|30 jours|montant inconnu/);
+        }
+    });
+
+    it('échéance annuelle : date d’échéance et date limite de préavis', () => {
+        const { text, html } = buildRenewalReminderEmail({ nom: 'Jean', periodEndIso: '2027-01-31', baseUrl: BASE });
+        expect(text).toContain('le 31 janvier 2027');
+        expect(text).toContain('au plus tard le 31 décembre 2026');
+        expect(html).toContain(`${BASE}/app/espace-client?tab=messages`);
+    });
+
+    it('courrier : ne prétend jamais qu’un pli est numérisé sans aperçu, Essentiel = retrait/réexpédition', () => {
+        const current = { grille_tarifaire: '2026-11' };
+        expect(mailStatusLabel('Lettre simple', 'essentiel', 'non lu', current)).toBe('Original à retirer sur rendez-vous ou à faire réexpédier');
+        expect(mailStatusLabel('Lettre simple', 'scan-plus', 'non lu', current)).toMatch(/sous 24 h ouvrées/);
+        expect(mailStatusLabel('Lettre simple', 'scan-plus', 'non lu', current, { preview: 'https://x' })).toMatch(/^Numérisé/);
+        // Ancien Essentiel : pas de numérisation ni de réexpédition dans son contrat.
+        expect(mailStatusLabel('Lettre simple', 'Essentiel', 'non lu', {})).toBe('Original à retirer sur rendez-vous');
+        const digest = buildMailDigestEmail({ plan: 'essentiel', extra: current, baseUrl: BASE, mails: [{ type: '', from: '', date: '' }, { type: 'Colis', from: 'Amazon', date: '2026-11-01' }] });
+        expect(digest.text).toMatch(/^Bonjour,/);
+        expect(digest.text).toContain('Non précisé');
+        expect(digest.text).toContain('2,00 € HT par jour');
+        expect(digest.text).toContain('sur rendez-vous');
+        expect(`${digest.text}${digest.html}`).not.toMatch(/undefined|Numérisé/);
+        expect(digest.subject).toBe('Un colis et 1 autre courrier vous attendent');
+    });
+
+    it('demande de plusieurs documents : accords au pluriel', () => {
+        const { subject, text } = buildDocumentRequestEmail({ missing: ['statuts', 'kbis'], baseUrl: BASE });
+        expect(subject).toBe('Des documents manquent pour finaliser votre domiciliation');
+        expect(text).toContain('il nous manque : statuts et extrait Kbis.');
+        expect(text).toContain('Déposez-les');
     });
 });

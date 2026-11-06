@@ -20,7 +20,7 @@ export default function Factures({ clientData, setClientData }) {
             let extraInfo = typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info;
             if (typeof extraInfo === 'string') extraInfo = JSON.parse(extraInfo);
             stripeCustomerId = extraInfo?.stripe_customer_id || null;
-        } catch (e) { }
+        } catch { /* JSON invalide : on garde la valeur par défaut */ }
     }
 
     const handleManagePaymentMethods = async () => {

@@ -1,6 +1,6 @@
+import './_confirm.cjs';
 import { connect } from '@planetscale/database';
 import fs from 'fs';
-import path from 'path';
 
 function loadEnv() {
     const env = {};

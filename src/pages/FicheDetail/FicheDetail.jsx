@@ -17,7 +17,7 @@ const FicheDetail = () => {
     }, [slug]);
 
     usePageMeta({
-        title: fiche?.title ? `${fiche.title} — DomiciliationPasCher` : undefined,
+        title: fiche?.title ? `${fiche.title} — Domiciliation Pas Cher` : undefined,
         description: fiche?.content ? toMetaDescription(fiche.content) : undefined,
         path: fiche ? `/fiches-pratiques/${slug}` : undefined,
     });

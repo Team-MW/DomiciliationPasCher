@@ -1,11 +1,19 @@
-import { EMAIL_LOGS_DDL, EMAIL_LOGS_ADD_CLIENT_COLUMN } from '../shared/emailTables.js';
+import { DOMICILIATION_ADDRESS_ONE_LINE, AGREMENT_NUMBER } from '../shared/company.js';
+import { EMAIL_LOGS_DDL, EMAIL_LOGS_MIGRATIONS, EMAIL_LOG_BODY_MAX } from '../shared/emailTables.js';
+import { emailTypeInfo } from '../shared/emailTypes.js';
 
 export const BRAND_NAME = 'Domiciliation Pas Cher';
+/** Nom affiché comme expéditeur dans la boîte de réception (demande client, nov. 2026). */
+export const SENDER_NAME = 'domiciliation-pas-cher.com';
 export const CONTACT_EMAIL = 'contact@domiciliation-pas-cher.com';
-export const COMPANY_ADDRESS = '150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse';
-export const AGREMENT = 'AG/DOM/2026/06';
+export const COMPANY_ADDRESS = DOMICILIATION_ADDRESS_ONE_LINE;
+export const AGREMENT = AGREMENT_NUMBER;
 export const PHONE_DISPLAY = '09 60 39 69 07';
 export const PHONE_HREF = 'tel:+33960396907';
+/** Domaine réel du site (le .fr est mort). */
+export const SITE_URL = 'https://www.domiciliation-pas-cher.com';
+/** Signature commune à tous les emails envoyés aux clients et prospects. */
+export const SIGNATURE = "L'équipe Domiciliation Pas Cher";
 
 export function escapeHtml(value) {
     return String(value ?? '')
@@ -16,18 +24,65 @@ export function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-/** "Domiciliation Pas Cher" <adresse> — garde l'adresse SMTP_FROM, impose le nom d'expéditeur. */
+/** "domiciliation-pas-cher.com" <adresse> — garde l'adresse SMTP_FROM, impose le nom d'expéditeur. */
 export function brandedFrom(smtpFrom) {
     const raw = String(smtpFrom || CONTACT_EMAIL);
     const match = raw.match(/<([^>]+)>/);
     const address = (match ? match[1] : raw).trim();
-    return `"${BRAND_NAME}" <${address}>`;
+    return `"${SENDER_NAME}" <${address}>`;
+}
+
+/** URL publique du site pour les emails envoyés sans requête (cron). */
+export function publicSiteUrl() {
+    return String(process.env.PUBLIC_SITE_URL || SITE_URL).replace(/\/+$/, '');
 }
 
 export function getBaseUrl(req) {
     const host = req?.headers?.host;
     if (host) return `${req.headers['x-forwarded-proto'] || 'https'}://${host}`;
-    return process.env.PUBLIC_SITE_URL || 'https://www.domiciliation-pas-cher.com';
+    return publicSiteUrl();
+}
+
+/**
+ * Nom à afficher dans la formule d'appel : vide si absent ou si l'appelant a passé une valeur
+ * de repli technique (« Client », « undefined »…) — on écrit alors simplement « Bonjour, ».
+ */
+export function displayName(nom) {
+    const name = String(nom ?? '').trim();
+    if (!name || /^(client|undefined|null)$/i.test(name)) return '';
+    return name;
+}
+
+export function greetingText(nom) {
+    const name = displayName(nom);
+    return name ? `Bonjour ${name},` : 'Bonjour,';
+}
+
+export function greetingHtml(nom) {
+    const name = displayName(nom);
+    return name ? `Bonjour ${escapeHtml(name)},` : 'Bonjour,';
+}
+
+/** Montant au format français : 28,80 € (virgule, espace avant €). Chaîne vide si invalide. */
+export function formatEuro(value) {
+    const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+    if (typeof n !== 'number' || !Number.isFinite(n)) return '';
+    const [int, dec] = n.toFixed(2).split('.');
+    return `${int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')},${dec} €`;
+}
+
+/** Signature HTML et texte (identiques dans tous les emails). */
+export function signatureHtml(closing = 'Bien cordialement,') {
+    return `<p style="margin-top:24px;">${closing}<br>${SIGNATURE}</p>`;
+}
+
+export function signatureText(closing = 'Bien cordialement,') {
+    return `${closing}\n${SIGNATURE}`;
+}
+
+/** Texte saisi par un utilisateur, échappé, avec ses retours à la ligne conservés. */
+export function escapeMultiline(value) {
+    return escapeHtml(value).replace(/\r?\n/g, '<br>');
 }
 
 export function emailButton(href, label, color = '#1A56DB') {
@@ -56,13 +111,13 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;"
 <tr><td style="padding:20px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-family:Arial,sans-serif;font-size:12px;line-height:1.6;color:#64748b;">
 <p style="margin:0;"><strong>${BRAND_NAME}</strong> — ${COMPANY_ADDRESS}</p>
 <p style="margin:4px 0 0;">Agrément préfectoral de domiciliation n° ${AGREMENT}</p>
-<p style="margin:4px 0 0;"><a href="${PHONE_HREF}" style="color:#64748b;">${PHONE_DISPLAY}</a> · <a href="mailto:${CONTACT_EMAIL}" style="color:#64748b;">${CONTACT_EMAIL}</a></p>
+<p style="margin:4px 0 0;"><a href="${PHONE_HREF}" style="color:#64748b;">${PHONE_DISPLAY}</a> · <a href="mailto:${CONTACT_EMAIL}" style="color:#64748b;">${CONTACT_EMAIL}</a> · <a href="${SITE_URL}" style="color:#64748b;">www.domiciliation-pas-cher.com</a></p>
 ${unsubscribe}
 </td></tr></table></td></tr></table></body></html>`;
 }
 
 export function textFooter(unsubscribeUrl) {
-    return `\n\n--\n${BRAND_NAME} — ${COMPANY_ADDRESS}\nAgrément préfectoral n° ${AGREMENT} · ${PHONE_DISPLAY} · ${CONTACT_EMAIL}${unsubscribeUrl ? `\nSe désinscrire : ${unsubscribeUrl}` : ''}`;
+    return `\n\n--\n${BRAND_NAME} — ${COMPANY_ADDRESS}\nAgrément préfectoral de domiciliation n° ${AGREMENT}\n${PHONE_DISPLAY} · ${CONTACT_EMAIL} · ${SITE_URL}${unsubscribeUrl ? `\nSe désinscrire : ${unsubscribeUrl}` : ''}`;
 }
 
 /** Version texte de secours : un email sans partie texte est plus souvent classé en spam. */
@@ -79,6 +134,7 @@ export function htmlToText(html) {
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/[ \t]+/g, ' ')
+        .replace(/ *\n */g, '\n')
         .replace(/\n\s*\n\s*\n+/g, '\n\n')
         .trim();
 }
@@ -88,20 +144,26 @@ let emailTablesReady = false;
 export async function ensureEmailLogTable(conn) {
     if (!conn || emailTablesReady) return;
     await conn.execute(EMAIL_LOGS_DDL);
-    try {
-        await conn.execute(EMAIL_LOGS_ADD_CLIENT_COLUMN);
-    } catch {
-        // colonne déjà présente
+    for (const sql of EMAIL_LOGS_MIGRATIONS) {
+        try {
+            await conn.execute(sql);
+        } catch {
+            // colonne déjà présente
+        }
     }
     emailTablesReady = true;
 }
 
-async function logEmail(conn, entry) {
+/**
+ * Journalise un email (envoyé OU en échec) dans email_logs : c'est la source de l'historique
+ * de la fiche client. Ne lève jamais : un journal en panne ne doit pas bloquer un envoi.
+ */
+export async function logEmail(conn, entry) {
     if (!conn) return;
     try {
         await ensureEmailLogTable(conn);
         await conn.execute(
-            'INSERT INTO email_logs (id, to_email, client_email, type, subject, status, error, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO email_logs (id, to_email, client_email, type, subject, status, error, sent_at, body_text, source, message_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
                 `eml_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                 String(entry.to).trim().toLowerCase().slice(0, 500),
@@ -111,6 +173,9 @@ async function logEmail(conn, entry) {
                 entry.status,
                 entry.error || null,
                 new Date().toISOString(),
+                entry.bodyText ? String(entry.bodyText).slice(0, EMAIL_LOG_BODY_MAX) : null,
+                entry.source || emailTypeInfo(entry.type).source,
+                entry.messageId ? String(entry.messageId).slice(0, 255) : null,
             ],
         );
     } catch (err) {
@@ -123,7 +188,7 @@ async function logEmail(conn, entry) {
  * Relance l'erreur SMTP après l'avoir journalisée.
  */
 export async function sendBrandedMail(transporter, {
-    conn, from, to, subject, text, html, type, replyTo = CONTACT_EMAIL, unsubscribeUrl, preheader, clientEmail,
+    conn, from, to, subject, text, html, type, replyTo = CONTACT_EMAIL, unsubscribeUrl, preheader, clientEmail, source,
 }) {
     const headers = {
         'X-Entity-Ref-ID': `${type || 'generic'}-${Date.now()}`,
@@ -143,10 +208,10 @@ export async function sendBrandedMail(transporter, {
             replyTo,
             headers,
         });
-        await logEmail(conn, { to, clientEmail, type, subject, status: 'sent' });
+        await logEmail(conn, { to, clientEmail, type, subject, status: 'sent', bodyText: plainText, source, messageId: info?.messageId });
         return info;
     } catch (err) {
-        await logEmail(conn, { to, clientEmail, type, subject, status: 'failed', error: err?.message || String(err) });
+        await logEmail(conn, { to, clientEmail, type, subject, status: 'failed', error: err?.message || String(err), bodyText: plainText, source });
         throw err;
     }
 }

@@ -1,207 +1,119 @@
 /**
- * Envoie un email de bienvenue ultra-sécurisé via le backend Vercel/Node
+ * Envois d'emails depuis le front : tout passe par /api/email (contrôle d'accès côté serveur,
+ * jeton Clerk joint automatiquement par installApiAuth).
+ *
+ * Une seule fonction d'envoi (`postEmail`) : elle lève une erreur avec le message du serveur
+ * (« Configuration SMTP du serveur manquante. », « Accès réservé à l'administration »…) pour
+ * que l'admin sache POURQUOI un email n'est pas parti, au lieu d'un échec silencieux.
+ *
+ * Règle : un envoi déclenché par l'admin doit toujours dire à l'admin s'il a échoué.
+ * Les types acceptés sont listés dans api/_email-core.js (EMAIL_TYPES) ; un type inconnu est refusé.
  */
-export const sendWelcomeEmail = async (email, nom) => {
+
+export class EmailSendError extends Error {
+    constructor(message, status) {
+        super(message);
+        this.name = 'EmailSendError';
+        this.status = status;
+    }
+}
+
+/** Envoie un email transactionnel. Résout `true`, ou lève une EmailSendError lisible. */
+export async function postEmail(payload) {
+    let response;
     try {
-        const response = await fetch('/api/email', {
+        response = await fetch('/api/email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, nom })
+            body: JSON.stringify(payload),
         });
-
-        if (response.ok) {
-            console.log("Email automatique envoyé de manière sécurisée (backend) !");
-            return true;
-        }
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Erreur Backend lors de l'envoi de l'email :", errorData.error || response.status);
-        return false;
-    } catch (err) {
-        console.error("Erreur serveur lors de la requête Backend Email :", err);
-        return false;
+    } catch {
+        throw new EmailSendError('Serveur injoignable (connexion internet ?).', 0);
     }
-};
+    if (response.ok) return true;
+    const data = await response.json().catch(() => ({}));
+    const fallback = response.status === 401 || response.status === 403
+        ? 'Session expirée ou droits insuffisants : reconnectez-vous.'
+        : `Erreur serveur (${response.status}).`;
+    throw new EmailSendError(data.error || data.message || fallback, response.status);
+}
 
-/**
- * Envoie un email d'incident de paiement / impayé
- */
-export const sendFailedPaymentEmail = async (email, nom) => {
+/** Variante « sans bloquer » : true/false, l'erreur est seulement journalisée. */
+async function tryPostEmail(payload, label) {
     try {
-        const response = await fetch('/api/email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, nom, type: 'payment_failed' })
-        });
-
-        if (response.ok) {
-            console.log("Email d'incident de paiement envoyé avec succès !");
-            return true;
-        } else {
-            const errorData = await response.json();
-            console.error("Erreur Backend lors de l'envoi de l'email d'impayé :", errorData.error);
-            throw new Error(errorData.error || "Erreur inconnue Email");
-        }
+        return await postEmail(payload);
     } catch (err) {
-        console.error("Erreur serveur lors de la requête Backend Email (impayé) :", err);
-        throw err;
-    }
-};
-
-/**
- * Envoie un email de relance de paiement (manuel)
- */
-export const sendPaymentReminderEmail = async (email, nom, amount, paymentLink) => {
-    try {
-        const response = await fetch('/api/email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, nom, type: 'payment_reminder', amount, paymentLink })
-        });
-
-        if (response.ok) {
-            console.log("Email de relance envoyé avec succès !");
-            return true;
-        } else {
-            const errorData = await response.json();
-            console.error("Erreur Backend lors de l'envoi de la relance :", errorData.error);
-            return false;
-        }
-    } catch (err) {
-        console.error("Erreur serveur lors de la requête Backend Email (relance) :", err);
+        console.error(`Email « ${label} » non envoyé :`, err.message);
         return false;
     }
-};
+}
 
-/**
- * Envoie un email à l'admin quand un client envoie un nouveau message
- */
-export const sendClientNewMessageEmail = async (email, nom, content) => {
+// ─── Envois déclenchés par l'administration (l'erreur remonte : l'admin doit être prévenu) ───
+
+/** Client déclaré impayé. */
+export const sendFailedPaymentEmail = (email, nom) =>
+    postEmail({ type: 'payment_failed', email, nom });
+
+/** Réponse de l'admin dans la messagerie : prévient le client par email. */
+export const sendAdminMessageEmail = ({ email, nom, content }) =>
+    postEmail({ type: 'new_message', email, nom, content });
+
+/** Validation du dossier (renvoi manuel de l'email de validation). */
+export const sendApprovalEmail = async (email, nom) => {
     try {
-        const response = await fetch('/api/email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, nom, type: 'admin_new_message', content })
-        });
-
-        if (response.ok) {
-            console.log("Email de notification admin envoyé avec succès !");
-            return true;
-        } else {
-            const errorData = await response.json();
-            console.error("Erreur Backend lors de l'envoi de la notification admin :", errorData.error);
-            return false;
-        }
+        await postEmail({ type: 'approval', email, nom: nom || '' });
+        return { success: true };
     } catch (err) {
-        console.error("Erreur serveur lors de la requête Backend Email (notification admin) :", err);
-        return false;
+        return { success: false, error: err.message };
     }
 };
 
-export const sendReexpeditionRequestEmail = async ({ email, nom, company, address, notes }) => {
-    try {
-        const response = await fetch('/api/email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email,
-                nom,
-                company,
-                address,
-                notes,
-                type: 'admin_reexpedition',
-            }),
-        });
-        return response.ok;
-    } catch (err) {
-        console.error('Erreur email demande réexpédition:', err);
-        return false;
-    }
-};
+/** Réexpédition traitée (expédiée ou refusée). Résout true/false. */
+export const sendReexpeditionStatusEmail = ({ email, nom, status, address }) =>
+    tryPostEmail({
+        type: status === 'expediee' ? 'reexpedition_sent' : 'reexpedition_refused',
+        email,
+        nom,
+        address,
+    }, 'statut réexpédition');
 
-export const sendReexpeditionStatusEmail = async ({ email, nom, status, address }) => {
-    try {
-        const response = await fetch('/api/email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email,
-                nom,
-                address,
-                type: status === 'expediee' ? 'reexpedition_sent' : 'reexpedition_refused',
-            }),
-        });
-        return response.ok;
-    } catch (err) {
-        console.error('Erreur email statut réexpédition:', err);
-        return false;
-    }
-};
-
-/** Demande « Parler à un conseiller » → contact@domiciliation-pas-cher.com */
-export const sendContactAdvisorEmail = async ({ nom, email, telephone, city, message }) => {
-    const response = await fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            type: 'contact_advisor',
-            nom,
-            email,
-            telephone,
-            address: city || '',
-            message: message || '',
-        }),
-    });
-    if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Email send failed');
-    }
-    return true;
-};
-
-/** Lead formulaire souscription (même si le parcours n'est pas terminé) */
-export const sendSouscriptionLeadEmail = async (lead) => {
-    const response = await fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            type: 'souscription_lead',
-            nom: lead.nom,
-            email: lead.email,
-            telephone: lead.telephone || '',
-            address: lead.address || '',
-            dateDispo: lead.dateNaissance || '',
-            projetType: lead.lieuNaissance || '',
-            company: lead.nationalite || '',
-            notes: lead.qualite || '',
-            content: lead.typeProjet || '',
-            message: lead.formeJuridique || '',
-            plan: lead.plan || '',
-        }),
-    });
-    if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Lead email failed');
-    }
-    return true;
-};
-
-const postClientEmail = async (type, email, nom, extra = {}) => {
-    const response = await fetch('/api/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...extra, type, email, nom: nom || 'Client' }),
-    });
-    if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Email send failed');
-    }
-    return true;
-};
-
-/** Dossier créé depuis l'administration : lien pour enregistrer la carte et démarrer l'abonnement */
+/** Dossier créé depuis l'admin : lien pour enregistrer la carte et démarrer l'abonnement. */
 export const sendAccountCreatedEmail = (email, nom, { paymentToken, plan, frequence } = {}) =>
-    postClientEmail('account_created', email, nom, { paymentToken, plan, frequence });
+    postEmail({ type: 'account_created', email, nom: nom || '', paymentToken, plan, frequence });
 
-/** Prévient l'admin qu'un client a déposé un document à valider */
+// ─── Envois déclenchés par le client connecté (vers l'admin ou vers lui-même) ───
+
+/** Nouveau message du client → boîte interne. */
+export const sendClientNewMessageEmail = (email, nom, content) =>
+    tryPostEmail({ type: 'admin_new_message', email, nom, content }, 'nouveau message client');
+
+/** Demande de réexpédition du client → boîte interne. */
+export const sendReexpeditionRequestEmail = ({ email, nom, company, address, notes }) =>
+    tryPostEmail({ type: 'admin_reexpedition', email, nom, company, address, notes }, 'demande de réexpédition');
+
+/** Document déposé par le client → boîte interne. */
 export const sendAdminDocumentUploadedEmail = ({ email, nom, company, documentName }) =>
-    postClientEmail('admin_document_uploaded', email, nom, { company, documentName });
+    postEmail({ type: 'admin_document_uploaded', email, nom: nom || '', company, documentName });
+
+// ─── Formulaires publics ───
+
+/** « Parler à un conseiller » → contact@domiciliation-pas-cher.com */
+export const sendContactAdvisorEmail = ({ nom, email, telephone, city, message }) =>
+    postEmail({ type: 'contact_advisor', nom, email, telephone, address: city || '', message: message || '' });
+
+/** Lead du formulaire de souscription (même si le parcours n'est pas terminé). */
+export const sendSouscriptionLeadEmail = (lead) =>
+    postEmail({
+        type: 'souscription_lead',
+        nom: lead.nom,
+        email: lead.email,
+        telephone: lead.telephone || '',
+        address: lead.address || '',
+        dateDispo: lead.dateNaissance || '',
+        projetType: lead.lieuNaissance || '',
+        company: lead.nationalite || '',
+        notes: lead.qualite || '',
+        content: lead.typeProjet || '',
+        message: lead.formeJuridique || '',
+        plan: lead.plan || '',
+    });

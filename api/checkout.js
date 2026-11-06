@@ -77,7 +77,7 @@ export default async function handler(req, res) {
         let email = String(req.body?.email || '').trim().toLowerCase();
 
         // Abonnement : le forfait et la fréquence sont ceux de la demande enregistrée,
-        // pas ceux de la requête (sinon : payer Essentiel et être validé en Physique+).
+        // pas ceux de la requête (sinon : payer Essentiel et être validé en Premium).
         let demandeId;
         if (interval !== 'one_time') {
             demandeId = /^req_[A-Za-z0-9]+$/.test(String(rawMetadata.demande_id || '')) ? rawMetadata.demande_id : null;
@@ -128,7 +128,8 @@ export default async function handler(req, res) {
 
         const priceData = {
             currency: 'eur',
-            product_data: { name: clip(productName, 200) || `Forfait ${price.catalog?.name || planId}` },
+            // Abonnement : nom de la formule lu dans le catalogue (jamais celui envoyé par le navigateur).
+            product_data: { name: price.catalog ? `Forfait ${price.catalog.name}` : (clip(productName, 200) || `Forfait ${planId}`) },
             unit_amount: Math.round(price.amount * 100), // centimes
         };
         if (price.mode === 'subscription') priceData.recurring = { interval };

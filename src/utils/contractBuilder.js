@@ -1,7 +1,23 @@
 import { cleanForPdf } from './pdfGenerator';
 import { resolvePersonalAddress } from './contractLegalFields';
+import { buildCurrentContractContent } from './contractBuilderCurrent';
+import { isLegacySignedContract } from '../../shared/contract.js';
 
+/**
+ * Point d'entrée appelé par pdfGenerator.js (fichier verrouillé, signature inchangée).
+ * - Tout contrat généré (à consulter ou à signer) → texte actuel (novembre 2026), au prix du client.
+ * - SEULE exception : contrat déjà signé avec l'ancien texte → regénéré à l'identique, car la
+ *   signature est réappliquée à chaque téléchargement (#local-signature).
+ */
 export const buildContractContent = (doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof = null) => {
+    if (isLegacySignedContract(extra)) {
+        return buildLegacyContractContent(doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof);
+    }
+    return buildCurrentContractContent(doc, clientData, extra, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof);
+};
+
+/** Ancien texte — uniquement pour regénérer les contrats DÉJÀ SIGNÉS avec ce texte. NE PAS MODIFIER. */
+const buildLegacyContractContent = (doc, clientData, extra, planDetails, isSigned, signatureImage, dateDebut, signedAtDate, imgData, signProof = null) => {
     let currentY = 45;
     let pageCount = 1;
 

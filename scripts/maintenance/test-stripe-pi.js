@@ -1,3 +1,4 @@
+import './_confirm.cjs';
 import fs from 'fs';
 import Stripe from 'stripe';
 
@@ -11,8 +12,11 @@ async function test() {
         }
     }
     const stripe = new Stripe(secretKey);
-    const email = 'travauxsudouest31@gmail.com';
-    const customers = await stripe.customers.list({ email, limit: 10 });
-    console.log("Customers found:", customers.data.map(c => c.id));
+    try {
+        const pi = await stripe.paymentIntents.retrieve('pi_3U2pYuBBllOzjDOT1Lv1cL3n');
+        console.log("PI Found! Customer:", pi.customer);
+    } catch(e) {
+        console.log("Error:", e.message);
+    }
 }
 test();

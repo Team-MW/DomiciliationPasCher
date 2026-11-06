@@ -4,7 +4,6 @@ import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { fetchWithRetry } from '../../../utils/api';
 import { uploadFile } from '../../../utils/cloudinary';
-import { convertPdfToPng } from '../../../utils/pdfConverter';
 import { generateAttestationPdf, generateContratPdf, generateSignedContratBlob, generateSignedProcurationBlob } from '../../../utils/pdfGenerator';
 import SignatureModal from '../../../components/SignatureModal/SignatureModal';
 import AddressAutocomplete from '../../../components/AddressAutocomplete/AddressAutocomplete';

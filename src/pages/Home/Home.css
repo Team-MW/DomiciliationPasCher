@@ -360,7 +360,7 @@
 }
 
 /* Placés sur des zones vides de la carte : avant, ils masquaient le titre
-   « Votre adresse professionnelle » et le prix « 20 € HT/mois ». */
+   « Votre adresse professionnelle » et le prix « 16 € HT/mois ». */
 .hero-float-1 {
     top: -52px;
     left: -28px;

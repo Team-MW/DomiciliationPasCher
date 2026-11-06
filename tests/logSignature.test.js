@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import handler from '../../../../api/log-signature';
-import { __setAuthVerifierForTests } from '../../../../api/_auth.js';
+import handler from '../api/log-signature';
+import { __setAuthVerifierForTests } from '../api/_auth.js';
 
 // Mock du driver @planetscale/database
 vi.mock('@planetscale/database', () => {

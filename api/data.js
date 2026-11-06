@@ -9,7 +9,7 @@ import { getAuthUser, getOwnership, userOwnsStripeCustomer, isAdminEmail } from 
 import { sanitizeClientExtra, isSafeDocumentUrl } from './_client-extra.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { fulfillCheckoutSession } from './_checkout-fulfillment.js';
-import { PLAN_CATALOG, resolvePlanId, planAmountTtc } from '../shared/plans.js';
+import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
 import { parseExtraInfo } from '../src/utils/contractLegalFields.js';
 import { resolveClientStatusFromStripe } from '../src/utils/stripeClientStatus.js';
 
@@ -59,6 +59,7 @@ const PUBLIC_METHODS = {
             else if (/url$/i.test(key) && !isSafeDocumentUrl(value)) delete safeExtra[key];
         }
         safeExtra.offre = catalog.offre;
+        safeExtra.grille_tarifaire = PRICING_GRID; // souscrit avec la grille et le contrat actuels
         demande.extra_info = safeExtra;
         const created = await ctx.service.addDemande(demande);
         return { id: created.id, status: created.status };
@@ -241,7 +242,7 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
         const conn = getConn();
         if (!conn) return res.status(500).json({ error: 'Base de données indisponible' });
 
-        const sendEmail = (emailBody) => deliverEmail(emailBody, { baseUrl: getBaseUrl(req) });
+        const sendEmail = (emailBody) => deliverEmail(emailBody, { baseUrl: getBaseUrl(req), source: 'manuel' });
         const service = createDataService({ conn, sendEmail, deleteClerkUser, findClerkUserIdsByEmail, isProtectedEmail: isAdminEmail });
         let stripe = null;
         const ctx = { conn, service, sendEmail, getStripe: () => (stripe ||= getStripe()) };

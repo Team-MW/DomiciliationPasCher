@@ -7,6 +7,9 @@ vi.mock('../src/utils/pdfConverter', () => ({ convertPdfToPng: vi.fn() }));
 vi.mock('../src/utils/cloudinary', () => ({ uploadFile: vi.fn().mockResolvedValue({ url: 'https://res.cloudinary.com/test.pdf', publicId: 'test' }) }));
 vi.mock('../src/utils/emailService', () => ({
     sendFailedPaymentEmail: vi.fn().mockResolvedValue(undefined),
+    sendAdminMessageEmail: vi.fn().mockResolvedValue(true),
+    sendReexpeditionStatusEmail: vi.fn().mockResolvedValue(true),
+    sendApprovalEmail: vi.fn().mockResolvedValue({ success: true }),
 }));
 vi.mock('../src/utils/api', () => ({ fetchWithRetry: vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) }));
 
@@ -135,7 +138,7 @@ describe('DossierClient Document Tab', () => {
 
     const originalFileReader = global.FileReader;
     const mockFR = class MockFileReader {
-      readAsDataURL(blob) {
+      readAsDataURL(_blob) {
         this.result = 'data:application/pdf;base64,mock_base64_pdf';
         setTimeout(() => {
           if (this.onloadend) this.onloadend();
@@ -200,7 +203,7 @@ describe('DossierClient Document Tab', () => {
 
     const originalFileReader = global.FileReader;
     const mockFR = class MockFileReader {
-      readAsDataURL(blob) {
+      readAsDataURL(_blob) {
         this.result = 'data:application/pdf;base64,mock_base64_pdf';
         setTimeout(() => {
           if (this.onloadend) this.onloadend();

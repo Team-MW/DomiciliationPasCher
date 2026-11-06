@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { parseExtraInfo, resolveForwardingAddress, resolvePersonalAddress } from '../../../utils/contractLegalFields';
+import { DOMICILIATION_ADDRESS, postalAddressFor } from '../../../../shared/company.js';
 
 export default function Adresse({ clientData, setActiveTab }) {
     const { t } = useTranslation();
@@ -12,11 +13,8 @@ export default function Adresse({ clientData, setActiveTab }) {
     const forwardingAddress = resolveForwardingAddress(extra);
     const companyName = clientData?.company || t('espaceClient.address.companyFallback');
     const city = clientData?.city || "Toulouse";
-    const addressLine1 = "150 Rue Nicolas Louis Vauquelin";
-    const addressLine2 = "31100 Toulouse";
-    const country = "FRANCE";
-
-    const fullAddressText = `${companyName}\n${addressLine1}\n${addressLine2}\n${country}`;
+    const { street, building, postalCode, city: domCity, country } = DOMICILIATION_ADDRESS;
+    const fullAddressText = postalAddressFor(companyName);
 
     const handleCopy = () => {
         if (navigator.clipboard) {
@@ -113,8 +111,9 @@ export default function Adresse({ clientData, setActiveTab }) {
 {t('espaceClient.address.postalLabel')}
                         </div>
                         <div style={{ fontSize: '17px', lineHeight: '1.6', color: '#f1f5f9', fontWeight: '600' }}>
-                            {addressLine1}<br />
-                            {addressLine2}<br />
+                            {street}<br />
+                            {building}<br />
+                            {postalCode} {domCity}<br />
                             {country}
                         </div>
                     </div>

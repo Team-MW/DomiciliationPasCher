@@ -1,7 +1,7 @@
 import { getStripe } from './_stripe-client.js';
 import { getDbConn } from './_db.js';
 import { requireUser, getOwnership, sendServerError } from './_auth.js';
-import { PLAN_CATALOG, resolvePlanId, planAmountTtc } from '../shared/plans.js';
+import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -113,9 +113,11 @@ export default async function handler(req, res) {
             },
         });
 
+        // Un changement de formule se fait au tarif en vigueur : le client passe sur la grille actuelle.
         const merged = {
             ...extra,
             offre: catalog.offre,
+            grille_tarifaire: PRICING_GRID,
             stripe_customer_id: customerId,
         };
         await conn.execute(

@@ -48,7 +48,8 @@ export default async function handler(req, res) {
     if (access !== 'admin') delete body.paymentLink;
 
     try {
-        await deliverEmail(body, { baseUrl: getBaseUrl(req) });
+        const source = { admin: 'manuel', client_self: 'client', client_to_admin: 'interne', public: 'interne' }[access];
+        await deliverEmail(body, { baseUrl: getBaseUrl(req), source: access === 'public' && body.type === 'consultation_creation' ? 'client' : source });
         return res.status(200).json({ success: true, message: 'Email envoyé' });
     } catch (error) {
         if (error?.statusCode === 400) {

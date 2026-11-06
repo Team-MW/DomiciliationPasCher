@@ -1,7 +1,8 @@
 import React from 'react';
 import { Icons } from './Icons';
+import { PLAN_CATALOG } from '../../../data/plans';
 
-export default function OverviewTab({ stats, clients, mail }) {
+export default function OverviewTab({ stats, clients }) {
     // Calcul de la répartition des forfaits
     const planCounts = { essentiel: 0, 'scan-plus': 0, physique: 0 };
     clients.forEach(c => {
@@ -209,7 +210,7 @@ export default function OverviewTab({ stats, clients, mail }) {
                     <div className="card-body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', fontWeight: '600' }}>
-                                <span style={{ color: '#1E293B' }}>Essentiel (20€)</span>
+                                <span style={{ color: '#1E293B' }}>{PLAN_CATALOG.essentiel.name}</span>
                                 <span style={{ color: 'var(--primary)' }}>{pctEssentiel}% ({planCounts.essentiel})</span>
                             </div>
                             <div style={{ width: '100%', height: '10px', background: '#F1F5F9', borderRadius: '5px', overflow: 'hidden' }}>
@@ -219,7 +220,7 @@ export default function OverviewTab({ stats, clients, mail }) {
 
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', fontWeight: '600' }}>
-                                <span style={{ color: '#1E293B' }}>Scan+ (24€)</span>
+                                <span style={{ color: '#1E293B' }}>{PLAN_CATALOG['scan-plus'].name} (ex-Scan+)</span>
                                 <span style={{ color: '#10B981' }}>{pctScan}% ({planCounts['scan-plus']})</span>
                             </div>
                             <div style={{ width: '100%', height: '10px', background: '#F1F5F9', borderRadius: '5px', overflow: 'hidden' }}>
@@ -229,7 +230,7 @@ export default function OverviewTab({ stats, clients, mail }) {
 
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', fontWeight: '600' }}>
-                                <span style={{ color: '#1E293B' }}>Physique+ (38€)</span>
+                                <span style={{ color: '#1E293B' }}>{PLAN_CATALOG.physique.name} (ex-Physique+)</span>
                                 <span style={{ color: '#F59E0B' }}>{pctPhysique}% ({planCounts.physique})</span>
                             </div>
                             <div style={{ width: '100%', height: '10px', background: '#F1F5F9', borderRadius: '5px', overflow: 'hidden' }}>

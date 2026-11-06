@@ -7,9 +7,9 @@ const TYPE_PROJET_LABELS = {
 };
 
 const OFFRE_LABELS = {
-    scan: 'Scan numérique',
-    reexpedition: 'Réexpédition physique',
-    notification: 'Notification email',
+    scan: 'Confort (numérisation)',
+    reexpedition: 'Premium (numérisation, réexpédition, colis)',
+    notification: 'Essentiel (notification)',
 };
 
 const STATUS_LABELS = {
@@ -74,7 +74,7 @@ function clientToRow(client) {
         'SIREN': extra.siren || '',
         'Activité': extra.activite || '',
         'Offre courrier': OFFRE_LABELS[extra.offre] || extra.offre || '',
-        'Fréquence': extra.frequence === 'annuel' ? 'Annuelle (2 mois offerts)' : extra.frequence === 'mensuel' ? 'Mensuelle' : (extra.frequence || ''),
+        'Fréquence': extra.frequence === 'annuel' ? 'Annuelle' : extra.frequence === 'mensuel' ? 'Mensuelle' : (extra.frequence || ''),
         'Compte Clerk': client.clerkId ? 'Lié' : 'Non lié',
         'Statut Clerk': CLERK_STATUS_LABELS[client.clerkStatus] || client.clerkStatus || '',
         'ID Clerk': client.clerkId || '',

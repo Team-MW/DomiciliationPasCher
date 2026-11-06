@@ -6,7 +6,7 @@ import path from 'path';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { LanguageProvider } from '../src/i18n/LanguageContext';
-import { PLAN_CATALOG, planAmountTtc } from '../shared/plans.js';
+import { PLAN_CATALOG } from '../shared/plans.js';
 import { detectBrowserLanguage, detectLanguageFromIP } from '../src/i18n/detectLanguage';
 import MentionsLegales from '../src/pages/MentionsLegales/MentionsLegales';
 import CGV from '../src/pages/CGV/CGV';
@@ -14,8 +14,7 @@ import Confidentialite from '../src/pages/Confidentialite/Confidentialite';
 import Footer from '../src/components/Footer/Footer';
 
 const appSource = fs.readFileSync(path.resolve(__dirname, '../src/App.jsx'), 'utf-8');
-const euro = (n) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
-const norm = (s) => s.replace(/[  ]/g, ' ');
+const norm = (s) => s.replace(/[\u202F\u00A0]/g, ' ');
 
 function wrap(ui, initial = '/') {
     return render(
@@ -63,19 +62,22 @@ describe('pages légales', () => {
         expect(text).toContain('AG/DOM/2026/06');
         expect(text).toContain('En vigueur au 5 novembre 2026');
         expect(text).toContain('440 N Barranca Ave #4133, Covina, CA 91723');
-        expect(text).toContain('N° de TVA intracommunautaire : [À COMPLÉTER]');
+        expect(text).toContain('N° de TVA intracommunautaire : FR91101512531');
         expect(screen.getByRole('link', { name: 'Politique de confidentialité' }).getAttribute('href')).toBe('/confidentialite');
     });
 
-    test('CGV : bandeau projet et prix issus de PLAN_CATALOG', () => {
+    test('CGV : texte définitif (20 articles), prix et quotas issus de PLAN_CATALOG', () => {
         wrap(<CGV />);
-        expect(screen.getByText(/Projet — à faire valider par un juriste/)).toBeInTheDocument();
-        for (const plan of Object.values(PLAN_CATALOG)) {
-            const row = norm(screen.getByTestId(`cgv-plan-${plan.id}`).textContent);
-            expect(row).toContain(plan.name);
-            expect(row).toContain(norm(euro(planAmountTtc(plan.ht, 'month'))));
-            expect(row).toContain(norm(euro(planAmountTtc(plan.ht, 'year'))));
-        }
+        expect(screen.queryByText(/Projet — à faire valider par un juriste/)).toBeNull();
+        expect(screen.getByText('Article 1 – Identification du prestataire')).toBeInTheDocument();
+        expect(screen.getByText('Article 20 – Droit applicable et litiges')).toBeInTheDocument();
+        expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(20);
+        const prices = norm(screen.getByTestId('cgv-formules-8').textContent);
+        expect(prices).toBe(norm('Prix mensuel HT16,00 €24,00 €38,00 €'));
+        expect(norm(screen.getByTestId('cgv-formules-5').textContent)).toBe(norm('Numérisation du contenu du courrierNon40 plis par mois100 plis par mois'));
+        expect(norm(screen.getByTestId('cgv-extras-0').textContent)).toContain('0,50 € par pli');
+        expect(document.body.textContent).toContain('FR91101512531');
+        expect(document.body.textContent).toContain('CGV en vigueur au 06/11/2026.');
     });
 
     test('confidentialité : bandeau projet, sous-traitants, durées à compléter', () => {

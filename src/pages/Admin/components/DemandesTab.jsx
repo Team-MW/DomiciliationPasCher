@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import { appAlert } from '../../../components/AppDialog/dialogApi';
+import { sendAdminMessageEmail } from '../../../utils/emailService';
 
 export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showConfirm, showAlert }) {
     const [loadingId, setLoadingId] = useState(null);
@@ -24,18 +25,24 @@ export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showC
                 ? "Accès créé, mais l'email de validation n'a pas pu être envoyé. Vérifiez la configuration SMTP."
                 : "Accès créé avec succès ! L'email de validation a été envoyé.",
                 emailFailed ? { title: 'Email non envoyé', isWarning: true } : { title: 'Succès' });
+        } catch (err) {
+            console.error('Validation de la demande :', err);
+            await showAlert(`La demande n’a pas pu être validée : ${err?.message || 'erreur inconnue'}. Vérifiez la liste des clients avant de réessayer (pour éviter un doublon).`, { title: 'Échec de la validation', isDanger: true });
         } finally {
             setLoadingId(null);
         }
     };
 
     const handleRefuser = async (id) => {
-        const confirmed = await showConfirm("Supprimer cette demande ?", { isDanger: true });
+        const confirmed = await showConfirm("Refuser et supprimer définitivement cette demande ?\n\nLe compte de connexion créé par le prospect sera aussi supprimé. Cette action est irréversible.", { isDanger: true, title: "Supprimer la demande", confirmText: "Supprimer" });
         if (confirmed) {
             setLoadingId(id);
             try {
                 await adminDataService.deleteDemande(id);
                 onUpdate();
+            } catch (err) {
+                console.error('Suppression de la demande :', err);
+                await showAlert('La demande n’a pas pu être supprimée. Réessayez.', { isDanger: true });
             } finally {
                 setLoadingId(null);
             }
@@ -62,7 +69,7 @@ export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showC
                             if (d.extra_info) {
                                 extra = typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info;
                             }
-                        } catch (e) {}
+                        } catch { /* JSON invalide : on garde la valeur par défaut */ }
                         
                         return (
                             <div key={d.id} className="case-card">
@@ -207,16 +214,12 @@ export function DemandeDetailsModal({ demande, onClose, onAccept, onReject, load
 
             // Send notification email
             if (demande.email) {
-                fetch('/api/email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: demande.email,
-                        nom: demande.clientName || 'Client',
-                        type: 'new_message',
-                        content: msgContent
-                    })
-                }).catch(err => console.error("Error sending message notification:", err));
+                sendAdminMessageEmail({
+                    email: demande.email,
+                    // clientName contient aussi le téléphone (« Prénom Nom - 📞 06… ») : on ne garde que le nom.
+                    nom: String(demande.clientName || '').replace(/\s*-?\s*📞.*$/, '').trim(),
+                    content: msgContent,
+                }).catch((err) => appAlert(`Message enregistré, mais l'email de notification n'a pas pu partir.\n${err.message}`));
             }
         } catch (err) {
             await appAlert("Erreur lors de l'envoi du message");
@@ -228,7 +231,7 @@ export function DemandeDetailsModal({ demande, onClose, onAccept, onReject, load
         if (demande.extra_info) {
             extra = typeof demande.extra_info === 'string' ? JSON.parse(demande.extra_info) : demande.extra_info;
         }
-    } catch (e) {}
+    } catch { /* JSON invalide : on garde la valeur par défaut */ }
 
     return (
         <div className="admin-modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '40px', overflowY: 'auto' }}>

@@ -1,3 +1,4 @@
+require('./_confirm.cjs');
 const fs = require('fs');
 
 const readEnvVar = (file, key) => {
@@ -26,7 +27,13 @@ import('@planetscale/database').then(async ({ connect }) => {
   const testEmail = process.argv[2];
   if (!testEmail) {
     console.error("❌ ERREUR: Veuillez fournir l'email du client à réinitialiser.");
-    console.error("Exemple: node scripts/reset-test-client.cjs david.cassin7@gmail.com");
+    console.error("Exemple : npm run db:clean-docs -- benilias757@gmail.com (compte de test UNIQUEMENT)");
+    process.exit(1);
+  }
+  // Verrou : ce script supprime des documents. Il ne vise QUE le compte de test (AI_INSTRUCTIONS.md, règle 1.3).
+  const ALLOWED_TEST_EMAIL = 'benilias757@gmail.com';
+  if (String(testEmail).trim().toLowerCase() !== ALLOWED_TEST_EMAIL) {
+    console.error(`❌ Refusé : ce script ne peut viser que le compte de test (${ALLOWED_TEST_EMAIL}).`);
     process.exit(1);
   }
   console.log(`\n🔄 Réinitialisation sécurisée du client de test (${testEmail})...`);

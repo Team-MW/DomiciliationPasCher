@@ -1,3 +1,4 @@
+import './_confirm.cjs';
 import { connect } from '@planetscale/database';
 import fs from 'fs';
 
@@ -158,7 +159,7 @@ async function testFailedPaymentLogic() {
         hasError = true;
         try {
             await conn.execute("DELETE FROM clients WHERE id = ?", [testClientId]);
-        } catch (_) {}
+        } catch { /* nettoyage best-effort : on ignore */ }
     }
 
     console.log(`

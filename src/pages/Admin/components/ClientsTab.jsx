@@ -11,7 +11,7 @@ const formatDateShort = (dateStr) => {
     return dateStr;
 };
 
-export default function ClientsTab({ clients, searchQuery, onSelect, onUpdate, onCreateClick }) {
+export default function ClientsTab({ clients, searchQuery, onSelect, onCreateClick }) {
     const [isExporting, setIsExporting] = useState(false);
 
     const q = (searchQuery || '').toLowerCase();

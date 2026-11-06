@@ -1,5 +1,6 @@
+import './_confirm.cjs';
 import fs from 'fs';
-import { generateSignedProcurationBlob } from '../src/utils/pdfGenerator.js';
+import { generateSignedProcurationBlob } from '../../src/utils/pdfGenerator.js';
 
 async function run() {
     try {

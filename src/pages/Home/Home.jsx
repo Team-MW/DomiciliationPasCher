@@ -338,7 +338,7 @@ export default function Home() {
                     gap: '8px'
                 }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    Votre demande de domiciliation est en cours de traitement. Vous recevrez un email dès sa validation.
+                    {tr.home.pendingBanner}
                 </div>
             )}
 

@@ -1666,3 +1666,62 @@
         padding: 24px;
     }
 }
+.sous-commitment-note {
+    margin: 12px 0 0;
+    font-size: 13px;
+    color: #64748B;
+    line-height: 1.5;
+}
+
+/* ── Améliorations parcours (nov. 2026) ── */
+.fc-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.fc-ttc { font-size: 12px; color: #64748B; white-space: nowrap; }
+
+.cc-label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.formule-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--primary, #1A56DB);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.cc-note { margin-top: 4px; font-size: 12px; color: #94A3B8; }
+.courrier-common {
+    margin: 16px 0 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #475569;
+}
+.courrier-common strong { color: #0F172A; }
+
+.recap-card h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rc-edit {
+    padding: 4px 10px;
+    border: 1px solid #E2E8F0;
+    border-radius: 999px;
+    background: #FFFFFF;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary, #1A56DB);
+    cursor: pointer;
+}
+.rc-edit:hover { border-color: var(--primary, #1A56DB); background: #EEF4FF; }
+
+.domi-info-card.is-info { background: #EFF6FF; border-color: #BFDBFE; }
+.domi-info-card.is-info .dic-title { color: #1E3A8A; }
+.domi-info-card.is-info .dic-text { color: #334155; }
+
+@media (max-width: 520px) {
+    /* Formules : on libère de la largeur pour le texte (icône masquée, prix sous le titre). */
+    .courrier-card .cc-icon { display: none; }
+    .courrier-card { flex-wrap: nowrap; align-items: center; }
+    .courrier-card .cc-left { flex: 1 1 auto; }
+    .courrier-card .cc-right { flex-direction: column-reverse; align-items: flex-end; gap: 8px; }
+}

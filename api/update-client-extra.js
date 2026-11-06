@@ -1,6 +1,7 @@
 import { getDbConn } from './_db.js';
 import { requireUser, getOwnership, sendServerError } from './_auth.js';
 import { sanitizeClientExtra } from './_client-extra.js';
+import { CONTRACT_VERSION, hasSignedContract } from '../shared/contract.js';
 
 /**
  * Enregistrement des preuves de signature (contrat, procuration) dans extra_info.
@@ -54,6 +55,10 @@ export default async function handler(req, res) {
         }
         const cleanExtra = user.isAdmin ? { ...extraInfo } : sanitizeClientExtra(extraInfo, { allowSignature });
         const merged = { ...existing, ...cleanExtra };
+        // Première signature du contrat : on note la version du texte signé (sert à le regénérer à l'identique).
+        if (!hasSignedContract(existing) && hasSignedContract(merged) && !existing.contract_version) {
+            merged.contract_version = CONTRACT_VERSION;
+        }
         await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), clientId]);
         return res.status(200).json({ success: true, merged });
     } catch (error) {

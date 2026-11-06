@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
-import { PLAN_CATALOG, resolvePlanId } from '../../../data/plans.js';
+import { PLAN_CATALOG, resolvePlanId, clientPlanPricing } from '../../../data/plans.js';
+import { parseExtraInfo } from '../../../utils/contractLegalFields';
 import { appConfirm } from '../../../components/AppDialog/dialogApi';
 
 const PLAN_I18N_KEY = {
@@ -33,14 +34,16 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
         sinceDate = t('espaceClient.subscription.unspecified');
     }
 
+    // Prix du contrat du client : grille actuelle, ou ancienne grille s'il a souscrit avant (il garde son prix).
+    const clientExtra = parseExtraInfo(clientData?.extra_info);
     const getPlanDetails = (p) => {
-        const id = resolvePlanId(p);
-        const catalog = PLAN_CATALOG[id];
-        const i18nKey = PLAN_I18N_KEY[id];
+        const pricing = clientPlanPricing(p, clientExtra);
+        const i18nKey = PLAN_I18N_KEY[pricing.id];
         const copy = t(`espaceClient.subscription.${i18nKey}`);
         return {
-            title: copy?.title || catalog.name,
-            price: `${catalog.ht} €`,
+            // Nom actuel de la formule pour tous (Scan+ = Confort) ; un ancien client garde seulement son prix.
+            title: copy?.title || PLAN_CATALOG[pricing.id].name,
+            price: `${pricing.ht} €`,
             period: t('espaceClient.subscription.periodMonthHt'),
             badge: copy?.badge || '',
             features: Array.isArray(copy?.features) ? copy.features : [],

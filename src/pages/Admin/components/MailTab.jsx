@@ -18,12 +18,13 @@ export default function MailTab({ reexpeditions = [], onUpdate, showAlert, onSel
             await adminDataService.updateReexpeditionStatus(request.id, newStatus);
             if (request.clientEmail) {
                 const { sendReexpeditionStatusEmail } = await import('../../../utils/emailService');
-                await sendReexpeditionStatusEmail({
+                const mailed = await sendReexpeditionStatusEmail({
                     email: request.clientEmail,
                     nom: request.clientContact || request.clientName,
                     status: newStatus,
                     address: request.address,
                 });
+                if (!mailed) await showAlert?.('Statut enregistré, mais l’email au client n’a pas pu partir (voir l’historique des emails).');
             }
             try {
                 await adminDataService.addMessage(request.clientId, {
@@ -112,7 +113,7 @@ export default function MailTab({ reexpeditions = [], onUpdate, showAlert, onSel
             <div className="tab-header" style={{ marginBottom: '24px' }}>
                 <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--admin-text-main)' }}>Courrier & réexpéditions</h2>
                 <p style={{ color: 'var(--admin-text-sub)', fontSize: '14px', marginTop: '4px' }}>
-                    Traitez les demandes de réexpédition physique des forfaits Scan+ et Physique+.
+                    Traitez les demandes de réexpédition physique des clients (payantes, sauf 2 par mois incluses en Premium).
                 </p>
             </div>
 

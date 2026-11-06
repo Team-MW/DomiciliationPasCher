@@ -11,7 +11,7 @@ function postLoginUrl() {
 
 export default function ConnexionPage() {
     const afterAuth = postLoginUrl();
-    usePageMeta({ path: '/connexion', noindex: true });
+    usePageMeta({ title: 'Connexion à votre espace client — Domiciliation Pas Cher', path: '/connexion', noindex: true });
 
     return (
         <main className="auth-page">
@@ -27,7 +27,7 @@ export default function ConnexionPage() {
 
                     <div className="auth-features">
                         {[
-                            { icon: '📬', title: 'Courrier numérisé', desc: 'Consultez vos lettres en ligne, à tout moment' },
+                            { icon: '📬', title: 'Votre courrier en ligne', desc: 'Notification avec photo de chaque enveloppe, scan inclus en Confort et Premium' },
                             { icon: '📄', title: 'Vos documents', desc: 'Attestations, contrats, factures centralisés' },
                             { icon: '📅', title: 'Réservations', desc: 'Salles de réunion et bureaux privatifs' },
                         ].map((f, i) => (
@@ -43,7 +43,7 @@ export default function ConnexionPage() {
                 </div>
 
                 <div className="auth-left-footer">
-                    <span>Centre agréé · Loi Dutreil 2003 · 100% sécurisé</span>
+                    <span>Centre agréé par la préfecture · Loi Dutreil 2003 · Paiement sécurisé</span>
                 </div>
             </div>
 

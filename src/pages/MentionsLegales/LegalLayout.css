@@ -20,9 +20,20 @@
     overflow-wrap: normal;
     word-break: normal;
 }
-.legal-content td:first-child,
-.legal-content th:first-child {
-    white-space: nowrap;
+@media (min-width: 768px) {
+    .legal-content td:first-child,
+    .legal-content th:first-child {
+        white-space: nowrap;
+    }
+}
+@media (max-width: 767px) {
+    /* Mobile : toutes les colonnes doivent tenir dans l'écran (pas de défilement horizontal caché). */
+    .legal-content table { font-size: 13px !important; }
+    .legal-content th,
+    .legal-content td { padding: 6px !important; hyphens: auto; -webkit-hyphens: auto; }
+    .legal-content th { hyphens: none; -webkit-hyphens: none; font-size: 12px; }
+    .legal-content td:first-child,
+    .legal-content th:first-child { min-width: 96px; }
 }
 .legal-content a {
     color: #1A56DB;

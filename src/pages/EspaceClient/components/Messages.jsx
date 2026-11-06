@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { Icons } from './Icons';
+import SupportAvatar from './SupportAvatar';
 
 function sameCalendarDay(a, b) {
     return a.getFullYear() === b.getFullYear()
@@ -40,6 +41,17 @@ export default function Messages({ clientData }) {
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
 
+    const fetchMessages = async () => {
+        try {
+            const msgs = await adminDataService.getMessages(clientData.id);
+            setMessages(Array.isArray(msgs) ? msgs : []);
+            if (!clientData.isPreview) await adminDataService.markMessagesAsRead(clientData.id, 'client');
+        } catch (err) {
+            // Réseau coupé, session expirée… : on garde l'affichage actuel au lieu de planter.
+            console.error('Messagerie : chargement impossible', err);
+        }
+    };
+
     useEffect(() => {
         if (clientData) {
             fetchMessages();
@@ -53,12 +65,6 @@ export default function Messages({ clientData }) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
-
-    const fetchMessages = async () => {
-        const msgs = await adminDataService.getMessages(clientData.id);
-        setMessages(msgs);
-        await adminDataService.markMessagesAsRead(clientData.id, 'client');
-    };
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -108,9 +114,10 @@ export default function Messages({ clientData }) {
             <div className="ec-chat">
                 <header className="ec-chat-header">
                     <div className="ec-chat-header-left">
-                        <div className="ec-chat-avatar" aria-hidden="true">
-                            <Icons.Chat style={{ width: 18, height: 18 }} />
-                        </div>
+                        <span className="ec-chat-avatar-wrap">
+                            <SupportAvatar size={46} />
+                            <span className="ec-chat-avatar-status" />
+                        </span>
                         <div>
                             <h2>{t('espaceClient.messages.title')}</h2>
                             <p className="ec-chat-header-sub">{t('espaceClient.messages.replyHint')}</p>
@@ -146,11 +153,7 @@ export default function Messages({ clientData }) {
                                             key={m.id}
                                             className={`ec-chat-row ${mine ? 'is-mine' : 'is-theirs'}${stacked ? ' is-stacked' : ''}`}
                                         >
-                                            {!mine && (
-                                                <div className={`ec-chat-row-avatar${stacked ? ' is-hidden' : ''}`} aria-hidden="true">
-                                                    {stacked ? null : 'D'}
-                                                </div>
-                                            )}
+                                            {!mine && <SupportAvatar size={30} className="ec-chat-row-logo" />}
                                             <div className="ec-chat-col">
                                                 <div className="ec-chat-bubble">{m.content}</div>
                                                 <span className="ec-chat-meta">

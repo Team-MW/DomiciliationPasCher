@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
-import { canRequestPhysicalForward } from '../../../data/plans';
+import { canRequestPhysicalForward, scanQuotaFor, currentQuotaPeriodStart, EXTRA_FEES_HT } from '../../../data/plans';
 import { parseExtraInfo, resolveForwardingAddress, resolvePersonalAddress } from '../../../utils/contractLegalFields';
 import { adminDataService } from '../../../services/adminDataService';
 import { appAlert } from '../../../components/AppDialog/dialogApi';
@@ -14,11 +14,23 @@ const STATUS_LABEL = {
 };
 
 export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }) {
-    const { t } = useTranslation();
+    const { t, lang } = useTranslation();
+    const formatMailDate = (value) => {
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return value || '';
+        const locale = lang === 'en' ? 'en-GB' : lang === 'ru' ? 'ru-RU' : 'fr-FR';
+        return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+    };
     const extra = useMemo(() => parseExtraInfo(clientData?.extra_info), [clientData?.extra_info]);
     const canForward = canRequestPhysicalForward(clientData?.plan, extra);
     const personalAddress = resolvePersonalAddress(clientData, extra);
     const forwardingAddress = resolveForwardingAddress(extra);
+
+    // Compteur de numérisation (CGV art. 3 : quota remis à zéro à chaque date anniversaire).
+    const scanQuota = scanQuotaFor(clientData?.plan, extra);
+    const periodStart = currentQuotaPeriodStart(clientData?.since);
+    const scansThisPeriod = mail.filter((m) => m?.preview && new Date(m.date) >= periodStart).length;
+    const scanOver = typeof scanQuota === 'number' && scanQuota > 0 && scansThisPeriod >= scanQuota;
 
     const [filter, setFilter] = useState('all');
     const [reexpModalOpen, setReexpModalOpen] = useState(false);
@@ -191,8 +203,28 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
 
                 <div className="ec-stat-card" style={{ padding: '20px', background: 'white', borderRadius: '14px', border: '1px solid var(--ec-border)' }}>
                     <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#059669', fontWeight: '700' }}>{t('espaceClient.mail.scanLabel')}</div>
-                    <div style={{ fontSize: '28px', fontWeight: '900', color: '#059669', marginTop: '4px' }}>100%</div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{t('espaceClient.mail.scanHint')}</div>
+                    {scanQuota === 0 ? (
+                        <>
+                            <div style={{ fontSize: '28px', fontWeight: '900', color: '#94a3b8', marginTop: '4px' }}>—</div>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{t('espaceClient.mail.scanNotIncluded')}</div>
+                        </>
+                    ) : scanQuota === null ? (
+                        <>
+                            <div style={{ fontSize: '22px', fontWeight: '900', color: '#059669', marginTop: '8px' }}>✓</div>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{t('espaceClient.mail.scanIncluded')}</div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ fontSize: '28px', fontWeight: '900', color: scanOver ? '#d97706' : '#059669', marginTop: '4px' }}>
+                                {scansThisPeriod} <span style={{ fontSize: '16px', color: '#94a3b8', fontWeight: '700' }}>/ {scanQuota}</span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: scanOver ? '#b45309' : '#64748b', marginTop: '4px' }}>
+                                {scanOver
+                                    ? t('espaceClient.mail.scanQuotaOver').replace('{price}', `${EXTRA_FEES_HT.scanPerPage.toFixed(2).replace('.', ',')} €`)
+                                    : t('espaceClient.mail.scanQuotaHint').replace('{date}', periodStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -309,7 +341,7 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
                                         {m.status === 'non lu' ? t('espaceClient.mail.unreadBadge') : t('espaceClient.mail.readBadge')}
                                     </span>
                                     <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600' }}>
-                                        {m.date}
+                                        {formatMailDate(m.date)}
                                     </span>
                                 </div>
 
@@ -322,14 +354,33 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
                             </div>
 
                             <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', gap: '10px' }}>
-                                <button
-                                    onClick={() => handleOpenScan(m)}
-                                    className="ec-btn-primary"
-                                    style={{ width: '100%', padding: '10px 16px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                >
-                                    <Icons.Docs style={{ width: 14, height: 14 }} />
-                                    {t('espaceClient.mail.openScan')}
-                                </button>
+                                {m.preview ? (
+                                    <button
+                                        onClick={() => handleOpenScan(m)}
+                                        className="ec-btn-primary"
+                                        style={{ width: '100%', padding: '10px 16px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                    >
+                                        <Icons.Docs style={{ width: 14, height: 14 }} />
+                                        {t('espaceClient.mail.openScan')}
+                                    </button>
+                                ) : (
+                                    // Pas de scan (colis, ou formule sans numérisation) : on dit quoi faire au lieu
+                                    // d'afficher un bouton « Consulter le scan » qui ne mène nulle part.
+                                    <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '13px', color: 'var(--ec-text-sub)' }}>
+                                            {/colis/i.test(m.type || '') ? t('espaceClient.mail.parcelHint') : t('espaceClient.mail.noScanInline')}
+                                        </span>
+                                        {m.status === 'non lu' && onMailRead && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onMailRead(m.id)}
+                                                style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '12px', fontWeight: 600, color: '#1A56DB', cursor: 'pointer' }}
+                                            >
+                                                {t('espaceClient.mail.markRead')}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}

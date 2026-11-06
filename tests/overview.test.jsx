@@ -35,6 +35,9 @@ vi.mock('../src/i18n/LanguageContext', () => ({
                 'espaceClient.overview.help': 'Aide & FAQ',
                 'espaceClient.overview.support': 'Support',
                 'espaceClient.overview.companyFallback': 'Entreprise',
+                'espaceClient.overview.checklistTitle': 'Finalisez votre dossier',
+                'espaceClient.overview.addressTitle': 'Votre adresse de domiciliation',
+                'espaceClient.overview.recentTitle': 'Derniers courriers',
             };
             return map[key] || key;
         },
@@ -65,9 +68,12 @@ describe('Overview dashboard', () => {
 
         expect(screen.getByText('1 non lu')).toBeInTheDocument();
         expect(screen.getByText('3')).toBeInTheDocument();
-        expect(screen.getByText('Scan+')).toBeInTheDocument();
         expect(screen.getByText('sasu')).toBeInTheDocument();
-        expect(screen.getByText('Toulouse · Centre agréé')).toBeInTheDocument();
+        // Refonte nov. 2026 : la formule est dans l'en-tête (EspaceClient), plus dans le tableau de bord.
+        expect(screen.getByText('Finalisez votre dossier')).toBeInTheDocument();
+        expect(screen.getByText('Votre adresse de domiciliation')).toBeInTheDocument();
+        expect(screen.getByText(/150 rue Nicolas Louis Vauquelin/)).toBeInTheDocument();
+        expect(screen.getByText('Derniers courriers')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /Boîte aux lettres/i }));
         expect(setActiveTab).toHaveBeenCalledWith('mail');

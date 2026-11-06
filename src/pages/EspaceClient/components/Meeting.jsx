@@ -29,8 +29,12 @@ export default function Meeting({ clientData }) {
         if (!clientData?.id) return;
 
         const fetchBookings = async () => {
-            const b = await adminDataService.getClientBookings(clientData.id);
-            setBookings(b);
+            try {
+                const b = await adminDataService.getClientBookings(clientData.id);
+                setBookings(Array.isArray(b) ? b : []);
+            } catch (err) {
+                console.error('Réservations : chargement impossible', err);
+            }
         };
         fetchBookings();
 

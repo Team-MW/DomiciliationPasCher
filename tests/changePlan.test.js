@@ -140,12 +140,12 @@ describe('POST /api/change-plan', () => {
         }));
         expect(execute).toHaveBeenCalledWith(
             'UPDATE clients SET plan = ?, extra_info = ? WHERE id = ?',
-            expect.arrayContaining(['Physique+', expect.any(String), 'cli_1'])
+            expect.arrayContaining(['Premium', expect.any(String), 'cli_1'])
         );
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             ok: true,
-            plan: 'Physique+',
+            plan: 'Premium',
             planId: 'physique',
         }));
     });

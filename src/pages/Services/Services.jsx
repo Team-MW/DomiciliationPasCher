@@ -2,12 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
 import usePageMeta from '../../components/Seo/usePageMeta';
-import CreationEntrepriseSection from '../../components/CreationEntreprise/CreationEntrepriseSection';
 import './Services.css';
 
 /* ─── Sub-components ────────────────────────────────── */
 
-function StepCard({ step, index, last }) {
+function StepCard({ step, last }) {
     return (
         <div className="svc-step" id={`step-${step.n}`}>
             <div className="svc-step-left">
@@ -325,7 +324,7 @@ export default function Services() {
                             <Link to="/tarifs" className="btn btn-white btn-lg" id="services-final-cta">
                                 {tr.services.cta.primary}
                             </Link>
-                            <Link to="/about" className="final-cta-link">{tr.services.cta.secondary}</Link>
+                            <Link to="/a-propos" className="final-cta-link">{tr.services.cta.secondary}</Link>
                         </div>
                     </div>
                 </div>

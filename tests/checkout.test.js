@@ -165,7 +165,7 @@ describe('Checkout API Handler (api/checkout.js)', () => {
             line_items: [{
                 price_data: {
                     currency: 'eur',
-                    product_data: { name: 'Forfait Scan+' },
+                    product_data: { name: 'Forfait Confort' },
                     unit_amount: 2880, // 24 € HT × 1,2 = 28,80 € TTC
                     recurring: { interval: 'month' }
                 },
@@ -210,8 +210,8 @@ describe('Checkout API Handler (api/checkout.js)', () => {
             line_items: [{
                 price_data: {
                     currency: 'eur',
-                    product_data: { name: 'Forfait Physique+' },
-                    unit_amount: 45600, // 38 € × 10 mois × 1,2
+                    product_data: { name: 'Forfait Premium' },
+                    unit_amount: 43776, // 38 € × 12 mois − 20 % = 364,80 € HT × 1,2
                     recurring: { interval: 'year' }
                 },
                 quantity: 1,

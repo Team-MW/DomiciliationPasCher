@@ -3,14 +3,15 @@ import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
 import { uploadFile } from '../../../utils/cloudinary';
-import { convertPdfToPng } from '../../../utils/pdfConverter';
-import { sendFailedPaymentEmail } from '../../../utils/emailService';
+import { sendFailedPaymentEmail, sendAdminMessageEmail } from '../../../utils/emailService';
 import { DOC_LABELS, DOC_REMINDER_DAYS } from '../../../../shared/documentRequest.js';
 import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
 import { resolveClientStatusFromStripe } from '../../../utils/stripeClientStatus';
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
 import { parseExtraInfo } from '../../../utils/contractLegalFields';
-import { PLAN_CATALOG, resolvePlanId, planAmountTtc } from '../../../../shared/plans.js';
+import { clientPlanPricing } from '../../../../shared/plans.js';
+import AddInvoiceModal from './AddInvoiceModal';
+import EmailHistory from './EmailHistory';
 
 const formatDateLong = (dateStr) => {
     if (!dateStr) return 'Non définie';
@@ -47,14 +48,12 @@ const blobToBase64 = (blob) => {
 export default function DossierClient({ client, onBack, onUpdate, showConfirm, showAlert }) {
     const [documents, setDocuments] = useState([]);
     const [mails, setMails] = useState([]);
+    const [isAddingInvoice, setIsAddingInvoice] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [currentFolder, setCurrentFolder] = useState(null);
+    const [currentFolder] = useState(null);
     const [downloadingDocId, setDownloadingDocId] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [syncDebugText, setSyncDebugText] = useState(null);
-
-    // Dériver les dossiers depuis la liste des documents de manière sécurisée
-    const folders = Array.from(new Set((documents || []).map(d => (d && d.folder) || 'Documents')));
+    const [, setSyncDebugText] = useState(null);
 
     const [activeDossierTab, setActiveDossierTab] = useState('details');
     const [messages, setMessages] = useState([]);
@@ -82,6 +81,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [requestedDocs, setRequestedDocs] = useState({ statuts: true, kbis: true });
     const [docRequest, setDocRequest] = useState(null);
     const [emailLogs, setEmailLogs] = useState(null);
+    const [emailReload, setEmailReload] = useState(0);
 
     useEffect(() => {
         try {
@@ -103,11 +103,11 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             if (typeof info === 'string') info = JSON.parse(info);
             courrierEmail = info?.emailCourrier || null;
         } catch { /* extra_info illisible */ }
-        adminDataService.getEmailLogs(client.email, courrierEmail).then((logs) => {
-            if (!cancelled) setEmailLogs(logs);
-        });
+        adminDataService.getEmailLogs(client.email, courrierEmail)
+            .then((logs) => { if (!cancelled) setEmailLogs(Array.isArray(logs) ? logs : []); })
+            .catch((err) => { console.error('Historique emails :', err); if (!cancelled) setEmailLogs([]); });
         return () => { cancelled = true; };
-    }, [client, activeDossierTab]);
+    }, [client, activeDossierTab, emailReload]);
 
     useEffect(() => {
         if (client) {
@@ -186,10 +186,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     useEffect(() => {
         if (client && activeDossierTab === 'messages') {
             const fetchMessages = async () => {
-                const msgs = await adminDataService.getMessages(client.id);
-                setMessages(msgs);
-                // Marquer comme lu
-                await adminDataService.markMessagesAsRead(client.id, 'admin');
+                try {
+                    const msgs = await adminDataService.getMessages(client.id);
+                    setMessages(Array.isArray(msgs) ? msgs : []);
+                    await adminDataService.markMessagesAsRead(client.id, 'admin');
+                } catch (err) {
+                    console.error('Messagerie admin : chargement impossible', err);
+                }
             };
             fetchMessages();
         }
@@ -208,18 +211,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             setMessages(prev => [...prev, msg]);
             setNewMessage('');
 
-            // Envoi de l'email de notification au client
+            // Email de notification au client : le message est enregistré quoi qu'il arrive,
+            // mais l'admin doit savoir si le client n'a pas été prévenu.
             if (client.email) {
-                fetch('/api/email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: client.email,
-                        nom: client.name || client.clientName || 'Client',
-                        type: 'new_message',
-                        content: msgContent
-                    })
-                }).catch(err => console.error("Erreur d'envoi d'email de notification:", err));
+                sendAdminMessageEmail({
+                    email: client.email,
+                    nom: client.name || client.clientName || '',
+                    content: msgContent,
+                }).catch((err) => showAlert(`Message enregistré dans l'espace client, mais l'email de notification n'a pas pu partir.\n${err.message}`));
             }
         } catch (err) {
             await showAlert("Erreur lors de l'envoi du message");
@@ -256,10 +255,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             let finalUrl = '';
 
             if (isPdf) {
-                console.log("Traitement direct du PDF admin (sans Cloudinary)...");
                 finalUrl = await blobToBase64(originalFile);
             } else {
-                console.log("Upload du fichier image vers Cloudinary...");
                 const info = await uploadFile(originalFile, { folder: `clients/${client.id}/Documents` });
                 finalUrl = info.secure_url;
             }
@@ -351,37 +348,26 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         handleUploadClick(); // On ouvre le widget pour plus de sécurité
     };
 
-    const handleAddInvoice = async () => {
-        // Montant TTC mensuel issu du catalogue (les montants codés en dur étaient HT,
-        // alors que les factures Stripe sont TTC).
-        const catalog = PLAN_CATALOG[resolvePlanId(client.plan)];
-        const defaultAmount = planAmountTtc(catalog.ht, 'month').toFixed(2);
+    // Montant TTC du contrat de CE client (grille actuelle, ou ancienne grille s'il a souscrit
+    // avant : il garde son prix). Les factures Stripe sont TTC.
+    const defaultInvoiceAmount = () => {
+        const clientExtra = parseExtraInfo(client.extra_info);
+        const pricing = clientPlanPricing(client.plan, clientExtra);
+        return (clientExtra.frequence === 'annuel' ? pricing.ttcYear : pricing.ttcMonth).toFixed(2);
+    };
 
-        const amountInput = prompt(`Montant TTC de la facture (ex: ${defaultAmount}) ?`, defaultAmount);
-        if (!amountInput) return;
-        const amount = Number(String(amountInput).replace(',', '.'));
-        if (!Number.isFinite(amount) || amount <= 0) {
-            await showAlert('Montant invalide.');
-            return;
-        }
+    const handleAddInvoice = () => setIsAddingInvoice(true);
 
-        const date = prompt("Date de la facture (AAAA-MM-JJ) ?", new Date().toISOString().split('T')[0]);
-        if (!date) return;
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(date).getTime())) {
-            await showAlert('Date invalide (format AAAA-MM-JJ).');
-            return;
-        }
-
+    const submitInvoice = async ({ amount, date }) => {
         try {
             setIsLoading(true);
-            await adminDataService.addPayment(client.id, {
-                amount,
-                date
-            });
+            await adminDataService.addPayment(client.id, { amount, date });
             const pay = await adminDataService.getPayments(client.id);
             setPayments(pay);
+            setIsAddingInvoice(false);
         } catch (err) {
-            await showAlert("Erreur lors de l'ajout de la facture");
+            console.error('Ajout de facture :', err);
+            await showAlert("Erreur lors de l'ajout de la facture. Réessayez.", { isDanger: true });
         } finally {
             setIsLoading(false);
         }
@@ -409,7 +395,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
             if (!stripeCustomerId && syncData.foundCustomerId) {
                 try {
-                    const updatedExtra = await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: syncData.foundCustomerId });
+                    await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: syncData.foundCustomerId });
                     onUpdate();
                 } catch (e) {
                     console.error("Erreur auto-save stripeCustomerId in admin:", e);
@@ -1530,12 +1516,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                     await adminDataService.updateReexpeditionStatus(r.id, 'expediee');
                                                                     if (client.email) {
                                                                         const { sendReexpeditionStatusEmail } = await import('../../../utils/emailService');
-                                                                        await sendReexpeditionStatusEmail({
+                                                                        const mailed = await sendReexpeditionStatusEmail({
                                                                             email: client.email,
                                                                             nom: client.name,
                                                                             status: 'expediee',
                                                                             address: r.address,
                                                                         });
+                                                                        if (!mailed) await showAlert?.('Statut enregistré, mais l’email au client n’a pas pu partir (voir l’historique des emails).');
                                                                     }
                                                                     await adminDataService.addMessage(client.id, {
                                                                         sender: 'admin',
@@ -1564,12 +1551,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                                     await adminDataService.updateReexpeditionStatus(r.id, 'refusee');
                                                                     if (client.email) {
                                                                         const { sendReexpeditionStatusEmail } = await import('../../../utils/emailService');
-                                                                        await sendReexpeditionStatusEmail({
+                                                                        const mailed = await sendReexpeditionStatusEmail({
                                                                             email: client.email,
                                                                             nom: client.name,
                                                                             status: 'refusee',
                                                                             address: r.address,
                                                                         });
+                                                                        if (!mailed) await showAlert?.('Statut enregistré, mais l’email au client n’a pas pu partir (voir l’historique des emails).');
                                                                     }
                                                                     await adminDataService.addMessage(client.id, {
                                                                         sender: 'admin',
@@ -1702,10 +1690,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 </a>
                                                 <button
                                                     onClick={async () => {
-                                                        if (await showConfirm('Supprimer ce courrier ?')) {
+                                                        if (!(await showConfirm('Supprimer définitivement ce courrier ?', { isDanger: true, confirmText: 'Supprimer' }))) return;
+                                                        try {
                                                             await adminDataService.deleteMail(m.id);
                                                             const updatedMails = await adminDataService.getClientMail(client.id);
                                                             setMails(Array.isArray(updatedMails) ? updatedMails : []);
+                                                        } catch (err) {
+                                                            console.error('Suppression du courrier :', err);
+                                                            await showAlert('Suppression impossible. Réessayez.', { isDanger: true });
                                                         }
                                                     }}
                                                     style={{ padding: '8px 12px', background: 'transparent', color: '#EF4444', border: '1px solid #FEE2E2', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
@@ -2030,43 +2022,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 );
 
             case 'emails':
-                return (
-                    <div id="admin-email-history">
-                        <h3 style={{ marginTop: 0, fontSize: '16px', color: '#0F172A' }}>Historique des emails envoyés</h3>
-                        {emailLogs === null ? (
-                            <p style={{ color: '#64748B', fontSize: '14px' }}>Chargement…</p>
-                        ) : emailLogs.length === 0 ? (
-                            <p style={{ color: '#64748B', fontSize: '14px' }}>Aucun email journalisé pour ce client.</p>
-                        ) : (
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                <thead>
-                                    <tr style={{ textAlign: 'left', background: '#F8FAFC', color: '#475569' }}>
-                                        <th style={{ padding: '8px' }}>Date</th>
-                                        <th style={{ padding: '8px' }}>Objet</th>
-                                        <th style={{ padding: '8px' }}>Destinataire</th>
-                                        <th style={{ padding: '8px' }}>Statut</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {emailLogs.map((log) => (
-                                        <tr key={log.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                                            <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{new Date(log.sent_at).toLocaleString('fr-FR')}</td>
-                                            <td style={{ padding: '8px' }}>{log.subject}</td>
-                                            <td style={{ padding: '8px' }}>
-                                                {log.client_email && log.to_email !== log.client_email
-                                                    ? <span title={log.to_email}>Équipe (alerte admin)</span>
-                                                    : log.to_email}
-                                            </td>
-                                            <td style={{ padding: '8px', color: log.status === 'sent' ? '#16A34A' : '#DC2626', fontWeight: 600 }} title={log.error || ''}>
-                                                {log.status === 'sent' ? 'Envoyé' : 'Échec'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                );
+                return <EmailHistory logs={emailLogs} clientEmail={client.email} onRefresh={() => setEmailReload((n) => n + 1)} />;
             case 'details':
             default:
                 return (
@@ -2190,13 +2146,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase' }}>Offre Courrier</div>
                                             {isEditingDetails ? (
                                                 <select value={editFormData.offre || ''} onChange={e => setEditFormData({ ...editFormData, offre: e.target.value })} style={{ width: '100%', padding: '6px', fontSize: '14px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-                                                    <option value="scan">Scan numérique</option>
-                                                    <option value="reexpedition">Physique (+38€)</option>
-                                                    <option value="notification">Notification</option>
+                                                    <option value="notification">Essentiel — notification avec photo</option>
+                                                    <option value="scan">Confort — numérisation 40 plis/mois</option>
+                                                    <option value="reexpedition">Premium — 100 plis, réexpédition, colis</option>
                                                 </select>
                                             ) : (
                                                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#2563EB' }}>
-                                                    {extra.offre === 'scan' ? 'Scan numérique' : (extra.offre === 'reexpedition' ? 'Physique (+38€)' : 'Notification')}
+                                                    {extra.offre === 'scan' ? 'Confort — numérisation' : (extra.offre === 'reexpedition' ? 'Premium — numérisation, réexpédition, colis' : 'Essentiel — notification')}
                                                 </div>
                                             )}
                                         </div>
@@ -2249,6 +2205,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
     return (
         <div className="dossier-animate">
+            {isAddingInvoice && (
+                <AddInvoiceModal
+                    defaultAmount={defaultInvoiceAmount()}
+                    clientLabel={client.company || client.name || client.email}
+                    onCancel={() => setIsAddingInvoice(false)}
+                    onSubmit={submitInvoice}
+                />
+            )}
             <div className="dossier-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <button onClick={onBack} className="btn-back" style={{ marginBottom: 0 }}>
@@ -2264,8 +2228,10 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         const confirmed = await showConfirm(`Renvoyer l'email de bienvenue à ${client.email} ?`);
                         if (confirmed) {
                             try {
-                                const { sendApprovalEmail } = await import('../../../services/emailService');
-                                const result = await sendApprovalEmail(client.email, client.company);
+                                const { sendApprovalEmail } = await import('../../../utils/emailService');
+                                const approvalExtra = parseExtraInfo(client.extra_info);
+                                const personName = [approvalExtra.prenom, approvalExtra.nom].filter(Boolean).join(' ') || client.name || '';
+                                const result = await sendApprovalEmail(client.email, personName);
                                 if (result.success) {
                                     await showAlert("Email de relance envoyé avec succès !");
                                 } else {

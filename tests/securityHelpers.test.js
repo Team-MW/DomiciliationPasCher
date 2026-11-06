@@ -6,7 +6,7 @@ vi.mock('nodemailer', () => ({ default: { createTransport: vi.fn(() => ({})) } }
 vi.mock('../api/_db.js', () => ({ getDbConn: () => null }));
 
 import { deliverEmail, safeHttpUrl } from '../api/_email-core.js';
-import { installApiAuth, isSameOriginApiUrl } from '../src/utils/apiAuth.js';
+import { installApiAuth, isSameOriginApiUrl, setPreviewMode, isAllowedInPreview } from '../src/utils/apiAuth.js';
 import { getAuthUser, __setAuthVerifierForTests, isAdminEmail } from '../api/_auth.js';
 
 describe('emails : échappement HTML et liens', () => {
@@ -53,6 +53,37 @@ describe('jeton Clerk joint aux appels /api/*', () => {
         expect(calls[0].init.headers.get('Authorization')).toBe('Bearer jwt_123');
         expect(calls[1].init?.headers).toBeUndefined();
         expect(calls[2].init?.headers).toBeUndefined();
+    });
+
+    it('mode aperçu de l’espace client : aucune écriture ne part vers le serveur', async () => {
+        const calls = [];
+        const target = {
+            location: { origin: 'https://site.fr' },
+            fetch: vi.fn(async (input, init) => { calls.push({ input, init }); return { ok: true, status: 200 }; }),
+        };
+        installApiAuth({ target, getToken: async () => 'jwt_admin' });
+        setPreviewMode(true, target);
+
+        const read = await target.fetch('/api/data', { method: 'POST', body: JSON.stringify({ method: 'getMessages', args: ['preview'] }) });
+        const write = await target.fetch('/api/data', { method: 'POST', body: JSON.stringify({ method: 'addMessage', args: [{}] }) });
+        const sign = await target.fetch('/api/log-signature', { method: 'POST', body: '{}' });
+        const portal = await target.fetch('/api/create-portal-session', { method: 'POST', body: '{}' });
+
+        expect(read.status).toBe(200);
+        expect([write.status, sign.status, portal.status]).toEqual([403, 403, 403]);
+        expect(calls).toHaveLength(1); // seule la lecture a atteint le réseau
+
+        setPreviewMode(false, target);
+        await target.fetch('/api/data', { method: 'POST', body: JSON.stringify({ method: 'addMessage', args: [{}] }) });
+        expect(calls).toHaveLength(2); // hors aperçu, les écritures repassent normalement
+    });
+
+    it('lectures autorisées en aperçu : GET et méthodes get/list/check/has de /api/data', () => {
+        expect(isAllowedInPreview('/api/list-payments?email=x')).toBe(true);
+        expect(isAllowedInPreview('/api/data', { method: 'POST', body: '{"method":"getClientMail"}' })).toBe(true);
+        expect(isAllowedInPreview('/api/data', { method: 'POST', body: '{"method":"deleteDocument"}' })).toBe(false);
+        expect(isAllowedInPreview('/api/data', { method: 'POST', body: 'pas du json' })).toBe(false);
+        expect(isAllowedInPreview('/api/checkout', { method: 'POST' })).toBe(false);
     });
 
     it('reconnaît les URLs API du même domaine', () => {

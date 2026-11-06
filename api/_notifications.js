@@ -32,7 +32,7 @@ export async function processMailNotifications({ conn, transporter, from, baseUr
     await ensureMailNotifiedColumn(conn);
 
     const res = await conn.execute(
-        `SELECT m.id, m.clientId, m.type, m.\`from\` AS mailFrom, m.date, m.status, c.email, c.name, c.plan, c.status AS clientStatus, c.extra_info
+        `SELECT m.id, m.clientId, m.type, m.\`from\` AS mailFrom, m.date, m.status, m.preview, c.email, c.name, c.plan, c.status AS clientStatus, c.extra_info
          FROM mail m JOIN clients c ON c.id = m.clientId
          WHERE m.notified_at IS NULL`
     );
@@ -40,7 +40,7 @@ export async function processMailNotifications({ conn, transporter, from, baseUr
     const byClient = new Map();
     for (const row of res.rows || []) {
         if (!byClient.has(row.clientId)) byClient.set(row.clientId, { client: row, mails: [] });
-        byClient.get(row.clientId).mails.push({ id: row.id, type: row.type, from: row.mailFrom, date: row.date, status: row.status });
+        byClient.get(row.clientId).mails.push({ id: row.id, type: row.type, from: row.mailFrom, date: row.date, status: row.status, preview: row.preview });
     }
 
     let sent = 0;
@@ -57,7 +57,7 @@ export async function processMailNotifications({ conn, transporter, from, baseUr
             continue;
         }
         try {
-            const { subject, text, html } = buildMailDigestEmail({ nom: client.name, mails, plan: client.plan, baseUrl });
+            const { subject, text, html } = buildMailDigestEmail({ nom: client.name, mails, plan: client.plan, extra, baseUrl });
             await sendBrandedMail(transporter, { conn, from, to, subject, text, html, type: 'new_mail' });
             await markNotified(new Date().toISOString());
             sent++;
@@ -209,6 +209,7 @@ export async function processPendingPayments({ conn, transporter, from, baseUrl,
                 payUrl: `${baseUrl}/api/pay?token=${encodeURIComponent(extra.payment_token)}`,
                 baseUrl,
                 isReminder: true,
+                extra,
             });
             await sendBrandedMail(transporter, { conn, from, to: client.email, subject, text, html, type: 'payment_link_reminder' });
             await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [

@@ -5,10 +5,13 @@ import { adminDataService } from '../../services/adminDataService';
 import { parseExtraInfo, resolvePersonalAddress } from '../../utils/contractLegalFields';
 import { resolveClientStatusFromStripe } from '../../utils/stripeClientStatus';
 import { useTranslation } from '../../i18n/LanguageContext';
+import { setPreviewMode } from '../../utils/apiAuth';
+import { PRICING_GRID } from '../../../shared/plans.js';
 import './EspaceClient.css';
 
 // Components
 import Sidebar from './components/Sidebar';
+import AccountStateScreen from './components/AccountStateScreen';
 import Overview from './components/Overview';
 import Mail from './components/Mail';
 import Adresse from './components/Adresse';
@@ -32,6 +35,13 @@ function tabFromSearch() {
     const tab = new URLSearchParams(window.location.search).get('tab');
     return CLIENT_TABS.has(tab) ? tab : 'overview';
 }
+
+// Libellé du fil d'Ariane pour chaque onglet (clés de src/i18n/espaceClient/sidebar.js).
+const SECTION_LABEL_KEY = {
+    overview: 'dashboard', mail: 'mail', adresse: 'address', docs: 'docs', abonnement: 'subscription',
+    factures: 'invoices', paiement: 'payment', 'compte-pro': 'proAccount', messages: 'messages',
+    meeting: 'meeting', aide: 'help', settings: 'settings',
+};
 
 export default function EspaceClient() {
     const { t } = useTranslation();
@@ -65,20 +75,42 @@ export default function EspaceClient() {
             const params = new URLSearchParams(window.location.search);
             const isPreview = params.get('preview') === 'true';
 
+            // Verrou d'écriture : actif uniquement en aperçu (aucune action ne part vers le serveur).
+            setPreviewMode(isPreview);
+
             if (isPreview) {
-                // Aperçu de démonstration : aucune donnée réelle n'est chargée (l'ancien mode
-                // lisait la fiche « 1 » sans authentification).
+                // Aperçu de démonstration : données fictives uniquement (l'ancien mode lisait la
+                // fiche « 1 » sans authentification). Toute écriture est bloquée par setPreviewMode.
+                const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+                const since = new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10);
                 const previewClient = {
                     id: 'preview',
-                    company: "DEMO PREVIEW INC.",
-                    plan: "Scan+",
-                    status: "actif",
-                    since: "2024-12-01",
+                    company: 'DÉMO CONSEIL SAS',
+                    name: 'Camille Martin',
+                    plan: 'Confort',
+                    status: 'actif',
+                    since,
+                    extra_info: JSON.stringify({ prenom: 'Camille', nom: 'Martin', grille_tarifaire: PRICING_GRID, frequence: 'mensuel', offre: 'scan' }),
                     isPreview: true,
                 };
+                const demoMail = [
+                    { id: 'demo-1', clientId: 'preview', type: 'Lettre simple', from: 'URSSAF', date: daysAgo(1), status: 'non lu', preview: '#apercu' },
+                    { id: 'demo-2', clientId: 'preview', type: 'Lettre recommandée', from: 'Centre des impôts', date: daysAgo(6), status: 'lu', preview: '#apercu' },
+                    { id: 'demo-3', clientId: 'preview', type: 'Colis', from: 'Amazon', date: daysAgo(9), status: 'non lu', preview: null },
+                ];
+                // Aperçu d'un état particulier du compte : ?preview=true&etat=introuvable|validation|impaye|resilie
+                const previewState = params.get('etat');
+                if (previewState === 'impaye') previewClient.status = 'impayé';
+                if (previewState === 'resilie') previewClient.status = 'résilié';
                 if (isMounted) {
+                    if (previewState === 'introuvable' || previewState === 'validation') {
+                        setClientData(null);
+                        setPendingDemande(previewState === 'validation' ? { id: 'preview-demande' } : null);
+                        setIsLoading(false);
+                        return;
+                    }
                     setClientData(previewClient);
-                    setMail([]);
+                    setMail(demoMail);
                     setDocuments([]);
                     setBookings([]);
                     setIsLoading(false);
@@ -248,100 +280,118 @@ export default function EspaceClient() {
         }
     };
 
+    // Prénom pour l'accueil : compte de connexion, sinon dossier ; à défaut, accueil sans nom.
+    const welcomeName = (user?.firstName || parseExtraInfo(clientData?.extra_info).prenom || '').trim();
+
     if (isLoading) return <div className="ec-loading">{t('espaceClient.shell.loading')}</div>;
+
+    // Textes communs aux écrans d'état (panneau marque + aide).
+    const stateLabels = {
+        brandAria: t('espaceClient.shell.stateBrandAria'),
+        brandKicker: t('espaceClient.shell.stateBrandKicker'),
+        brandTitle: t('espaceClient.shell.stateBrandTitle'),
+        brandPoints: Array.isArray(t('espaceClient.shell.stateBrandPoints')) ? t('espaceClient.shell.stateBrandPoints') : [],
+        agrement: t('espaceClient.shell.stateAgrement'),
+        helpTitle: t('espaceClient.shell.stateHelpTitle'),
+        helpHours: t('espaceClient.shell.stateHelpHours'),
+    };
+    const accountEmail = user?.primaryEmailAddress?.emailAddress || '';
+
+    if (!isLoading && !clientData && pendingDemande) {
+        return (
+            <AccountStateScreen
+                tone="info"
+                icon="clock"
+                kicker={t('espaceClient.shell.pendingKicker')}
+                title={t('espaceClient.shell.pendingTitle')}
+                body={<p>{t('espaceClient.shell.pendingBody')}</p>}
+                accountEmail={accountEmail}
+                accountLabel={t('espaceClient.shell.connectedAs')}
+                timeline={{
+                    title: t('espaceClient.shell.timelineTitle'),
+                    steps: [
+                        { label: t('espaceClient.shell.stepPaid'), state: 'done' },
+                        { label: t('espaceClient.shell.stepReview'), state: 'current' },
+                        { label: t('espaceClient.shell.stepAccess'), state: 'todo' },
+                    ],
+                }}
+                actions={(
+                    <>
+                        <button type="button" className="ecs-btn ecs-btn-primary" onClick={() => window.location.reload()}>{t('espaceClient.shell.refresh')}</button>
+                        <button type="button" className="ecs-btn ecs-btn-ghost" onClick={handleLogout}>{t('espaceClient.shell.logout')}</button>
+                    </>
+                )}
+                labels={stateLabels}
+            />
+        );
+    }
 
     if (!isLoading && !clientData) {
         return (
-            <div className="ec-pending-screen">
-                <div className="ec-pending-card" style={{ maxWidth: '500px' }}>
-                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>
-                        {pendingDemande ? '⏳' : '🔍'}
-                    </div>
-                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>
-                        {pendingDemande ? t('espaceClient.shell.pendingTitle') : t('espaceClient.shell.notFoundTitle')}
-                    </h2>
-                    <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
-                        {pendingDemande
-                            ? t('espaceClient.shell.pendingBody')
-                            : t('espaceClient.shell.notFoundBody').replace('{email}', user?.primaryEmailAddress?.emailAddress)
-                        }
-                    </p>
-
-                    {!pendingDemande && (
-                        <div style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', padding: '12px', borderRadius: '8px', marginBottom: '24px', fontSize: '13px', color: '#9A3412', textAlign: 'left' }}>
-                            <strong>{t('espaceClient.shell.note')}</strong>{t('espaceClient.shell.noteBody')}
-                        </div>
-                    )}
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <button className="btn-primary" onClick={() => window.location.reload()} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
-                            {t('espaceClient.shell.refresh')}
-                        </button>
-                        <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
-                            {t('espaceClient.shell.logout')}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <AccountStateScreen
+                tone="info"
+                icon="search"
+                kicker={t('espaceClient.shell.notFoundKicker')}
+                title={t('espaceClient.shell.notFoundTitle')}
+                body={<p>{t('espaceClient.shell.notFoundLead')}</p>}
+                accountEmail={accountEmail}
+                accountLabel={t('espaceClient.shell.connectedAs')}
+                reasons={{
+                    title: t('espaceClient.shell.reasonsTitle'),
+                    items: [
+                        { text: t('espaceClient.shell.reasonEmail'), action: <button type="button" onClick={handleLogout}>{t('espaceClient.shell.reasonEmailAction')}</button> },
+                        { text: t('espaceClient.shell.reasonJustPaid'), action: <button type="button" onClick={() => window.location.reload()}>{t('espaceClient.shell.reasonJustPaidAction')}</button> },
+                        { text: t('espaceClient.shell.reasonNew'), action: <a href="/tarifs">{t('espaceClient.shell.reasonNewAction')}</a> },
+                    ],
+                }}
+                actions={(
+                    <>
+                        <button type="button" className="ecs-btn ecs-btn-primary" onClick={() => window.location.reload()}>{t('espaceClient.shell.refresh')}</button>
+                        <button type="button" className="ecs-btn ecs-btn-ghost" onClick={handleLogout}>{t('espaceClient.shell.logout')}</button>
+                    </>
+                )}
+                labels={stateLabels}
+            />
         );
     }
 
     if (!isLoading && clientData?.status === 'résilié') {
         return (
-            <div className="ec-pending-screen">
-                <div className="ec-pending-card" style={{ maxWidth: '500px', borderTop: '4px solid #0F172A' }}>
-                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>
-                        ⛔
-                    </div>
-                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>
-                        {t('espaceClient.shell.terminatedTitle')}
-                    </h2>
-                    <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
-                        {t('espaceClient.shell.terminatedBody').replace('{company}', clientData.company || '')}
-                    </p>
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '8px', marginBottom: '24px', fontSize: '13px', color: '#334155', textAlign: 'left' }}>
-                        {t('espaceClient.shell.terminatedHint')}
-                    </div>
-                    <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
-                        {t('espaceClient.shell.logout')}
-                    </button>
-                </div>
-            </div>
+            <AccountStateScreen
+                tone="neutral"
+                icon="closed"
+                kicker={t('espaceClient.shell.terminatedKicker')}
+                title={t('espaceClient.shell.terminatedTitle')}
+                body={<p>{t('espaceClient.shell.terminatedBody').replace('{company}', clientData.company || '')}</p>}
+                notice={t('espaceClient.shell.terminatedHint')}
+                actions={<button type="button" className="ecs-btn ecs-btn-ghost" onClick={handleLogout}>{t('espaceClient.shell.logout')}</button>}
+                labels={stateLabels}
+            />
         );
     }
 
     if (!isLoading && (clientData?.status === 'impayé' || clientData?.status === 'echec_paiement')) {
         return (
-            <div className="ec-pending-screen">
-                <div className="ec-pending-card" style={{ maxWidth: '500px', borderTop: '4px solid #EF4444' }}>
-                    <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px', color: '#EF4444' }}>
-                        ⚠️
-                    </div>
-                    <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>
-                        {t('espaceClient.shell.suspendedTitle')}
-                    </h2>
-                    <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
-                        {t('espaceClient.shell.suspendedBody').replace('{company}', clientData.company || '')}
-                    </p>
-
-                    <div style={{ background: '#FEF2F2', border: '1px solid #FEE2E2', padding: '16px', borderRadius: '8px', marginBottom: '24px', fontSize: '13px', color: '#991B1B', textAlign: 'left' }}>
-                        <strong>{t('espaceClient.shell.howTo')}</strong><br />
-                        {t('espaceClient.shell.howToBody')}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <button className="btn-primary" onClick={handleUpdateCard} disabled={openingPortal} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700', background: '#EF4444', opacity: openingPortal ? 0.7 : 1 }}>
+            <AccountStateScreen
+                tone="danger"
+                icon="card"
+                kicker={t('espaceClient.shell.suspendedKicker')}
+                title={t('espaceClient.shell.suspendedTitle')}
+                body={<p>{t('espaceClient.shell.suspendedBody').replace('{company}', clientData.company || '')}</p>}
+                notice={<><strong>{t('espaceClient.shell.howTo')}</strong>{t('espaceClient.shell.howToBody')}</>}
+                actions={(
+                    <>
+                        <button type="button" className="ecs-btn ecs-btn-primary" onClick={handleUpdateCard} disabled={openingPortal}>
                             {openingPortal ? t('espaceClient.shell.openingPortal') : t('espaceClient.shell.updateCard')}
                         </button>
-                        <button className="btn-outline" onClick={handleCheckPayment} disabled={checkingPayment} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
+                        <button type="button" className="ecs-btn ecs-btn-ghost" onClick={handleCheckPayment} disabled={checkingPayment}>
                             {checkingPayment ? t('espaceClient.shell.checkingPayment') : t('espaceClient.shell.checkPayment')}
                         </button>
-                        <button className="btn-outline" onClick={handleLogout} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '700' }}>
-                            {t('espaceClient.shell.logout')}
-                        </button>
-                    </div>
-                </div>
-            </div>
+                        <button type="button" className="ecs-btn ecs-btn-ghost" onClick={handleLogout}>{t('espaceClient.shell.logout')}</button>
+                    </>
+                )}
+                labels={stateLabels}
+            />
         );
     }
 
@@ -379,10 +429,12 @@ export default function EspaceClient() {
                         <button className="ec-mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                         </button>
-                        <div className="ec-header-titles">
-                            <h1 className="ec-welcome-title">{t('espaceClient.shell.welcome').replace('{name}', user?.firstName || t('espaceClient.shell.owner'))}</h1>
-                            <p className="ec-welcome-sub">{t('espaceClient.shell.welcomeSub')} <strong>{clientData?.company}</strong></p>
-                        </div>
+                        <nav className="ec-crumbs" aria-label="Fil d'Ariane">
+                            <span className="ec-crumbs-root">{t('espaceClient.sidebar.spaceLabel')}</span>
+                            <span className="ec-crumbs-sep" aria-hidden="true">›</span>
+                            <span className="ec-crumbs-current">{t(`espaceClient.sidebar.${SECTION_LABEL_KEY[activeTab] || 'dashboard'}`)}</span>
+                            {clientData?.company && <span className="ec-crumbs-company">{clientData.company}</span>}
+                        </nav>
                     </div>
                     <div className="ec-header-right">
                         {clientData?.status === 'en_attente_validation' ? (
@@ -402,6 +454,7 @@ export default function EspaceClient() {
                 <div className="ec-view-container">
                     {activeTab === 'overview' && (
                         <Overview
+                            welcomeName={welcomeName}
                             mail={mail}
                             documents={documents}
                             bookings={bookings}
@@ -417,6 +470,7 @@ export default function EspaceClient() {
                             onMailRead={async (mailId) => {
                                 // Mettre à jour l'état local immédiatement
                                 setMail(prev => prev.map(m => m.id === mailId ? { ...m, status: 'lu' } : m));
+                                if (clientData?.isPreview) return; // aperçu : rien n'est enregistré
                                 // Appel API pour mettre à jour la BDD
                                 try {
                                     await adminDataService.markMailAsRead(mailId);

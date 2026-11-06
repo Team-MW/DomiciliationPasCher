@@ -83,7 +83,9 @@ export default function AddressAutocomplete({
                 const res = await fetch(`https://api-adresse.data.gouv.fr/search/?${params.toString()}`);
                 const data = await res.json();
                 setSuggestions(data.features || []);
-                setIsOpen(true);
+                // Résultats arrivés après que le client a quitté le champ : on ne rouvre pas la liste
+                // (sinon elle reste affichée par-dessus le formulaire et le bouton « Suivant »).
+                setIsOpen(document.activeElement === inputRef.current);
             } catch (e) {
                 console.error(e);
                 setSuggestions([]);
@@ -157,6 +159,7 @@ export default function AddressAutocomplete({
                 onChange={(e) => fetchAddresses(e.target.value)}
                 onFocus={() => { if (suggestions.length > 0) setIsOpen(true); }}
                 onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setIsOpen(false); }}
                 placeholder={placeholder}
                 style={inputStyle}
             />

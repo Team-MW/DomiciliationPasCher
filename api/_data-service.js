@@ -1,6 +1,6 @@
-import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward } from '../shared/plans.js';
+import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward, PRICING_GRID } from '../shared/plans.js';
 import { computeMissingDocuments } from '../shared/documentRequest.js';
-import { EMAIL_LOGS_DDL, EMAIL_LOGS_ADD_CLIENT_COLUMN, SOUSCRIPTION_LEADS_DDL } from '../shared/emailTables.js';
+import { EMAIL_LOGS_DDL, EMAIL_LOGS_MIGRATIONS, SOUSCRIPTION_LEADS_DDL } from '../shared/emailTables.js';
 import { parseExtraInfo, normalizeSubscriptionExtra, resolvePersonalAddress } from '../src/utils/contractLegalFields.js';
 
 /**
@@ -79,6 +79,7 @@ export function createDataService({
                 const catalog = PLAN_CATALOG[resolvePlanId(clientData.plan)];
                 if (catalog) finalExtraInfo.offre = catalog.offre;
             }
+            if (!finalExtraInfo.grille_tarifaire) finalExtraInfo.grille_tarifaire = PRICING_GRID;
             if (!finalExtraInfo.email) finalExtraInfo.email = cleanEmail;
             if (!finalExtraInfo.adressePerso && address) finalExtraInfo.adressePerso = address;
             if (!finalExtraInfo.telephone && phone) finalExtraInfo.telephone = phone;
@@ -303,6 +304,8 @@ export function createDataService({
             const existing = parseExtraInfo(row.extra_info);
             const merged = {
                 ...existing,
+                // Payée via Checkout = prix de la grille actuelle (même pour une demande ancienne).
+                grille_tarifaire: PRICING_GRID,
                 ...(sessionId ? { stripe_session_id: sessionId } : {}),
                 ...(customerId ? { stripe_customer_id: customerId } : {}),
             };
@@ -471,14 +474,16 @@ export function createDataService({
             if (addresses.length === 0) return [];
             try {
                 await conn.execute(EMAIL_LOGS_DDL);
-                try {
-                    await conn.execute(EMAIL_LOGS_ADD_CLIENT_COLUMN);
-                } catch {
-                    // colonne déjà présente
+                for (const sql of EMAIL_LOGS_MIGRATIONS) {
+                    try {
+                        await conn.execute(sql);
+                    } catch {
+                        // colonne déjà présente
+                    }
                 }
                 const placeholders = addresses.map(() => '?').join(', ');
                 const res = await conn.execute(
-                    `SELECT * FROM email_logs WHERE to_email IN (${placeholders}) OR client_email IN (${placeholders}) ORDER BY sent_at DESC LIMIT 200`,
+                    `SELECT * FROM email_logs WHERE to_email IN (${placeholders}) OR client_email IN (${placeholders}) ORDER BY sent_at DESC LIMIT 300`,
                     [...addresses, ...addresses]
                 );
                 return res.rows || [];
@@ -713,7 +718,7 @@ export function createDataService({
             if (!client) throw new Error('Client introuvable');
             const extra = parseExtraInfo(client.extra_info);
             if (!canRequestPhysicalForward(client.plan, extra)) {
-                throw new Error('La réexpédition physique est réservée aux forfaits Scan+ et Physique+.');
+                throw new Error('La réexpédition physique n’est pas incluse dans votre contrat actuel (réservée aux forfaits Scan+ et Physique+ de l’ancienne grille).');
             }
             const address = String(data?.address || '').trim();
             if (!address) throw new Error('Adresse de destination requise');

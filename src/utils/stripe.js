@@ -22,7 +22,7 @@ export const getStripe = () => {
  */
 export const handleCheckout = async (planId, amount, productName = '', interval = 'month', customSuccessUrl = null, customCancelUrl = null, email = '', clientName = '', metadata = {}) => {
     try {
-        const stripe = await getStripe();
+        await getStripe();
 
         console.log(`Initialisation paiement Stripe pour le plan ${planId} : ${amount}€ (${interval})`);
 

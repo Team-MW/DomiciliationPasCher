@@ -17,7 +17,7 @@ export default function MoyenPaiement({ clientData, setClientData }) {
                     try {
                         const extra = JSON.parse(clientData.extra_info);
                         currentStripeId = extra.stripe_customer_id;
-                    } catch(e){}
+                    } catch { /* JSON invalide : on garde la valeur par défaut */ }
                 }
                 if (currentStripeId) {
                     const res = await fetch(`/api/get-payment-method?customerId=${currentStripeId}`);
@@ -39,7 +39,7 @@ export default function MoyenPaiement({ clientData, setClientData }) {
             let extraInfo = typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info;
             if (typeof extraInfo === 'string') extraInfo = JSON.parse(extraInfo);
             stripeCustomerId = extraInfo?.stripe_customer_id || null;
-        } catch (e) { }
+        } catch { /* JSON invalide : on garde la valeur par défaut */ }
     }
 
     const handleManagePaymentMethods = async () => {
@@ -142,7 +142,7 @@ export default function MoyenPaiement({ clientData, setClientData }) {
                         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ color: '#64748b' }}>{t('espaceClient.payment.statusLabel')}</span>
-                                <strong style={{ color: '#10b981' }}>{t('espaceClient.payment.statusOk')}</strong>
+                                <strong style={{ color: cardDetails ? '#10b981' : '#d97706' }}>{cardDetails ? t('espaceClient.payment.statusOk') : t('espaceClient.payment.statusNone')}</strong>
                             </div>
                             {cardDetails ? (
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>

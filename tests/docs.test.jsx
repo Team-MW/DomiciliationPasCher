@@ -136,7 +136,7 @@ describe('Docs component download flow', () => {
 
     const originalFileReader = global.FileReader;
     const mockFR = class MockFileReader {
-      readAsDataURL(blob) {
+      readAsDataURL(_blob) {
         this.result = 'data:application/pdf;base64,client_pdf_base64';
         setTimeout(() => {
           if (this.onloadend) this.onloadend();

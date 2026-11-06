@@ -227,7 +227,8 @@ describe('/api/data — contrôle d’accès', () => {
             extra_info: { frequence: 'annuel', payment_status: 'paid', stripe_customer_id: 'cus_x', prenom: 'Ada' },
         }]);
         const insert = db.execute.mock.calls.find(([sql]) => /^INSERT INTO demandes/.test(sql));
-        expect(insert[1][6]).toBe('456.00'); // 38 € × 10 × 1,2
+        expect(insert[1][6]).toBe('437.76'); // Premium annuel : 38 € × 12 × 0,8 = 364,80 € HT × 1,2
+        expect(JSON.stringify(insert[1])).toContain('2026-11'); // souscrit avec la grille actuelle
         const extra = JSON.parse(insert[1][9]);
         expect(extra.payment_status).toBeUndefined();
         expect(extra.stripe_customer_id).toBeUndefined();

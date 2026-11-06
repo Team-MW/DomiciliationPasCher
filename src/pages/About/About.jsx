@@ -84,48 +84,6 @@ export default function About() {
                 </div>
             </section>
 
-            {/* Timeline */}
-            <section className="section">
-                <div className="container">
-                    <div className="section-header animate-in">
-                        <div className="section-eyebrow">{tr.about.milestones.eyebrow}</div>
-                        <h2 className="section-title">{tr.about.milestones.title} <span>{tr.about.milestones.titleHighlight}</span></h2>
-                    </div>
-                    <div className="timeline animate-in">
-                        {tr.about.milestones.items.map((m, i) => (
-                            <div key={i} className="timeline-item">
-                                <div className="timeline-year">{m.year}</div>
-                                <div className="timeline-dot" />
-                                <div className="timeline-content">
-                                    <h3>{m.title}</h3>
-                                    <p>{m.desc}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Team */}
-            <section className="section" style={{ background: 'var(--off-white)' }}>
-                <div className="container">
-                    <div className="section-header animate-in">
-                        <div className="section-eyebrow">{tr.about.team.eyebrow}</div>
-                        <h2 className="section-title">{tr.about.team.title} <span>{tr.about.team.titleHighlight}</span></h2>
-                    </div>
-                    <div className="grid-3">
-                        {tr.about.team.items.map((m, i) => (
-                            <div key={i} className="team-card card animate-in" style={{ animationDelay: `${i * 0.1}s` }}>
-                                <div className="team-avatar">{m.emoji}</div>
-                                <h3 className="team-name">{m.name}</h3>
-                                <div className="team-role">{m.role}</div>
-                                <p className="team-desc">{m.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
             {/* CTA */}
             <section className="final-cta section-sm" style={{ background: 'var(--primary)' }}>
                 <div className="container">

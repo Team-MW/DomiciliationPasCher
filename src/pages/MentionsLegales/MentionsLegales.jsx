@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { CONTACT_PHONE_HREF, CONTACT_ADDRESS_HREF, CONTACT_EMAIL, CONTACT_PHONE_DISPLAY } from '../../constants/contact';
-import LegalLayout, { LegalH2, Todo } from './LegalLayout';
+import LegalLayout, { LegalH2 } from './LegalLayout';
 import usePageMeta from '../../components/Seo/usePageMeta';
 
 /* Texte légal volontairement en français (non traduit). */
@@ -22,7 +22,7 @@ const MentionsLegales = () => {
                 <li>Capital social : 2 000 €</li>
                 <li>Immatriculation : RCS Toulouse 101 512 531</li>
                 <li>SIRET : 101 512 531 00019</li>
-                <li>N° de TVA intracommunautaire : <Todo>[À COMPLÉTER]</Todo></li>
+                <li>N° de TVA intracommunautaire : FR91101512531</li>
                 <li>
                     Siège social :{' '}
                     <a href={CONTACT_ADDRESS_HREF} target="_blank" rel="noopener noreferrer">

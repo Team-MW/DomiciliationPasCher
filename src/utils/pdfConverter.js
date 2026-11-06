@@ -1,6 +1,6 @@
 
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
-import * as pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs';
+import 'pdfjs-dist/build/pdf.worker.mjs';
 
 // Configuration du moteur avec le worker importé directement
 if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {

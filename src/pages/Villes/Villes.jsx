@@ -4,10 +4,15 @@ import { CityIcons } from '../../utils/cityIcons';
 import { useTranslation } from '../../i18n/LanguageContext';
 import usePageMeta from '../../components/Seo/usePageMeta';
 import { sendContactAdvisorEmail } from '../../utils/emailService';
+import { DOMICILIATION_ADDRESS_ONE_LINE } from '../../../shared/company.js';
 import './Villes.css';
 
+// Indexé par département : le nom de la ville est traduit (« Тулуза » en russe).
 const cityImages = {
-    Toulouse: '/toulouse-capitole.jpg',
+    '31': '/toulouse-capitole.jpg',
+};
+const cityIcons = {
+    '31': CityIcons.Toulouse,
 };
 
 const benefitIcons = [
@@ -108,8 +113,9 @@ export default function Villes() {
 
     const cities = tr.villes.cities.map(city => ({
         ...city,
-        icon: CityIcons[city.name],
-        image: cityImages[city.name],
+        icon: cityIcons[city.zip],
+        image: cityImages[city.zip],
+        anchor: `ville-${city.zip}`,
     }));
 
     return (
@@ -132,7 +138,7 @@ export default function Villes() {
                         {cities.map(city => (
                             <a
                                 key={city.name}
-                                href={`#ville-${city.name.toLowerCase().replace('-', '')}`}
+                                href={`#${city.anchor}`}
                                 className="quick-city-pill"
                             >
                                 <span className="pill-icon">{city.icon}</span>
@@ -168,7 +174,7 @@ export default function Villes() {
                             <div
                                 key={city.name}
                                 className={`city-wide-card animate-in ${i % 2 === 1 ? 'is-reversed' : ''}`}
-                                id={`ville-${city.name.toLowerCase().replace('-', '')}`}
+                                id={city.anchor}
                                 style={{ animationDelay: `${i * 0.05}s` }}
                             >
                                 <div className="cwc-image-side">
@@ -187,6 +193,11 @@ export default function Villes() {
 
                                     <p className="cwc-description">{city.desc}</p>
 
+                                    <p className="cwc-address">
+                                        <span className="cwc-address-label">{tr.villes.addressLabel}</span>
+                                        {DOMICILIATION_ADDRESS_ONE_LINE}
+                                    </p>
+
                                     <div className="cwc-features">
                                         {city.avantages.map(a => (
                                             <div key={a} className="cwc-feature-item">
@@ -201,7 +212,7 @@ export default function Villes() {
                                             <div className="cwc-price-label">{city.priceLabel}</div>
                                             <div className="cwc-price-value">{city.priceValue}<span>{city.priceUnit}</span></div>
                                         </div>
-                                        <Link to="/tarifs" className="btn btn-primary cwc-btn" id={`cta-${city.name.toLowerCase()}`}>
+                                        <Link to="/tarifs" className="btn btn-primary cwc-btn" id={`cta-ville-${city.zip}`}>
                                             {city.cta}
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                                         </Link>

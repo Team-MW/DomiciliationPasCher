@@ -1,12 +1,20 @@
 import { getTransporter, getSmtpConfig, ADMIN_EMAIL } from './_smtp.js';
 import { scanFailedPayments } from './_stripe-failures.js';
-import { sendBrandedMail, escapeHtml } from './_email-kit.js';
-import { isPaymentGraceExpired, paymentGraceDeadline, formatDateFr } from '../shared/paymentGrace.js';
+import { sendBrandedMail, escapeHtml, formatEuro, publicSiteUrl, CONTACT_EMAIL } from './_email-kit.js';
+import { buildPaymentFailedEmail, buildTerminationEmail } from './_email-templates.js';
+import { isPaymentGraceExpired, paymentGraceDeadline, formatDateFr, PAYMENT_GRACE_MONTHS } from '../shared/paymentGrace.js';
 
-const formatAmount = (amount, currency = 'eur') =>
-    typeof amount === 'number'
-        ? amount.toLocaleString('fr-FR', { style: 'currency', currency: currency.toUpperCase() })
-        : 'montant inconnu';
+/** Montant au format français (28,80 €) ; null si inconnu ou dans une autre devise que l'euro. */
+const formatAmount = (amount, currency = 'eur') => {
+    if (typeof amount !== 'number' || !Number.isFinite(amount)) return null;
+    if (String(currency || 'eur').toLowerCase() !== 'eur') {
+        return amount.toLocaleString('fr-FR', { style: 'currency', currency: String(currency).toUpperCase() });
+    }
+    return formatEuro(amount);
+};
+
+/** Lien de paiement : facture Stripe (https) si disponible, sinon l'espace client. */
+const safeInvoiceUrl = (url) => (typeof url === 'string' && /^https:\/\//i.test(url) ? url : null);
 
 function parseExtra(raw) {
     try {
@@ -158,83 +166,46 @@ async function terminateDomiciliation({ stripe, failure, conn, client, transport
     // le dossier serait exclu des passages suivants sans jamais être résilié.
     await markStripeTerminated(stripe, failure);
 
+    // La résiliation est faite : un échec d'email ne doit pas la faire compter comme ratée
+    // (l'échec est journalisé dans email_logs et visible dans la fiche client).
     if (transporter && failure.email) {
-        await sendTerminationEmail(transporter, failure, conn);
+        try {
+            await sendTerminationEmail(transporter, failure, conn);
+        } catch (err) {
+            console.error('Cron: email de résiliation non envoyé à', failure.email, err.message);
+        }
     }
 }
 
 async function sendFailedPaymentEmail(transporter, failure, conn) {
-    const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
-    const amount = formatAmount(failure.amountDue, failure.currency);
-    const link = failure.invoiceUrl || 'https://www.domiciliation-pas-cher.com/connexion';
-    const deadline = formatDateFr(paymentGraceDeadline(failure.failedAt));
-    const deadlineLine = deadline
-        ? `Sans règlement avant le ${deadline} (2 mois après l'incident), votre contrat de domiciliation sera résilié et vous ne serez plus domicilié à notre adresse.`
-        : `Sans règlement sous 2 mois, votre contrat de domiciliation sera résilié et vous ne serez plus domicilié à notre adresse.`;
-
-    const text = `Bonjour ${failure.name || 'Client'},\n\nNous vous informons qu'un incident est survenu lors de votre dernier règlement de ${amount}.\n\nVeuillez régler votre situation. ${deadlineLine}\n\nVous pouvez régulariser ici : ${link}\n\nBien cordialement,\nLe service comptabilité`;
-
-    const html = `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-            <h2>Incident de paiement — action requise</h2>
-            <p>Bonjour ${escapeHtml(failure.name || 'Client')},</p>
-            <p>Nous vous informons qu'un incident est survenu lors de votre dernier règlement de <strong>${amount}</strong>.</p>
-            <p><strong>Veuillez régler votre situation.</strong> ${deadlineLine}</p>
-            <p style="margin: 24px 0;">
-                <a href="${link}" style="background:#DC2626;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">Régler ma facture</a>
-            </p>
-            ${failure.nextAttempt ? `<p style="color:#64748B;font-size:14px;">Une nouvelle tentative de prélèvement est prévue le ${failure.nextAttempt}.</p>` : ''}
-            <p>Bien cordialement,<br>Le service comptabilité</p>
-        </div>
-    `;
-
-    await sendBrandedMail(transporter, {
-        conn,
-        type: 'payment_failed',
-        from,
-        to: failure.email,
-        subject: 'Action requise : régulariser votre paiement — Domiciliation Pas Cher',
-        text,
-        html,
+    const from = getSmtpConfig()?.from || CONTACT_EMAIL;
+    const { subject, text, html } = buildPaymentFailedEmail({
+        nom: failure.name,
+        amount: formatAmount(failure.amountDue, failure.currency),
+        payUrl: safeInvoiceUrl(failure.invoiceUrl) || `${publicSiteUrl()}/app/espace-client?tab=paiement`,
+        deadlineIso: paymentGraceDeadline(failure.failedAt),
+        nextAttemptIso: failure.nextAttempt,
     });
+    await sendBrandedMail(transporter, { conn, type: 'payment_failed', from, to: failure.email, subject, text, html });
 }
 
 async function sendTerminationEmail(transporter, failure, conn) {
-    const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
-    const amount = formatAmount(failure.amountDue, failure.currency);
-
-    const text = `Bonjour ${failure.name || 'Client'},\n\nMalgré nos relances, l'impayé de ${amount} n'a pas été régularisé dans le délai de 2 mois.\n\nVotre contrat de domiciliation est donc résilié. Vous n'êtes plus domicilié à notre adresse.\n\nPour toute question, répondez à cet e-mail.\n\nBien cordialement,\nLe service comptabilité`;
-
-    const html = `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-            <h2>Domiciliation résiliée</h2>
-            <p>Bonjour ${escapeHtml(failure.name || 'Client')},</p>
-            <p>Malgré nos relances, l'impayé de <strong>${amount}</strong> n'a pas été régularisé dans le délai de 2 mois.</p>
-            <p><strong>Votre contrat de domiciliation est donc résilié. Vous n'êtes plus domicilié à notre adresse.</strong></p>
-            <p>Pour toute question, répondez à cet e-mail.</p>
-            <p>Bien cordialement,<br>Le service comptabilité</p>
-        </div>
-    `;
-
-    await sendBrandedMail(transporter, {
-        conn,
-        type: 'domicile_terminated',
-        from,
-        to: failure.email,
-        subject: 'Domiciliation résiliée — défaut de paiement',
-        text,
-        html,
+    const from = getSmtpConfig()?.from || CONTACT_EMAIL;
+    const { subject, text, html } = buildTerminationEmail({
+        nom: failure.name,
+        amount: formatAmount(failure.amountDue, failure.currency),
     });
+    await sendBrandedMail(transporter, { conn, type: 'domicile_terminated', from, to: failure.email, subject, text, html });
 }
 
 async function sendAdminFailureDigest(transporter, failures, dunningEmailsSent, terminated, conn) {
-    const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
+    const from = getSmtpConfig()?.from || CONTACT_EMAIL;
     const rows = failures.map((f) => `
         <tr>
             <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(f.name || 'Sans nom')}<br><span style="color:#64748B;font-size:12px;">${escapeHtml(f.email || f.customerId)}</span></td>
-            <td style="padding:8px;border-bottom:1px solid #eee;">${formatAmount(f.amountDue, f.currency)}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;">${f.subscriptionStatus || f.invoiceStatus || '-'}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;">${f.attemptCount || '-'}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(formatAmount(f.amountDue, f.currency) || 'inconnu')}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(f.subscriptionStatus || f.invoiceStatus || '—')}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(f.attemptCount || '—')}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;">${formatDateFr(paymentGraceDeadline(f.failedAt)) || '—'}</td>
         </tr>`).join('');
 
@@ -245,16 +216,16 @@ async function sendAdminFailureDigest(transporter, failures, dunningEmailsSent, 
         to: ADMIN_EMAIL,
         subject: `${failures.length} paiement(s) en échec — ${terminated} résiliation(s) auto`,
         html: `
-            <div style="font-family: Arial, sans-serif; color: #333; max-width: 700px; margin: 0 auto;">
-                <h2>Paiements en échec</h2>
-                <p>${failures.length} dossier(s) en impayé. ${dunningEmailsSent} relance(s) client envoyée(s). ${terminated} domiciliation(s) résiliée(s) automatiquement (délai de 2 mois dépassé).</p>
+            <div>
+                <h2 style="margin-top:0;color:#0f172a;">Paiements en échec</h2>
+                <p>${failures.length} dossier(s) en impayé. ${dunningEmailsSent} relance(s) client envoyée(s). ${terminated} domiciliation(s) résiliée(s) automatiquement (délai de ${PAYMENT_GRACE_MONTHS} mois dépassé).</p>
                 <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead><tr style="background:#F8FAFC;text-align:left;">
                         <th style="padding:8px;">Client</th><th style="padding:8px;">Montant dû</th><th style="padding:8px;">Statut</th><th style="padding:8px;">Tentatives</th><th style="padding:8px;">Résiliation le</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-                <p style="color:#64748B;font-size:13px;">Détail dans l'onglet « Paiements Échoués » de l'administration.</p>
+                <p style="color:#64748B;font-size:13px;">Détail dans l'onglet « Paiements Échoués » de l'administration : ${publicSiteUrl()}/app/admin</p>
             </div>
         `,
     });

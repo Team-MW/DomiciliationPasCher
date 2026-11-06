@@ -1,8 +1,8 @@
 import { getStripe } from './_stripe-client.js';
 import { getDbConn } from './_db.js';
-import { getBaseUrl, escapeHtml, wrapEmail, emailButton, sendBrandedMail } from './_email-kit.js';
+import { getBaseUrl, escapeHtml, wrapEmail, emailButton, sendBrandedMail, PHONE_DISPLAY } from './_email-kit.js';
 import { getTransporter, getSmtpConfig, ADMIN_EMAIL } from './_smtp.js';
-import { PLAN_CATALOG, resolvePlanId, planAmountTtc } from '../shared/plans.js';
+import { clientPlanPricing } from '../shared/plans.js';
 
 function parseExtra(raw) {
     try {
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     const baseUrl = getBaseUrl(req);
     const token = String(req.query?.token || '');
     if (!/^[a-f0-9]{32,64}$/i.test(token)) {
-        return page(res, 400, 'Lien invalide', 'Ce lien de paiement est invalide. Contactez-nous au 09 60 39 69 07.', baseUrl);
+        return page(res, 400, 'Lien invalide', `Ce lien de paiement est invalide. Contactez-nous au ${PHONE_DISPLAY}.`, baseUrl);
     }
 
     try {
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
         if (!conn) throw new Error('Base de données non configurée');
         const client = await findClientByToken(conn, token);
         if (!client) {
-            return page(res, 404, 'Lien expiré', 'Ce lien de paiement n’est plus valide. Contactez-nous au 09 60 39 69 07.', baseUrl);
+            return page(res, 404, 'Lien expiré', `Ce lien de paiement n’est plus valide. Contactez-nous au ${PHONE_DISPLAY}.`, baseUrl);
         }
         const stripe = getStripe();
 
@@ -104,7 +104,8 @@ export default async function handler(req, res) {
             return redirect(res, `${baseUrl}/connexion`);
         }
 
-        const plan = PLAN_CATALOG[resolvePlanId(client.plan)];
+        // Prix applicable à ce client : grille actuelle, ou ancienne grille s'il a été créé avant.
+        const plan = clientPlanPricing(client.plan, client.extra);
         const interval = client.extra.frequence === 'annuel' ? 'year' : 'month';
         const email = String(client.email || '').trim().toLowerCase();
 
@@ -126,7 +127,7 @@ export default async function handler(req, res) {
                 price_data: {
                     currency: 'eur',
                     product_data: { name: `Domiciliation ${plan.name} — ${interval === 'year' ? 'annuel' : 'mensuel'}` },
-                    unit_amount: Math.round(planAmountTtc(plan.ht, interval) * 100),
+                    unit_amount: Math.round((interval === 'year' ? plan.ttcYear : plan.ttcMonth) * 100),
                     recurring: { interval },
                 },
             }],
@@ -138,6 +139,6 @@ export default async function handler(req, res) {
         return redirect(res, session.url);
     } catch (err) {
         console.error('Pay link error:', err);
-        return page(res, 500, 'Paiement indisponible', 'Une erreur est survenue. Réessayez dans quelques minutes ou contactez-nous au 09 60 39 69 07.', baseUrl);
+        return page(res, 500, 'Paiement indisponible', `Une erreur est survenue. Réessayez dans quelques minutes ou contactez-nous au ${PHONE_DISPLAY}.`, baseUrl);
     }
 }

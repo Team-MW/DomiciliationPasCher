@@ -1,3 +1,4 @@
+import './_confirm.cjs';
 import { connect } from '@planetscale/database';
 import Stripe from 'stripe';
 import fs from 'fs';
@@ -149,7 +150,7 @@ async function runTests() {
         hasError = true;
         try {
             await conn.execute("DELETE FROM demandes WHERE id = ?", [tempDemId]);
-        } catch (_) { }
+        } catch { /* nettoyage best-effort : on ignore */ }
     }
 
     // =========================================================================
@@ -240,7 +241,7 @@ async function runTests() {
         if (tempCustomer?.id) {
             try {
                 await stripe.customers.del(tempCustomer.id);
-            } catch (_) { }
+            } catch { /* nettoyage best-effort : on ignore */ }
         }
     }
 

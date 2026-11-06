@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
 import usePageMeta from '../../components/Seo/usePageMeta';
 import CreationEntrepriseSection from '../../components/CreationEntreprise/CreationEntrepriseSection';
+import { PLAN_CATALOG, annualHt, planAmountTtc } from '../../data/plans';
 import './Tarifs.css';
 
 const CheckIcon = () => (
@@ -17,7 +19,16 @@ const CrossIcon = () => (
 );
 
 export default function Tarifs() {
-    const { tr } = useTranslation();
+    const { tr, lang } = useTranslation();
+    const [billing, setBilling] = useState('month');
+    const [openDetails, setOpenDetails] = useState({});
+    const isAnnual = billing === 'year';
+    // Prix lus dans PLAN_CATALOG (jamais en dur) ; virgule décimale sauf en anglais.
+    const fmt = (n) => {
+        const str = Number.isInteger(n) ? String(n) : Number(n).toFixed(2);
+        return lang === 'en' ? str : str.replace('.', ',');
+    };
+    const T = tr.tarifs.toggle;
 
     usePageMeta({
         title: tr.tarifs.pageTitle,
@@ -36,6 +47,7 @@ export default function Tarifs() {
                         <h1 className="section-title" style={{ marginTop: '12px' }}>
                             {tr.tarifs.header.title}<br /><span>{tr.tarifs.header.titleHighlight}</span>
                         </h1>
+                        <p className="tarifs-agreement">{tr.tarifs.header.agreement}</p>
                         <p className="section-subtitle">
                             {tr.tarifs.header.subtitle}
                         </p>
@@ -46,40 +58,82 @@ export default function Tarifs() {
             {/* Pricing Cards */}
             <section className="section" style={{ paddingTop: '56px' }}>
                 <div className="container">
+                    <div className="billing-toggle" role="group" aria-label={T.label}>
+                        <button type="button" className={!isAnnual ? 'active' : ''} aria-pressed={!isAnnual} onClick={() => setBilling('month')}>
+                            {T.monthly}
+                        </button>
+                        <button type="button" className={isAnnual ? 'active' : ''} aria-pressed={isAnnual} onClick={() => setBilling('year')}>
+                            {T.annual} <span className="billing-toggle-badge">{T.annualBadge}</span>
+                        </button>
+                    </div>
+
                     <div className="pricing-grid">
-                        {tr.tarifs.plans.map(plan => (
-                            <div key={plan.id} className={`pricing-card ${plan.popular ? 'featured' : ''}`} id={`plan-${plan.id}`}>
-                                {plan.popular && (
-                                    <div className="pricing-badge">{plan.badge}</div>
-                                )}
-                                <div className="pricing-header">
-                                    <div className="pricing-name">{plan.name}</div>
-                                    <div className="pricing-sub">{plan.subtitle}</div>
-                                    <div className="pricing-amount">
-                                        <span className="pricing-currency">€</span>
-                                        <span className="pricing-value">{plan.price}</span>
-                                        <span className="pricing-period">{plan.period}</span>
+                        {tr.tarifs.plans.map(plan => {
+                            const catalog = PLAN_CATALOG[plan.id] || PLAN_CATALOG.essentiel;
+                            const ht = isAnnual ? annualHt(catalog.ht) : catalog.ht;
+                            const ttc = planAmountTtc(catalog.ht, isAnnual ? 'year' : 'month');
+                            const detailsOpen = Boolean(openDetails[plan.id]);
+                            return (
+                                <div key={plan.id} className={`pricing-card ${plan.popular ? 'featured' : ''}`} id={`plan-${plan.id}`}>
+                                    {plan.popular && (
+                                        <div className="pricing-badge">{plan.badge}</div>
+                                    )}
+                                    <div className="pricing-header">
+                                        <div className="pricing-name">{catalog.name}</div>
+                                        <div className="pricing-sub">{plan.subtitle}</div>
+                                        <div className="pricing-amount">
+                                            <span className="pricing-currency">€</span>
+                                            <span className="pricing-value">{fmt(ht)}</span>
+                                            <span className="pricing-period">{isAnnual ? T.perYear : T.perMonth}</span>
+                                        </div>
+                                        <div className="pricing-ttc">
+                                            {isAnnual && <span>{T.equivMonthly.replace('{price}', fmt(Math.round((annualHt(catalog.ht) / 12) * 100) / 100))} · </span>}
+                                            {(isAnnual ? T.ttcYear : T.ttcMonth).replace('{price}', fmt(ttc))}
+                                        </div>
                                     </div>
+                                    <ul className="pricing-features">
+                                        {(plan.highlights || []).map(text => (
+                                            <li key={text} className="ok">
+                                                <CheckIcon />
+                                                <span>{text}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <button
+                                        type="button"
+                                        className="pricing-details-btn"
+                                        aria-expanded={detailsOpen}
+                                        aria-controls={`details-${plan.id}`}
+                                        onClick={() => setOpenDetails((prev) => ({ ...prev, [plan.id]: !prev[plan.id] }))}
+                                    >
+                                        {detailsOpen ? T.hideDetails : T.showDetails} {detailsOpen ? '▴' : '▾'}
+                                    </button>
+                                    {detailsOpen && (
+                                        <ul className="pricing-features pricing-details" id={`details-${plan.id}`}>
+                                            {plan.features.map(f => (
+                                                <li key={f.text} className={f.ok ? 'ok' : 'no'}>
+                                                    {f.ok ? <CheckIcon /> : <CrossIcon />}
+                                                    <span>{f.text}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    <Link
+                                        to={`/souscription?plan=${plan.id}${isAnnual ? '&frequence=annuel' : ''}`}
+                                        className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'}`}
+                                        style={{ width: '100%', justifyContent: 'center' }}
+                                        id={`cta-${plan.id}`}
+                                    >
+                                        {plan.cta} →
+                                    </Link>
+                                    <p className="pricing-note">{plan.note}</p>
                                 </div>
-                                <ul className="pricing-features">
-                                    {plan.features.map(f => (
-                                        <li key={f.text} className={f.ok ? 'ok' : 'no'}>
-                                            {f.ok ? <CheckIcon /> : <CrossIcon />}
-                                            <span>{f.text}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                                <Link
-                                    to={`/souscription?plan=${plan.id}`}
-                                    className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'}`}
-                                    style={{ width: '100%', justifyContent: 'center' }}
-                                    id={`cta-${plan.id}`}
-                                >
-                                    {plan.cta} →
-                                </Link>
-                                <p className="pricing-note">{plan.note}</p>
-                            </div>
-                        ))}
+                            );
+                        })}
+                    </div>
+
+                    <div className="room-block">
+                        <strong>{tr.tarifs.room.title}</strong> {tr.tarifs.room.text}
                     </div>
 
                     {/* Trust indicators */}

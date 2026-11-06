@@ -37,6 +37,7 @@ export default function Admin() {
     const [selectedDemande, setSelectedDemande] = useState(null);
     const [isCreatingClient, setIsCreatingClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [loadErrors, setLoadErrors] = useState([]);
     const [hasNewDemande, setHasNewDemande] = useState(false);
     const [hasNewBooking, setHasNewBooking] = useState(false);
     const [hasNewReexp, setHasNewReexp] = useState(false);
@@ -51,37 +52,42 @@ export default function Admin() {
 
     const refreshData = useCallback(async () => {
         setIsLoading(true);
+        // Chaque source se charge indépendamment : si Stripe (statistiques) ou une table est
+        // indisponible, le reste du tableau de bord s'affiche quand même, avec un bandeau d'alerte.
+        const sources = [
+            ['clients', () => adminDataService.getClients(), (v) => setClients(Array.isArray(v) ? v : [])],
+            ['courriers', () => adminDataService.getMail(), (v) => setMail(Array.isArray(v) ? v : [])],
+            ['demandes', () => adminDataService.getDemandes(), (v) => setDemandes(Array.isArray(v) ? v : [])],
+            ['rendez-vous', () => adminDataService.getBookings(), (v) => setBookings(Array.isArray(v) ? v : [])],
+            ['réexpéditions', () => adminDataService.getReexpeditions(), (v) => setReexpeditions(Array.isArray(v) ? v : [])],
+            ['statistiques', () => adminDataService.getGlobalStats(), (v) => setStats(v)],
+        ];
         try {
-            const [c, m, d, b, r, s] = await Promise.all([
-                adminDataService.getClients(),
-                adminDataService.getMail(),
-                adminDataService.getDemandes(),
-                adminDataService.getBookings(),
-                adminDataService.getReexpeditions(),
-                adminDataService.getGlobalStats()
-            ]);
-            setClients(c);
-            setMail(m);
-            setDemandes(d);
-            setBookings(b);
-            setReexpeditions(Array.isArray(r) ? r : []);
-            setStats(s);
+            const results = await Promise.allSettled(sources.map(([, load]) => load()));
+            const failed = [];
+            const value = {};
+            results.forEach((res, i) => {
+                const [name, , apply] = sources[i];
+                if (res.status === 'fulfilled') {
+                    apply(res.value);
+                    value[name] = res.value;
+                } else {
+                    failed.push(name);
+                    console.error(`Chargement admin (${name}) :`, res.reason);
+                }
+            });
+            setLoadErrors(failed);
 
-            const lastDemandesCount = parseInt(localStorage.getItem('admin_seen_demandes') || '0');
-            if (d.length > lastDemandesCount && activeTab !== 'demandes') {
-                setHasNewDemande(true);
-            }
-            const lastBookingsCount = parseInt(localStorage.getItem('admin_seen_bookings') || '0');
-            if (b.length > lastBookingsCount && activeTab !== 'meeting') {
-                setHasNewBooking(true);
-            }
-            const lastReexpCount = parseInt(localStorage.getItem('admin_seen_reexpeditions') || '0');
-            if ((r || []).length > lastReexpCount && activeTab !== 'courrier') {
-                setHasNewReexp(true);
-            }
-
-        } catch (err) {
-            console.error("Erreur de chargement des données:", err);
+            // Pastilles « nouveau » : localStorage peut être indisponible (navigation privée).
+            const seen = (key) => {
+                try { return parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch { return 0; }
+            };
+            const d = value.demandes || [];
+            const b = value['rendez-vous'] || [];
+            const r = value['réexpéditions'] || [];
+            if (d.length > seen('admin_seen_demandes') && activeTab !== 'demandes') setHasNewDemande(true);
+            if (b.length > seen('admin_seen_bookings') && activeTab !== 'meeting') setHasNewBooking(true);
+            if (r.length > seen('admin_seen_reexpeditions') && activeTab !== 'courrier') setHasNewReexp(true);
         } finally {
             setIsLoading(false);
         }
@@ -89,17 +95,20 @@ export default function Admin() {
 
 
     useEffect(() => {
+        const remember = (key, value) => {
+            try { localStorage.setItem(key, String(value)); } catch { /* stockage indisponible : pastille seulement */ }
+        };
         if (activeTab === 'demandes') {
             setHasNewDemande(false);
-            localStorage.setItem('admin_seen_demandes', demandes.length.toString());
+            remember('admin_seen_demandes', demandes.length);
         }
         if (activeTab === 'meeting') {
             setHasNewBooking(false);
-            localStorage.setItem('admin_seen_bookings', bookings.length.toString());
+            remember('admin_seen_bookings', bookings.length);
         }
         if (activeTab === 'courrier') {
             setHasNewReexp(false);
-            localStorage.setItem('admin_seen_reexpeditions', reexpeditions.length.toString());
+            remember('admin_seen_reexpeditions', reexpeditions.length);
         }
     }, [activeTab, demandes.length, bookings.length, reexpeditions.length]);
 
@@ -109,17 +118,17 @@ export default function Admin() {
     }, [activeTab, selectedClientId]);
 
     const handleLogout = async () => {
-        await signOut();
-        navigate('/');
+        try {
+            await signOut();
+        } finally {
+            navigate('/');
+        }
     };
 
     useEffect(() => {
         if (isLoaded && isAdmin) {
-            const setup = async () => {
-                await adminDataService.init();
-                refreshData();
-            };
-            setup();
+            // Le schéma est préparé côté serveur (api/data.js) : il suffit de charger les données.
+            refreshData();
         }
     }, [isLoaded, isAdmin, refreshData]);
 
@@ -250,6 +259,14 @@ export default function Admin() {
                 </header>
 
                 <div className="admin-body">
+                    {loadErrors.length > 0 && (
+                        <div role="alert" style={{ margin: '0 0 16px', padding: '12px 16px', borderRadius: '10px', background: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E', fontSize: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <span>Certaines données n’ont pas pu être chargées : <strong>{loadErrors.join(', ')}</strong>. Les autres informations sont à jour.</span>
+                            <button type="button" onClick={refreshData} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #F59E0B', background: '#FFFFFF', color: '#92400E', fontWeight: 600, cursor: 'pointer' }}>
+                                Réessayer
+                            </button>
+                        </div>
+                    )}
                     {isLoading && (
                         <div className="loading-overlay">
                             <div className="spinner"></div>
@@ -291,18 +308,24 @@ export default function Admin() {
                                     ? "Accès créé, mais l'email de validation n'a pas pu être envoyé. Vérifiez la configuration SMTP."
                                     : "Accès créé avec succès ! L'email de validation a été envoyé.",
                                     emailFailed ? { title: 'Email non envoyé', isWarning: true } : { title: "Succès" });
+                            } catch (err) {
+                                console.error('Validation de la demande :', err);
+                                await showAlert(`La demande n’a pas pu être validée : ${err?.message || 'erreur inconnue'}. Vérifiez la liste des clients avant de réessayer (pour éviter un doublon).`, { title: 'Échec de la validation', isDanger: true });
                             } finally {
                                 setLoadingId(null);
                             }
                         }}
                         onReject={async (id) => {
-                            const confirmed = await showConfirm("Supprimer cette demande ?", { isDanger: true });
+                            const confirmed = await showConfirm("Refuser et supprimer définitivement cette demande ?\n\nLe compte de connexion créé par le prospect sera aussi supprimé. Cette action est irréversible.", { isDanger: true, title: "Supprimer la demande", confirmText: "Supprimer" });
                             if (confirmed) {
                                 setLoadingId(id);
                                 try {
                                     await adminDataService.deleteDemande(id);
                                     refreshData();
                                     setSelectedDemande(null);
+                                } catch (err) {
+                                    console.error('Suppression de la demande :', err);
+                                    await showAlert('La demande n’a pas pu être supprimée. Réessayez.', { isDanger: true });
                                 } finally {
                                     setLoadingId(null);
                                 }

@@ -58,7 +58,9 @@ describe('AddressAutocomplete', () => {
             />
         );
 
-        fireEvent.change(screen.getByPlaceholderText('Ex: 75001 Paris'), { target: { value: 'pari' } });
+        const input = screen.getByPlaceholderText('Ex: 75001 Paris');
+        input.focus(); // l'utilisateur tape dans le champ : il a le focus
+        fireEvent.change(input, { target: { value: 'pari' } });
         expect(onChange).toHaveBeenCalledWith('pari');
 
         await waitFor(() => {
@@ -73,5 +75,26 @@ describe('AddressAutocomplete', () => {
             fireEvent.mouseDown(option);
         });
         expect(onChange).toHaveBeenCalledWith('75001 Paris');
+    });
+
+    test('des résultats arrivés après la sortie du champ n’ouvrent pas la liste (elle masquait le bouton Suivant)', async () => {
+        render(<AddressAutocomplete value="" onChange={vi.fn()} placeholder="Adresse" />);
+        const input = screen.getByPlaceholderText('Adresse');
+        input.focus();
+        fireEvent.change(input, { target: { value: '12 rue des Lilas' } });
+        input.blur(); // le client passe au champ suivant avant la réponse de l'API
+        await waitFor(() => expect(fetch).toHaveBeenCalled());
+        await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+        expect(screen.queryByRole('listbox')).toBeNull();
+    });
+
+    test('la touche Échap ferme la liste', async () => {
+        render(<AddressAutocomplete value="" onChange={vi.fn()} placeholder="Adresse" searchType="municipality" />);
+        const input = screen.getByPlaceholderText('Adresse');
+        input.focus();
+        fireEvent.change(input, { target: { value: 'pari' } });
+        await screen.findByRole('option', { name: /75001 Paris/ });
+        fireEvent.keyDown(input, { key: 'Escape' });
+        expect(screen.queryByRole('listbox')).toBeNull();
     });
 });

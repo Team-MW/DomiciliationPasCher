@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import AddressAutocomplete from '../../../components/AddressAutocomplete/AddressAutocomplete';
-import { PLAN_CATALOG, resolvePlanId } from '../../../data/plans';
+import { PLAN_CATALOG, resolvePlanId, planAmountTtc } from '../../../data/plans';
 import { sendAccountCreatedEmail } from '../../../utils/emailService';
 
 function newPaymentToken() {
@@ -147,9 +147,11 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                                 value={formData.plan}
                                 onChange={e => setFormData({ ...formData, plan: e.target.value })}
                             >
-                                <option value="Essentiel">Essentiel (20€ HT / 24€ TTC)</option>
-                                <option value="Scan+">Scan+ (24€ HT / 28.80€ TTC)</option>
-                                <option value="Physique+">Physique+ (38€ HT / 45.60€ TTC)</option>
+                                {Object.values(PLAN_CATALOG).map((p) => (
+                                    <option key={p.id} value={p.name}>
+                                        {p.name} ({String(p.ht).replace('.', ',')} € HT / {planAmountTtc(p.ht, 'month').toFixed(2).replace('.', ',')} € TTC)
+                                    </option>
+                                ))}
                             </select>
                         </div>
                         <div className="form-group">
@@ -160,7 +162,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                                 onChange={e => setFormData({ ...formData, frequence: e.target.value })}
                             >
                                 <option value="mensuel">Mensuel</option>
-                                <option value="annuel">Annuel (2 mois offerts)</option>
+                                <option value="annuel">Annuel (−20 %)</option>
                             </select>
                         </div>
                     </div>

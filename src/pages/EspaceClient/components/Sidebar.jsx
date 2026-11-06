@@ -4,90 +4,76 @@ import { UserButton } from '@clerk/clerk-react';
 import { Icons } from './Icons';
 import logoSvg from '../../../assets/DomiciliationPasCher-Logo.png';
 import { useTranslation } from '../../../i18n/LanguageContext';
+import { parseExtraInfo } from '../../../utils/contractLegalFields';
 
-export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgsCount, hasNewDocs, hasNewFactures, user, clientData, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgsCount, hasNewDocs, hasNewFactures, user, clientData }) {
     const { t } = useTranslation();
+    const displayName = user?.firstName || parseExtraInfo(clientData?.extra_info).prenom || clientData?.name || clientData?.company || '';
+
+    // Navigation regroupée par usage (avant : 12 entrées à plat).
+    const groups = [
+        { label: null, items: [
+            { id: 'overview', icon: Icons.Dashboard, label: t('espaceClient.sidebar.dashboard') },
+        ] },
+        { label: t('espaceClient.sidebar.groupMail'), items: [
+            { id: 'mail', icon: Icons.Mail, label: t('espaceClient.sidebar.mail'), badge: mailCount },
+            { id: 'messages', icon: Icons.Chat, label: t('espaceClient.sidebar.messages'), badge: unreadMsgsCount },
+        ] },
+        { label: t('espaceClient.sidebar.groupAccount'), items: [
+            { id: 'adresse', icon: Icons.Pin, label: t('espaceClient.sidebar.address') },
+            { id: 'docs', icon: Icons.Folder, label: t('espaceClient.sidebar.docs'), dot: hasNewDocs },
+            { id: 'abonnement', icon: Icons.Subscription, label: t('espaceClient.sidebar.subscription') },
+        ] },
+        { label: t('espaceClient.sidebar.groupBilling'), items: [
+            { id: 'factures', icon: Icons.Invoice, label: t('espaceClient.sidebar.invoices'), dot: hasNewFactures },
+            { id: 'paiement', icon: Icons.CreditCard, label: t('espaceClient.sidebar.payment') },
+        ] },
+        { label: t('espaceClient.sidebar.groupServices'), items: [
+            { id: 'meeting', icon: Icons.Calendar, label: t('espaceClient.sidebar.meeting') },
+            { id: 'compte-pro', icon: Icons.Bank, label: t('espaceClient.sidebar.proAccount'), tag: t('espaceClient.sidebar.offer') },
+            { id: 'aide', icon: Icons.Help, label: t('espaceClient.sidebar.help') },
+            { id: 'settings', icon: Icons.Settings, label: t('espaceClient.sidebar.settings') },
+        ] },
+    ];
+
     return (
         <aside className="ec-sidebar">
             <div className="ec-sidebar-brand">
                 <Link to="/" className="ec-brand-logo">
-                    <img src={logoSvg} alt="DPC" className="ec-logo-img" />
+                    <img src={logoSvg} alt="Domiciliation Pas Cher" className="ec-logo-img" />
                 </Link>
+                <span className="ec-sidebar-space">{t('espaceClient.sidebar.spaceLabel')}</span>
             </div>
 
-            <nav className="ec-nav" style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', paddingRight: '4px' }}>
-                {/* 1. Dashboard */}
-                <button className={`ec-nav-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-                    <span className="ec-nav-icon"><Icons.Dashboard /></span> {t('espaceClient.sidebar.dashboard')}
-                </button>
-
-                {/* 2. Boite aux lettres */}
-                <button className={`ec-nav-item ${activeTab === 'mail' ? 'active' : ''}`} onClick={() => setActiveTab('mail')}>
-                    <span className="ec-nav-icon"><Icons.Mail /></span> {t('espaceClient.sidebar.mail')}
-                    {mailCount > 0 && <span className="ec-nav-badge" style={{ background: '#ea580c' }}>{mailCount}</span>}
-                </button>
-
-                {/* 3. Adresse */}
-                <button className={`ec-nav-item ${activeTab === 'adresse' ? 'active' : ''}`} onClick={() => setActiveTab('adresse')}>
-                    <span className="ec-nav-icon"><Icons.Pin /></span> {t('espaceClient.sidebar.address')}
-                </button>
-
-                {/* 4. Documents */}
-                <button className={`ec-nav-item ${activeTab === 'docs' ? 'active' : ''}`} onClick={() => setActiveTab('docs')}>
-                    <span className="ec-nav-icon"><Icons.Folder /></span> {t('espaceClient.sidebar.docs')}
-                    {hasNewDocs && <span className="ec-nav-dot" style={{ background: '#ea580c' }}></span>}
-                </button>
-
-                {/* 5. Abonnement */}
-                <button className={`ec-nav-item ${activeTab === 'abonnement' ? 'active' : ''}`} onClick={() => setActiveTab('abonnement')}>
-                    <span className="ec-nav-icon"><Icons.Subscription /></span> {t('espaceClient.sidebar.subscription')}
-                </button>
-
-                {/* 6. Factures */}
-                <button className={`ec-nav-item ${activeTab === 'factures' ? 'active' : ''}`} onClick={() => setActiveTab('factures')}>
-                    <span className="ec-nav-icon"><Icons.Invoice /></span> {t('espaceClient.sidebar.invoices')}
-                    {hasNewFactures && <span className="ec-nav-dot" style={{ background: '#ea580c' }}></span>}
-                </button>
-
-                {/* 7. Moyen de paiement */}
-                <button className={`ec-nav-item ${activeTab === 'paiement' ? 'active' : ''}`} onClick={() => setActiveTab('paiement')}>
-                    <span className="ec-nav-icon"><Icons.CreditCard /></span> {t('espaceClient.sidebar.payment')}
-                </button>
-
-                {/* 8. Compte pro */}
-                <button className={`ec-nav-item ${activeTab === 'compte-pro' ? 'active' : ''}`} onClick={() => setActiveTab('compte-pro')}>
-                    <span className="ec-nav-icon"><Icons.Bank /></span> {t('espaceClient.sidebar.proAccount')}
-                    <span style={{ marginLeft: 'auto', background: 'rgba(79, 70, 229, 0.25)', color: '#818cf8', fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '6px' }}>OFFRE</span>
-                </button>
-
-                {/* 9. Messagerie */}
-                <button className={`ec-nav-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
-                    <span className="ec-nav-icon"><Icons.Chat /></span> {t('espaceClient.sidebar.messages')}
-                    {unreadMsgsCount > 0 && <span className="ec-nav-badge" style={{ background: '#ea580c' }}>{unreadMsgsCount}</span>}
-                </button>
-
-                {/* 10. Salles & Bureaux */}
-                <button className={`ec-nav-item ${activeTab === 'meeting' ? 'active' : ''}`} onClick={() => setActiveTab('meeting')}>
-                    <span className="ec-nav-icon"><Icons.Calendar /></span> {t('espaceClient.sidebar.meeting')}
-                </button>
-
-                {/* 11. Aide */}
-                <button className={`ec-nav-item ${activeTab === 'aide' ? 'active' : ''}`} onClick={() => setActiveTab('aide')}>
-                    <span className="ec-nav-icon"><Icons.Help /></span> {t('espaceClient.sidebar.help')}
-                </button>
-
-                {/* 12. Paramètres */}
-                <button className={`ec-nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
-                    <span className="ec-nav-icon"><Icons.Settings /></span> {t('espaceClient.sidebar.settings')}
-                </button>
+            <nav className="ec-nav" aria-label={t('espaceClient.sidebar.spaceLabel')}>
+                {groups.map((group, gi) => (
+                    <div className="ec-nav-group" key={gi}>
+                        {group.label && <div className="ec-nav-group-label">{group.label}</div>}
+                        {group.items.map(({ id, icon: Icon, label, badge, dot, tag }) => (
+                            <button
+                                key={id}
+                                type="button"
+                                className={`ec-nav-item ${activeTab === id ? 'active' : ''}`}
+                                aria-current={activeTab === id ? 'page' : undefined}
+                                onClick={() => setActiveTab(id)}
+                            >
+                                <span className="ec-nav-icon"><Icon /></span>
+                                <span className="ec-nav-label">{label}</span>
+                                {badge > 0 && <span className="ec-nav-badge">{badge}</span>}
+                                {dot && <span className="ec-nav-dot" aria-hidden="true" />}
+                                {tag && <span className="ec-nav-tag">{tag}</span>}
+                            </button>
+                        ))}
+                    </div>
+                ))}
             </nav>
 
-            <div className="ec-sidebar-footer" style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div className="ec-sidebar-footer">
                 <div className="ec-user-card">
                     <UserButton afterSignOutUrl="/" />
                     <div className="ec-user-info">
-                        <div className="ec-user-name">{user?.firstName || 'Utilisateur'}</div>
-                        <div className="ec-user-company">{clientData?.company || 'Espace Client'}</div>
+                        <div className="ec-user-name">{displayName}</div>
+                        <div className="ec-user-company">{clientData?.company || t('espaceClient.sidebar.spaceLabel')}</div>
                     </div>
                 </div>
             </div>

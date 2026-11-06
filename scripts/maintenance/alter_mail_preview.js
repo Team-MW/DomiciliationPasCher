@@ -1,3 +1,4 @@
+import './_confirm.cjs';
 import 'dotenv/config';
 import { connect } from '@planetscale/database';
 

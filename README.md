@@ -65,6 +65,11 @@ npm run smoke -- https://www.domiciliation-pas-cher.com   # contrôle d'un site 
 
 Node 22 (voir `engines` dans `package.json`).
 
+## Scripts de maintenance
+
+Les scripts ponctuels qui agissent sur la vraie base ou sur Stripe sont dans
+[scripts/maintenance/](scripts/maintenance/README.md). Ils refusent de démarrer sans `CONFIRM=oui`.
+
 ## Vérification avant mise en ligne
 
 `npm run verify` est exécuté par le hook git **pre-push** (installé par `npm install`) et par la CI GitHub.

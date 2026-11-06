@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
+import { CONTACT_EMAIL } from '../../../constants/contact';
 
-export default function Aide({ clientData, setActiveTab }) {
+export default function Aide({ setActiveTab }) {
     const { t } = useTranslation();
     const [openFaq, setOpenFaq] = useState(0);
     const faqsRaw = t('espaceClient.help.faqs');
@@ -62,8 +63,8 @@ export default function Aide({ clientData, setActiveTab }) {
                         <p style={{ fontSize: '13px', color: 'var(--ec-text-sub)', margin: '0 0 10px 0', lineHeight: '1.4' }}>
 {t('espaceClient.help.emailHint')}
                         </p>
-                        <a href="mailto:contact@domiciliation-pas-cher.fr" style={{ color: '#16a34a', fontWeight: '700', fontSize: '13px', textDecoration: 'none' }}>
-                            contact@domiciliation-pas-cher.fr
+                        <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#16a34a', fontWeight: '700', fontSize: '13px', textDecoration: 'none' }}>
+                            {CONTACT_EMAIL}
                         </a>
                     </div>
                 </div>

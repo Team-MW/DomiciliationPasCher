@@ -1,3 +1,4 @@
+import './_confirm.cjs';
 /**
  * Supprime le client Stripe de test créé pour valider l'affichage des impayés.
  * Usage : node scripts/cleanup-stripe-test-impaye.mjs
