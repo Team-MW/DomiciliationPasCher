@@ -109,4 +109,54 @@ describe('politique impayé 2 mois', () => {
         expect(stripe.subscriptions.cancel).not.toHaveBeenCalled();
         expect(transporter.sendMail).not.toHaveBeenCalled();
     });
+
+    it('ne résilie pas un client qui paie, à cause d’une vieille facture sans abonnement en échec', async () => {
+        const result = await applyPaymentGracePolicy({
+            stripe,
+            failures: [failure({ subscriptionId: undefined, hasHealthySubscription: true, failedAt: '2024-01-10' })],
+            transporter,
+            conn,
+            now: new Date('2026-11-05T10:00:00Z'),
+        });
+        expect(result.terminated).toBe(0);
+        expect(stripe.subscriptions.cancel).not.toHaveBeenCalled();
+        expect(conn.execute).not.toHaveBeenCalledWith(
+            expect.stringMatching(/UPDATE clients SET status/),
+            expect.arrayContaining(['résilié'])
+        );
+        expect(conn.execute).not.toHaveBeenCalledWith(
+            expect.stringMatching(/UPDATE clients SET status/),
+            expect.arrayContaining(['echec_paiement'])
+        );
+    });
+
+    it('si l’annulation Stripe échoue, le dossier n’est pas marqué « résilié » (réessai au prochain passage)', async () => {
+        stripe.subscriptions.cancel.mockRejectedValue(new Error('network down'));
+        await applyPaymentGracePolicy({
+            stripe,
+            failures: [failure({ failedAt: '2026-01-01' })],
+            transporter,
+            conn,
+            now: new Date('2026-11-05T10:00:00Z'),
+        });
+        const markedTerminated = [...stripe.invoices.update.mock.calls, ...stripe.subscriptions.update.mock.calls]
+            .some(([, params]) => params?.metadata?.dpc_domicile_terminated === '1');
+        expect(markedTerminated).toBe(false);
+    });
+
+    it('résilie aussi quand Stripe a déjà annulé l’abonnement (facture impayée seule, aucun abonnement sain)', async () => {
+        const result = await applyPaymentGracePolicy({
+            stripe,
+            failures: [failure({ subscriptionId: undefined, hasHealthySubscription: false, failedAt: '2026-01-01' })],
+            transporter,
+            conn,
+            now: new Date('2026-11-05T10:00:00Z'),
+        });
+        expect(result.terminated).toBe(1);
+        expect(conn.execute).toHaveBeenCalledWith(
+            expect.stringMatching(/UPDATE clients SET status/),
+            expect.arrayContaining(['résilié'])
+        );
+    });
 });
+

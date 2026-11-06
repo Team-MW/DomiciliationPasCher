@@ -1,4 +1,5 @@
 import { getStripe, getStripeSecretKey, isLiveSecretKey } from './_stripe-client.js';
+import { requireAdmin, sendServerError } from './_auth.js';
 
 const MONTH_SHORT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
@@ -107,6 +108,10 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
+    // Chiffre d'affaires, MRR, nombre d'abonnés : réservé à l'admin.
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
     try {
         const liveOnly = isLiveSecretKey(getStripeSecretKey());
         const stripe = getStripe();
@@ -120,7 +125,6 @@ export default async function handler(req, res) {
 
         return res.status(200).json(assembleStripeStats({ charges, subscriptions, now, liveOnly }));
     } catch (error) {
-        console.error('Erreur Stripe Stats:', error.message);
-        return res.status(500).json({ error: error.message });
+        return sendServerError(res, error, 'stripe-stats');
     }
 }

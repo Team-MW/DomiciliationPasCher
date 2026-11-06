@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import fs from 'fs';
+import { readServerEnv } from './_env.js';
 
 // Destinataires de toutes les notifications internes (nouveau client, nouveau message,
 // demande de consultation, impayés). Surchargeable via ADMIN_EMAIL, séparés par des virgules.
@@ -16,45 +16,20 @@ export const ADMIN_EMAILS = (process.env.ADMIN_EMAIL
 // nodemailer accepte une liste séparée par des virgules dans le champ `to`.
 export const ADMIN_EMAIL = ADMIN_EMAILS.join(', ');
 
-// En local, les handlers sont importés par le plugin Vite qui ne charge pas .env.local.
-const readEnvFile = () => {
-    try {
-        if (!fs.existsSync('.env.local')) return null;
-        return fs.readFileSync('.env.local', 'utf-8');
-    } catch {
-        return null;
-    }
-};
-
 export function getSmtpConfig() {
-    let host = process.env.SMTP_HOST;
-    let port = process.env.SMTP_PORT || 465;
-    let user = process.env.SMTP_USER;
-    let pass = process.env.SMTP_PASS;
-    let from = process.env.SMTP_FROM || user;
-
-    if (!user) {
-        const content = readEnvFile();
-        if (content) {
-            const getEnv = (key) => {
-                const match = content.match(new RegExp(`^${key}=(.*)$`, 'm'));
-                return match ? match[1].trim().replace(/^['"](.*)['"]$/, '$1') : null;
-            };
-            host = getEnv('SMTP_HOST') || host;
-            port = getEnv('SMTP_PORT') || port;
-            user = getEnv('SMTP_USER') || user;
-            pass = getEnv('SMTP_PASS') || pass;
-            from = getEnv('SMTP_FROM') || getEnv('SMTP_USER') || from;
-        }
-    }
+    const host = readServerEnv('SMTP_HOST');
+    const port = readServerEnv('SMTP_PORT') || 465;
+    const user = readServerEnv('SMTP_USER');
+    const pass = readServerEnv('SMTP_PASS');
+    const from = readServerEnv('SMTP_FROM') || user;
 
     if (!host || !user || !pass) return null;
     return { host, port: Number(port), user, pass, from };
 }
 
 /** Retourne un transporteur nodemailer, ou null si le SMTP n'est pas configuré.
- *  Pour une bonne délivrabilité : mail.infomaniak.com + contact@domiciliation-pas-cher.com
- *  (le SPF/DMARC du domaine n'autorise pas Gmail).
+ *  Configuration actuelle : Gmail (smtp.gmail.com:465, mot de passe d'application Google).
+ *  SMTP_FROM doit être l'adresse Gmail elle-même : Gmail réécrit tout autre expéditeur.
  */
 export function getTransporter() {
     const config = getSmtpConfig();

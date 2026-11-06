@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
+import { appAlert } from '../../../components/AppDialog/dialogApi';
 
 export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showConfirm, showAlert }) {
     const [loadingId, setLoadingId] = useState(null);
@@ -18,9 +19,11 @@ export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showC
         try {
             const created = await adminDataService.traiterDemande(demande.id);
             onUpdate();
-            await showAlert(created?.emailSent === false
+            const emailFailed = created?.emailSent === false;
+            await showAlert(emailFailed
                 ? "Accès créé, mais l'email de validation n'a pas pu être envoyé. Vérifiez la configuration SMTP."
-                : "Accès créé avec succès ! L'email de validation a été envoyé.");
+                : "Accès créé avec succès ! L'email de validation a été envoyé.",
+                emailFailed ? { title: 'Email non envoyé', isWarning: true } : { title: 'Succès' });
         } finally {
             setLoadingId(null);
         }
@@ -216,7 +219,7 @@ export function DemandeDetailsModal({ demande, onClose, onAccept, onReject, load
                 }).catch(err => console.error("Error sending message notification:", err));
             }
         } catch (err) {
-            await showAlert("Erreur lors de l'envoi du message");
+            await appAlert("Erreur lors de l'envoi du message");
         }
     };
 

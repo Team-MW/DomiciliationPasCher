@@ -1,46 +1,52 @@
+import { getStripe } from './_stripe-client.js';
+import { getDbConn } from './_db.js';
+import { getBaseUrl } from './_email-kit.js';
+import { fulfillCheckoutSession, isCheckoutSessionPaid } from './_checkout-fulfillment.js';
+import { sendServerError } from './_auth.js';
 
-import Stripe from 'stripe';
-import fs from 'fs';
-
+/**
+ * Retour de paiement Stripe. La confirmation de la demande (et l'email de bienvenue) est
+ * faite ici, côté serveur, à partir de la session Stripe — plus depuis le navigateur.
+ * Les réservations de salles sont confirmées par api/data.js (confirmMeetingBooking),
+ * qui exige que le client connecté soit bien le titulaire de la réservation.
+ */
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { session_id } = req.query;
-
-    if (!session_id) {
-        return res.status(400).json({ error: "Session ID manquant" });
+    const { session_id } = req.query || {};
+    if (!session_id || !/^cs_[A-Za-z0-9_]+$/.test(String(session_id))) {
+        return res.status(400).json({ error: 'Session ID manquant' });
     }
 
     try {
-        let secretKey = null;
-        try {
-            if (fs.existsSync('.env.local')) {
-                const content = fs.readFileSync('.env.local', 'utf-8');
-                const match = content.match(/STRIPE_SECRET_KEY=(.*)/);
-                if (match) secretKey = match[1].trim();
+        const stripe = getStripe();
+        const session = await stripe.checkout.sessions.retrieve(String(session_id));
+        const isPaid = isCheckoutSessionPaid(session);
+
+        let fulfillment = null;
+        if (isPaid && session.metadata?.type !== 'meeting_booking') {
+            try {
+                fulfillment = await fulfillCheckoutSession(session, { conn: getDbConn(), baseUrl: getBaseUrl(req) });
+            } catch (err) {
+                // Le paiement est acquis : on n'affiche pas d'échec au client, le webhook rattrapera.
+                console.error('[verify-session] traitement de la session impossible:', err);
             }
-        } catch (e) { }
-        
-        if (!secretKey) secretKey = process.env.STRIPE_SECRET_KEY;
-        const stripe = new Stripe(secretKey);
+        }
 
-        const session = await stripe.checkout.sessions.retrieve(session_id);
-        
-        // On vérifie si la session est payée
-        const isPaid = session.payment_status === 'paid';
-
-        return res.status(200).json({ 
-            success: isPaid, 
+        return res.status(200).json({
+            success: isPaid,
             status: session.payment_status,
-            customer_email: session.customer_details?.email,
-            customer_id: session.customer, // Récupérer l'ID client Stripe
             session_id: session.id,
-            metadata: session.metadata || {}
+            customer_id: typeof session.customer === 'string' ? session.customer : session.customer?.id || null,
+            confirmed: Boolean(fulfillment?.ok),
+            metadata: {
+                type: session.metadata?.type || null,
+                demande_id: session.metadata?.demande_id || null,
+            },
         });
     } catch (error) {
-        console.error('Verify session error:', error);
-        return res.status(500).json({ error: error.message });
+        return sendServerError(res, error, 'verify-session');
     }
 }

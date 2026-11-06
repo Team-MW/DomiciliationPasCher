@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { SignUp } from '@clerk/clerk-react';
 import { adminDataService } from '../../services/adminDataService';
 import { appAlert } from '../../components/AppDialog/dialogApi';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import './Auth.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
 export default function InscriptionPage() {
     const navigate = useNavigate();
+    usePageMeta({ path: '/inscription', noindex: true });
     const [isAllowed, setIsAllowed] = useState(false);
     const [showFallback, setShowFallback] = useState(false);
     const [fallbackEmail, setFallbackEmail] = useState('');

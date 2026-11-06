@@ -27,7 +27,7 @@ export function brandedFrom(smtpFrom) {
 export function getBaseUrl(req) {
     const host = req?.headers?.host;
     if (host) return `${req.headers['x-forwarded-proto'] || 'https'}://${host}`;
-    return process.env.PUBLIC_SITE_URL || 'https://domiciliation-pas-cher.fr';
+    return process.env.PUBLIC_SITE_URL || 'https://www.domiciliation-pas-cher.com';
 }
 
 export function emailButton(href, label, color = '#1A56DB') {

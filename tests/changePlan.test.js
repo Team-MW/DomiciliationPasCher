@@ -19,6 +19,7 @@ vi.mock('../api/_stripe-client.js', () => ({
 }));
 
 import handler from '../api/change-plan.js';
+import { __setAuthVerifierForTests } from '../api/_auth.js';
 
 const clientRow = {
     id: 'cli_1',
@@ -41,7 +42,17 @@ describe('POST /api/change-plan', () => {
         process.env.VITE_DATABASE_USERNAME = 'u';
         process.env.VITE_DATABASE_PASSWORD = 'p';
         process.env.STRIPE_SECRET_KEY = 'sk_test_x';
-        execute.mockResolvedValue({ rows: [clientRow] });
+        // Le titulaire de la fiche (même email vérifié) est connecté.
+        __setAuthVerifierForTests(async (token) => (token === 'owner'
+            ? { userId: 'user_owner', email: 'client@example.com' }
+            : token === 'other' ? { userId: 'user_other', email: 'autre@example.com' } : null));
+        execute.mockImplementation(async (sql, params = []) => {
+            // Requête de propriété (getOwnership) : seule la fiche au même email remonte.
+            if (/clerkId = \?/.test(sql)) {
+                return { rows: params[0] === clientRow.email ? [clientRow] : [] };
+            }
+            return { rows: [clientRow] };
+        });
         customersList.mockResolvedValue({ data: [] });
         subscriptionsList.mockResolvedValue({
             data: [{
@@ -70,18 +81,45 @@ describe('POST /api/change-plan', () => {
         const res = mockRes();
         await handler({
             method: 'POST',
-            body: { clientId: 'cli_1', email: 'client@example.com', planId: 'gold' },
+            headers: { authorization: 'Bearer owner' },
+            body: { clientId: 'cli_1', planId: 'gold' },
         }, res);
         expect(res.status).toHaveBeenCalledWith(400);
     });
 
-    it('refuse si l’email ne correspond pas', async () => {
+    it('refuse sans être connecté (401)', async () => {
         const res = mockRes();
         await handler({
             method: 'POST',
-            body: { clientId: 'cli_1', email: 'autre@example.com', planId: 'essentiel' },
+            headers: {},
+            body: { clientId: 'cli_1', email: 'client@example.com', planId: 'essentiel' },
+        }, res);
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(subscriptionsUpdate).not.toHaveBeenCalled();
+    });
+
+    it('refuse le dossier d’un autre client, même en fournissant son email (403)', async () => {
+        const res = mockRes();
+        await handler({
+            method: 'POST',
+            headers: { authorization: 'Bearer other' },
+            body: { clientId: 'cli_1', email: 'client@example.com', planId: 'physique' },
         }, res);
         expect(res.status).toHaveBeenCalledWith(403);
+        expect(subscriptionsUpdate).not.toHaveBeenCalled();
+    });
+
+    it('refuse de changer de formule pendant un impayé (409)', async () => {
+        subscriptionsList.mockResolvedValue({
+            data: [{ id: 'sub_1', status: 'past_due', metadata: {}, items: { data: [{ id: 'si_1', price: { recurring: { interval: 'month' } } }] } }],
+        });
+        const res = mockRes();
+        await handler({
+            method: 'POST',
+            headers: { authorization: 'Bearer owner' },
+            body: { clientId: 'cli_1', planId: 'physique' },
+        }, res);
+        expect(res.status).toHaveBeenCalledWith(409);
         expect(subscriptionsUpdate).not.toHaveBeenCalled();
     });
 
@@ -89,7 +127,8 @@ describe('POST /api/change-plan', () => {
         const res = mockRes();
         await handler({
             method: 'POST',
-            body: { clientId: 'cli_1', email: 'client@example.com', planId: 'physique' },
+            headers: { authorization: 'Bearer owner' },
+            body: { clientId: 'cli_1', planId: 'physique' },
         }, res);
         expect(pricesCreate).toHaveBeenCalledWith(expect.objectContaining({
             unit_amount: 4560,
@@ -115,7 +154,8 @@ describe('POST /api/change-plan', () => {
         const res = mockRes();
         await handler({
             method: 'POST',
-            body: { clientId: 'cli_1', email: 'client@example.com', planId: 'scan-plus' },
+            headers: { authorization: 'Bearer owner' },
+            body: { clientId: 'cli_1', planId: 'scan-plus' },
         }, res);
         expect(subscriptionsUpdate).not.toHaveBeenCalled();
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ unchanged: true }));

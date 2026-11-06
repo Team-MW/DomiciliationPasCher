@@ -26,4 +26,14 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  // Code exécuté par Node (fonctions Vercel, scripts, configuration).
+  {
+    files: ['api/**/*.js', 'scripts/**/*.{js,mjs,cjs}', 'shared/**/*.js', '*.config.js', 'vitest.setup.js'],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  // Tests Vitest (globals: true dans vitest.config.js).
+  {
+    files: ['tests/**/*.{js,jsx}', 'src/**/__tests__/**/*.{js,jsx}', 'vitest.setup.js'],
+    languageOptions: { globals: { ...globals.node, ...globals.vitest } },
+  },
 ])

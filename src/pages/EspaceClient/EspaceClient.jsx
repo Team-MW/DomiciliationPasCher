@@ -66,71 +66,60 @@ export default function EspaceClient() {
             const isPreview = params.get('preview') === 'true';
 
             if (isPreview) {
+                // Aperçu de démonstration : aucune donnée réelle n'est chargée (l'ancien mode
+                // lisait la fiche « 1 » sans authentification).
                 const previewClient = {
-                    id: '1',
+                    id: 'preview',
                     company: "DEMO PREVIEW INC.",
                     plan: "Scan+",
                     status: "actif",
-                    since: "2024-12-01"
+                    since: "2024-12-01",
+                    isPreview: true,
                 };
-                const [m, d, b] = await Promise.all([
-                    adminDataService.getClientMail('1'),
-                    adminDataService.getDocuments('1'),
-                    adminDataService.getClientBookings('1')
-                ]);
                 if (isMounted) {
                     setClientData(previewClient);
-                    setMail(m.slice(0, 5));
-                    setDocuments(d);
-                    setBookings(b);
+                    setMail([]);
+                    setDocuments([]);
+                    setBookings([]);
                     setIsLoading(false);
                 }
                 return;
             }
 
             if (isLoaded && user) {
-                await adminDataService.init();
+              try {
                 const email = user.primaryEmailAddress?.emailAddress;
                 const cleanEmail = email?.trim().toLowerCase();
                 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
 
                 const savedSessionId = localStorage.getItem('last_successful_session');
-                let data = await adminDataService.getClientByEmail(cleanEmail);
+                // Recherche faite côté serveur à partir de l'email vérifié du compte Clerk
+                // (repli par session Stripe) ; le serveur lie aussi le Clerk ID à la fiche.
+                const account = await adminDataService.getMyAccount({ sessionId: savedSessionId || null });
+                let data = null;
 
-                // Fallback : Recherche par Session ID pour les clients déjà approuvés
-                if (!data && savedSessionId) {
-                    data = await adminDataService.getClientBySessionId(savedSessionId);
-                    if (data) localStorage.removeItem('last_successful_session');
-                }
-
-                // NOUVEAU : Si toujours pas de client, on regarde dans les demandes
-                if (!data) {
-                    const demandes = await adminDataService.getDemandes();
-                    let maDemande = demandes.find(d => d.email?.trim().toLowerCase() === cleanEmail);
-
-                    // Fallback par Session ID pour les demandes
-                    if (!maDemande && savedSessionId) {
-                        maDemande = await adminDataService.getDemandeBySessionId(savedSessionId);
-                        if (maDemande) localStorage.removeItem('last_successful_session');
-                    }
-
-                    if (maDemande) {
-                        const extra = parseExtraInfo(maDemande.extra_info);
-                        data = {
-                            id: maDemande.id,
-                            name: extra.nom ? `${extra.prenom} ${extra.nom}` : maDemande.clientName,
-                            email: maDemande.email,
-                            company: maDemande.company,
-                            plan: maDemande.plan,
-                            phone: extra.telephone || '',
-                            address: resolvePersonalAddress({}, extra),
-                            extra_info: maDemande.extra_info,
-                            status: 'en_attente_validation',
-                            since: maDemande.date,
-                            city: maDemande.city || extra.ville || '',
-                            isTemporary: true
-                        };
-                    }
+                if (account?.kind === 'client') {
+                    data = { ...account.record };
+                    if (savedSessionId) localStorage.removeItem('last_successful_session');
+                } else if (account?.kind === 'demande') {
+                    const maDemande = account.record;
+                    if (savedSessionId) localStorage.removeItem('last_successful_session');
+                    const extra = parseExtraInfo(maDemande.extra_info);
+                    data = {
+                        id: maDemande.id,
+                        name: extra.nom ? `${extra.prenom} ${extra.nom}` : maDemande.clientName,
+                        email: maDemande.email,
+                        company: maDemande.company,
+                        plan: maDemande.plan,
+                        phone: extra.telephone || '',
+                        address: resolvePersonalAddress({}, extra),
+                        extra_info: maDemande.extra_info,
+                        status: 'en_attente_validation',
+                        since: maDemande.date,
+                        city: maDemande.city || extra.ville || '',
+                        clerkId: maDemande.clerkId,
+                        isTemporary: true
+                    };
                 }
 
                 if (data && data.extra_info) {
@@ -152,17 +141,6 @@ export default function EspaceClient() {
                 if (!isMounted) return;
 
                 if (data) {
-                    // LIEN DÉFINITIF : Lier le Clerk ID au compte trouvé
-                    if (!data.clerkId || data.clerkId === '') {
-                        try {
-                            if (data.isTemporary) {
-                                await adminDataService.updateDemandeClerkId(data.id, user.id);
-                            } else {
-                                await adminDataService.updateClientClerkId(data.id, user.id);
-                            }
-                            data.clerkId = user.id; // On met à jour localement pour éviter de reboucler
-                        } catch (err) { console.error("Lien Clerk ID échoué:", err); }
-                    }
                     setClientData(data);
 
                     const [m, d, b, msgs] = await Promise.all([
@@ -181,7 +159,13 @@ export default function EspaceClient() {
                 } else {
                     if (isMounted) setClientData(null);
                 }
+              } catch (err) {
+                // Sans ce garde, une erreur réseau laissait l'écran « chargement » indéfiniment.
+                console.error('Chargement de l’espace client impossible:', err);
+                if (isMounted) setClientData(null);
+              } finally {
                 if (isMounted) setIsLoading(false);
+              }
             }
         }
 
@@ -190,7 +174,7 @@ export default function EspaceClient() {
         return () => {
             isMounted = false;
         };
-    }, [isLoaded, user]);
+    }, [isLoaded, user?.id]);
 
     const handleLogout = async () => {
         await signOut();

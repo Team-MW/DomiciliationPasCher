@@ -55,7 +55,31 @@ export async function scanFailedPayments(stripe) {
     }
 
     for await (const inv of stripe.invoices.list({ status: 'uncollectible', limit: 100 })) {
-        upsert(idOf(inv.customer), invoiceFailure(inv, null));
+        const cid = idOf(inv.customer);
+        // Une facture ouverte en cours de relance reste la référence (montant, lien, compteur) :
+        // une vieille facture irrécouvrable ne doit pas l'écraser.
+        if (failures.get(cid)?.invoiceId) {
+            upsert(cid, { failedAt: toDateString(inv.created), alreadyTerminated: isTerminated(inv) });
+        } else {
+            upsert(cid, invoiceFailure(inv, null));
+        }
+    }
+
+    // Clients qui ont par ailleurs un abonnement sain : une ancienne facture impayée
+    // (abonnement résilié puis réabonnement) ne doit pas entraîner leur résiliation.
+    const healthyCustomers = new Set();
+    for (const status of ['active', 'trialing']) {
+        try {
+            for await (const sub of stripe.subscriptions.list({ status, limit: 100 })) {
+                const cid = idOf(sub.customer);
+                if (failures.has(cid)) healthyCustomers.add(cid);
+            }
+        } catch (err) {
+            console.warn(`Abonnements ${status} illisibles:`, err.message);
+        }
+    }
+    for (const [cid, failure] of failures) {
+        failure.hasHealthySubscription = healthyCustomers.has(cid);
     }
 
     // Un seul aller-retour par client pour récupérer email et nom.

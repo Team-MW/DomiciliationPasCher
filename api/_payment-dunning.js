@@ -1,6 +1,6 @@
 import { getTransporter, getSmtpConfig, ADMIN_EMAIL } from './_smtp.js';
 import { scanFailedPayments } from './_stripe-failures.js';
-import { sendBrandedMail } from './_email-kit.js';
+import { sendBrandedMail, escapeHtml } from './_email-kit.js';
 import { isPaymentGraceExpired, paymentGraceDeadline, formatDateFr } from '../shared/paymentGrace.js';
 
 const formatAmount = (amount, currency = 'eur') =>
@@ -87,14 +87,19 @@ export async function applyPaymentGracePolicy({
         try {
             const client = await findClient(conn, failure);
             const expired = isPaymentGraceExpired(failure.failedAt, now);
+            // Pas de résiliation automatique d'un client qui a un abonnement sain : une facture
+            // isolée (ancien abonnement) reste relancée et signalée à l'admin.
+            // (Sans abonnement en échec — déjà annulé par Stripe après relances — mais sans
+            // aucun abonnement sain non plus, la résiliation reste due.)
+            const canTerminate = !failure.hasHealthySubscription;
 
-            if (expired) {
+            if (expired && canTerminate) {
                 await terminateDomiciliation({ stripe, failure, conn, client, transporter });
                 terminated++;
                 continue;
             }
 
-            if (client && client.status === 'actif') {
+            if (client && client.status === 'actif' && !failure.hasHealthySubscription) {
                 await markClientStatus(conn, client, 'echec_paiement', {
                     payment_issue_since: failure.failedAt || new Date(now).toISOString().slice(0, 10),
                 });
@@ -131,8 +136,6 @@ export async function processFailedPayments(stripe, { conn, now } = {}) {
 }
 
 async function terminateDomiciliation({ stripe, failure, conn, client, transporter }) {
-    await markStripeTerminated(stripe, failure);
-
     if (failure.subscriptionId) {
         try {
             await stripe.subscriptions.cancel(failure.subscriptionId);
@@ -151,6 +154,10 @@ async function terminateDomiciliation({ stripe, failure, conn, client, transport
         });
     }
 
+    // Marqueur posé en dernier : s'il était posé avant et que l'annulation échouait,
+    // le dossier serait exclu des passages suivants sans jamais être résilié.
+    await markStripeTerminated(stripe, failure);
+
     if (transporter && failure.email) {
         await sendTerminationEmail(transporter, failure, conn);
     }
@@ -159,7 +166,7 @@ async function terminateDomiciliation({ stripe, failure, conn, client, transport
 async function sendFailedPaymentEmail(transporter, failure, conn) {
     const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
     const amount = formatAmount(failure.amountDue, failure.currency);
-    const link = failure.invoiceUrl || 'https://domiciliation-pas-cher.fr/connexion';
+    const link = failure.invoiceUrl || 'https://www.domiciliation-pas-cher.com/connexion';
     const deadline = formatDateFr(paymentGraceDeadline(failure.failedAt));
     const deadlineLine = deadline
         ? `Sans règlement avant le ${deadline} (2 mois après l'incident), votre contrat de domiciliation sera résilié et vous ne serez plus domicilié à notre adresse.`
@@ -170,7 +177,7 @@ async function sendFailedPaymentEmail(transporter, failure, conn) {
     const html = `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
             <h2>Incident de paiement — action requise</h2>
-            <p>Bonjour ${failure.name || 'Client'},</p>
+            <p>Bonjour ${escapeHtml(failure.name || 'Client')},</p>
             <p>Nous vous informons qu'un incident est survenu lors de votre dernier règlement de <strong>${amount}</strong>.</p>
             <p><strong>Veuillez régler votre situation.</strong> ${deadlineLine}</p>
             <p style="margin: 24px 0;">
@@ -201,7 +208,7 @@ async function sendTerminationEmail(transporter, failure, conn) {
     const html = `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
             <h2>Domiciliation résiliée</h2>
-            <p>Bonjour ${failure.name || 'Client'},</p>
+            <p>Bonjour ${escapeHtml(failure.name || 'Client')},</p>
             <p>Malgré nos relances, l'impayé de <strong>${amount}</strong> n'a pas été régularisé dans le délai de 2 mois.</p>
             <p><strong>Votre contrat de domiciliation est donc résilié. Vous n'êtes plus domicilié à notre adresse.</strong></p>
             <p>Pour toute question, répondez à cet e-mail.</p>
@@ -224,7 +231,7 @@ async function sendAdminFailureDigest(transporter, failures, dunningEmailsSent, 
     const from = getSmtpConfig()?.from || 'contact@domiciliation-pas-cher.com';
     const rows = failures.map((f) => `
         <tr>
-            <td style="padding:8px;border-bottom:1px solid #eee;">${f.name || 'Sans nom'}<br><span style="color:#64748B;font-size:12px;">${f.email || f.customerId}</span></td>
+            <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(f.name || 'Sans nom')}<br><span style="color:#64748B;font-size:12px;">${escapeHtml(f.email || f.customerId)}</span></td>
             <td style="padding:8px;border-bottom:1px solid #eee;">${formatAmount(f.amountDue, f.currency)}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;">${f.subscriptionStatus || f.invoiceStatus || '-'}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;">${f.attemptCount || '-'}</td>

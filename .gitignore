@@ -25,3 +25,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+.env*
+
+# Le modèle de variables (sans valeurs) doit être versionné.
+!.env.example

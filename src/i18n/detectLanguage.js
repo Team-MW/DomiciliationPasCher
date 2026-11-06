@@ -1,20 +1,25 @@
-const RUSSIAN_SPEAKING_COUNTRIES = ['RU', 'BY', 'KZ', 'KG', 'AM', 'MD', 'UA', 'UZ', 'TJ', 'TM', 'AZ'];
+/**
+ * Détection de la langue à partir des préférences du navigateur uniquement
+ * (navigator.languages / navigator.language). Aucun appel à un service tiers :
+ * l'adresse IP du visiteur n'est jamais transmise.
+ */
+const SUPPORTED = ['fr', 'en', 'ru'];
+const DEFAULT_LANG = 'fr';
 
-export async function detectLanguageFromIP() {
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-        clearTimeout(timeout);
-        if (!res.ok) throw new Error('IP lookup failed');
-        const data = await res.json();
-        if (RUSSIAN_SPEAKING_COUNTRIES.includes(data.country_code)) {
-            return 'ru';
-        }
-    } catch {
-        if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('ru')) {
-            return 'ru';
-        }
+export function detectBrowserLanguage(nav = typeof navigator !== 'undefined' ? navigator : undefined) {
+    if (!nav) return DEFAULT_LANG;
+    const candidates = [
+        ...(Array.isArray(nav.languages) ? nav.languages : []),
+        nav.language,
+    ].filter((l) => typeof l === 'string' && l);
+    for (const raw of candidates) {
+        const base = raw.toLowerCase().split('-')[0];
+        if (SUPPORTED.includes(base)) return base;
     }
-    return 'fr';
+    return DEFAULT_LANG;
+}
+
+/** Nom historique conservé pour les appelants (ne fait plus de géolocalisation IP). */
+export async function detectLanguageFromIP() {
+    return detectBrowserLanguage();
 }

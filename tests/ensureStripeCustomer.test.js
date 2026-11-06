@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import handler from '../api/ensure-stripe-customer.js';
 import Stripe from 'stripe';
+import { __setAuthVerifierForTests } from '../api/_auth.js';
 
 vi.mock('stripe', () => {
     const list = vi.fn();
@@ -33,9 +34,12 @@ describe('Ensure Stripe Customer API Handler (api/ensure-stripe-customer.js)', (
         vi.clearAllMocks();
         
         process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key';
+        // Utilisateur connecté (jeton Clerk vérifié) dont l'email est celui demandé.
+        __setAuthVerifierForTests(async (token) => (token === 'valid' ? { userId: 'user_1', email: 'test@example.com' } : null));
 
         mockReq = {
             method: 'POST',
+            headers: { authorization: 'Bearer valid' },
             body: { 
                 email: 'test@example.com',
                 name: 'John Doe',
@@ -78,7 +82,7 @@ describe('Ensure Stripe Customer API Handler (api/ensure-stripe-customer.js)', (
         process.env.STRIPE_SECRET_KEY = 'sk_live_remplace_moi';
         await handler(mockReq, mockRes);
         expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'La Clé Secrète Stripe (STRIPE_SECRET_KEY) est manquante ou invalide.' }));
+        expect(stripeMocks.list).not.toHaveBeenCalled();
     });
 
     it('should create a new customer if none exists for the email', async () => {
@@ -91,7 +95,7 @@ describe('Ensure Stripe Customer API Handler (api/ensure-stripe-customer.js)', (
             email: 'test@example.com',
             name: 'John Doe',
             metadata: { source: 'auto_ensure_customer' }
-        });
+        }, { idempotencyKey: 'customer-create-test@example.com' });
         expect(stripeMocks.update).not.toHaveBeenCalled();
         
         expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -133,7 +137,7 @@ describe('Ensure Stripe Customer API Handler (api/ensure-stripe-customer.js)', (
         expect(stripeMocks.list).toHaveBeenCalledWith({ email: 'test@example.com', limit: 1 });
         expect(stripeMocks.create).toHaveBeenCalledWith(expect.objectContaining({
             email: 'test@example.com'
-        }));
+        }), expect.anything());
     });
 
     it('should return 500 on Stripe API error', async () => {
@@ -141,6 +145,22 @@ describe('Ensure Stripe Customer API Handler (api/ensure-stripe-customer.js)', (
         await handler(mockReq, mockRes);
         
         expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Stripe API Error' });
+        // Le détail technique reste dans les logs, jamais renvoyé au navigateur.
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Erreur serveur, réessayez plus tard.' });
+    });
+
+    it('refuse un appel sans jeton de session (401)', async () => {
+        mockReq.headers = {};
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(stripeMocks.list).not.toHaveBeenCalled();
+    });
+
+    it('refuse de créer ou retrouver le client Stripe d’un autre email (403)', async () => {
+        mockReq.body.email = 'victime@example.com';
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(stripeMocks.list).not.toHaveBeenCalled();
+        expect(stripeMocks.create).not.toHaveBeenCalled();
     });
 });

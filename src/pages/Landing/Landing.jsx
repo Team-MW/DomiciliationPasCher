@@ -1,7 +1,22 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { openCookieConsent } from '../../components/CookieConsent/consent';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 import './Landing.css';
+import usePageMeta from '../../components/Seo/usePageMeta';
+
+const LEGAL_LINK_STYLE = { color: '#64748B', textDecoration: 'none' };
+const LEGAL_FOOTER_STYLE = {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '0 16px 28px',
+    fontSize: '13px',
+    color: '#94A3B8',
+};
 
 const HOW_IT_WORKS = [
     { n: '1', title: 'Vous remplissez', desc: '5 minutes, 100 % en ligne. Rien n’est débité avant la fin.' },
@@ -45,6 +60,8 @@ const TRUST_ITEMS = [
 ];
 
 export default function Landing() {
+    // Landing des campagnes publicitaires : hors sitemap et non indexée (doublon de l'accueil).
+    usePageMeta({ title: 'Domiciliation à Toulouse dès 20 € HT/mois — Domiciliation Pas Cher', path: '/offre', noindex: true });
     const navigate = useNavigate();
 
     return (
@@ -107,6 +124,22 @@ export default function Landing() {
                     ))}
                 </section>
             </main>
+
+            <footer className="ld-legal" aria-label="Informations légales" style={LEGAL_FOOTER_STYLE}>
+                <Link to="/mentions-legales" style={LEGAL_LINK_STYLE}>Mentions légales</Link>
+                <span aria-hidden="true">·</span>
+                <Link to="/cgv" style={LEGAL_LINK_STYLE}>CGV</Link>
+                <span aria-hidden="true">·</span>
+                <Link to="/confidentialite" style={LEGAL_LINK_STYLE}>Confidentialité</Link>
+                <span aria-hidden="true">·</span>
+                <button
+                    type="button"
+                    onClick={openCookieConsent}
+                    style={{ ...LEGAL_LINK_STYLE, background: 'none', border: 0, padding: 0, font: 'inherit', cursor: 'pointer' }}
+                >
+                    Gérer les cookies
+                </button>
+            </footer>
         </div>
     );
 }

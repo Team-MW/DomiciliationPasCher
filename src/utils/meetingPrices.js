@@ -21,6 +21,11 @@ export function meetingPriceHt(type, duration) {
     return fullDay ? 30 : 15;
 }
 
+/** Prix TTC réellement encaissé (TVA 20 %). Les tarifs affichés sur /tarifs restent HT. */
+export function meetingPriceTtc(type, duration) {
+    return Math.round(meetingPriceHt(type, duration) * 1.2 * 100) / 100;
+}
+
 export function formatMeetingPrice(ht) {
     return Number(ht).toFixed(2).replace('.', ',');
 }

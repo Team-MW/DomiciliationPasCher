@@ -14,6 +14,7 @@ import InscriptionPage from './pages/Connexion/Inscription';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
 import Landing from './pages/Landing/Landing';
 import RendezVous from './pages/RendezVous/RendezVous';
+import CookieConsent from './components/CookieConsent/CookieConsent';
 
 import { useTranslation } from './i18n/LanguageContext';
 import { DialogProvider } from './components/AppDialog/DialogProvider.jsx';
@@ -23,6 +24,8 @@ const EspaceClient = lazy(() => import('./pages/EspaceClient/EspaceClient'));
 const Admin = lazy(() => import('./pages/Admin/Admin'));
 const Souscription = lazy(() => import('./pages/Souscription/Souscription'));
 const MentionsLegales = lazy(() => import('./pages/MentionsLegales/MentionsLegales'));
+const CGV = lazy(() => import('./pages/CGV/CGV'));
+const Confidentialite = lazy(() => import('./pages/Confidentialite/Confidentialite'));
 const FichesPratiques = lazy(() => import('./pages/FichesPratiques/FichesPratiques'));
 const FicheDetail = lazy(() => import('./pages/FicheDetail/FicheDetail'));
 
@@ -104,7 +107,7 @@ function App() {
           <Route path="/villes" element={<PublicLayout><Villes /></PublicLayout>} />
           <Route path="/services" element={<PublicLayout><Services /></PublicLayout>} />
           <Route path="/a-propos" element={<PublicLayout><About /></PublicLayout>} />
-          <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
+          <Route path="/about" element={<Navigate to="/a-propos" replace />} />
 
           {/* Prise de rendez-vous (Calendly) */}
           <Route path="/rendez-vous" element={<PublicLayout><RendezVous /></PublicLayout>} />
@@ -134,6 +137,8 @@ function App() {
 
           {/* Mentions Légales */}
           <Route path="/mentions-legales" element={<PublicLayout><MentionsLegales /></PublicLayout>} />
+          <Route path="/cgv" element={<PublicLayout><CGV /></PublicLayout>} />
+          <Route path="/confidentialite" element={<PublicLayout><Confidentialite /></PublicLayout>} />
 
           {/* Fiches Pratiques */}
           <Route path="/fiches-pratiques" element={<PublicLayout><FichesPratiques /></PublicLayout>} />
@@ -147,6 +152,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      <CookieConsent />
       </DialogProvider>
     </BrowserRouter>
   );

@@ -1,6 +1,6 @@
 // src/utils/api.js
 /**
- * fetchWithRetry – performs a fetch request with exponential back‑off handling HTTP 429.
+ * fetchWithRetry – performs a fetch request with exponential back‑off handling HTTP 429.
  * @param {string} url - request URL
  * @param {RequestInit} options - fetch options
  * @param {number} retries - number of retry attempts (default 5)

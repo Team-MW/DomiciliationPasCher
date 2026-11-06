@@ -4,21 +4,11 @@ const { execute } = vi.hoisted(() => ({
     execute: vi.fn().mockResolvedValue({ rows: [] }),
 }));
 
-vi.mock('../src/lib/db.js', () => ({
-    conn: { execute },
-    executeQuery: vi.fn(),
-}));
+// La couche données tourne côté serveur (api/_data-service.js) avec une connexion injectée.
+import { createDataService } from '../api/_data-service.js';
 
-vi.mock('../src/services/emailService.js', () => ({
-    sendApprovalEmail: vi.fn(),
-    sendDocumentRequestEmail: vi.fn(),
-}));
-
-vi.mock('../src/utils/api.js', () => ({
-    fetchWithRetry: vi.fn(),
-}));
-
-import { adminDataService } from '../src/services/adminDataService.js';
+const sendEmail = vi.fn().mockResolvedValue({});
+const adminDataService = createDataService({ conn: { execute }, sendEmail });
 
 describe('réservations salles & bureaux', () => {
     beforeEach(() => {
@@ -54,8 +44,8 @@ describe('réservations salles & bureaux', () => {
         expect(params).toEqual(['confirmée', 'book_1']);
     });
 
-    it('ne vide plus la table bookings au démarrage', async () => {
-        await adminDataService.initBookings();
+    it('ne vide plus la table bookings à l’initialisation du schéma', async () => {
+        await adminDataService.init();
         const sqls = execute.mock.calls.map(([sql]) => sql);
         expect(sqls.some((s) => /DELETE FROM bookings/i.test(s))).toBe(false);
         expect(sqls.some((s) => /CREATE TABLE IF NOT EXISTS bookings/i.test(s))).toBe(true);

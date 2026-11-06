@@ -37,6 +37,9 @@ export default function Admin() {
     const [selectedDemande, setSelectedDemande] = useState(null);
     const [isCreatingClient, setIsCreatingClient] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [hasNewDemande, setHasNewDemande] = useState(false);
+    const [hasNewBooking, setHasNewBooking] = useState(false);
+    const [hasNewReexp, setHasNewReexp] = useState(false);
     const [loadingId, setLoadingId] = useState(null);
 
     const showConfirm = useCallback((message, options = {}) => appConfirm(message, options), []);
@@ -84,9 +87,6 @@ export default function Admin() {
         }
     }, [activeTab]);
 
-    const [hasNewDemande, setHasNewDemande] = useState(false);
-    const [hasNewBooking, setHasNewBooking] = useState(false);
-    const [hasNewReexp, setHasNewReexp] = useState(false);
 
     useEffect(() => {
         if (activeTab === 'demandes') {
@@ -286,9 +286,11 @@ export default function Admin() {
                                 const created = await adminDataService.traiterDemande(id);
                                 refreshData();
                                 setSelectedDemande(null);
-                                await showAlert(created?.emailSent === false
+                                const emailFailed = created?.emailSent === false;
+                                await showAlert(emailFailed
                                     ? "Accès créé, mais l'email de validation n'a pas pu être envoyé. Vérifiez la configuration SMTP."
-                                    : "Accès créé avec succès ! L'email de validation a été envoyé.", { title: "Succès" });
+                                    : "Accès créé avec succès ! L'email de validation a été envoyé.",
+                                    emailFailed ? { title: 'Email non envoyé', isWarning: true } : { title: "Succès" });
                             } finally {
                                 setLoadingId(null);
                             }

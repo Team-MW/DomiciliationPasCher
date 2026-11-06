@@ -15,7 +15,7 @@ vi.mock('../src/components/CreationEntreprise/CreationEntrepriseSection', () => 
 }));
 
 describe('page Tarifs — espaces de travail', () => {
-    it('affiche salle et bureau avec les bons prix HT et un CTA vers la réservation', () => {
+    it('affiche salle et bureau au même tarif HT et un CTA vers la réservation', () => {
         window.localStorage.setItem('dpc_lang', 'fr');
         render(
             <MemoryRouter>
@@ -27,8 +27,8 @@ describe('page Tarifs — espaces de travail', () => {
 
         expect(screen.getByText('Salle de Réunion')).toBeInTheDocument();
         expect(screen.getByText('Bureau Privatif')).toBeInTheDocument();
-        expect(screen.getByText('25€ HT')).toBeInTheDocument();
-        expect(screen.getByText('20€ HT')).toBeInTheDocument();
+        // Salle et bureau ont le même tarif horaire (25 € HT), confirmé par le propriétaire.
+        expect(screen.getAllByText('25€ HT').length).toBeGreaterThanOrEqual(2);
         const links = screen.getAllByRole('link', { name: /Réserver/ });
         expect(links.length).toBeGreaterThanOrEqual(2);
         for (const link of links) {

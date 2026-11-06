@@ -1,40 +1,40 @@
-import Stripe from 'stripe';
-import fs from 'fs';
+import { getStripe } from './_stripe-client.js';
+import { getDbConn } from './_db.js';
+import { requireUser, userOwnsStripeCustomer } from './_auth.js';
+import { readServerEnv } from './_env.js';
+import { getBaseUrl } from './_email-kit.js';
 
+/** Portail de facturation Stripe, uniquement pour un customer appartenant à l'utilisateur. */
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { customerId } = req.body;
+    const { customerId } = req.body || {};
     if (!customerId) {
         return res.status(400).json({ error: 'Customer ID is required' });
     }
 
+    const user = await requireUser(req, res);
+    if (!user) return;
+
     try {
-        let secretKey = process.env.STRIPE_SECRET_KEY;
-        if (!secretKey) {
-            if (fs.existsSync('.env.local')) {
-                const content = fs.readFileSync('.env.local', 'utf-8');
-                const match = content.match(/STRIPE_SECRET_KEY=(.*)/);
-                if (match) secretKey = match[1].trim();
-            }
-        }
+        const stripe = getStripe();
+        const owns = await userOwnsStripeCustomer({ stripe, conn: getDbConn(), user, customerId: String(customerId) });
+        if (!owns) return res.status(403).json({ error: 'Accès refusé' });
 
-        if (!secretKey) throw new Error("Missing STRIPE_SECRET_KEY");
-
-        const stripe = new Stripe(secretKey);
-
-        const returnUrl = req.headers.referer || `${req.headers.origin || 'http://localhost:5173'}/espace-client`;
-
+        // URL de retour fixée côté serveur (l'ancien code reprenait le Referer, contrôlable).
+        const baseUrl = readServerEnv('PUBLIC_SITE_URL') || getBaseUrl(req);
+        const returnPath = user.isAdmin ? '/app/admin' : '/app/espace-client?tab=factures';
         const session = await stripe.billingPortal.sessions.create({
-            customer: customerId,
-            return_url: returnUrl,
+            customer: String(customerId),
+            return_url: `${baseUrl}${returnPath}`,
         });
-
-        res.status(200).json({ url: session.url });
+        return res.status(200).json({ url: session.url });
     } catch (error) {
         console.error('Stripe Portal error:', error);
-        res.status(500).json({ error: error.message });
+        // « No such customer » est exploité par le front pour réinitialiser un id périmé.
+        const message = /No such customer/i.test(error?.message || '') ? 'No such customer' : 'Ouverture du portail impossible.';
+        return res.status(500).json({ error: message });
     }
 }

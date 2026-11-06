@@ -2,44 +2,194 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.domiciliation-pas-cher.com/</loc>
-    <lastmod>2026-03-12</lastmod>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.domiciliation-pas-cher.com/services</loc>
-    <lastmod>2026-03-12</lastmod>
+    <loc>https://www.domiciliation-pas-cher.com/tarifs</loc>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.domiciliation-pas-cher.com/tarifs</loc>
-    <lastmod>2026-03-12</lastmod>
+    <loc>https://www.domiciliation-pas-cher.com/services</loc>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.domiciliation-pas-cher.com/villes</loc>
-    <lastmod>2026-03-12</lastmod>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.domiciliation-pas-cher.com/a-propos</loc>
-    <lastmod>2026-03-12</lastmod>
+    <loc>https://www.domiciliation-pas-cher.com/rendez-vous</loc>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques</loc>
-    <lastmod>2026-03-12</lastmod>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.domiciliation-pas-cher.com/connexion</loc>
-    <lastmod>2026-03-12</lastmod>
+    <loc>https://www.domiciliation-pas-cher.com/a-propos</loc>
+    <lastmod>2026-11-05</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/mentions-legales</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/cgv</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/confidentialite</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/fiscalite-et-imposition</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/transfert-de-siege-social</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/gouvernance</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/services-aux-entreprises</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/pieges-et-astuces-gestion</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/reformes-legales</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/podcast</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/entrepreneuriat</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/tech</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/les-adresses</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/gestion-du-courrier</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/pieges-et-astuces-domiciliation</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/tout-savoir-sur-la-domiciliation</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/formes-juridiques</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/aides-a-la-creation</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/les-administrations</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/pieges-et-astuces-creation</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/la-creation-d-entreprise</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/auto-entrepreneur-astuces-impot</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/qu-est-ce-que-la-domiciliation</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/cout-gestion-comptabilite</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.domiciliation-pas-cher.com/fiches-pratiques/creer-entreprise-en-ligne</loc>
+    <lastmod>2026-11-05</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>

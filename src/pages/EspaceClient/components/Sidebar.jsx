@@ -55,7 +55,7 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
                 </button>
 
                 {/* 8. Compte pro */}
-                <button className={`ec-nav-item ${activeTab === 'comptepro' ? 'active' : ''}`} onClick={() => setActiveTab('compte-pro')}>
+                <button className={`ec-nav-item ${activeTab === 'compte-pro' ? 'active' : ''}`} onClick={() => setActiveTab('compte-pro')}>
                     <span className="ec-nav-icon"><Icons.Bank /></span> {t('espaceClient.sidebar.proAccount')}
                     <span style={{ marginLeft: 'auto', background: 'rgba(79, 70, 229, 0.25)', color: '#818cf8', fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '6px' }}>OFFRE</span>
                 </button>

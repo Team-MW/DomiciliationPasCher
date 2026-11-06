@@ -17,59 +17,57 @@ vi.mock('stripe', () => {
     };
 });
 
-describe('Vite Local Stripe Plugin', () => {
-    let plugin;
+function callMiddleware(middleware, { url, method = 'POST', body, headers = {} }) {
+    return new Promise((resolve) => {
+        const req = {
+            url,
+            method,
+            headers: { host: 'localhost:5173', ...headers },
+            on: (event, cb) => {
+                if (event === 'data' && body !== undefined) cb(Buffer.from(JSON.stringify(body)));
+                if (event === 'end') cb();
+            },
+        };
+        const out = { statusCode: 200, body: '' };
+        const res = {
+            setHeader: vi.fn(),
+            end: (data) => { out.body = data; resolve(out); },
+            set statusCode(code) { out.statusCode = code; },
+            get statusCode() { return out.statusCode; },
+        };
+        const next = vi.fn(() => resolve({ next: true }));
+        middleware(req, res, next);
+    });
+}
+
+describe('Plugin Vite : API locale', () => {
+    let middleware;
 
     beforeEach(() => {
-        // Le plugin est le deuxième dans le tableau plugins de viteConfig
-        plugin = viteConfig.plugins.find(p => p && p.name === 'local-stripe-api');
-    });
-
-    it('should have local-stripe-api plugin', () => {
-        expect(plugin).toBeDefined();
-    });
-
-    it('should mock /api/ensure-stripe-customer correctly', async () => {
+        const plugin = viteConfig.plugins.find(p => p && p.name === 'local-stripe-api');
         const middlewares = [];
-        const mockServer = {
-            middlewares: {
-                use: (mw) => middlewares.push(mw)
-            }
-        };
-
+        plugin.configureServer({ middlewares: { use: (mw) => middlewares.push(mw) } });
+        middleware = middlewares[0];
         process.env.STRIPE_SECRET_KEY = 'sk_test_123';
-        
-        plugin.configureServer(mockServer);
-        const middleware = middlewares[0]; // C'est l'unique middleware utilisé
+    });
 
-        let responseData = '';
-        let statusCode = 0;
-
-        const req = {
+    it('exécute le vrai handler : sans jeton Clerk, ensure-stripe-customer répond 401 comme en prod', async () => {
+        const out = await callMiddleware(middleware, {
             url: '/api/ensure-stripe-customer',
-            method: 'POST',
-            on: (event, cb) => {
-                if (event === 'data') cb(Buffer.from(JSON.stringify({ email: 'test@local.dev' })));
-                if (event === 'end') cb();
-            }
-        };
-
-        const next = vi.fn();
-        await new Promise((resolve) => {
-            const res = {
-                setHeader: vi.fn(),
-                end: (data) => { 
-                    responseData = data; 
-                    resolve();
-                },
-                set statusCode(code) { statusCode = code; }
-            };
-
-            middleware(req, res, next);
+            body: { email: 'test@local.dev' },
         });
+        expect(out.statusCode).toBe(401);
+        expect(JSON.parse(out.body)).toEqual({ error: 'Authentification requise' });
+    });
 
-        expect(next).not.toHaveBeenCalled();
-        expect(statusCode).toBe(200);
-        expect(JSON.parse(responseData)).toHaveProperty('customerId', 'cus_mock_local_123');
+    it('laisse passer les URLs qui ne sont pas des routes API', async () => {
+        expect(await callMiddleware(middleware, { url: '/tarifs', method: 'GET' })).toEqual({ next: true });
+    });
+
+    it('route /api/* inconnue ou module interne : 404, jamais le code source', async () => {
+        for (const url of ['/api/_db', '/api/_auth.js', '/api/inexistant']) {
+            const out = await callMiddleware(middleware, { url, method: 'GET' });
+            expect(out.statusCode, url).toBe(404);
+        }
     });
 });

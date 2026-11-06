@@ -22,6 +22,8 @@ const blobToBase64 = (blob) => {
     });
 };
 
+const SAFE_DOC_MIME = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']);
+
 const handleDataUrlDownload = (url, filename) => {
     const link = document.createElement('a');
     link.href = url;
@@ -43,7 +45,14 @@ export function openStoredDocument(url, filename = 'document.pdf') {
                 handleDataUrlDownload(url, filename);
                 return true;
             }
-            const mime = (url.slice(5, comma).split(';')[0] || 'application/octet-stream').trim();
+            const declared = (url.slice(5, comma).split(';')[0] || '').trim().toLowerCase();
+            // Liste blanche : un blob hérite de l'origine du site, un data:text/html ouvert
+            // ainsi exécuterait du script dans la session du client (XSS).
+            if (!SAFE_DOC_MIME.has(declared)) {
+                handleDataUrlDownload(url, filename);
+                return true;
+            }
+            const mime = declared;
             const binary = atob(url.slice(comma + 1));
             const bytes = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -57,6 +66,7 @@ export function openStoredDocument(url, filename = 'document.pdf') {
             return true;
         }
     }
+    if (!/^https?:\/\//i.test(url)) return false; // jamais de javascript: ou autre schéma
     window.open(url, '_blank', 'noopener,noreferrer');
     return true;
 }

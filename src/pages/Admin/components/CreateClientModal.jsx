@@ -83,7 +83,7 @@ export default function CreateClientModal({ onClose, onCreated, showAlert }) {
                 });
             } catch (mailErr) {
                 console.error("Email création compte:", mailErr);
-                await showAlert(`Dossier créé, mais l'email au client n'a pas pu être envoyé : ${mailErr.message || mailErr}`);
+                await showAlert(`Dossier créé, mais l'email au client n'a pas pu être envoyé : ${mailErr.message || mailErr}`, { title: 'Email non envoyé', isWarning: true });
             }
 
             onCreated();

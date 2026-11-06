@@ -14,7 +14,7 @@ vi.mock('nodemailer', () => ({
     default: { createTransport: vi.fn() },
 }));
 
-vi.mock('@clerk/clerk-sdk-node', () => ({
+vi.mock('@clerk/backend', () => ({
     createClerkClient: vi.fn(),
 }));
 
@@ -40,7 +40,7 @@ vi.mock('../api/_payment-dunning.js', () => ({
     processFailedPayments: vi.fn(),
 }));
 
-import emailHandler from '../api/email.js';
+import emailHandler, { classifyEmailType } from '../api/email.js';
 import clerkInviteHandler from '../api/clerk-invite.js';
 import deleteUserHandler from '../api/delete-user.js';
 import getPaymentMethodHandler from '../api/get-payment-method.js';
@@ -64,21 +64,36 @@ describe('gardes des API (déploiement)', () => {
         delete process.env.SMTP_PASS;
     });
 
-    it('POST /api/email refuse GET, un SMTP manquant, et un body sans email', async () => {
+    it('POST /api/email refuse GET, les envois non autorisés, un SMTP manquant, et un body sans email', async () => {
         const res = mockRes();
         await emailHandler({ method: 'GET', body: {} }, res);
         expect(res.status).toHaveBeenCalledWith(405);
 
+        // Email de bienvenue / impayé / message… : réservé à l'admin (plus de relais ouvert).
+        const res1 = mockRes();
+        await emailHandler({ method: 'POST', body: { email: 'cible@test.fr', type: 'payment_failed', paymentLink: 'https://phish.example' }, headers: {} }, res1);
+        expect(res1.status).toHaveBeenCalledWith(401);
+
+        // Formulaire public (conseiller) : autorisé sans compte, mais SMTP absent → 500.
         const res2 = mockRes();
-        await emailHandler({ method: 'POST', body: { email: 'a@test.fr' }, headers: {} }, res2);
+        await emailHandler({ method: 'POST', body: { email: 'a@test.fr', type: 'contact_advisor' }, headers: {} }, res2);
         expect(res2.status).toHaveBeenCalledWith(500);
 
         process.env.SMTP_HOST = 'smtp.test';
         process.env.SMTP_USER = 'user';
         process.env.SMTP_PASS = 'pass';
         const res3 = mockRes();
-        await emailHandler({ method: 'POST', body: {}, headers: {} }, res3);
+        await emailHandler({ method: 'POST', body: { type: 'contact_advisor' }, headers: {} }, res3);
         expect(res3.status).toHaveBeenCalledWith(400);
+    });
+
+    it('classe chaque type d’email selon son niveau d’accès', () => {
+        expect(classifyEmailType(undefined)).toBe('admin'); // bienvenue
+        expect(classifyEmailType('payment_failed')).toBe('admin');
+        expect(classifyEmailType('new_message')).toBe('admin');
+        expect(classifyEmailType('contact_advisor')).toBe('public');
+        expect(classifyEmailType('admin_new_message')).toBe('client_to_admin');
+        expect(classifyEmailType('post_signature')).toBe('client_self');
     });
 
     it('POST /api/clerk-invite refuse sans email et sans secret Clerk', async () => {
@@ -93,12 +108,24 @@ describe('gardes des API (déploiement)', () => {
         const res3 = mockRes();
         await clerkInviteHandler({ method: 'POST', body: { email: 'a@test.fr' }, headers: {} }, res3);
         expect(res3.status).toHaveBeenCalledWith(500);
+
+        // Secret présent mais appelant anonyme : refusé (réservé à l'admin).
+        process.env.CLERK_SECRET_KEY = 'sk_test_clerk';
+        const res4 = mockRes();
+        await clerkInviteHandler({ method: 'POST', body: { email: 'a@test.fr' }, headers: {} }, res4);
+        expect(res4.status).toHaveBeenCalledWith(401);
     });
 
     it('POST /api/delete-user refuse un clerkId invalide', async () => {
         const res = mockRes();
         await deleteUserHandler({ method: 'POST', body: { clerkId: 'user_unknown' } }, res);
         expect(res.status).toHaveBeenCalledWith(400);
+
+        // N'importe qui pouvait supprimer un compte Clerk : désormais admin uniquement.
+        process.env.CLERK_SECRET_KEY = 'sk_test_clerk';
+        const res2 = mockRes();
+        await deleteUserHandler({ method: 'POST', body: { clerkId: 'user_2abc' }, headers: {} }, res2);
+        expect(res2.status).toHaveBeenCalledWith(401);
     });
 
     it('GET /api/get-payment-method refuse sans customerId', async () => {

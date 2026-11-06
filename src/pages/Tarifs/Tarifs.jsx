@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import CreationEntrepriseSection from '../../components/CreationEntreprise/CreationEntrepriseSection';
 import './Tarifs.css';
 
@@ -19,9 +19,11 @@ const CrossIcon = () => (
 export default function Tarifs() {
     const { tr } = useTranslation();
 
-    useEffect(() => {
-        document.title = tr.tarifs.pageTitle;
-    }, [tr.tarifs.pageTitle]);
+    usePageMeta({
+        title: tr.tarifs.pageTitle,
+        description: tr.seo.tarifs.description,
+        path: '/tarifs',
+    });
 
     return (
         <main className="page-wrapper">
@@ -95,10 +97,10 @@ export default function Tarifs() {
                         <span>{tr.tarifs.trust.payment}</span>
                         <div className="pricing-payment-logos">
                             <img src="/visa-logo.png" alt="Visa" loading="lazy" />
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" loading="lazy" />
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" loading="lazy" />
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" loading="lazy" />
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" loading="lazy" />
+                            <img src="/payment/mastercard.svg" alt="Mastercard" loading="lazy" />
+                            <img src="/payment/amex.svg" alt="Amex" loading="lazy" />
+                            <img src="/payment/apple-pay.svg" alt="Apple Pay" loading="lazy" />
+                            <img src="/payment/google-pay.svg" alt="Google Pay" loading="lazy" />
                         </div>
                     </div>
                 </div>

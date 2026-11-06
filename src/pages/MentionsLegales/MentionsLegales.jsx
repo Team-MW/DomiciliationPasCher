@@ -1,66 +1,74 @@
 import React from 'react';
-import { CONTACT_PHONE_HREF, CONTACT_ADDRESS_HREF } from '../../constants/contact';
+import { Link } from 'react-router-dom';
+import { CONTACT_PHONE_HREF, CONTACT_ADDRESS_HREF, CONTACT_EMAIL, CONTACT_PHONE_DISPLAY } from '../../constants/contact';
+import LegalLayout, { LegalH2, Todo } from './LegalLayout';
+import usePageMeta from '../../components/Seo/usePageMeta';
 
+/* Texte légal volontairement en français (non traduit). */
 const MentionsLegales = () => {
+    usePageMeta({
+        title: 'Mentions légales — Domiciliation Pas Cher',
+        description: 'Mentions légales de Domiciliation Pas Cher (CASSIN LUDOVIC) : éditeur, agrément préfectoral de domiciliation, hébergeur et contact.',
+        path: '/mentions-legales',
+    });
     return (
-        <div className="page-wrapper" style={{ paddingBottom: '80px' }}>
-            <section className="section" style={{ background: '#F8FAFF' }}>
-                <div className="container" style={{ maxWidth: '900px' }}>
-                    <header style={{ marginBottom: '48px', textAlign: 'center' }}>
-                        <h1 style={{
-                            fontFamily: 'Outfit, sans-serif',
-                            fontSize: '42px',
-                            fontWeight: 800,
-                            color: '#0F172A',
-                            marginBottom: '16px'
-                        }}>Mentions Légales</h1>
-                        <p style={{ color: '#64748B', fontSize: '18px' }}>En vigueur au {new Date().toLocaleDateString('fr-FR')}</p>
-                    </header>
+        <LegalLayout title="Mentions Légales" subtitle="En vigueur au 5 novembre 2026">
+            <LegalH2 first>1. Édition du site</LegalH2>
+            <p>
+                Le présent site, accessible à l’URL <strong>domiciliation-pas-cher.com</strong>, est édité par la société{' '}
+                <strong>CASSIN LUDOVIC</strong>, exploitée sous le nom commercial <strong>Domiciliation Pas Cher</strong>.
+            </p>
+            <ul>
+                <li>Capital social : 2 000 €</li>
+                <li>Immatriculation : RCS Toulouse 101 512 531</li>
+                <li>SIRET : 101 512 531 00019</li>
+                <li>N° de TVA intracommunautaire : <Todo>[À COMPLÉTER]</Todo></li>
+                <li>
+                    Siège social :{' '}
+                    <a href={CONTACT_ADDRESS_HREF} target="_blank" rel="noopener noreferrer">
+                        150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse
+                    </a>
+                </li>
+                <li>Agrément préfectoral de domiciliation n° AG/DOM/2026/06</li>
+            </ul>
 
-                    <div className="legal-content" style={{
-                        background: 'white',
-                        padding: '40px',
-                        borderRadius: '24px',
-                        border: '1px solid #E2E8F0',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-                        lineHeight: '1.7',
-                        color: '#334155'
-                    }}>
-                        <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '0', marginBottom: '16px' }}>1. Édition du site</h2>
-                        <p>
-                            Le présent site, accessible à l’URL <strong>domiciliation-pas-cher.com</strong>, est édité par :<br />
-                            L'entreprise <strong>DomiciliationPasCher</strong>, immatriculée sous le SIREN <strong>101 512 531</strong>, dont le siège social est situé au <a href={CONTACT_ADDRESS_HREF} target="_blank" rel="noopener noreferrer">150 Rue Nicolas Louis Vauquelin, 3ème étage, Lot 308, 31100 Toulouse</a>.
-                        </p>
+            <LegalH2>2. Directeur de la publication</LegalH2>
+            <p>
+                Le directeur de la publication est <strong>M. Ludovic Cassin</strong>, en qualité de Président.
+            </p>
 
-                        <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>2. Hébergement</h2>
-                        <p>
-                            Le Site est hébergé par la société <strong>Vercel Inc.</strong>, situé 340 S Lemon Ave #4133 Walnut, CA 91789.
-                        </p>
+            <LegalH2>3. Hébergement</LegalH2>
+            <p>
+                Le site est hébergé par la société <strong>Vercel Inc.</strong>, 440 N Barranca Ave #4133, Covina, CA 91723,
+                États-Unis —{' '}
+                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">https://vercel.com</a>.
+            </p>
 
-                        <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>3. Directeur de publication</h2>
-                        <p>
-                            Le Directeur de la publication du Site est l'équipe DomiciliationPasCher.
-                        </p>
+            <LegalH2>4. Propriété intellectuelle</LegalH2>
+            <p>
+                L’ensemble de ce site relève de la législation française et internationale sur le droit d’auteur et la propriété intellectuelle. Tous les droits de reproduction sont réservés, y compris pour les documents téléchargeables et les représentations iconographiques et photographiques.
+            </p>
 
-                        <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>4. Propriété intellectuelle</h2>
-                        <p>
-                            L’ensemble de ce site relève de la législation française et internationale sur le droit d’auteur et la propriété intellectuelle. Tous les droits de reproduction sont réservés, y compris pour les documents téléchargeables et les représentations iconographiques et photographiques.
-                        </p>
+            <LegalH2>5. Données personnelles et cookies</LegalH2>
+            <p>
+                Le traitement de vos données à caractère personnel, ainsi que l’usage des cookies, sont décrits dans notre{' '}
+                <Link to="/confidentialite">Politique de confidentialité</Link>, conformément au Règlement Général sur la
+                Protection des Données 2016/679 du 27 avril 2016 (« RGPD ») et à la loi Informatique et Libertés.
+            </p>
 
-                        <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>5. Données personnelles</h2>
-                        <p>
-                            Le traitement de vos données à caractère personnel est régi par notre Politique de Confidentialité, disponible sur le Site, conformément au Règlement Général sur la Protection des Données 2016/679 du 27 avril 2016 («RGPD»).
-                        </p>
+            <LegalH2>6. Conditions générales de vente</LegalH2>
+            <p>
+                Les conditions applicables aux services de domiciliation sont disponibles sur la page{' '}
+                <Link to="/cgv">Conditions générales de vente</Link>.
+            </p>
 
-                        <h2 style={{ color: '#1E3A8A', fontSize: '24px', marginTop: '32px', marginBottom: '16px' }}>6. Contact</h2>
-                        <p>
-                            Par mail : <a href="mailto:contact@domiciliation-pas-cher.com">contact@domiciliation-pas-cher.com</a><br />
-                            Par téléphone : <a href={CONTACT_PHONE_HREF}>09 60 39 69 07</a>
-                        </p>
-                    </div>
-                </div>
-            </section>
-        </div>
+            <LegalH2>7. Contact</LegalH2>
+            <p>
+                Par e-mail : <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a><br />
+                Par téléphone : <a href={CONTACT_PHONE_HREF}>{CONTACT_PHONE_DISPLAY}</a><br />
+                Par courrier : CASSIN LUDOVIC, 150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse
+            </p>
+        </LegalLayout>
     );
 };
 

@@ -1,0 +1,29 @@
+/* Pages légales (mentions, CGV, confidentialité) */
+.legal-content p,
+.legal-content ul,
+.legal-content ol {
+    margin: 0 0 14px;
+}
+.legal-content ul,
+.legal-content ol {
+    padding-left: 22px;
+}
+.legal-content li + li {
+    margin-top: 6px;
+}
+.legal-content table {
+    margin: 8px 0 18px;
+}
+.legal-content th,
+.legal-content td {
+    /* Pas de coupure en plein mot dans les tableaux (« Essent|iel ») */
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.legal-content td:first-child,
+.legal-content th:first-child {
+    white-space: nowrap;
+}
+.legal-content a {
+    color: #1A56DB;
+}

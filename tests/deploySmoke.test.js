@@ -79,18 +79,48 @@ describe('filet de déploiement', () => {
 
     it('Vercel réécrit le SPA et planifie le cron impayés', () => {
         const vercel = JSON.parse(read('vercel.json'));
+        // Les routes /api/* inexistantes ne doivent pas renvoyer le SPA (200 HTML) mais un 404.
         expect(vercel.rewrites).toEqual([
-            { source: '/(.*)', destination: '/index.html' },
+            { source: '/((?!api/).*)', destination: '/index.html' },
         ]);
         expect(vercel.crons).toEqual([
             { path: '/api/cron/reminders', schedule: '0 * * * *' },
         ]);
     });
 
-    it('le plugin Vite délègue les GET Stripe au vrai handler', () => {
-        const vite = read('vite.config.js');
-        for (const name of ['stripe-failed-payments', 'get-payment-method', 'stripe-customers', 'verify-session']) {
-            expect(vite).toContain(name);
+    it('le plugin Vite exécute les vrais handlers de api/ (mêmes contrôles qu’en prod)', async () => {
+        const { resolveApiHandlerFile } = await import('../vite.config.js');
+        for (const name of ['stripe-failed-payments', 'get-payment-method', 'stripe-customers', 'verify-session', 'data', 'cron/reminders']) {
+            expect(resolveApiHandlerFile(`/api/${name}?x=1`, root), name).toBe(path.join(root, 'api', `${name}.js`));
+        }
+        // Les modules internes « _ » et les chemins hors api/ ne sont jamais exposés.
+        expect(resolveApiHandlerFile('/api/_db', root)).toBeNull();
+        expect(resolveApiHandlerFile('/api/../package', root)).toBeNull();
+        expect(resolveApiHandlerFile('/api/inexistant', root)).toBeNull();
+    });
+
+    it('aucun identifiant de base de données n’est lu par le code front', () => {
+        const offenders = [];
+        const walk = (dir) => {
+            for (const name of fs.readdirSync(dir)) {
+                const full = path.join(dir, name);
+                if (fs.statSync(full).isDirectory()) { if (name !== '__tests__') walk(full); }
+                else if (/\.(jsx?|tsx?)$/.test(name) && /VITE_DATABASE_|@planetscale\/database|CLOUDINARY_API_SECRET/.test(fs.readFileSync(full, 'utf-8'))) {
+                    offenders.push(path.relative(root, full));
+                }
+            }
+        };
+        walk(path.join(root, 'src'));
+        expect(offenders).toEqual([]);
+    });
+
+    it('chaque paquet exclu du pré-bundling Vite est une dépendance directe (sinon page blanche en dev)', async () => {
+        const { default: config } = await import('../vite.config.js');
+        const pkg = JSON.parse(read('package.json'));
+        const direct = { ...pkg.dependencies, ...pkg.devDependencies };
+        for (const name of config.optimizeDeps?.exclude || []) {
+            expect(direct, `${name} doit rester dans package.json`).toHaveProperty(name);
         }
     });
 });
+

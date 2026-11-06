@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import handler from '../api/list-payments.js';
 import Stripe from 'stripe';
+import { __setAuthVerifierForTests } from '../api/_auth.js';
 
 // Mock stripe module
 vi.mock('stripe', () => {
@@ -61,8 +62,11 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
             json: vi.fn().mockReturnThis(),
         };
 
+        // Client connecté dont l'email est celui interrogé.
+        __setAuthVerifierForTests(async (token) => (token === 'valid' ? { userId: 'user_1', email: 'test@example.com' } : null));
         mockReq = {
             method: 'GET',
+            headers: { authorization: 'Bearer valid' },
             query: {
                 email: 'test@example.com'
             }
@@ -95,6 +99,27 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
 
         expect(mockRes.status).toHaveBeenCalledWith(400);
         expect(mockRes.json).toHaveBeenCalledWith({ error: 'Email or CustomerId is required' });
+    });
+
+    test('refuse sans jeton de session (401)', async () => {
+        mockReq.headers = {};
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(stripeMocks.listCustomers).not.toHaveBeenCalled();
+    });
+
+    test('refuse l’historique de facturation d’un autre email (403)', async () => {
+        mockReq.query = { email: 'victime@example.com' };
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(stripeMocks.listCustomers).not.toHaveBeenCalled();
+    });
+
+    test('avec son propre customerId, refuse quand même un email tiers (recherche des paiements invités)', async () => {
+        mockReq.query = { customerId: 'cus_mine', email: 'victime@example.com' };
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(stripeMocks.searchPaymentIntents).not.toHaveBeenCalled();
     });
 
     test('should return empty payments list if no customer matches the email', async () => {

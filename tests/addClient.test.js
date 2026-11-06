@@ -4,21 +4,11 @@ const { execute } = vi.hoisted(() => ({
     execute: vi.fn().mockResolvedValue({ rows: [] }),
 }));
 
-vi.mock('../src/lib/db.js', () => ({
-    conn: { execute },
-    executeQuery: vi.fn(),
-}));
+// La couche données tourne côté serveur (api/_data-service.js) avec une connexion injectée.
+import { createDataService } from '../api/_data-service.js';
 
-vi.mock('../src/services/emailService.js', () => ({
-    sendApprovalEmail: vi.fn(),
-    sendDocumentRequestEmail: vi.fn(),
-}));
-
-vi.mock('../src/utils/api.js', () => ({
-    fetchWithRetry: vi.fn(),
-}));
-
-import { adminDataService } from '../src/services/adminDataService.js';
+const sendEmail = vi.fn().mockResolvedValue({});
+const adminDataService = createDataService({ conn: { execute }, sendEmail });
 
 describe('adminDataService.addClient', () => {
     beforeEach(() => {

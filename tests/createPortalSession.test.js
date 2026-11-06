@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import handler from '../api/create-portal-session.js';
 import Stripe from 'stripe';
+import { __setAuthVerifierForTests } from '../api/_auth.js';
 
 vi.mock('stripe', () => {
     const sessionsCreate = vi.fn();
+    const retrieve = vi.fn();
     return {
         default: class {
             constructor() {
                 return {
+                    customers: { retrieve },
                     billingPortal: {
                         sessions: {
                             create: sessionsCreate
@@ -36,11 +39,16 @@ describe('Create Portal Session API Handler (api/create-portal-session.js)', () 
         
         process.env.STRIPE_SECRET_KEY = 'sk_test_mock_key';
 
+        __setAuthVerifierForTests(async (token) => (token === 'valid' ? { userId: 'user_1', email: 'client@test.fr' } : null));
+
         mockReq = {
             method: 'POST',
             body: { customerId: 'cus_test_123' },
             headers: {
-                origin: 'http://localhost:5173'
+                origin: 'http://localhost:5173',
+                host: 'localhost:5173',
+                'x-forwarded-proto': 'http',
+                authorization: 'Bearer valid',
             }
         };
 
@@ -51,9 +59,12 @@ describe('Create Portal Session API Handler (api/create-portal-session.js)', () 
 
         const stripe = new Stripe();
         stripeMocks = {
-            sessionsCreate: stripe.billingPortal.sessions.create
+            sessionsCreate: stripe.billingPortal.sessions.create,
+            retrieve: stripe.customers.retrieve,
         };
         stripeMocks.sessionsCreate.mockResolvedValue({ url: 'https://billing.stripe.com/p/session/test' });
+        // Le customer Stripe porte l'email du client connecté : il lui appartient.
+        stripeMocks.retrieve.mockResolvedValue({ id: 'cus_test_123', email: 'client@test.fr' });
     });
 
     it('should return 405 Method Not Allowed if request method is not POST', async () => {
@@ -74,36 +85,49 @@ describe('Create Portal Session API Handler (api/create-portal-session.js)', () 
         delete process.env.STRIPE_SECRET_KEY;
         await handler(mockReq, mockRes);
         expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Missing STRIPE_SECRET_KEY' }));
+        expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
+    });
+
+    it('refuse sans jeton de session (401)', async () => {
+        delete mockReq.headers.authorization;
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
+    });
+
+    it('refuse le portail d’un customer appartenant à quelqu’un d’autre (403)', async () => {
+        stripeMocks.retrieve.mockResolvedValue({ id: 'cus_test_123', email: 'victime@test.fr' });
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
     });
 
     it('should create a portal session and return the url', async () => {
         await handler(mockReq, mockRes);
-        
+
         expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith({
             customer: 'cus_test_123',
-            return_url: 'http://localhost:5173/espace-client'
+            return_url: 'http://localhost:5173/app/espace-client?tab=factures'
         });
-        
         expect(mockRes.status).toHaveBeenCalledWith(200);
         expect(mockRes.json).toHaveBeenCalledWith({ url: 'https://billing.stripe.com/p/session/test' });
     });
 
-    it('should use referer as return_url if available', async () => {
-        mockReq.headers.referer = 'https://mydomain.com/factures';
+    it('ignore le Referer (contrôlable par l’appelant) pour l’URL de retour', async () => {
+        mockReq.headers.referer = 'https://phishing.example/factures';
         await handler(mockReq, mockRes);
-        
+
         expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith({
             customer: 'cus_test_123',
-            return_url: 'https://mydomain.com/factures'
+            return_url: 'http://localhost:5173/app/espace-client?tab=factures'
         });
     });
 
     it('should return 500 on Stripe API error', async () => {
         stripeMocks.sessionsCreate.mockRejectedValue(new Error('Stripe error'));
         await handler(mockReq, mockRes);
-        
+
         expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Stripe error' });
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Ouverture du portail impossible.' });
     });
 });

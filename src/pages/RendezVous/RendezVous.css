@@ -70,6 +70,11 @@
     min-height: 700px;
 }
 
+/* Message de repli (calendrier indisponible) : pas de grande carte vide autour. */
+.rdv-calendar-card:has(.rdv-calendar-fallback) {
+    min-height: 0;
+}
+
 .rdv-calendar-loading {
     position: absolute;
     inset: 0;

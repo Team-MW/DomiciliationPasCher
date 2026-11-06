@@ -8,33 +8,43 @@ const STORAGE_KEY = 'dpc_lang';
 
 const translations = { fr, ru, en };
 
+function readSavedLang() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved === 'ru' || saved === 'fr' || saved === 'en' ? saved : null;
+    } catch {
+        return null;
+    }
+}
+
 const LanguageContext = createContext(null);
 
 export function LanguageProvider({ children }) {
     const [lang, setLangState] = useState(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved === 'ru' || saved === 'fr' || saved === 'en') return saved;
-        
-        // Vérification de la langue du navigateur (ex: téléphone en russe)
-        const browserLang = typeof navigator !== 'undefined' && navigator.language ? navigator.language.toLowerCase() : '';
-        if (browserLang.startsWith('ru')) return 'ru';
-        if (browserLang.startsWith('en')) return 'en';
-        
+        const saved = readSavedLang();
+        if (saved) return saved;
+
+        // Langue du navigateur (ex: téléphone en russe) — aucune géolocalisation IP.
+        const prefs = typeof navigator !== 'undefined'
+            ? [...(navigator.languages || []), navigator.language].filter(Boolean)
+            : [];
+        for (const raw of prefs) {
+            const base = String(raw).toLowerCase().split('-')[0];
+            if (base === 'fr' || base === 'en' || base === 'ru') return base;
+        }
         return 'fr';
     });
     const [isDetecting, setIsDetecting] = useState(false);
 
     useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) return;
+        if (readSavedLang()) return;
 
         setIsDetecting(true);
-        detectLanguageFromIP().then((detected) => {
-            if (detected === 'ru') {
-                setLangState('ru');
-                localStorage.setItem(STORAGE_KEY, 'ru');
+        Promise.resolve(detectLanguageFromIP()).then((detected) => {
+            if (detected === 'ru' || detected === 'en' || detected === 'fr') {
+                setLangState(detected);
             }
-        }).finally(() => setIsDetecting(false));
+        }).catch(() => {}).finally(() => setIsDetecting(false));
     }, []);
 
     useEffect(() => {
@@ -43,7 +53,7 @@ export function LanguageProvider({ children }) {
 
     const setLang = useCallback((newLang) => {
         setLangState(newLang);
-        localStorage.setItem(STORAGE_KEY, newLang);
+        try { localStorage.setItem(STORAGE_KEY, newLang); } catch { /* stockage indisponible */ }
     }, []);
 
     const tr = translations[lang] || translations.fr;

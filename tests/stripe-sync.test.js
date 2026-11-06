@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import handler from '../api/ensure-stripe-customer.js';
 import Stripe from 'stripe';
+import { __setAuthVerifierForTests } from '../api/_auth.js';
 
 const listMock = vi.fn();
 const updateMock = vi.fn();
@@ -29,8 +30,11 @@ describe('API - ensure-stripe-customer', () => {
         
         process.env.STRIPE_SECRET_KEY = 'sk_test_mocked';
 
+        // Admin connecté : il peut rattacher le client Stripe de n'importe quel email.
+        __setAuthVerifierForTests(async () => ({ userId: 'user_admin', email: 'mwcrea.agency@gmail.com' }));
         mockReq = {
             method: 'POST',
+            headers: { authorization: 'Bearer valid' },
             body: {}
         };
 
@@ -88,7 +92,7 @@ describe('API - ensure-stripe-customer', () => {
             email: 'new@example.com',
             name: 'New User',
             metadata: { source: 'auto_ensure_customer' }
-        });
+        }, { idempotencyKey: 'customer-create-new@example.com' });
         expect(mockRes.status).toHaveBeenCalledWith(200);
         expect(mockRes.json).toHaveBeenCalledWith({ customerId: 'cus_new456' });
     });

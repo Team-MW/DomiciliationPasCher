@@ -34,4 +34,15 @@ describe('délai de grâce impayé (2 mois)', () => {
     it('formate une date FR', () => {
         expect(formatDateFr('2026-09-07')).toBe('07/09/2026');
     });
+
+    it('délai de grâce : jamais raccourci en fin de mois (comportement historique)', () => {
+        expect(paymentGraceDeadline('2025-12-31')).toBe('2026-03-03');
+    });
+
+    it('mode borné (rappels d’échéance) : ne déborde pas sur le mois suivant', () => {
+        expect(addCalendarMonths('2025-12-31', 2, { clamp: true })).toBe('2026-02-28');
+        expect(addCalendarMonths('2027-12-31', 2, { clamp: true })).toBe('2028-02-29');
+        expect(addCalendarMonths('2026-07-31', 2, { clamp: true })).toBe('2026-09-30');
+        expect(addCalendarMonths('2027-04-30', -2, { clamp: true })).toBe('2027-02-28');
+    });
 });

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { fichesData } from '../../data/fichesData';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta, { toMetaDescription } from '../../components/Seo/usePageMeta';
 import './FicheDetail.css';
 
 const FicheDetail = () => {
@@ -15,11 +16,11 @@ const FicheDetail = () => {
         window.scrollTo(0, 0);
     }, [slug]);
 
-    useEffect(() => {
-        if (fiche?.title) {
-            document.title = `${fiche.title} — DomiciliationPasCher`;
-        }
-    }, [fiche?.title]);
+    usePageMeta({
+        title: fiche?.title ? `${fiche.title} — DomiciliationPasCher` : undefined,
+        description: fiche?.content ? toMetaDescription(fiche.content) : undefined,
+        path: fiche ? `/fiches-pratiques/${slug}` : undefined,
+    });
 
     if (!fiche) {
         return <Navigate to="/fiches-pratiques" replace />;

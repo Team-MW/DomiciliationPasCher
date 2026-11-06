@@ -1,16 +1,18 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { fichesData } from '../../data/fichesData';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import './FichesPratiques.css';
 
 const FichesPratiques = () => {
     const { tr } = useTranslation();
     const t = tr.fichesPratiques;
 
-    useEffect(() => {
-        document.title = t.pageTitle;
-    }, [t.pageTitle]);
+    usePageMeta({
+        title: t.pageTitle,
+        description: tr.seo.fichesPratiques.description,
+        path: '/fiches-pratiques',
+    });
 
     const categories = {};
     Object.entries(fichesData).forEach(([slug, data]) => {

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { CONTACT_PHONE_HREF, CONTACT_ADDRESS_HREF } from '../../constants/contact';
+import { openCookieConsent } from '../CookieConsent/consent';
 import './Footer.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
@@ -94,8 +95,11 @@ export default function Footer() {
                         </div>
                         <div className="footer-legal">
                             <Link to="/mentions-legales">{footer.legal.mentionsLegales}</Link>
-                            <Link to="/mentions-legales">{footer.legal.cgv}</Link>
-                            <Link to="/mentions-legales">{footer.legal.confidentialite}</Link>
+                            <Link to="/cgv">{footer.legal.cgv}</Link>
+                            <Link to="/confidentialite">{footer.legal.confidentialite}</Link>
+                            <button type="button" className="footer-legal-btn" onClick={openCookieConsent}>
+                                {footer.legal.manageCookies}
+                            </button>
                         </div>
                     </div>
 
@@ -105,19 +109,19 @@ export default function Footer() {
                             <img src="/visa-logo.png" alt="Visa" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="Mastercard">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" loading="lazy" />
+                            <img src="/payment/mastercard.svg" alt="Mastercard" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="American Express">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo_%282018%29.svg" alt="Amex" loading="lazy" />
+                            <img src="/payment/amex.svg" alt="Amex" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="Apple Pay">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg" alt="Apple Pay" loading="lazy" />
+                            <img src="/payment/apple-pay.svg" alt="Apple Pay" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="Google Pay">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" loading="lazy" />
+                            <img src="/payment/google-pay.svg" alt="Google Pay" loading="lazy" />
                         </div>
                         <div className="payment-badge" title="UnionPay">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/UnionPay_logo.svg" alt="UnionPay" loading="lazy" />
+                            <img src="/payment/unionpay.svg" alt="UnionPay" loading="lazy" />
                         </div>
                     </div>
                 </div>

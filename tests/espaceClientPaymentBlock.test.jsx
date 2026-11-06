@@ -14,6 +14,7 @@ vi.mock('@clerk/clerk-react', () => ({
         },
     }),
     useClerk: () => ({ signOut: vi.fn() }),
+    UserButton: () => null,
 }));
 
 vi.mock('../src/i18n/LanguageContext', () => ({
@@ -44,6 +45,7 @@ vi.mock('../src/services/adminDataService', () => ({
     adminDataService: {
         init: vi.fn(),
         getClientByEmail: vi.fn(),
+        getMyAccount: vi.fn(),
         getClientBySessionId: vi.fn(),
         getDemandes: vi.fn().mockResolvedValue([]),
         getClientMail: vi.fn().mockResolvedValue([]),
@@ -73,6 +75,11 @@ describe('Espace client — impayé et résiliation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         window.localStorage.clear();
+        // La fiche est désormais résolue côté serveur (getMyAccount) à partir du compte Clerk.
+        adminDataService.getMyAccount.mockImplementation(async () => {
+            const record = await adminDataService.getClientByEmail('client@example.com');
+            return record ? { kind: 'client', record } : null;
+        });
         adminDataService.getClientByEmail.mockResolvedValue({
             id: 'cli_1',
             company: 'SAS Test',

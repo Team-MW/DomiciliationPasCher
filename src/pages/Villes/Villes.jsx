@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CityIcons } from '../../utils/cityIcons';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import { sendContactAdvisorEmail } from '../../utils/emailService';
 import './Villes.css';
 
@@ -50,9 +51,11 @@ export default function Villes() {
     const { tr } = useTranslation();
     const help = tr.villes.helpCta;
 
-    useEffect(() => {
-        document.title = tr.villes.pageTitle;
-    }, [tr.villes.pageTitle]);
+    usePageMeta({
+        title: tr.villes.pageTitle,
+        description: tr.seo.villes.description,
+        path: '/villes',
+    });
 
     const pageRef = useAnimateOnScroll();
     const [showAdvisor, setShowAdvisor] = useState(false);

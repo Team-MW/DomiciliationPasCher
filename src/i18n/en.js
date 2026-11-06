@@ -94,6 +94,7 @@ export default {
       mentionsLegales: 'Legal Notice',
       cgv: 'Terms and Conditions',
       confidentialite: 'Privacy Policy',
+      manageCookies: "Manage cookies",
     },
     copyright: '© {year} Domiciliation-Pas-Cher.com — All rights reserved',
     credits: 'Created by microdidact',
@@ -320,7 +321,7 @@ export default {
         },
         {
           q: 'How does mail management work?',
-          a: 'We receive all your mail, notify you by email upon each arrival, and provide a digital scan as an option (+5€/month).',
+          a: 'We receive all your mail, notify you by email upon each arrival, and make a digital scan of each letter available in your client area (included from the Essentiel plan). Forwarding of the originals comes with Scan+ (+€4 excl. VAT/month).',
         },
       ],
     },
@@ -1361,6 +1362,25 @@ export default {
     contactCta: 'Email contact@domiciliation-pas-cher.com',
     openCalendly: 'Open the calendar in a new tab',
     backLink: 'Back to pricing',
+  },
+
+  seo: {
+    home: { description: "Affordable business domiciliation in Toulouse from €20 excl. VAT/month: official registered office address, certificate within 24h, mail handling and 100% online sign-up." },
+    tarifs: { description: "Compare our domiciliation plans in Toulouse: Essentiel, Scan+ and Physique+. Transparent pricing from €20 excl. VAT/month, with no hidden fees or long-term commitment." },
+    villes: { description: "Register your company at 150 rue Nicolas Louis Vauquelin in Toulouse: a recognised business address for your Kbis, your banks and your customers." },
+    services: { description: "Domiciliation, mail reception and scanning, forwarding, meeting rooms and business creation support: all our services for entrepreneurs." },
+    about: { description: "Discover DomiciliationPasCher: our story, our values and our commitment to simple, reliable and affordable business domiciliation in Toulouse." },
+    rendezVous: { description: "Book a free appointment with an advisor for your business creation: choice of legal structure, transparent costing and an action plan through to your Kbis." },
+    fichesPratiques: { description: "Practical guides for entrepreneurs: taxation, registered office transfer, governance, management and legal news. Clear guides to run your business." },
+  },
+
+  cookieConsent: {
+    ariaLabel: "Cookie settings",
+    title: "Your privacy matters",
+    text: "We use audience measurement and advertising cookies (Google) only with your consent. You can accept or refuse, and change your choice at any time via “Manage cookies” at the bottom of the page.",
+    learnMore: "Learn more",
+    accept: "Accept all",
+    refuse: "Refuse all",
   },
 
   espaceClient: espaceClient('en'),

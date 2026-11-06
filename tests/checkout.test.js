@@ -38,6 +38,24 @@ vi.mock('fs', () => {
     };
 });
 
+const authMocks = vi.hoisted(() => ({ getAuthUser: vi.fn(), getOwnership: vi.fn() }));
+vi.mock('../api/_auth.js', async (importOriginal) => ({
+    ...(await importOriginal()),
+    getAuthUser: authMocks.getAuthUser,
+    getOwnership: authMocks.getOwnership,
+}));
+// Demandes enregistrées : c'est leur forfait qui fait foi, pas celui envoyé par le navigateur.
+const DEMANDES = {
+    req_scan: { plan: 'Scan+', email: 'test@example.com', status: 'en_attente_paiement', extra_info: '{"frequence":"mensuel"}' },
+    req_phys: { plan: 'Physique+', email: 'new-client@example.com', status: 'en_attente_paiement', extra_info: '{"frequence":"annuel"}' },
+    req_paid: { plan: 'Essentiel', email: 'a@b.fr', status: 'en_attente', extra_info: '{}' },
+};
+vi.mock('../api/_db.js', () => ({
+    getDbConn: vi.fn(() => ({
+        execute: vi.fn(async (sql, params = []) => ({ rows: /FROM demandes WHERE id/.test(sql) && DEMANDES[params[0]] ? [DEMANDES[params[0]]] : [] })),
+    })),
+}));
+
 describe('withCheckoutSessionId', () => {
     test('ajoute session_id sur une URL custom (salles, souscription)', () => {
         expect(withCheckoutSessionId(
@@ -116,205 +134,161 @@ describe('Checkout API Handler (api/checkout.js)', () => {
         );
     });
 
-    test('should handle subscription checkout successfully for existing customer', async () => {
+    test('le prix vient du catalogue : un montant falsifié par le navigateur est ignoré', async () => {
         mockReq.body = {
-            planId: 'scan',
-            amount: 24,
+            planId: 'essentiel', // falsifié : la demande req_scan est en Scan+
+            amount: 0.5, // tentative de paiement à 0,50 €
             productName: 'Forfait Scan+',
             interval: 'month',
-            email: 'test@example.com',
+            email: ' Test@Example.com ',
             clientName: 'Alice Test',
             successUrl: 'http://localhost/success',
             cancelUrl: 'http://localhost/cancel',
-            metadata: { customField: 'value1' }
+            metadata: { demande_id: 'req_scan', email: 'victime@x.fr', customField: 'value1' }
         };
-
-        // Customer list returns existing customer
-        stripeMocks.list.mockResolvedValue({
-            data: [{ id: 'cus_existing123', name: 'Alice Test' }]
-        });
-
-        // Checkout session creation mock return
-        stripeMocks.sessionsCreate.mockResolvedValue({
-            id: 'cs_test_session123',
-            url: 'https://stripe.com/checkout/mock-url'
-        });
+        stripeMocks.list.mockResolvedValue({ data: [{ id: 'cus_existing123', name: 'Alice Test' }] });
+        stripeMocks.sessionsCreate.mockResolvedValue({ id: 'cs_test_session123', url: 'https://stripe.com/checkout/mock-url' });
 
         await handler(mockReq, mockRes);
 
-        // 1. Vérifie qu'on a bien cherché le client par son email (Liaison ID Stripe)
-        expect(stripeMocks.list).toHaveBeenCalledWith({
-            email: 'test@example.com',
-            limit: 1
-        });
-        
-        // 2. Le client existait, on vérifie qu'on n'a pas créé de doublon
+        expect(stripeMocks.list).toHaveBeenCalledWith({ email: 'test@example.com', limit: 1 });
         expect(stripeMocks.create).not.toHaveBeenCalled();
-        expect(stripeMocks.update).not.toHaveBeenCalled();
-
-        // 3. Vérifie que la session de paiement est créée avec les bonnes options
-        // et SURTOUT que le bon ID client Stripe y est bien attaché (cus_existing123)
-        // et que l'option des CODES PROMOS est bien ACTIVEE pour les forfaits mensuels
+        const expectedMetadata = {
+            demande_id: 'req_scan',
+            planId: 'scan-plus',
+            interval: 'month',
+            email: 'test@example.com', // la valeur serveur l'emporte sur metadata.email
+            clientName: 'Alice Test',
+        };
         expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith({
             payment_method_types: ['card'],
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'eur',
-                        product_data: { name: 'Forfait Scan+' },
-                        unit_amount: 2400, // 24 * 100
-                        recurring: { interval: 'month' }
-                    },
-                    quantity: 1,
-                }
-            ],
+            line_items: [{
+                price_data: {
+                    currency: 'eur',
+                    product_data: { name: 'Forfait Scan+' },
+                    unit_amount: 2880, // 24 € HT × 1,2 = 28,80 € TTC
+                    recurring: { interval: 'month' }
+                },
+                quantity: 1,
+            }],
             mode: 'subscription',
-            allow_promotion_codes: true, // <-- Vérification stricte : Les codes promos DOIVENT marcher en mensuel
+            allow_promotion_codes: true, // codes promo actifs en mensuel
             success_url: 'http://localhost/success?session_id={CHECKOUT_SESSION_ID}',
             cancel_url: 'http://localhost/cancel',
             customer: 'cus_existing123',
-            metadata: {
-                email: 'test@example.com',
-                clientName: 'Alice Test',
-                customField: 'value1'
-            },
-            subscription_data: {
-                metadata: {
-                    email: 'test@example.com',
-                    clientName: 'Alice Test',
-                    customField: 'value1'
-                }
-            }
+            metadata: expectedMetadata,
+            subscription_data: { metadata: expectedMetadata },
         });
-
         expect(mockRes.status).toHaveBeenCalledWith(200);
-        expect(mockRes.json).toHaveBeenCalledWith({
-            id: 'cs_test_session123',
-            url: 'https://stripe.com/checkout/mock-url'
-        });
+        expect(mockRes.json).toHaveBeenCalledWith({ id: 'cs_test_session123', url: 'https://stripe.com/checkout/mock-url' });
     });
 
-    test('should create customer if not exists and update name if needed', async () => {
+    test('annuel : nouveau client Stripe (clé d’idempotence), prix annuel TTC, pas de code promo', async () => {
         mockReq.body = {
             planId: 'physique',
             amount: 38,
             productName: 'Forfait Physique+',
-            interval: 'year',
+            interval: 'month', // falsifié : la demande est annuelle
             email: 'new-client@example.com',
             clientName: 'Bob Client',
+            metadata: { demande_id: 'req_phys' },
         };
-
-        // No existing customer found
         stripeMocks.list.mockResolvedValue({ data: [] });
-
-        // Customer creation returns new customer
         stripeMocks.create.mockResolvedValue({ id: 'cus_new999' });
-
-        stripeMocks.sessionsCreate.mockResolvedValue({
-            id: 'cs_test_session999',
-            url: 'https://stripe.com/checkout/mock-url-2'
-        });
+        stripeMocks.sessionsCreate.mockResolvedValue({ id: 'cs_test_session999', url: 'https://stripe.com/checkout/mock-url-2' });
 
         await handler(mockReq, mockRes);
 
-        // 1. On vérifie que le client a bien été créé sur Stripe avec ses infos
-        expect(stripeMocks.create).toHaveBeenCalledWith({
-            email: 'new-client@example.com',
-            name: 'Bob Client',
-            metadata: {}
-        });
-
-        // 2. On vérifie que la session de paiement est bien liée au NOUVEL ID Stripe généré (cus_new999)
-        // et que les CODES PROMOS sont bien DESACTIVES pour les abonnements annuels (protection)
-        expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                customer: 'cus_new999', // <-- C'est ici que la liaison est vérifiée
-                mode: 'subscription',
-                allow_promotion_codes: false, // <-- Vérification stricte : PAS de codes promos en annuel
-                line_items: [
-                    {
-                        price_data: {
-                            currency: 'eur',
-                            product_data: { name: 'Forfait Physique+' },
-                            unit_amount: 3800,
-                            recurring: { interval: 'year' }
-                        },
-                        quantity: 1,
-                    }
-                ]
-            })
+        expect(stripeMocks.create).toHaveBeenCalledWith(
+            expect.objectContaining({ email: 'new-client@example.com', name: 'Bob Client' }),
+            { idempotencyKey: 'customer-create-new-client@example.com' }
         );
+        expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({
+            customer: 'cus_new999',
+            mode: 'subscription',
+            allow_promotion_codes: false,
+            line_items: [{
+                price_data: {
+                    currency: 'eur',
+                    product_data: { name: 'Forfait Physique+' },
+                    unit_amount: 45600, // 38 € × 10 mois × 1,2
+                    recurring: { interval: 'year' }
+                },
+                quantity: 1,
+            }]
+        }));
     });
 
-    test('should handle one_time payments (payment mode) with correct options', async () => {
-        mockReq.body = {
-            planId: 'depot_kbis',
-            amount: 15.5,
-            productName: 'Depot Kbis',
-            interval: 'one_time',
-            email: 'onetime@example.com',
-            clientName: 'Charlie',
-        };
+    test('abonnement : refusé sans demande enregistrée, ou si elle est déjà payée', async () => {
+        mockReq.body = { planId: 'essentiel', interval: 'month', email: 'a@b.fr' };
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(400);
 
-        stripeMocks.list.mockResolvedValue({ data: [] });
-        stripeMocks.create.mockResolvedValue({ id: 'cus_charlie' });
-        stripeMocks.sessionsCreate.mockResolvedValue({
-            id: 'cs_session_onetime',
-            url: 'https://stripe.com/checkout/onetime'
-        });
+        const res2 = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+        await handler({ ...mockReq, body: { planId: 'essentiel', interval: 'month', metadata: { demande_id: 'req_paid' } } }, res2);
+        expect(res2.status).toHaveBeenCalledWith(400);
+        expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
+    });
+
+    test('URL de retour vers un autre domaine : remplacée par celle du site', async () => {
+        mockReq.body = {
+            planId: 'essentiel', interval: 'month', email: 'a@b.fr', metadata: { demande_id: 'req_scan' },
+            successUrl: 'https://phishing.example/merci', cancelUrl: 'https://phishing.example/annule',
+        };
+        stripeMocks.list.mockResolvedValue({ data: [{ id: 'cus_a', name: 'A' }] });
+        stripeMocks.sessionsCreate.mockResolvedValue({ id: 'cs_x', url: 'https://stripe.com/x' });
 
         await handler(mockReq, mockRes);
 
-        expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith({
-            payment_method_types: ['card'],
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'eur',
-                        product_data: { name: 'Depot Kbis' },
-                        unit_amount: 1550, // 15.5 * 100
-                    },
-                    quantity: 1,
-                }
-            ],
-            mode: 'payment',
-            allow_promotion_codes: false,
-            success_url: 'http://localhost?success=true&session_id={CHECKOUT_SESSION_ID}',
+        expect(stripeMocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({
+            success_url: 'http://localhost/?success=true&session_id={CHECKOUT_SESSION_ID}',
             cancel_url: 'http://localhost/souscription',
-            customer: 'cus_charlie',
-            metadata: {
-                email: 'onetime@example.com',
-                clientName: 'Charlie',
-            },
-            payment_intent_data: {
-                metadata: {
-                    email: 'onetime@example.com',
-                    clientName: 'Charlie',
-                }
-            }
-        });
-
-        expect(mockRes.status).toHaveBeenCalledWith(200);
+        }));
     });
 
-    test('creates a one-time checkout for a meeting room booking', async () => {
-        mockReq.body = {
-            planId: 'salle',
-            amount: 25,
-            productName: 'Réservation Salle de réunion (6-8 pers) (Matinée (9h-12h))',
-            interval: 'one_time',
-            successUrl: 'http://localhost:5173/app/espace-client?tab=meeting&booking_success=true',
-            cancelUrl: 'http://localhost:5173/app/espace-client?tab=meeting&booking_cancel=true',
-            email: 'jean@test.fr',
-            clientName: 'Jean Dupont',
-            metadata: { client_id: 'cli_42', type: 'meeting_booking' },
-        };
+    const meetingBody = (overrides = {}) => ({
+        planId: 'salle',
+        amount: 0.01, // ignoré
+        productName: 'Réservation Salle de réunion (6-8 pers) (Matinée (9h-12h))',
+        interval: 'one_time',
+        successUrl: 'http://localhost/app/espace-client?tab=meeting&booking_success=true',
+        cancelUrl: 'http://localhost/app/espace-client?tab=meeting&booking_cancel=true',
+        email: 'jean@test.fr',
+        clientName: 'Jean Dupont',
+        metadata: {
+            client_id: 'cli_42',
+            type: 'meeting_booking',
+            meeting_type: 'Salle de réunion (6-8 pers)',
+            duration: 'Matinée (9h-12h)',
+            date: '2026-12-01',
+            city: 'Toulouse',
+        },
+        ...overrides,
+    });
 
+    test('réservation sans être connecté : 401', async () => {
+        authMocks.getAuthUser.mockResolvedValue(null);
+        mockReq.body = meetingBody();
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
+    });
+
+    test('réservation pour la fiche d’un autre client : 403', async () => {
+        authMocks.getAuthUser.mockResolvedValue({ userId: 'user_1', email: 'jean@test.fr', isAdmin: false });
+        authMocks.getOwnership.mockResolvedValue({ ids: new Set(['cli_autre']), emails: new Set(), stripeCustomerIds: new Set() });
+        mockReq.body = meetingBody();
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
+    });
+
+    test('réservation : prix déduit de la prestation, métadonnées en liste blanche', async () => {
+        authMocks.getAuthUser.mockResolvedValue({ userId: 'user_1', email: 'jean@test.fr', isAdmin: false });
+        authMocks.getOwnership.mockResolvedValue({ ids: new Set(['cli_42']), emails: new Set(), stripeCustomerIds: new Set() });
         stripeMocks.list.mockResolvedValue({ data: [{ id: 'cus_jean', name: 'Jean Dupont' }] });
-        stripeMocks.sessionsCreate.mockResolvedValue({
-            id: 'cs_meeting',
-            url: 'https://checkout.stripe.com/c/pay/cs_meeting',
-        });
+        stripeMocks.sessionsCreate.mockResolvedValue({ id: 'cs_meeting', url: 'https://checkout.stripe.com/c/pay/cs_meeting' });
+        mockReq.body = meetingBody();
 
         await handler(mockReq, mockRes);
 
@@ -322,27 +296,28 @@ describe('Checkout API Handler (api/checkout.js)', () => {
             mode: 'payment',
             allow_promotion_codes: false,
             customer: 'cus_jean',
-            success_url: 'http://localhost:5173/app/espace-client?tab=meeting&booking_success=true&session_id={CHECKOUT_SESSION_ID}',
-            cancel_url: 'http://localhost:5173/app/espace-client?tab=meeting&booking_cancel=true',
-            metadata: expect.objectContaining({
-                client_id: 'cli_42',
-                type: 'meeting_booking',
-            }),
+            success_url: 'http://localhost/app/espace-client?tab=meeting&booking_success=true&session_id={CHECKOUT_SESSION_ID}',
+            cancel_url: 'http://localhost/app/espace-client?tab=meeting&booking_cancel=true',
+            metadata: expect.objectContaining({ client_id: 'cli_42', type: 'meeting_booking', date: '2026-12-01' }),
             payment_intent_data: expect.objectContaining({
                 metadata: expect.objectContaining({ type: 'meeting_booking' }),
             }),
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'eur',
-                        product_data: { name: 'Réservation Salle de réunion (6-8 pers) (Matinée (9h-12h))' },
-                        unit_amount: 2500,
-                    },
-                    quantity: 1,
+            line_items: [{
+                price_data: {
+                    currency: 'eur',
+                    product_data: { name: 'Réservation Salle de réunion (6-8 pers) (Matinée (9h-12h))' },
+                    unit_amount: 9000, // matinée salle : 75 € HT → 90 € TTC (meetingPrices), pas 0,01 €
                 },
-            ],
+                quantity: 1,
+            }],
         }));
         expect(mockRes.status).toHaveBeenCalledWith(200);
     });
-});
 
+    test('réservation avec une prestation inexistante : 400', async () => {
+        authMocks.getAuthUser.mockResolvedValue({ userId: 'user_1', email: 'jean@test.fr', isAdmin: false });
+        mockReq.body = meetingBody({ metadata: { ...meetingBody().metadata, duration: '1 semaine' } });
+        await handler(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+});

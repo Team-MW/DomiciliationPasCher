@@ -11,12 +11,26 @@ export function earliestIsoDate(...dates) {
     return valid.sort()[0];
 }
 
-export function addCalendarMonths(isoDate, months) {
+/**
+ * Ajoute des mois calendaires à une date AAAA-MM-JJ.
+ * - par défaut (`clamp: false`) : comportement historique, un jour inexistant déborde sur le
+ *   mois suivant (31/12 + 2 mois = 03/03). C'est celui du délai de grâce impayé, qu'il ne faut
+ *   pas raccourcir sans décision explicite (AI_INSTRUCTIONS.md).
+ * - `clamp: true` : ramené au dernier jour du mois cible (31/12 + 2 mois = 28/02), utilisé pour
+ *   les rappels d'échéance afin de ne sauter aucun jour.
+ */
+export function addCalendarMonths(isoDate, months, { clamp = false } = {}) {
     if (!isoDate || !ISO_DAY.test(isoDate)) return null;
     const [y, m, d] = isoDate.slice(0, 10).split('-').map(Number);
-    const date = new Date(Date.UTC(y, m - 1, d));
-    date.setUTCMonth(date.getUTCMonth() + months);
-    return date.toISOString().slice(0, 10);
+    if (!clamp) {
+        const date = new Date(Date.UTC(y, m - 1, d));
+        date.setUTCMonth(date.getUTCMonth() + months);
+        return date.toISOString().slice(0, 10);
+    }
+    const target = new Date(Date.UTC(y, m - 1 + months, 1));
+    const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+    target.setUTCDate(Math.min(d, lastDay));
+    return target.toISOString().slice(0, 10);
 }
 
 export function paymentGraceDeadline(failedAt) {

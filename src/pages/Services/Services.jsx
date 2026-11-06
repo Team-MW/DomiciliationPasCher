@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import CreationEntrepriseSection from '../../components/CreationEntreprise/CreationEntrepriseSection';
 import './Services.css';
 
@@ -70,9 +71,11 @@ export default function Services() {
     const serviceFaqs = tr.services.faqs.items;
     const [openFaq, setOpenFaq] = useState(null);
 
-    useEffect(() => {
-        document.title = tr.services.pageTitle;
-    }, [tr.services.pageTitle]);
+    usePageMeta({
+        title: tr.services.pageTitle,
+        description: tr.seo.services.description,
+        path: '/services',
+    });
 
     const pageRef = useAnimateOnScroll();
     const [activeStatut, setActiveStatut] = useState('sasu');

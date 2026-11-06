@@ -4,29 +4,17 @@ const { execute } = vi.hoisted(() => ({
     execute: vi.fn().mockResolvedValue({ rows: [] }),
 }));
 
-vi.mock('../src/lib/db.js', () => ({
-    conn: { execute },
-    executeQuery: vi.fn(),
-}));
+// La couche données tourne côté serveur (api/_data-service.js) avec une connexion injectée.
+import { createDataService } from '../api/_data-service.js';
 
-vi.mock('../src/services/emailService.js', () => ({
-    sendApprovalEmail: vi.fn(),
-    sendDocumentRequestEmail: vi.fn(),
-}));
-
-vi.mock('../src/utils/api.js', () => ({
-    fetchWithRetry: vi.fn(),
-}));
-
-import { adminDataService } from '../src/services/adminDataService.js';
-import { sendApprovalEmail, sendDocumentRequestEmail } from '../src/services/emailService.js';
+const sendEmail = vi.fn().mockResolvedValue({});
+const adminDataService = createDataService({ conn: { execute }, sendEmail });
 
 describe('intégrité des données client (déploiement)', () => {
     beforeEach(() => {
         execute.mockReset();
         execute.mockResolvedValue({ rows: [] });
-        sendApprovalEmail.mockClear();
-        sendDocumentRequestEmail.mockClear();
+        sendEmail.mockClear();
     });
 
     it('fusionne extra_info double-encodé sans perdre stripe_customer_id', async () => {
@@ -136,8 +124,8 @@ describe('intégrité des données client (déploiement)', () => {
         const insert = execute.mock.calls.find(([sql]) => /INSERT INTO clients/.test(sql));
         expect(insert[1][0]).not.toBe('req_9');
         expect(created.id).toBe(insert[1][0]);
-        expect(sendApprovalEmail).toHaveBeenCalledWith('a@test.fr', 'Ada Lovelace');
-        expect(sendDocumentRequestEmail).not.toHaveBeenCalled();
+        expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ email: 'a@test.fr', nom: 'Ada Lovelace', type: 'approval' }));
+        expect(sendEmail).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'request_documents' }));
         const docRequestUpdate = execute.mock.calls.find(([sql, params]) =>
             /UPDATE clients SET extra_info/.test(sql) && String(params?.[0]).includes('doc_request'));
         expect(JSON.parse(docRequestUpdate[1][0]).doc_request).toMatchObject({

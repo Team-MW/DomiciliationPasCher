@@ -1,14 +1,16 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import './About.css';
 
 export default function About() {
     const { tr } = useTranslation();
 
-    useEffect(() => {
-        document.title = tr.about.pageTitle;
-    }, [tr.about.pageTitle]);
+    usePageMeta({
+        title: tr.about.pageTitle,
+        description: tr.seo.about.description,
+        path: '/a-propos',
+    });
 
     return (
         <main className="page-wrapper">

@@ -210,6 +210,22 @@
     color: rgba(255, 255, 255, 0.75);
 }
 
+.footer-legal-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.footer-legal-btn:hover,
+.footer-legal-btn:focus-visible {
+    color: rgba(255, 255, 255, 0.75);
+}
+
 /* Payment Methods */
 .footer-payments {
     display: flex;
@@ -228,6 +244,10 @@
     justify-content: center;
     border: 1px solid rgba(255, 255, 255, 0.1);
     transition: all 0.2s;
+    /* Largeur fixe et non compressible : la dernière vignette était écrasée (logo invisible). */
+    width: 64px;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .payment-badge:hover {

@@ -9,6 +9,8 @@ import { DOC_LABELS, DOC_REMINDER_DAYS } from '../../../../shared/documentReques
 import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGenerator';
 import { resolveClientStatusFromStripe } from '../../../utils/stripeClientStatus';
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
+import { parseExtraInfo } from '../../../utils/contractLegalFields';
+import { PLAN_CATALOG, resolvePlanId, planAmountTtc } from '../../../../shared/plans.js';
 
 const formatDateLong = (dateStr) => {
     if (!dateStr) return 'Non définie';
@@ -350,59 +352,36 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     };
 
     const handleAddInvoice = async () => {
-        let defaultAmount = '20.00';
-        if (client.plan === 'Scan+') defaultAmount = '24.00';
-        else if (client.plan === 'Physique+') defaultAmount = '38.00';
+        // Montant TTC mensuel issu du catalogue (les montants codés en dur étaient HT,
+        // alors que les factures Stripe sont TTC).
+        const catalog = PLAN_CATALOG[resolvePlanId(client.plan)];
+        const defaultAmount = planAmountTtc(catalog.ht, 'month').toFixed(2);
 
-        const amount = prompt(`Montant de la facture (ex: ${defaultAmount}) ?`, defaultAmount);
-        if (!amount) return;
+        const amountInput = prompt(`Montant TTC de la facture (ex: ${defaultAmount}) ?`, defaultAmount);
+        if (!amountInput) return;
+        const amount = Number(String(amountInput).replace(',', '.'));
+        if (!Number.isFinite(amount) || amount <= 0) {
+            await showAlert('Montant invalide.');
+            return;
+        }
 
         const date = prompt("Date de la facture (AAAA-MM-JJ) ?", new Date().toISOString().split('T')[0]);
         if (!date) return;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(date).getTime())) {
+            await showAlert('Date invalide (format AAAA-MM-JJ).');
+            return;
+        }
 
         try {
             setIsLoading(true);
             await adminDataService.addPayment(client.id, {
-                amount: parseFloat(amount),
+                amount,
                 date
             });
             const pay = await adminDataService.getPayments(client.id);
             setPayments(pay);
         } catch (err) {
             await showAlert("Erreur lors de l'ajout de la facture");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleGenerateMockHistory = async () => {
-        const confirmed = await showConfirm("Générer l'historique complet des paiements pour ce client depuis son inscription ?");
-        if (!confirmed) return;
-
-        try {
-            setIsLoading(true);
-            const startDate = new Date(client.since);
-            const currentDate = new Date();
-            let iter = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-
-            while (iter <= currentDate) {
-                let amount = 20;
-                if (client.plan === 'Scan+') amount = 24;
-                else if (client.plan === 'Physique+') amount = 38;
-
-                await adminDataService.addPayment(client.id, {
-                    amount,
-                    date: iter.toISOString().split('T')[0],
-                    status: 'payé'
-                });
-                iter.setMonth(iter.getMonth() + 1);
-            }
-
-            const pay = await adminDataService.getPayments(client.id);
-            setPayments(pay);
-            await showAlert("Historique généré avec succès !");
-        } catch (err) {
-            await showAlert("Erreur lors de la génération de l'historique");
         } finally {
             setIsLoading(false);
         }
@@ -510,13 +489,19 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
     const handleDelete = async () => {
         const nameOrCompany = client.company || client.name || "ce client";
-        const confirmed = await showConfirm(`Êtes-vous sûr de vouloir supprimer définitivement le compte de ${nameOrCompany} ?\n\nCela révoquera instantanément son accès à l'Espace Client.`, { isDanger: true });
+        const confirmed = await showConfirm(
+            `Supprimer définitivement ${nameOrCompany} (${client.email || 'sans email'}) ?\n\n`
+            + `Tout sera effacé de la base de données : fiche, messages, documents, courriers, rendez-vous, paiements, `
+            + `demande d'inscription, relances, historique des emails et preuves de signature, ainsi que son compte de connexion.\n\n`
+            + `Cette action est irréversible.`,
+            { isDanger: true, title: 'Suppression définitive', confirmText: 'Tout supprimer' }
+        );
         if (confirmed) {
             setIsLoading(true);
             try {
                 await adminDataService.deleteClient(client.id);
                 onUpdate();
-                await showAlert("Profil supprimé avec succès.");
+                await showAlert("Client supprimé définitivement : toutes ses données ont été effacées de la base.", { title: 'Suppression effectuée' });
                 onBack();
             } catch (err) {
                 console.error("Error deleting client:", err);
@@ -530,28 +515,19 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     if (!client) return null;
 
 
-    let extra = null;
-    try {
-        if (client.extra_info) {
-            extra = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info) : client.extra_info;
-            if (typeof extra === 'string') extra = JSON.parse(extra);
-            // Si c'est un objet vide, on le remet à null pour l'affichage du message d'aide
-            if (extra && Object.keys(extra).length === 0) extra = null;
-
-            // Force local PDF generation in the admin panel if signature data exists
-            // This ensures it behaves just like the client view and avoids Cloudinary URL issues
-            if (extra && extra.procurationSignatureUrl) {
-                extra.procurationSignedUrl = '#local-procuration';
-            }
-            if (extra && extra.contractSignatureUrl) {
-                extra.contractSignedUrl = '#local-signature';
-            }
+    // `storedExtra` = extra_info tel qu'en base (sert au formulaire d'édition).
+    // `extra` = copie d'affichage : les URLs de PDF y sont remplacées par une génération
+    // locale. Avant, ce remplacement modifiait l'objet édité, et « Modifier les infos »
+    // réécrivait '#local-signature' à la place de l'URL du contrat signé en base.
+    const parsedExtra = client.extra_info ? parseExtraInfo(client.extra_info) : {};
+    const storedExtra = Object.keys(parsedExtra).length > 0 ? parsedExtra : null;
+    const extra = storedExtra
+        ? {
+            ...storedExtra,
+            ...(storedExtra.procurationSignatureUrl ? { procurationSignedUrl: '#local-procuration' } : {}),
+            ...(storedExtra.contractSignatureUrl ? { contractSignedUrl: '#local-signature' } : {}),
         }
-    } catch (e) {
-        console.error("Error parsing extra_info", e);
-    }
-
-
+        : null;
 
     const handleSearchStripeCustomers = async () => {
         if (!stripeSearchQuery.trim()) return;
@@ -574,18 +550,29 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
     const handleLinkStripeCustomer = async (customerId) => {
         try {
-            await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: customerId });
-
+            let removeManual = false;
             if (customerId) {
-                // L'utilisateur lie le compte Stripe : on supprime tous les anciens paiements locaux/manuels
-                // pour que la prochaine synchronisation ne récupère QUE l'historique propre de Stripe.
                 const currentPayments = await adminDataService.getPayments(client.id);
-                for (const p of currentPayments) {
-                    await adminDataService.deletePayment(p.id);
+                if (currentPayments.length > 0) {
+                    // Avant : suppression silencieuse et irréversible de tout l'historique local,
+                    // y compris les virements / espèces saisis à la main.
+                    removeManual = await showConfirm(
+                        `Lier ce compte Stripe ? Les ${currentPayments.length} paiement(s) saisis localement seront supprimés (l'historique Stripe les remplacera). Cette action est irréversible.`,
+                        { isDanger: true }
+                    );
+                    if (!removeManual) return;
                 }
+                await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: customerId });
+                if (removeManual) {
+                    for (const p of currentPayments) {
+                        await adminDataService.deletePayment(p.id);
+                    }
+                }
+            } else {
+                await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: customerId });
             }
 
-            showAlert(customerId ? "Client Stripe lié avec succès ! Anciens paiements supprimés." : "Compte Stripe délié avec succès.");
+            showAlert(customerId ? (removeManual ? "Client Stripe lié. Anciens paiements locaux supprimés." : "Client Stripe lié avec succès.") : "Compte Stripe délié avec succès.");
             setIsStripeSearchOpen(false);
             onUpdate();
         } catch (e) {
@@ -656,7 +643,15 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const handleSaveDetails = async () => {
         setIsSavingDetails(true);
         try {
-            await adminDataService.updateClientExtraInfo(client.id, editFormData);
+            // On n'envoie que les champs modifiés : renvoyer tout l'objet écrasait les
+            // changements faits entre-temps (signature du client, relances, Stripe…).
+            const changed = Object.fromEntries(
+                // Comparaison par valeur : les objets (doc_request…) sont re-parsés à chaque rendu.
+                Object.entries(editFormData).filter(([key, value]) => JSON.stringify((storedExtra || {})[key]) !== JSON.stringify(value))
+            );
+            if (Object.keys(changed).length > 0) {
+                await adminDataService.updateClientExtraInfo(client.id, changed);
+            }
             const displayName = [editFormData.prenom, editFormData.nom].filter(Boolean).join(' ').trim() || client.name;
             await adminDataService.updateClientProfile(client.id, {
                 name: displayName,
@@ -1955,22 +1950,6 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 <td colSpan="5" style={{ textAlign: 'center', padding: '60px 20px', color: '#64748B', background: '#FFFFFF' }}>
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 40, height: 40, opacity: 0.3, marginBottom: '12px' }}><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
                                                     <p style={{ fontSize: '14px', marginBottom: '16px' }}>Aucune facture enregistrée pour ce client.</p>
-                                                    <button
-                                                        className="btn-secondary-sm"
-                                                        onClick={handleGenerateMockHistory}
-                                                        style={{
-                                                            border: '1px solid #E2E8F0',
-                                                            background: '#FFFFFF',
-                                                            color: '#475569',
-                                                            fontWeight: '600',
-                                                            padding: '8px 16px',
-                                                            borderRadius: '8px',
-                                                            cursor: 'pointer',
-                                                            fontSize: '13px'
-                                                        }}
-                                                    >
-                                                        Générer l'historique auto
-                                                    </button>
                                                 </td>
                                             </tr>
                                         ) : (
@@ -2098,7 +2077,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <div>
                                     {!isEditingDetails ? (
                                         <button
-                                            onClick={() => { setEditFormData(extra || {}); setIsEditingDetails(true); }}
+                                            onClick={() => { setEditFormData(storedExtra || {}); setIsEditingDetails(true); }}
                                             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                                         >
                                             <Icons.Edit style={{ width: 14, height: 14 }} /> Modifier les infos

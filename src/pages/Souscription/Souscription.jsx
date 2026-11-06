@@ -5,6 +5,7 @@ import { adminDataService } from '../../services/adminDataService';
 import { uploadFile } from '../../utils/cloudinary';
 import { convertPdfToPng } from '../../utils/pdfConverter';
 import { sendSouscriptionLeadEmail } from '../../utils/emailService';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import './Souscription.css';
 
 /* ─── 3 phases lisibles pour le client (les 8 écrans restent inchangés) ─── */
@@ -144,6 +145,7 @@ function AddressAutocomplete({ onSelectAddress, value, onChange, error }) {
 export default function Souscription() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    usePageMeta({ path: '/souscription', noindex: true });
     const planId = searchParams.get('plan') || 'essentiel';
     const plan = PLANS[planId] || PLANS.essentiel;
 

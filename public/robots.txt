@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /app/
+Disallow: /api/
+# /connexion, /inscription et /souscription restent explorables : elles portent
+# <meta name="robots" content="noindex">, que Google ne verrait pas si elles étaient bloquées.
 
 Sitemap: https://www.domiciliation-pas-cher.com/sitemap.xml

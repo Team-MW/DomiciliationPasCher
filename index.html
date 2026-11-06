@@ -2,6 +2,33 @@
 <html lang="fr">
 
 <head>
+  <meta charset="UTF-8" />
+  <!-- Google Consent Mode v2 : tout est refusé par défaut, AVANT le chargement de GTM / gtag.
+       Le choix du visiteur (bandeau src/components/CookieConsent) est stocké dans localStorage
+       sous la clé « dpc_cookie_consent » au format {"value":"granted"|"denied","ts":<ms>}. -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      ad_storage: 'denied',
+      analytics_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+      wait_for_update: 500
+    });
+    try {
+      var dpcConsent = JSON.parse(window.localStorage.getItem('dpc_cookie_consent') || 'null');
+      var dpcMaxAge = 1000 * 60 * 60 * 24 * 182;
+      if (dpcConsent && dpcConsent.value === 'granted' && !(typeof dpcConsent.ts === 'number' && Date.now() - dpcConsent.ts > dpcMaxAge)) {
+        gtag('consent', 'update', {
+          ad_storage: 'granted',
+          analytics_storage: 'granted',
+          ad_user_data: 'granted',
+          ad_personalization: 'granted'
+        });
+      }
+    } catch (e) { /* stockage indisponible : reste refusé */ }
+  </script>
   <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -9,7 +36,6 @@
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-PGCFPVNV');</script>
   <!-- End Google Tag Manager -->
-  <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/app-icon.png" />
@@ -61,38 +87,9 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800;900&display=swap"
     media="print" onload="this.media='all'" />
 
-  <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript" defer></script>
-  <script>
-    window.onerror = function(message, source, lineno, colno, error) {
-      fetch('/api/log-error', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'error',
-          message: message,
-          source: source,
-          lineno: lineno,
-          colno: colno,
-          stack: error ? error.stack : null
-        })
-      });
-    };
-    window.addEventListener('unhandledrejection', function(event) {
-      fetch('/api/log-error', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'unhandledrejection',
-          reason: event.reason ? (event.reason.stack || event.reason.message || event.reason) : 'Unknown reason'
-        })
-      });
-    });
-  </script>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18266266861"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
     gtag('config', 'AW-18266266861');

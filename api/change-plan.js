@@ -1,39 +1,36 @@
-import fs from 'fs';
-import { connect } from '@planetscale/database';
 import { getStripe } from './_stripe-client.js';
+import { getDbConn } from './_db.js';
+import { requireUser, getOwnership, sendServerError } from './_auth.js';
 import { PLAN_CATALOG, resolvePlanId, planAmountTtc } from '../shared/plans.js';
-
-const readEnv = (key) => {
-    if (process.env[key]) return process.env[key].trim().replace(/^['"]|['"]$/g, '');
-    try {
-        if (fs.existsSync('.env.local')) {
-            const match = fs.readFileSync('.env.local', 'utf-8').match(new RegExp(`^${key}=(.*)`, 'm'));
-            if (match) return match[1].trim().replace(/^['"]|['"]$/g, '');
-        }
-    } catch { /* ignore */ }
-    return null;
-};
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { clientId, planId, email } = req.body || {};
+    const { clientId, planId } = req.body || {};
     const catalog = PLAN_CATALOG[planId];
-    if (!clientId || !email || !catalog) {
+    if (!clientId || !catalog) {
         return res.status(400).json({ error: 'Paramètres invalides' });
     }
 
-    const dbHost = readEnv('VITE_DATABASE_HOST');
-    const dbUsername = readEnv('VITE_DATABASE_USERNAME');
-    const dbPassword = readEnv('VITE_DATABASE_PASSWORD');
-    if (!dbHost || !dbUsername || !dbPassword) {
+    const conn = getDbConn();
+    if (!conn) {
         return res.status(500).json({ error: 'Configuration DB manquante' });
     }
 
+    // Changement facturé immédiatement : l'appelant doit être le titulaire (ou l'admin).
+    // Avant, connaître l'email (non secret) et l'id (horodatage) suffisait.
+    const user = await requireUser(req, res);
+    if (!user) return;
+
     try {
-        const conn = connect({ host: dbHost, username: dbUsername, password: dbPassword });
+        if (!user.isAdmin) {
+            const ownership = await getOwnership(conn, user);
+            if (!ownership.ids.has(String(clientId))) {
+                return res.status(403).json({ error: 'Accès refusé' });
+            }
+        }
         const select = await conn.execute(
             'SELECT id, email, plan, extra_info FROM clients WHERE id = ?',
             [clientId]
@@ -42,9 +39,7 @@ export default async function handler(req, res) {
         if (!client) {
             return res.status(404).json({ error: 'Client introuvable' });
         }
-        if ((client.email || '').trim().toLowerCase() !== String(email).trim().toLowerCase()) {
-            return res.status(403).json({ error: 'Email ne correspond pas au dossier' });
-        }
+        const email = String(client.email || '').trim().toLowerCase();
 
         const currentId = resolvePlanId(client.plan);
         if (currentId === planId) {
@@ -62,7 +57,7 @@ export default async function handler(req, res) {
         let customerId = extra.stripe_customer_id || extra.stripeCustomerId || null;
         if (!customerId) {
             const customers = await stripe.customers.list({
-                email: String(email).trim().toLowerCase(),
+                email,
                 limit: 1,
             });
             customerId = customers.data[0]?.id || null;
@@ -79,9 +74,15 @@ export default async function handler(req, res) {
             status: 'all',
             limit: 20,
         });
-        const sub = (subs.data || []).find((s) =>
-            ['active', 'trialing', 'past_due'].includes(s.status)
-        );
+        // Pas de changement sur un abonnement en impayé : la facture de prorata
+        // s'ajouterait à la dette (l'interface le bloquait déjà, le serveur non).
+        if ((subs.data || []).some((s) => ['past_due', 'unpaid'].includes(s.status))) {
+            return res.status(409).json({
+                error: 'payment_issue',
+                message: 'Régularisez d’abord le paiement en attente avant de changer de formule.',
+            });
+        }
+        const sub = (subs.data || []).find((s) => ['active', 'trialing'].includes(s.status));
         if (!sub || !sub.items?.data?.[0]) {
             return res.status(404).json({
                 error: 'no_subscription',
@@ -130,7 +131,6 @@ export default async function handler(req, res) {
             extra_info: merged,
         });
     } catch (error) {
-        console.error('change-plan error:', error);
-        return res.status(500).json({ error: error.message || 'Erreur lors du changement de formule' });
+        return sendServerError(res, error, 'change-plan');
     }
 }

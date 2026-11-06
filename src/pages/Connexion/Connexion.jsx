@@ -1,4 +1,5 @@
 import { SignIn } from '@clerk/clerk-react';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import './Auth.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
@@ -10,6 +11,7 @@ function postLoginUrl() {
 
 export default function ConnexionPage() {
     const afterAuth = postLoginUrl();
+    usePageMeta({ path: '/connexion', noindex: true });
 
     return (
         <main className="auth-page">

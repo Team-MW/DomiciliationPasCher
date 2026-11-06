@@ -7,6 +7,7 @@ import {
     MEETING_TYPES,
     MEETING_DURATIONS,
     meetingPriceHt,
+    meetingPriceTtc,
     formatMeetingPrice,
     localIsoDate,
 } from '../../../utils/meetingPrices';
@@ -43,7 +44,6 @@ export default function Meeting({ clientData }) {
             if (returnHandled.current) return;
             returnHandled.current = true;
             const sessionId = urlParams.get('session_id');
-            const storedBooking = sessionStorage.getItem('pendingBooking');
 
             (async () => {
                 try {
@@ -51,43 +51,9 @@ export default function Meeting({ clientData }) {
                         setErrorMsg(t('espaceClient.meeting.payError'));
                         return;
                     }
-                    const paidKey = `dpc_paid_booking_${sessionId}`;
-                    if (localStorage.getItem(paidKey)) {
-                        sessionStorage.removeItem('pendingBooking');
-                        return;
-                    }
-                    const res = await fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`);
-                    const data = await res.json();
-                    if (!data?.success) {
-                        setErrorMsg(t('espaceClient.meeting.payError'));
-                        return;
-                    }
-                    if (data.metadata?.type && data.metadata.type !== 'meeting_booking') {
-                        setErrorMsg(t('espaceClient.meeting.payError'));
-                        return;
-                    }
-                    let parsedBooking = null;
-                    if (storedBooking) {
-                        try { parsedBooking = JSON.parse(storedBooking); } catch { parsedBooking = null; }
-                    }
-                    if (!parsedBooking?.date && data.metadata?.date) {
-                        parsedBooking = {
-                            type: data.metadata.meeting_type,
-                            date: data.metadata.date,
-                            duration: data.metadata.duration,
-                            city: data.metadata.city || clientData.city,
-                        };
-                    }
-                    if (!parsedBooking?.city && clientData.city) {
-                        parsedBooking = { ...parsedBooking, city: clientData.city };
-                    }
-                    if (!parsedBooking?.date) {
-                        setErrorMsg(t('espaceClient.meeting.payError'));
-                        return;
-                    }
-                    sessionStorage.removeItem('pendingBooking');
-                    await adminDataService.addBookingRequest(clientData.id, parsedBooking);
-                    localStorage.setItem(paidKey, '1');
+                    // Vérification et enregistrement côté serveur, à partir de la session Stripe
+                    // uniquement (détails, montant, titulaire). Rejouer l'URL ne crée pas de doublon.
+                    await adminDataService.confirmMeetingBooking(sessionId);
                     const b = await adminDataService.getClientBookings(clientData.id);
                     setBookings(b);
                     setShowSuccess(true);
@@ -148,6 +114,7 @@ export default function Meeting({ clientData }) {
     };
 
     const displayPrice = formatMeetingPrice(meetingPriceHt(form.type, form.duration));
+    const displayPriceTtc = formatMeetingPrice(meetingPriceTtc(form.type, form.duration));
 
     return (
         <div className="ec-tab-animate">
@@ -237,7 +204,7 @@ export default function Meeting({ clientData }) {
                                 onClick={handleBooking}
                                 disabled={isSubmitting}
                             >
-                                {isSubmitting ? t('espaceClient.meeting.connecting') : t('espaceClient.meeting.pay').replace('{price}', displayPrice)}
+                                {isSubmitting ? t('espaceClient.meeting.connecting') : t('espaceClient.meeting.pay').replace('{price}', displayPrice).replace('{priceTtc}', displayPriceTtc)}
                             </button>
                         </div>
                     </div>

@@ -3,14 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { addBookingRequest, getClientBookings, handleCheckout } = vi.hoisted(() => ({
+const { addBookingRequest, confirmMeetingBooking, getClientBookings, handleCheckout } = vi.hoisted(() => ({
     addBookingRequest: vi.fn().mockResolvedValue({ id: 'book_1' }),
+    confirmMeetingBooking: vi.fn().mockResolvedValue({ id: 'book_cs_test_paid' }),
     getClientBookings: vi.fn().mockResolvedValue([]),
     handleCheckout: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../src/services/adminDataService', () => ({
-    adminDataService: { addBookingRequest, getClientBookings },
+    adminDataService: { addBookingRequest, confirmMeetingBooking, getClientBookings },
 }));
 
 vi.mock('../src/utils/stripe', () => ({ handleCheckout }));
@@ -33,7 +34,7 @@ vi.mock('../src/i18n/LanguageContext', () => ({
                 'espaceClient.meeting.morning': 'Matinée (9h-12h)',
                 'espaceClient.meeting.afternoon': 'Après-midi (14h-18h)',
                 'espaceClient.meeting.fullday': 'Journée complète',
-                'espaceClient.meeting.pay': 'Payer ({price} € HT) et Réserver',
+                'espaceClient.meeting.pay': 'Payer {priceTtc} € TTC ({price} € HT) et réserver',
                 'espaceClient.meeting.connecting': 'Connexion à Stripe...',
                 'espaceClient.meeting.yourBookings': 'Vos réservations',
                 'espaceClient.meeting.empty': 'empty',
@@ -60,6 +61,8 @@ const client = {
 describe('Meeting (espace client)', () => {
     beforeEach(() => {
         addBookingRequest.mockClear();
+        confirmMeetingBooking.mockReset();
+        confirmMeetingBooking.mockResolvedValue({ id: 'book_cs_test_paid' });
         getClientBookings.mockClear();
         handleCheckout.mockClear();
         getClientBookings.mockResolvedValue([]);
@@ -110,9 +113,10 @@ describe('Meeting (espace client)', () => {
         });
     });
 
-    it('enregistre la réservation au retour Stripe réussi', async () => {
+    it('au retour Stripe réussi, la réservation est confirmée côté serveur depuis la session', async () => {
+        // Le contenu de sessionStorage (modifiable par le client) n'est plus utilisé.
         sessionStorage.setItem('pendingBooking', JSON.stringify({
-            type: 'Bureau privé (1-2 pers)',
+            type: 'Salle de réunion (6-8 pers)',
             date: '2026-09-21',
             duration: 'Journée complète',
             city: 'Toulouse',
@@ -130,11 +134,9 @@ describe('Meeting (espace client)', () => {
 
         render(<Meeting clientData={client} setActiveTab={vi.fn()} />);
 
-        await waitFor(() => expect(addBookingRequest).toHaveBeenCalledTimes(1));
-        expect(addBookingRequest).toHaveBeenCalledWith('cli_42', expect.objectContaining({
-            type: 'Bureau privé (1-2 pers)',
-            city: 'Toulouse',
-        }));
+        await waitFor(() => expect(confirmMeetingBooking).toHaveBeenCalledTimes(1));
+        expect(confirmMeetingBooking).toHaveBeenCalledWith('cs_test_paid');
+        expect(addBookingRequest).not.toHaveBeenCalled();
         expect(await screen.findByText('Demande envoyée !')).toBeInTheDocument();
         expect(sessionStorage.getItem('pendingBooking')).toBeNull();
     });
@@ -168,23 +170,17 @@ describe('Meeting (espace client)', () => {
 
         await waitFor(() => expect(getClientBookings).toHaveBeenCalled());
         expect(addBookingRequest).not.toHaveBeenCalled();
+        expect(confirmMeetingBooking).not.toHaveBeenCalled();
         expect(await screen.findByText(/pay error/)).toBeInTheDocument();
     });
 
-    it('ne bloque pas un nouvel essai si l’enregistrement de la réservation a échoué', async () => {
-        addBookingRequest.mockRejectedValueOnce(new Error('db down'));
-        sessionStorage.setItem('pendingBooking', JSON.stringify({
-            type: 'Bureau privé (1-2 pers)',
-            date: '2026-09-21',
-            duration: 'Journée complète',
-            city: 'Toulouse',
-        }));
+    it('affiche une erreur si le serveur refuse la confirmation (paiement non confirmé)', async () => {
+        confirmMeetingBooking.mockRejectedValueOnce(new Error('Paiement non confirmé'));
         window.history.replaceState({}, '', '/app/espace-client?tab=meeting&booking_success=true&session_id=cs_fail');
 
         render(<Meeting clientData={client} setActiveTab={vi.fn()} />);
 
-        await waitFor(() => expect(addBookingRequest).toHaveBeenCalledTimes(1));
-        expect(localStorage.getItem('dpc_paid_booking_cs_fail')).toBeNull();
+        await waitFor(() => expect(confirmMeetingBooking).toHaveBeenCalledTimes(1));
         expect(await screen.findByText(/pay error/)).toBeInTheDocument();
     });
 });

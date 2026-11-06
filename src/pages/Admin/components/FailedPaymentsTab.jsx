@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import { isPaymentGraceExpired, paymentGraceDeadline, formatDateFr } from '../../../../shared/paymentGrace.js';
 
@@ -35,6 +35,7 @@ const readStripeCustomerId = (client) => {
 };
 
 export default function FailedPaymentsTab({ clients, onSelect, onUpdate, showConfirm, showAlert }) {
+    const manualOverrides = useRef(new Set());
     const [stripeFailures, setStripeFailures] = useState([]);
     const [isSyncing, setIsSyncing] = useState(true);
     const [syncError, setSyncError] = useState(null);
@@ -76,8 +77,11 @@ export default function FailedPaymentsTab({ clients, onSelect, onUpdate, showCon
     }
 
     // Propage l'échec sur la fiche client pour que l'espace client et les exports restent cohérents.
+    // Les fiches remises « actif » à la main par l'admin pendant cette session sont respectées :
+    // avant, l'effet les repassait aussitôt en échec (le rafraîchissement relançait l'effet).
     useEffect(() => {
-        const toFlag = rows.filter(r => r.failure && r.client && r.client.status === 'actif');
+        const toFlag = rows.filter(r => r.failure && r.client && r.client.status === 'actif'
+            && !manualOverrides.current.has(r.client.id));
         if (toFlag.length === 0) return;
         let cancelled = false;
         (async () => {
@@ -95,11 +99,12 @@ export default function FailedPaymentsTab({ clients, onSelect, onUpdate, showCon
         e.stopPropagation();
         const stillFailing = Boolean(row.failure);
         const message = stillFailing
-            ? "Stripe signale toujours un impayé pour ce client. Le repasser en \"actif\" quand même ? Il sera de nouveau signalé au prochain rafraîchissement."
+            ? "Stripe signale toujours un impayé pour ce client. Le repasser en \"actif\" quand même ? Il restera actif jusqu'au prochain passage du contrôle des impayés."
             : 'Confirmer que le paiement a bien été régularisé ? Le compte repassera en "actif".';
         const confirmed = await showConfirm(message, { isDanger: stillFailing });
         if (!confirmed) return;
         try {
+            manualOverrides.current.add(row.client.id);
             await adminDataService.updateClientStatus(row.client.id, 'actif');
             onUpdate();
         } catch (err) {

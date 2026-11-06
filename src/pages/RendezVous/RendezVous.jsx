@@ -1,26 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta from '../../components/Seo/usePageMeta';
+import { CONTACT_EMAIL, CONTACT_PHONE_HREF, CONTACT_PHONE_DISPLAY } from '../../constants/contact';
 import './RendezVous.css';
 
 const CALENDLY_SCRIPT = 'https://assets.calendly.com/assets/external/widget.js';
-const DEFAULT_CALENDLY = 'https://calendly.com/dev-microdidact/30min';
-const CALENDLY_URL = (import.meta.env.VITE_CALENDLY_URL || DEFAULT_CALENDLY).trim();
+// Pas de valeur par défaut : l'ancienne pointait vers l'agenda du développeur
+// (calendly.com/dev-microdidact), où auraient atterri les rendez-vous clients si la variable
+// manquait en production. Sans VITE_CALENDLY_URL, la page propose le contact par email.
+const CALENDLY_URL = (import.meta.env.VITE_CALENDLY_URL || '').trim();
 
 export default function RendezVous() {
     const { tr } = useTranslation();
     const widgetRef = useRef(null);
     const readyRef = useRef(false);
     const [isReady, setIsReady] = useState(false);
-    const [hasError, setHasError] = useState(false);
+    const [hasError, setHasError] = useState(!CALENDLY_URL);
 
-    useEffect(() => {
-        document.title = tr.rendezVous.pageTitle;
-    }, [tr.rendezVous.pageTitle]);
+    usePageMeta({
+        title: tr.rendezVous.pageTitle,
+        description: tr.seo.rendezVous.description,
+        path: '/rendez-vous',
+    });
 
     useEffect(() => {
         const container = widgetRef.current;
-        if (!container) return;
+        if (!container || !CALENDLY_URL) return;
 
         let cancelled = false;
         let timeoutId;
@@ -121,16 +127,21 @@ export default function RendezVous() {
                                 <h3>{tr.rendezVous.errorTitle}</h3>
                                 <p>{tr.rendezVous.errorBody}</p>
                                 <div className="rdv-fallback-actions">
-                                    <a
-                                        href={CALENDLY_URL}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="btn btn-primary"
-                                    >
-                                        {tr.rendezVous.openCalendly}
+                                    {CALENDLY_URL && (
+                                        <a
+                                            href={CALENDLY_URL}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-primary"
+                                        >
+                                            {tr.rendezVous.openCalendly}
+                                        </a>
+                                    )}
+                                    <a href={CONTACT_PHONE_HREF} className="btn btn-primary">
+                                        {CONTACT_PHONE_DISPLAY}
                                     </a>
                                     <a
-                                        href="mailto:contact@domiciliation-pas-cher.com?subject=Prise%20de%20rendez-vous"
+                                        href={`mailto:${CONTACT_EMAIL}?subject=Prise%20de%20rendez-vous`}
                                         className="btn btn-outline"
                                     >
                                         {tr.rendezVous.contactCta}

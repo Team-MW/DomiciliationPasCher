@@ -1,42 +1,43 @@
-import { createClerkClient } from '@clerk/clerk-sdk-node';
+import { createClerkClient } from '@clerk/backend';
+import { requireAdmin, sendServerError } from './_auth.js';
+import { readServerEnv } from './_env.js';
+import { getBaseUrl } from './_email-kit.js';
 
+/** Invitation Clerk d'un client créé par l'admin. Réservé à l'admin. */
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { email } = req.body;
-
+    const { email } = req.body || {};
     if (!email) {
         return res.status(400).json({ error: 'Email manquant' });
     }
 
-    const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+    const clerkSecretKey = readServerEnv('CLERK_SECRET_KEY');
     if (!clerkSecretKey) {
-        console.error('CLERK_SECRET_KEY manquant dans .env');
+        console.error('CLERK_SECRET_KEY manquant');
         return res.status(500).json({ error: 'Configuration serveur manquante (Secret Key)' });
     }
 
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+
     try {
         const clerk = createClerkClient({ secretKey: clerkSecretKey });
-        
-        // Obtenir l'URL de base dynamiquement
-        const protocol = req.headers['x-forwarded-proto'] || 'https';
-        const host = req.headers.host;
-        const baseUrl = host ? `${protocol}://${host}` : 'https://domiciliation-pas-cher.fr';
-        
-        // Créer une invitation via l'API Clerk
+        const baseUrl = readServerEnv('PUBLIC_SITE_URL') || getBaseUrl(req);
         const invitation = await clerk.invitations.createInvitation({
-            emailAddress: email,
+            emailAddress: String(email).trim().toLowerCase(),
             redirectUrl: `${baseUrl}/inscription`,
             publicMetadata: { role: 'client' },
-            ignoreExisting: true // Si une invitation existe déjà pour cet email, ça renvoie l'existante
+            ignoreExisting: true,
         });
-        
-        console.log('Invitation Clerk envoyée pour:', email);
-        return res.status(200).json({ message: 'Invitation envoyée avec succès', invitation });
+        // Ne jamais renvoyer l'objet complet : il contient le lien (ticket) d'inscription.
+        return res.status(200).json({
+            message: 'Invitation envoyée avec succès',
+            invitation: { id: invitation?.id, status: invitation?.status },
+        });
     } catch (error) {
-        console.error('Erreur Clerk SDK Invitation:', error.message);
-        return res.status(500).json({ error: error.message });
+        return sendServerError(res, error, 'clerk-invite');
     }
 }

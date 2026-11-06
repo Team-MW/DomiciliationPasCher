@@ -11,11 +11,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
       - run: npm ci
       - name: Tests (Vitest)
         run: npm test
+      - name: Audit des dépendances de production (non bloquant)
+        run: npm audit --omit=dev --audit-level=critical || true
       - name: Build production
         run: npx vite build
         env:

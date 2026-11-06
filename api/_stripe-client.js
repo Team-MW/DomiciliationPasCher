@@ -1,28 +1,13 @@
 import Stripe from 'stripe';
-import fs from 'fs';
-
-// En production (Vercel) la clé vient de l'environnement. En local, les handlers sont
-// importés par le plugin Vite qui ne charge pas .env.local, d'où la lecture de secours.
-const readKeyFromEnvFile = (file, name = 'STRIPE_SECRET_KEY') => {
-    try {
-        if (!fs.existsSync(file)) return null;
-        const match = fs.readFileSync(file, 'utf-8').match(new RegExp(`^${name}=(.*)$`, 'm'));
-        if (!match) return null;
-        return match[1].trim().replace(/^['"]|['"]$/g, '');
-    } catch {
-        return null;
-    }
-};
+import { readServerEnv } from './_env.js';
 
 export function isLiveSecretKey(key) {
     return typeof key === 'string' && key.startsWith('sk_live_') && key !== 'sk_live_remplace_moi';
 }
 
 export function getStripeSecretKey() {
-    const key =
-        process.env.STRIPE_SECRET_KEY ||
-        readKeyFromEnvFile('.env.local') ||
-        readKeyFromEnvFile('.env');
+    // process.env (Vercel) puis .env.local en dev local — jamais de fichier pendant les tests.
+    const key = readServerEnv('STRIPE_SECRET_KEY');
 
     if (!key || key === 'sk_live_remplace_moi') {
         throw new Error('La clé secrète Stripe (STRIPE_SECRET_KEY) est manquante ou invalide.');

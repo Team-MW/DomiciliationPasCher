@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CityIcons } from '../../utils/cityIcons';
-import { sendWelcomeEmail } from '../../utils/emailService';
 import { adminDataService } from '../../services/adminDataService';
 import { useTranslation } from '../../i18n/LanguageContext';
+import usePageMeta from '../../components/Seo/usePageMeta';
 import './Home.css';
 
 const FEATURE_ICONS = [
@@ -238,17 +238,19 @@ export default function Home() {
         icon: CityIcons.Toulouse,
     }));
 
-    useEffect(() => {
-        document.title = tr.home.pageTitle;
-    }, [tr.home.pageTitle]);
+    usePageMeta({
+        title: tr.home.pageTitle,
+        description: tr.seo.home.description,
+        path: '/',
+    });
 
     useEffect(() => {
         const checkPending = async () => {
             const lastSessionId = localStorage.getItem('last_successful_session');
             if (lastSessionId) {
                 try {
-                    const demande = await adminDataService.getDemandeBySessionId(lastSessionId);
-                    if (demande) {
+                    const pending = await adminDataService.hasPendingDemandeForSession(lastSessionId);
+                    if (pending) {
                         setPendingStatus(true);
                     } else {
                         localStorage.removeItem('last_successful_session');
@@ -275,7 +277,6 @@ export default function Home() {
         if (params.get('success') === 'true' && !alreadyHandled) {
             const sessionId = successSessionId;
             if (handledKey) localStorage.setItem(handledKey, '1');
-            const pendingDemandeId = localStorage.getItem('pending_demande_id');
 
             const verifyAndConfirm = async () => {
                 let isValid = true;
@@ -286,7 +287,7 @@ export default function Home() {
                     isValid = false;
                 } else {
                     try {
-                        const res = await fetch(`/api/verify-session?session_id=${sessionId}`);
+                        const res = await fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`);
                         stripeData = await res.json();
                         isValid = stripeData.success;
                     } catch (err) {
@@ -297,43 +298,17 @@ export default function Home() {
 
                 if (isValid) {
                     setShowSuccessModal(true);
-                    const pendingEmail = localStorage.getItem('pending_emailjs');
-                    const pendingName = localStorage.getItem('pending_namejs');
-                    const stripeCustomerId = stripeData?.customer_id || null;
-
-                    const demandIdToConfirm = pendingDemandeId || stripeData?.metadata?.demande_id;
-
-                    // Toujours nettoyer le brouillon après paiement validé (même sans demande_id).
+                    // La demande est confirmée côté serveur par /api/verify-session (à partir des
+                    // métadonnées Stripe, jamais d'un id stocké dans le navigateur), qui envoie
+                    // aussi l'email de bienvenue et arrête les relances d'inscription.
+                    // Toujours nettoyer le brouillon après paiement validé.
                     localStorage.removeItem('dpc_souscription_draft');
                     localStorage.removeItem('dpc_souscription_step');
-
-                    const emailToUse = pendingEmail || stripeData?.metadata?.email || stripeData?.customer_email;
-                    const nameToUse = pendingName || stripeData?.metadata?.clientName;
-
-                    if (demandIdToConfirm) {
-                        try {
-                            await adminDataService.confirmDemandePayment(demandIdToConfirm, sessionId, stripeCustomerId);
-                        } catch (err) {
-                            console.error('Confirmation du paiement en base :', err);
-                        }
-                    }
-
-                    let emailOk = true;
-                    if (emailToUse) {
-                        emailOk = await sendWelcomeEmail(emailToUse, nameToUse || '');
-                        adminDataService.completeSouscriptionLead(emailToUse)
-                            .catch((err) => console.error('Fin des relances inscription:', err));
-                    }
-
-                    if (emailOk) {
-                        localStorage.setItem('last_successful_session', sessionId);
-                        localStorage.removeItem('pending_demande_id');
-                        localStorage.removeItem('pending_emailjs');
-                        localStorage.removeItem('pending_namejs');
-                        localStorage.setItem('allow_registration', 'true');
-                    } else if (handledKey) {
-                        localStorage.removeItem(handledKey);
-                    }
+                    localStorage.setItem('last_successful_session', sessionId);
+                    localStorage.removeItem('pending_demande_id');
+                    localStorage.removeItem('pending_emailjs');
+                    localStorage.removeItem('pending_namejs');
+                    localStorage.setItem('allow_registration', 'true');
                 } else {
                     if (handledKey) localStorage.removeItem(handledKey);
                     console.error("Paiement non valide selon Stripe.");

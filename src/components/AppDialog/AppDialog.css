@@ -47,6 +47,11 @@
     color: #059669;
 }
 
+.dpc-dialog-icon.is-warning {
+    background: #fffbeb;
+    color: #d97706;
+}
+
 .dpc-dialog h3 {
     margin: 0 0 8px;
     font-size: 20px;

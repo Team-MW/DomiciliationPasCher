@@ -94,6 +94,7 @@ export default {
       mentionsLegales: 'Mentions légales',
       cgv: 'CGV',
       confidentialite: 'Politique de confidentialité',
+      manageCookies: "Gérer les cookies",
     },
     copyright: '© {year} Domiciliation-Pas-Cher.com — Tous droits réservés',
     credits: 'Réalisé par microdidact',
@@ -320,7 +321,7 @@ export default {
         },
         {
           q: 'Comment fonctionne la gestion du courrier ?',
-          a: 'Nous réceptionnons tous vos courriers, vous notifions par email à chaque arrivée et mettons à disposition un scan numérique en option (+5€/mois).',
+          a: 'Nous réceptionnons tous vos courriers, vous notifions par email à chaque arrivée et mettons un scan numérique de chaque courrier à disposition dans votre espace client (inclus dès la formule Essentiel). La réexpédition des originaux est proposée avec Scan+ (+4€ HT/mois).',
         },
       ],
     },
@@ -1360,6 +1361,25 @@ export default {
     contactCta: 'Écrire à contact@domiciliation-pas-cher.com',
     openCalendly: 'Ouvrir le calendrier dans un nouvel onglet',
     backLink: 'Retour aux tarifs',
+  },
+
+  seo: {
+    home: { description: "Domiciliation d'entreprise pas chère à Toulouse dès 20€ HT/mois : adresse de siège social officielle, attestation sous 24h, gestion du courrier et souscription 100% en ligne." },
+    tarifs: { description: "Comparez nos forfaits de domiciliation à Toulouse : Essentiel, Scan+ et Physique+. Prix transparents dès 20€ HT/mois, sans frais cachés ni engagement de longue durée." },
+    villes: { description: "Domiciliez votre entreprise au 150 rue Nicolas Louis Vauquelin à Toulouse : une adresse professionnelle reconnue pour votre Kbis, vos banques et vos clients." },
+    services: { description: "Domiciliation, réception et scan du courrier, réexpédition, salles de réunion et accompagnement à la création d'entreprise : tous nos services pour entrepreneurs." },
+    about: { description: "Découvrez DomiciliationPasCher : notre histoire, nos valeurs et notre engagement pour une domiciliation d'entreprise simple, fiable et accessible à Toulouse." },
+    rendezVous: { description: "Réservez un rendez-vous gratuit avec un conseiller pour votre création d'entreprise : choix du statut juridique, chiffrage transparent et plan d'action jusqu'au Kbis." },
+    fichesPratiques: { description: "Fiches pratiques pour entrepreneurs : fiscalité, transfert de siège social, gouvernance, gestion et actualités légales. Des guides clairs pour piloter votre entreprise." },
+  },
+
+  cookieConsent: {
+    ariaLabel: "Gestion des cookies",
+    title: "Votre vie privée compte",
+    text: "Nous utilisons des cookies de mesure d’audience et publicitaires (Google) uniquement avec votre accord. Vous pouvez accepter ou refuser, et modifier votre choix à tout moment via « Gérer les cookies » en bas de page.",
+    learnMore: "En savoir plus",
+    accept: "Tout accepter",
+    refuse: "Tout refuser",
   },
 
   espaceClient: espaceClient('fr'),
