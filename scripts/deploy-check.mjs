@@ -1,5 +1,5 @@
 /**
- * Vérifs de déploiement sans Vitest (les workers Vitest timeout sur ce Mac / iCloud).
+ * Contrôles statiques rapides (étape 1 de npm run verify) : routes, forfaits, prix, config Vercel, routes API.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

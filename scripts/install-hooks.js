@@ -6,17 +6,16 @@ const hooksDir = path.join(gitDir, 'hooks');
 const hookFile = path.join(hooksDir, 'pre-push');
 
 const hookContent = `#!/bin/sh
-echo "🔍 Running pre-push verification (tests + production build)..."
-npm run test:deploy
+# Installé par scripts/install-hooks.js (npm install). Ne pas contourner avec --no-verify.
+echo "🔍 Vérification complète avant push (npm run verify)..."
+npm run verify
 if [ $? -ne 0 ]; then
-  echo "❌ Tests or production build failed. Push aborted!"
+  echo "❌ Vérification échouée : push annulé. Corrigez le problème puis relancez git push."
   exit 1
 fi
-
-echo "✅ Tests and production build passed. Proceeding with push."
+echo "✅ Vérification réussie. Push en cours."
 exit 0
 `;
-
 if (fs.existsSync(gitDir)) {
     if (!fs.existsSync(hooksDir)) {
         fs.mkdirSync(hooksDir);

@@ -14,12 +14,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Tests (Vitest)
-        run: npm test
+      - name: Vérification complète (même contrôle que le hook pre-push)
+        run: npm run verify
       - name: Audit des dépendances de production (non bloquant)
         run: npm audit --omit=dev --audit-level=critical || true
-      - name: Build production
-        run: npx vite build
-        env:
-          VITE_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
-          VITE_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder

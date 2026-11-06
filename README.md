@@ -57,11 +57,29 @@ scripts/                Scripts d'exploitation (attention : certains touchent la
 npm install
 npm run dev          # Vite + exécution locale des vrais handlers de api/
 npm test             # Vitest
-npm run test:deploy  # contrôles de déploiement + build (hook pre-push)
+npm run verify       # vérification complète (lancée automatiquement avant chaque git push)
 npm run lint
+npm run test:smtp    # SMTP : config + connexion (ajouter -- --send pour un envoi réel)
+npm run smoke -- https://www.domiciliation-pas-cher.com   # contrôle d'un site déployé (rien n'est envoyé)
 ```
 
 Node 22 (voir `engines` dans `package.json`).
+
+## Vérification avant mise en ligne
+
+`npm run verify` est exécuté par le hook git **pre-push** (installé par `npm install`) et par la CI GitHub.
+Il bloque le push au premier échec. **Ne jamais utiliser `git push --no-verify`.**
+
+| Étape | Ce qui est bloqué |
+|---|---|
+| 1. Contrôles de déploiement (`scripts/deploy-check.mjs`) | route supprimée, forfait ou prix incohérent, config Vercel cassée, route API introuvable |
+| 2. Sitemap à jour | page publique absente du sitemap |
+| 3. Lint critique (`scripts/lint-critical.mjs`) | variable inexistante, hook React mal placé, code inaccessible, clé dupliquée… |
+| 4. Tests automatiques (Vitest) | régression sécurité, paiements, emails, admin, espace client ; fonction `api/` qui ne se charge pas ou plante |
+| 5. Test navigateur (`scripts/browser-smoke.mjs`) | page blanche, erreur JavaScript, contenu ou titre manquant, débordement mobile, secret dans le JS public |
+
+Le test navigateur utilise Google Chrome installé sur la machine (aucun téléchargement) et bloque tout accès
+réseau externe : il est reproductible hors ligne.
 
 ## Variables d'environnement
 
