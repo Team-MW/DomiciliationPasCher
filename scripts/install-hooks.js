@@ -25,16 +25,10 @@ if (fs.existsSync(gitDir)) {
     // --- NOUVEAU: Pre-commit hook pour bloquer modifs pdfGenerator / cloudinary ---
     const preCommitFile = path.join(hooksDir, 'pre-commit');
     const preCommitContent = `#!/bin/sh
+# Installé par scripts/install-hooks.js. Verrou des fichiers protégés, avec exceptions approuvées par empreinte
+# (scripts/protected-approvals.json) : voir scripts/check-protected-files.mjs.
 echo "🔒 Checking protected files..."
-PROTECTED_FILES="src/utils/pdfGenerator.js src/utils/cloudinary.js"
-for file in $PROTECTED_FILES; do
-    if git diff --cached --name-only | grep -q "$file"; then
-        echo "❌ ERREUR: Vous essayez de modifier un fichier protégé ($file) !"
-        echo "❌ La génération de document (PDF/Cloudinary) est verrouillée car elle fonctionne parfaitement."
-        echo "❌ Commit annulé."
-        exit 1
-    fi
-done
+node scripts/check-protected-files.mjs || exit 1
 exit 0
 `;
     fs.writeFileSync(preCommitFile, preCommitContent, { mode: 0o755 });

@@ -2,7 +2,14 @@ import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward, PRICING_GRID } 
 import { computeMissingDocuments } from '../shared/documentRequest.js';
 import { SOUSCRIPTION_LEADS_DDL } from '../shared/emailTables.js';
 import { ensureEmailLogTable } from './_email-kit.js';
-import { lightenExtraInfo } from './_client-extra.js';
+import { lightenExtraInfo, isTrustedDocumentUrl } from './_client-extra.js';
+
+/** Pièces déposées dans le formulaire d'inscription : clé de l'URL, clé du nom d'origine, libellé affiché dans « Mes documents ». */
+const SIGNUP_DOCUMENTS = [
+    ['pieceIdentiteUrl', "Pièce d'identité (recto)"],
+    ['pieceIdentiteVersoUrl', "Pièce d'identité (verso)"],
+    ['justificatifDomicileUrl', 'Justificatif de domicile'],
+];
 
 const BOOKING_STATUSES = new Set(['en_attente', 'confirmée', 'refusée', 'annulée']);
 const REEXPEDITION_STATUSES = new Set(['en_attente', 'expediee', 'refusee']);
@@ -438,6 +445,12 @@ export function createDataService({
 
             await conn.execute('UPDATE messages SET clientId = ? WHERE clientId = ?', [clientId, id]);
             await conn.execute('UPDATE documents SET clientId = ? WHERE clientId = ?', [clientId, id]);
+            try {
+                await service.addSignupDocuments(clientId, finalExtraInfo);
+            } catch (err) {
+                // Ne bloque jamais la validation du dossier : les pièces restent consultables dans la fiche.
+                console.error('Pièces d’inscription non ajoutées à « Mes documents » :', err);
+            }
             await conn.execute('UPDATE bookings SET clientId = ? WHERE clientId = ?', [clientId, id]);
             await conn.execute('UPDATE reexpeditions SET clientId = ? WHERE clientId = ?', [clientId, id]);
             await conn.execute('DELETE FROM demandes WHERE id = ?', [id]);
@@ -645,6 +658,32 @@ export function createDataService({
 
         async deleteDocument(id) {
             await conn.execute('DELETE FROM documents WHERE id = ?', [id]);
+        },
+
+        /**
+         * Ajoute à « Mes documents » les pièces déposées à l'inscription (identité recto/verso, justificatif de domicile).
+         * Avant, elles restaient seulement dans la fiche (extra_info) : le client ne les retrouvait pas dans ses documents.
+         * Sans doublon si la validation est rejouée. Les noms contiennent « identité » / « domicile » : la liste de
+         * vérification de l'espace client les reconnaît.
+         */
+        async addSignupDocuments(clientId, extra = {}) {
+            let added = 0;
+            for (const [urlKey, label] of SIGNUP_DOCUMENTS) {
+                const url = extra?.[urlKey];
+                if (typeof url !== 'string' || !url || url.startsWith('#') || !isTrustedDocumentUrl(url)) continue;
+                const known = await conn.execute('SELECT id FROM documents WHERE clientId = ? AND url = ? LIMIT 1', [clientId, url]);
+                if (known?.rows?.length) continue;
+                await service.addDocument(clientId, {
+                    name: label,
+                    size: 'Fourni à l’inscription',
+                    type: /\.pdf(\?|$)/i.test(url) ? 'application/pdf' : 'image/png',
+                    owner: 'client',
+                    folder: 'Documents',
+                    url,
+                });
+                added++;
+            }
+            return added;
         },
 
         async addDocument(clientId, fileInfo) {

@@ -20,6 +20,9 @@ devenue fausse est pire qu'une instruction absente : corrige-la ou supprime-la.
    autre client. Les lectures de la base de production par l'IA sont bloquées par les permissions :
    ne pas les contourner.
 4. **Fichiers verrouillés** (hook `pre-commit`) : `src/utils/pdfGenerator.js`, `src/utils/cloudinary.js`.
+   Le hook (`scripts/check-protected-files.mjs`) accepte un fichier protégé UNIQUEMENT si son empreinte est approuvée dans
+   `scripts/protected-approvals.json` ; toute modification ultérieure reverrouille. Après un changement validé par le
+   propriétaire : `node scripts/check-protected-files.mjs --approve <fichier>`. Ne jamais utiliser `--no-verify`.
    Exception accordée par le propriétaire (6 nov. 2026) : le CONTENU de `pdfGenerator.js` (textes, adresses, numéros,
    dates) peut être corrigé ; la façon de générer et de télécharger les PDF ne change pas. Adresse = `shared/company.js`
    (`DOMICILIATION_ADDRESS`, `COMPANY_SIRET`), jamais écrite à la main. Tests : `tests/pdfContent.test.js`.
@@ -386,3 +389,6 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
   - Écran du compte : une ERREUR (serveur, session, email non vérifié) n'est jamais présentée comme « Aucun dossier trouvé ».
   - En local, la base est CELLE DE PRODUCTION : se connecter avec l'email d'un vrai client lie le compte Clerk de test à sa fiche.
     Tester uniquement avec le compte de test dédié.
+- **2026-11-06 — Pièces d'inscription** : à la validation d'un dossier (`traiterDemande`), les pièces du formulaire (identité recto/verso,
+  justificatif de domicile) sont ajoutées à `documents` (`addSignupDocuments`) : elles apparaissent dans « Mes documents » (client)
+  et dans la fiche (admin). Les clients validés AVANT cette date ne les ont pas dans `documents` (elles restent dans `extra_info`).

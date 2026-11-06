@@ -96,7 +96,7 @@ describe('Contrat PDF généré selon la grille du client', () => {
         expect(pdf).toContain('230,40');
         expect(pdf).toContain('Remise annuelle de 20 %');
         expect(pdf).toContain('40 plis/mois');
-        expect(pdf).toContain('2/mois incluses');
+        expect(pdf).toContain('2 par mois incluses');
         expect(pdf).toContain('Fin du Contrat'); // article 6.3, absent de l'ancien contrat
         expect(pdf).not.toContain('Physique+');
     });

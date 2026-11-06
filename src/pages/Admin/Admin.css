@@ -1383,22 +1383,51 @@
     }
 }
 
-/* ── LOADING OVERLAY & SPINNER ── */
-.loading-overlay {
-    position: absolute;
+/* ── CHARGEMENT ── */
+/* Barre fine en haut de l'écran : indique le chargement sans flouter ni bloquer la page. */
+.admin-loadbar {
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 999;
+    height: 3px;
+    overflow: hidden;
+    background: rgba(26, 86, 219, 0.12);
+    z-index: 1000;
+    pointer-events: none;
+}
+.admin-loadbar > span {
+    display: block;
+    width: 38%;
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #1A56DB, #60A5FA);
+    animation: admin-loadbar 1.1s ease-in-out infinite;
+}
+@keyframes admin-loadbar {
+    0% { transform: translateX(-110%); }
+    100% { transform: translateX(290%); }
 }
 
+/* Squelette de tableau (premier chargement) */
+.admin-skel {
+    display: block;
+    height: 14px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+    background-size: 200% 100%;
+    animation: admin-skel 1.2s ease-in-out infinite;
+}
+@keyframes admin-skel {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .admin-loadbar > span { width: 100%; animation: none; opacity: 0.6; }
+    .admin-skel { animation: none; }
+}
+
+/* Rond de chargement (utilisé par d'autres écrans) : l'animation a maintenant une image finale, il tourne vraiment. */
 .spinner {
     width: 44px;
     height: 44px;
@@ -1410,6 +1439,7 @@
 
 @keyframes spin {
     0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* ==========================================================================

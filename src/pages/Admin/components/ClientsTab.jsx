@@ -18,7 +18,7 @@ const formatDateShort = (dateStr) => {
     return dateStr;
 };
 
-export default function ClientsTab({ clients, searchQuery, onSelect, onCreateClick }) {
+export default function ClientsTab({ clients, searchQuery, onSelect, onCreateClick, loading = false }) {
     const [isExporting, setIsExporting] = useState(false);
 
     const q = (searchQuery || '').toLowerCase();
@@ -143,10 +143,20 @@ export default function ClientsTab({ clients, searchQuery, onSelect, onCreateCli
                                 </td>
                             </tr>
                         ))}
-                        {filtered.length === 0 && (
+                        {/* Premier chargement : squelette (pas de « Aucun client » alors que les données n'ont pas encore répondu). */}
+                        {loading && clients.length === 0 && [0, 1, 2, 3, 4].map((row) => (
+                            <tr key={`skeleton-${row}`} aria-hidden="true">
+                                {[0, 1, 2, 3, 4, 5].map((cell) => (
+                                    <td key={cell} style={{ padding: '18px 20px' }}>
+                                        <span className="admin-skel" style={{ width: cell === 0 ? '70%' : cell === 5 ? '60px' : '55%' }} />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                        {!loading && filtered.length === 0 && (
                             <tr>
                                 <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#64748B', fontSize: '14px' }}>
-                                    Aucun client trouvé pour "{searchQuery}"
+                                    {clients.length === 0 ? 'Aucun client pour le moment.' : `Aucun client trouvé pour « ${searchQuery} »`}
                                 </td>
                             </tr>
                         )}

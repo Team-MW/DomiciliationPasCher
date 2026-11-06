@@ -285,9 +285,11 @@ export default function Admin() {
                             </button>
                         </div>
                     )}
+                    {/* Chargement : fine barre en haut, sans flouter ni bloquer la page (avant : voile flou sur tout l'écran,
+                        rond centré sur la hauteur totale de la page, donc hors de vue, et qui ne tournait pas). */}
                     {isLoading && (
-                        <div className="loading-overlay">
-                            <div className="spinner"></div>
+                        <div className="admin-loadbar" role="progressbar" aria-label="Chargement des données" aria-busy="true">
+                            <span />
                         </div>
                     )}
 
@@ -303,7 +305,7 @@ export default function Admin() {
                         <>
                             {activeTab === 'overview' && <OverviewTab stats={stats} clients={clients} mail={mail} />}
                             {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} onSelectDemande={setSelectedDemande} showConfirm={showConfirm} showAlert={showAlert} />}
-                            {activeTab === 'clients' && <ClientsTab clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
+                            {activeTab === 'clients' && <ClientsTab loading={isLoading} clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
                             {activeTab === 'billing' && <FailedPaymentsTab clients={clients} onSelect={setSelectedClientId} onUpdate={refreshData} showConfirm={showConfirm} showAlert={showAlert} />}
                             {activeTab === 'meeting' && <MeetingTab bookings={bookings} clients={clients} onUpdate={refreshData} showAlert={showAlert} />}
                             {activeTab === 'courrier' && <MailTab reexpeditions={reexpeditions} onUpdate={refreshData} showAlert={showAlert} onSelectClient={setSelectedClientId} />}

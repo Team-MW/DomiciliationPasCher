@@ -1,0 +1,8 @@
+{
+  "approved": {
+    "src/utils/pdfGenerator.js": {
+      "sha256": "a236cd2f441ce3b916c3cc7e8dbf36a1efef933097dd750881d18d1417ad0ece",
+      "approvedOn": "2026-11-06"
+    }
+  }
+}

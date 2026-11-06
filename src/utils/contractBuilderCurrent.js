@@ -334,9 +334,9 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
         ['Attestation de domiciliation', 'OUI', 'OUI', 'OUI'],
         ['Espace client 24h/24', 'OUI', 'OUI', 'OUI'],
         ['Retrait sur place sur rendez-vous', 'OUI', 'OUI', 'OUI'],
-        ['Contrat conforme au Code de commerce (R123-168)', 'OUI', 'OUI', 'OUI'],
+        ['Contrat conforme au Code de commerce (art. R123-168)', 'OUI', 'OUI', 'OUI'],
         ['Numérisation du courrier', scanCell(P.essentiel), scanCell(P['scan-plus']), scanCell(P.physique)],
-        ['Réexpédition physique', 'Payante', 'Payante', `${P.physique.forwardsIncluded}/mois incluses`],
+        ['Réexpédition physique', 'Payante', 'Payante', `${P.physique.forwardsIncluded} par mois incluses`],
         ['Réception de colis (5 kg max)', `${euroShort(F.parcel)} HT/colis`, `${euroShort(F.parcel)} HT/colis`, 'OUI'],
     ];
     const activeX = { essentiel: col2, 'scan-plus': col3, physique: col4 }[plan.id];
