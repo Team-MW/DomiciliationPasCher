@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { adminDataService } from '../../../services/adminDataService';
@@ -9,6 +9,7 @@ import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGe
 import { resolveClientStatusFromStripe } from '../../../utils/stripeClientStatus';
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
 import { parseExtraInfo } from '../../../utils/contractLegalFields';
+import { HEAVY_PLACEHOLDER } from '../../../../shared/heavyPlaceholder.js';
 import { clientPlanPricing } from '../../../../shared/plans.js';
 import AddInvoiceModal from './AddInvoiceModal';
 import EmailHistory from './EmailHistory';
@@ -45,7 +46,9 @@ const blobToBase64 = (blob) => {
     });
 };
 
-export default function DossierClient({ client, onBack, onUpdate, showConfirm, showAlert }) {
+export default function DossierClient({ client, onBack, onUpdate, showConfirm, showAlert, detailsLoaded = true }) {
+    // Synchro Stripe automatique : une seule fois par dossier ouvert (sinon elle repart à chaque rafraîchissement de la liste).
+    const stripeSyncedFor = useRef(new Set());
     const [documents, setDocuments] = useState([]);
     const [mails, setMails] = useState([]);
     const [isAddingInvoice, setIsAddingInvoice] = useState(false);
@@ -120,11 +123,14 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         adminDataService.getClientMail(client.id),
                         adminDataService.getClientReexpeditions(client.id)
                     ]);
-                    setDocuments(docs);
-                    setPayments(pay);
-                    setMails(clientMails);
+                    setDocuments(Array.isArray(docs) ? docs : []);
+                    setPayments(Array.isArray(pay) ? pay : []);
+                    setMails(Array.isArray(clientMails) ? clientMails : []);
                     setReexpeditions(Array.isArray(clientReexp) ? clientReexp : []);
                     setIsLoading(false);
+
+                    if (stripeSyncedFor.current.has(client.id)) return;
+                    stripeSyncedFor.current.add(client.id);
 
                     // Synchronisation silencieuse en tâche de fond avec Stripe
                     let stripeCustomerId = null;
@@ -682,7 +688,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             // changements faits entre-temps (signature du client, relances, Stripe…).
             const changed = Object.fromEntries(
                 // Comparaison par valeur : les objets (doc_request…) sont re-parsés à chaque rendu.
-                Object.entries(editFormData).filter(([key, value]) => JSON.stringify((storedExtra || {})[key]) !== JSON.stringify(value))
+                Object.entries(editFormData).filter(([key, value]) => value !== HEAVY_PLACEHOLDER && JSON.stringify((storedExtra || {})[key]) !== JSON.stringify(value))
             );
             if (Object.keys(changed).length > 0) {
                 await adminDataService.updateClientExtraInfo(client.id, changed);
@@ -2083,6 +2089,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                 <div>
                                     {!isEditingDetails ? (
                                         <button
+                                            disabled={!detailsLoaded}
+                                            title={detailsLoaded ? undefined : 'Chargement de la fiche complète…'}
                                             onClick={() => { setEditFormData(storedExtra || {}); setIsEditingDetails(true); }}
                                             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                                         >

@@ -2,6 +2,9 @@ import espaceClient from './espaceClient/index.js';
 
 export default {
   common: {
+    errorTitle: 'Не удалось показать страницу',
+    errorBody: 'Произошёл сбой (потеряно соединение или вышла новая версия сайта). Перезагрузите страницу.',
+    reload: 'Перезагрузить страницу',
     loading: 'Загрузка...',
     backToTop: 'Наверх',
     dialogConfirm: 'Подтверждение',

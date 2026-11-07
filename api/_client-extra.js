@@ -32,7 +32,7 @@ export function isTrustedDocumentUrl(url) {
     if (url === null || url === undefined || url === '') return true;
     if (typeof url !== 'string') return false;
     if (/^#[\w-]*$/.test(url)) return true;
-    if (/^data:(application\/pdf|application\/octet-stream|image\/(png|jpe?g))[;,]/i.test(url)) return true;
+    if (/^data:(application\/(x-)?pdf|application\/octet-stream|image\/(png|jpe?g|webp|gif))[;,]/i.test(url)) return true;
     return /^https:\/\/res\.cloudinary\.com\//i.test(url);
 }
 
@@ -45,6 +45,7 @@ export function sanitizeClientExtra(data, { allowSignature = false } = {}) {
     const clean = {};
     for (const [key, value] of Object.entries(data || {})) {
         if (key === 'stripe_customer_id') continue;
+        if (value === HEAVY_PLACEHOLDER) continue;
         if (CLIENT_FORBIDDEN_EXTRA.test(key)) continue;
         if (!allowSignature && SIGNATURE_KEYS.test(key)) continue;
         if (allowSignature && SIGNATURE_IMAGE_KEY.test(key) && SIGNATURE_KEYS.test(key)) {
@@ -59,8 +60,13 @@ export function sanitizeClientExtra(data, { allowSignature = false } = {}) {
     return clean;
 }
 
-/** Valeur qui remplace un très gros fichier dans la LISTE des clients (le détail complet se charge à l'ouverture de la fiche). */
-export const HEAVY_PLACEHOLDER = '#stored-in-dossier';
+import { HEAVY_PLACEHOLDER } from '../shared/heavyPlaceholder.js';
+export { HEAVY_PLACEHOLDER };
+
+/** Retire les valeurs « marqueur » d'une mise à jour : elles ne représentent aucun fichier et écraseraient le vrai. */
+export function dropPlaceholders(data) {
+    return Object.fromEntries(Object.entries(data || {}).filter(([, value]) => value !== HEAVY_PLACEHOLDER));
+}
 
 /**
  * Version légère d'extra_info pour la liste admin : les fichiers encodés dans la fiche (PDF Kbis en base64 :
@@ -78,7 +84,8 @@ export function lightenExtraInfo(raw, maxChars = 20000) {
         if (!extra || typeof extra !== 'object') return raw;
         const light = {};
         for (const [key, value] of Object.entries(extra)) {
-            light[key] = typeof value === 'string' && value.length > maxChars && /^data:/i.test(value) ? HEAVY_PLACEHOLDER : value;
+            const isFile = typeof value === 'string' && value.length > maxChars && /^data:/i.test(value) && !SIGNATURE_IMAGE_KEY.test(key);
+            light[key] = isFile ? HEAVY_PLACEHOLDER : value;
         }
         return JSON.stringify(light);
     } catch {

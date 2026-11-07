@@ -347,7 +347,7 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
             if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
             // Doublon d'email (création de client) : message affichable, pas un « Erreur serveur » qui pousse à réessayer.
             if (err?.code === 'ER_DUP_ENTRY' || /duplicate entry/i.test(err?.message || '')) {
-                return res.status(409).json({ error: 'Cette adresse email est déjà utilisée par un autre client.' });
+                return res.status(409).json({ error: /email/i.test(err?.message || '') ? 'Cette adresse email est déjà utilisée par un autre client.' : 'Cet enregistrement existe déjà.' });
             }
             // Erreurs métier volontaires (ex. réexpédition hors forfait) : message affichable.
             if (err?.message && /réservée|requise|introuvable/i.test(err.message)) {

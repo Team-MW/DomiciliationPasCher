@@ -8,6 +8,7 @@ import { useTranslation } from '../../i18n/LanguageContext';
 import { setPreviewMode } from '../../utils/apiAuth';
 import { PRICING_GRID, clientPlanPricing } from '../../../shared/plans.js';
 import { appAlert } from '../../components/AppDialog/dialogApi';
+import { isAdminEmail } from '../../utils/adminEmail';
 import './EspaceClient.css';
 
 // Components
@@ -127,7 +128,6 @@ export default function EspaceClient() {
               try {
                 const email = user.primaryEmailAddress?.emailAddress;
                 const cleanEmail = email?.trim().toLowerCase();
-                const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'mwcrea.agency@gmail.com').split(',');
 
                 const savedSessionId = localStorage.getItem('last_successful_session');
                 // Recherche faite côté serveur à partir de l'email vérifié du compte Clerk
@@ -170,7 +170,7 @@ export default function EspaceClient() {
                 }
 
                 // Si c'est un admin ET qu'il n'a pas de compte client/demande, on le redirige vers l'admin
-                if (ADMIN_EMAILS.map(e => e.trim().toLowerCase()).includes(cleanEmail) && !data) {
+                if (isAdminEmail(cleanEmail) && !data) {
                     navigate('/admin');
                     return;
                 }
@@ -478,7 +478,7 @@ export default function EspaceClient() {
                 )}
                 <header className="ec-header">
                     <div className="ec-header-left">
-                        <button className="ec-mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                        <button className="ec-mobile-menu-btn" aria-label={t('espaceClient.shell.openMenu')} onClick={() => setIsMobileMenuOpen(true)}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                         </button>
                         <nav className="ec-crumbs" aria-label="Fil d'Ariane">

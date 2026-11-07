@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import { appAlert } from '../../../components/AppDialog/dialogApi';
 import { sendAdminMessageEmail } from '../../../utils/emailService';
+import { parseExtraInfo } from '../../../utils/contractLegalFields';
 
 export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showConfirm, showAlert }) {
     const [loadingId, setLoadingId] = useState(null);
@@ -67,7 +68,7 @@ export default function DemandesTab({ demandes, onUpdate, onSelectDemande, showC
                         let extra = null;
                         try {
                             if (d.extra_info) {
-                                extra = typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info;
+                                extra = parseExtraInfo(d.extra_info);
                             }
                         } catch { /* JSON invalide : on garde la valeur par défaut */ }
                         
@@ -229,7 +230,7 @@ export function DemandeDetailsModal({ demande, onClose, onAccept, onReject, load
     let extra = null;
     try {
         if (demande.extra_info) {
-            extra = typeof demande.extra_info === 'string' ? JSON.parse(demande.extra_info) : demande.extra_info;
+            extra = parseExtraInfo(demande.extra_info);
         }
     } catch { /* JSON invalide : on garde la valeur par défaut */ }
 

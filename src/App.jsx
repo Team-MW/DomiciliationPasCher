@@ -1,9 +1,11 @@
 
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import Navbar from './components/Navbar/Navbar';
 import { isAdminEmail } from './utils/adminEmail';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import Footer from './components/Footer/Footer';
 import Home from './pages/Home/Home';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
@@ -23,16 +25,16 @@ const loadAbout = () => import('./pages/About/About');
 const loadConnexion = () => import('./pages/Connexion/Connexion');
 const loadInscription = () => import('./pages/Connexion/Inscription');
 const loadRendezVous = () => import('./pages/RendezVous/RendezVous');
-const Tarifs = lazy(loadTarifs);
-const Villes = lazy(loadVilles);
-const Services = lazy(loadServices);
-const About = lazy(loadAbout);
-const ConnexionPage = lazy(loadConnexion);
-const InscriptionPage = lazy(loadInscription);
-const RendezVous = lazy(loadRendezVous);
-const EspaceClient = lazy(() => import('./pages/EspaceClient/EspaceClient'));
-const Admin = lazy(() => import('./pages/Admin/Admin'));
-const Souscription = lazy(loadSouscription);
+const Tarifs = lazyWithRetry(loadTarifs);
+const Villes = lazyWithRetry(loadVilles);
+const Services = lazyWithRetry(loadServices);
+const About = lazyWithRetry(loadAbout);
+const ConnexionPage = lazyWithRetry(loadConnexion);
+const InscriptionPage = lazyWithRetry(loadInscription);
+const RendezVous = lazyWithRetry(loadRendezVous);
+const EspaceClient = lazyWithRetry(() => import('./pages/EspaceClient/EspaceClient'));
+const Admin = lazyWithRetry(() => import('./pages/Admin/Admin'));
+const Souscription = lazyWithRetry(loadSouscription);
 
 /** Ordre de préchargement : parcours d'achat d'abord. */
 export const PREFETCH_PAGES = [loadTarifs, loadSouscription, loadConnexion, loadVilles, loadServices, loadRendezVous, loadAbout, loadInscription];
@@ -58,11 +60,11 @@ function usePrefetchPages() {
     };
   }, []);
 }
-const MentionsLegales = lazy(() => import('./pages/MentionsLegales/MentionsLegales'));
-const CGV = lazy(() => import('./pages/CGV/CGV'));
-const Confidentialite = lazy(() => import('./pages/Confidentialite/Confidentialite'));
-const FichesPratiques = lazy(() => import('./pages/FichesPratiques/FichesPratiques'));
-const FicheDetail = lazy(() => import('./pages/FicheDetail/FicheDetail'));
+const MentionsLegales = lazyWithRetry(() => import('./pages/MentionsLegales/MentionsLegales'));
+const CGV = lazyWithRetry(() => import('./pages/CGV/CGV'));
+const Confidentialite = lazyWithRetry(() => import('./pages/Confidentialite/Confidentialite'));
+const FichesPratiques = lazyWithRetry(() => import('./pages/FichesPratiques/FichesPratiques'));
+const FicheDetail = lazyWithRetry(() => import('./pages/FicheDetail/FicheDetail'));
 
 /* Chargement d'une page : rien pendant 250 ms (pas de flash si c'est rapide), puis un indicateur discret. */
 function LoadingFallback({ inline = false }) {
@@ -136,6 +138,7 @@ function App() {
     <BrowserRouter>
       <DialogProvider>
       <ScrollToTop />
+      <ErrorBoundary>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           {/* Pages publiques (Vitrine) */}
@@ -189,6 +192,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
       <CookieConsent />
       </DialogProvider>
     </BrowserRouter>

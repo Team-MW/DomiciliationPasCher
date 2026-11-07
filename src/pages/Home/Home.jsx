@@ -753,7 +753,7 @@ export default function Home() {
                             margin: '0 auto 28px auto',
                             fontSize: '32px',
                             boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
-                            animation: 'pulse 2s infinite'
+                            animation: 'dpc-pulse 2s infinite'
                         }}>
                             ✅
                         </div>

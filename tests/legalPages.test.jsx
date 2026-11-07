@@ -26,8 +26,8 @@ function wrap(ui, initial = '/') {
 
 describe('routes légales (App.jsx)', () => {
     test('déclare /cgv et /confidentialite en lazy dans PublicLayout', () => {
-        expect(appSource).toContain("lazy(() => import('./pages/CGV/CGV'))");
-        expect(appSource).toContain("lazy(() => import('./pages/Confidentialite/Confidentialite'))");
+        expect(appSource).toContain("lazyWithRetry(() => import('./pages/CGV/CGV'))");
+        expect(appSource).toContain("lazyWithRetry(() => import('./pages/Confidentialite/Confidentialite'))");
         expect(appSource).toContain('<Route path="/cgv" element={<PublicLayout><CGV /></PublicLayout>} />');
         expect(appSource).toContain('<Route path="/confidentialite" element={<PublicLayout><Confidentialite /></PublicLayout>} />');
         expect(appSource).toContain('<CookieConsent />');

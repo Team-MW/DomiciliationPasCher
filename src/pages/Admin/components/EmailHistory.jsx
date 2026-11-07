@@ -45,7 +45,7 @@ export default function EmailHistory({ logs, clientEmail, onRefresh }) {
         info: emailTypeInfo(log.type),
         source: emailSourceOf(log),
         date: safeDate(log.sent_at),
-        failed: log.status !== 'sent',
+        failed: log.status === 'failed' || log.status === 'error',
     })), [logs]);
 
     const counts = useMemo(() => ({
@@ -71,7 +71,7 @@ export default function EmailHistory({ logs, clientEmail, onRefresh }) {
     const groups = useMemo(() => {
         const out = [];
         for (const r of visible) {
-            const key = r.date ? r.date.toISOString().slice(0, 10) : 'inconnue';
+            const key = r.date ? `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}-${String(r.date.getDate()).padStart(2, '0')}` : 'inconnue'; // jour LOCAL (comme l'intitulé)
             const last = out[out.length - 1];
             if (last && last.key === key) last.items.push(r);
             else out.push({ key, label: r.date ? dayFormatter.format(r.date) : 'Date inconnue', items: [r] });

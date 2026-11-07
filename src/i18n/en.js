@@ -2,6 +2,9 @@ import espaceClient from './espaceClient/index.js';
 
 export default {
   common: {
+    errorTitle: 'This page could not be displayed',
+    errorBody: 'Something went wrong (connection lost or a new version of the site). Please reload the page.',
+    reload: 'Reload the page',
     loading: 'Loading...',
     backToTop: 'Back to top',
     dialogConfirm: 'Confirmation',

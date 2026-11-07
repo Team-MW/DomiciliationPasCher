@@ -2,6 +2,9 @@ import espaceClient from './espaceClient/index.js';
 
 export default {
   common: {
+    errorTitle: 'Cette page n’a pas pu s’afficher',
+    errorBody: 'Un incident est survenu (connexion interrompue ou nouvelle version du site). Rechargez la page.',
+    reload: 'Recharger la page',
     loading: 'Chargement...',
     backToTop: 'Retour en haut',
     dialogConfirm: 'Confirmation',

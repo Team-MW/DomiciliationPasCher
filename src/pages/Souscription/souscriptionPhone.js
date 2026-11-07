@@ -1,17 +1,17 @@
 /**
  * Téléphone du tunnel (champ « 🇫🇷 +33 »).
- * Avant : maxLength 10 + « refuse au-delà de 10 chiffres » → « +33 6 12 34 56 78 » devenait « 336123 »,
- * « +33612345678 » devenait un faux numéro, et « 0000000000 » passait la validation.
+ * Fonctionne en collage ET en saisie caractère par caractère : « +33612345678 », « 33612345678 », « 0033 6 12 34 56 78 »
+ * et « +33 (0)6 12 34 56 78 » donnent tous « 0612345678 » (un numéro français national ne commence jamais par « 33 »).
  */
 
-/** Saisie ou collage → chiffres nationaux (préfixe +33 / 0033 / 33 remplacé par 0), 10 chiffres maximum. */
+/** Saisie ou collage → chiffres nationaux (préfixe international remplacé par 0), 10 chiffres maximum. */
 export function normalizeFrenchPhone(raw) {
-    let value = String(raw ?? '').trim();
-    const international = /^(\+|00)\s*33/.test(value);
+    const value = String(raw ?? '').trim();
     let digits = value.replace(/\D/g, '');
+    const international = /^(\+|00)\s*33/.test(value) || /^33/.test(digits);
     if (international) {
         digits = digits.replace(/^(00)?33/, '');
-        digits = digits.startsWith('0') ? digits : `0${digits}`;
+        digits = `0${digits.replace(/^0+/, '')}`;
     }
     return digits.slice(0, 10);
 }

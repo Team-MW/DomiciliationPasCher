@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { parseExtraInfo } from '../../utils/contractLegalFields';
 import { createPortal } from 'react-dom';
 import { appAlert } from '../AppDialog/dialogApi';
 
@@ -13,9 +14,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
 
     const clientName = (() => {
         try {
-            const extra = clientData?.extra_info
-                ? (typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : clientData.extra_info)
-                : {};
+            const extra = parseExtraInfo(clientData?.extra_info);
             return extra.prenom && extra.nom ? `${extra.prenom} ${extra.nom}` : (clientData?.name || '');
         } catch { return clientData?.name || ''; }
     })();

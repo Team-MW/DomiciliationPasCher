@@ -23,7 +23,7 @@ export const SIGNATURE = "L'équipe Domiciliation Pas Cher";
 export function isSingleEmail(value) {
     if (typeof value !== 'string') return false;
     const email = value.trim();
-    return email.length > 0 && email.length <= 254 && /^[^\s@,;<>"'()\\]+@[^\s@,;<>"'()\\]+\.[^\s@,;<>"'()\\]+$/.test(email);
+    return email.length > 0 && email.length <= 254 && /^[^\s@,;<>"()\\]+@[^\s@,;<>"()\\]+\.[^\s@,;<>"()\\]+$/.test(email);
 }
 
 export function escapeHtml(value) {
@@ -171,19 +171,22 @@ export async function ensureEmailLogTable(conn) {
  */
 export async function logEmail(conn, entry) {
     if (!conn) return;
+    const base = [
+        `eml_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        String(entry.to).trim().toLowerCase().slice(0, 500),
+        String(entry.clientEmail || entry.to).trim().toLowerCase().slice(0, 250),
+        entry.type || null,
+        String(entry.subject || '').slice(0, 500),
+        entry.status,
+        entry.error || null,
+        new Date().toISOString(),
+    ];
     try {
         await ensureEmailLogTable(conn);
         await conn.execute(
             'INSERT INTO email_logs (id, to_email, client_email, type, subject, status, error, sent_at, body_text, source, message_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
-                `eml_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                String(entry.to).trim().toLowerCase().slice(0, 500),
-                String(entry.clientEmail || entry.to).trim().toLowerCase().slice(0, 250),
-                entry.type || null,
-                String(entry.subject || '').slice(0, 500),
-                entry.status,
-                entry.error || null,
-                new Date().toISOString(),
+                ...base,
                 entry.bodyText ? String(entry.bodyText).slice(0, EMAIL_LOG_BODY_MAX) : null,
                 entry.source || emailTypeInfo(entry.type).source,
                 entry.messageId ? String(entry.messageId).slice(0, 255) : null,
@@ -191,6 +194,16 @@ export async function logEmail(conn, entry) {
         );
     } catch (err) {
         console.error('[email-log] insert failed:', err?.message || err);
+        // Les colonnes ajoutées (contenu, origine) peuvent manquer si la migration a été refusée : on journalise au moins
+        // l'essentiel (destinataire, objet, statut), pour que l'historique et le plafond public continuent de fonctionner.
+        try {
+            await conn.execute(
+                'INSERT INTO email_logs (id, to_email, client_email, type, subject, status, error, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                base,
+            );
+        } catch (fallbackErr) {
+            console.error('[email-log] insert de repli failed:', fallbackErr?.message || fallbackErr);
+        }
     }
 }
 

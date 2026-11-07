@@ -156,12 +156,12 @@ async function checkSubscriptionFunnel(browser, base) {
     }, draft);
     await context.route('**/*', (route) => (route.request().url().startsWith(base) ? route.continue() : route.abort()));
     let demande = null;
-    let checkoutCalled = false;
+    let checkoutCalls = 0;
     await context.route('**/api/**', async (route) => {
         const url = route.request().url();
         const body = route.request().postData() || '';
         if (url.includes('/api/checkout')) {
-            checkoutCalled = true;
+            checkoutCalls += 1;
             return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: `${base}/?funnel_checkout_ok=1` }) });
         }
         let result = null;
@@ -199,7 +199,10 @@ async function checkSubscriptionFunnel(browser, base) {
         await closeCoach();
         if (!/Vérifiez et payez/.test(await text())) { fail(where, 'le récapitulatif de paiement ne s’affiche pas avec les 3 justificatifs'); return; }
 
-        await page.locator('.sous-pay-btn').click();
+        // L'URL reflète le choix en cours (rechargement / retour de Stripe sans retour à l'ancienne formule).
+        if (!/plan=essentiel/.test(page.url()) || !/frequence=mensuel/.test(page.url())) fail(where, `l’URL ne reflète pas la formule choisie (${page.url()})`);
+        // Double clic : un seul paiement doit être lancé.
+        await page.locator('.sous-pay-btn').dblclick();
         await page.waitForFunction(() => location.search.includes('funnel_checkout_ok'), null, { timeout: 8000 }).catch(() => {});
         if (!demande) fail(where, 'aucune demande envoyée au serveur');
         else {
@@ -208,7 +211,8 @@ async function checkSubscriptionFunnel(browser, base) {
                 if (!/^https:\/\//.test(e[k] || '')) fail(where, `la demande part SANS ${k}`);
             }
         }
-        if (!checkoutCalled) fail(where, 'le paiement Stripe n’est jamais lancé');
+        if (checkoutCalls === 0) fail(where, 'le paiement Stripe n’est jamais lancé');
+        if (checkoutCalls > 1) fail(where, `un double clic lance ${checkoutCalls} paiements`);
         for (const e of errors) fail(where, `erreur JavaScript : ${e}`);
     } finally {
         await context.close();

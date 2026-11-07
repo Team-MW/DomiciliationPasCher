@@ -9,6 +9,7 @@ import { PLAN_CATALOG, annualHt, planAmountTtc, EXTRA_FEES_HT } from '../../data
 import { DOMICILIATION_ADDRESS_ONE_LINE, AGREMENT_NUMBER } from '../../../shared/company.js';
 import { NO_DOCUMENT_FILES, REQUIRED_DOCUMENTS, missingDocumentErrors } from './souscriptionDocuments.js';
 import { normalizeFrenchPhone, isValidFrenchPhone } from './souscriptionPhone.js';
+import { resolvePlanId } from '../../../shared/plans.js';
 import './Souscription.css';
 
 /* ─── 3 phases lisibles pour le client (les 8 écrans restent inchangés) ─── */
@@ -145,9 +146,10 @@ function AddressAutocomplete({ onSelectAddress, value, onChange, error }) {
 
 export default function Souscription() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     usePageMeta({ title: 'Souscription — Domiciliation Pas Cher', path: '/souscription', noindex: true });
-    const planId = searchParams.get('plan') || 'essentiel';
+    // Accepte aussi les noms commerciaux (?plan=confort, ?plan=premium) : avant, tout nom inconnu donnait Essentiel.
+    const planId = resolvePlanId(searchParams.get('plan'));
 
     const defaultData = {
         typeProjet: '',
@@ -195,6 +197,18 @@ export default function Souscription() {
         } catch { /* JSON invalide : on garde la valeur par défaut */ }
         return defaultData;
     });
+
+    // L'URL reflète toujours le choix en cours : un rechargement ou un retour de Stripe ne ramène plus à l'ancienne formule.
+    useEffect(() => {
+        const planParam = data.offre === 'scan' ? 'scan-plus' : (data.offre === 'reexpedition' ? 'physique' : 'essentiel');
+        const freqParam = data.frequence === 'annuel' ? 'annuel' : 'mensuel';
+        if (searchParams.get('plan') === planParam && searchParams.get('frequence') === freqParam) return;
+        const next = new URLSearchParams(searchParams);
+        next.set('plan', planParam);
+        next.set('frequence', freqParam);
+        setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data.offre, data.frequence]);
 
     const CURRENT_STEPS = STEPS;
 
@@ -253,6 +267,8 @@ export default function Souscription() {
 
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    // Verrou anti double paiement : un 2e clic pendant la redirection créait une 2e session Stripe.
+    const payLockRef = useRef(false);
     const [payError, setPayError] = useState('');
     const [success] = useState(false);
     const [coachOpen, setCoachOpen] = useState(false);
@@ -1075,6 +1091,7 @@ export default function Souscription() {
                                     className="sous-pay-btn"
                                     disabled={!data.cgv || loading}
                                     onClick={async () => {
+                                        if (payLockRef.current) return;
                                         setPayError('');
                                         // Filet de sécurité : jamais de dossier créé sans les 3 justificatifs.
                                         const docErrors = missingDocumentErrors(data);
@@ -1083,7 +1100,9 @@ export default function Souscription() {
                                             setErrors(docErrors);
                                             return;
                                         }
+                                        payLockRef.current = true;
                                         setLoading(true);
+                                        let redirecting = false;
                                         try {
                                             const uploadDocument = async (file, label) => {
                                                 try {
@@ -1163,12 +1182,16 @@ export default function Souscription() {
                                                 `${data.prenom} ${data.nom}`,
                                                 { demande_id: demande.id }
                                             );
+                                            redirecting = true; // la page part vers Stripe : le bouton reste bloqué
                                         } catch (err) {
                                             // Dossier non créé ou paiement non lancé : le client doit le savoir et pouvoir réessayer.
                                             console.error('Paiement :', err);
                                             setPayError(`${err?.message || 'Une erreur est survenue.'} Si le problème continue, contactez-nous au 09 60 39 69 07.`);
                                         } finally {
-                                            setLoading(false);
+                                            if (!redirecting) {
+                                                setLoading(false);
+                                                payLockRef.current = false;
+                                            }
                                         }
                                     }}
                                 >

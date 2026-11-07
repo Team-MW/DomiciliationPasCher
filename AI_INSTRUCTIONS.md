@@ -392,3 +392,13 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
 - **2026-11-06 — Pièces d'inscription** : à la validation d'un dossier (`traiterDemande`), les pièces du formulaire (identité recto/verso,
   justificatif de domicile) sont ajoutées à `documents` (`addSignupDocuments`) : elles apparaissent dans « Mes documents » (client)
   et dans la fiche (admin). Les clients validés AVANT cette date ne les ont pas dans `documents` (elles restent dans `extra_info`).
+- **2026-11-06 — 3e vague (relecture de mes propres changements)** :
+  - Une valeur « de remplacement » (marqueur de la liste allégée) ne doit JAMAIS pouvoir être réécrite en base : toute écriture passe par
+    `dropPlaceholders`. Quand on allège une donnée pour l'affichage, bloquer aussi le chemin d'écriture inverse.
+  - Un `@keyframes` utilisé par plusieurs pages va dans `src/index.css` (global). Dans le CSS d'une page chargée à la demande
+    (admin), il n'existe pas ailleurs : ronds figés. Préfixer les animations (`dpc-…`).
+  - Pages en `lazyWithRetry` (jamais `lazy` brut) + `ErrorBoundary` : un chunk introuvable après déploiement ne doit pas donner une page blanche.
+  - Paiement : verrou (`payLockRef`) tant que la redirection n'est pas faite ; l'URL reflète toujours la formule choisie.
+  - Toute lecture d'`extra_info` passe par `parseExtraInfo` (double encodage) : `grep "JSON.parse(.*extra" src` doit rester vide hors de cette fonction.
+  - Un effet qui dépend d'un objet recréé à chaque rendu (`client`) relance tout : mémoïser (`useMemo`) ou dépendre de l'id.
+  - Sous-agents : les trouvailles de « relecture » sont à vérifier ; un test qui ne lit que le source (regex) ne prouve pas le comportement.

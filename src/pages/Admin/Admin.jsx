@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback , useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useUser, useClerk, SignIn, UserButton } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { adminDataService } from '../../services/adminDataService';
@@ -149,6 +149,14 @@ export default function Admin() {
         return () => { cancelled = true; };
     }, [selectedClientId, clients]);
 
+    // Mémoïsé : un nouvel objet à chaque rendu relançait tout le chargement de la fiche (documents, paiements, synchro
+    // Stripe) à chaque lettre tapée dans la recherche.
+    const { selectedClient, detailsLoaded } = useMemo(() => {
+        const listed = selectedClientId ? clients.find((c) => c.id === selectedClientId) : null;
+        const loaded = Boolean(listed && fullClient?.id === listed.id);
+        return { selectedClient: loaded ? { ...listed, ...fullClient } : listed, detailsLoaded: loaded };
+    }, [clients, selectedClientId, fullClient]);
+
     if (!isLoaded) {
         return (
             <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFF', color: '#0f172a', fontWeight: 700 }}>
@@ -202,8 +210,6 @@ export default function Admin() {
         );
     }
 
-    const listedClient = selectedClientId ? clients.find(c => c.id === selectedClientId) : null;
-    const selectedClient = listedClient && fullClient?.id === listedClient.id ? { ...listedClient, ...fullClient } : listedClient;
 
     return (
         <div className="admin-layout">
@@ -255,7 +261,7 @@ export default function Admin() {
 
             <main className="admin-content">
                 <header className="admin-header">
-                    <button className="admin-mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                    <button className="admin-mobile-menu-btn" aria-label="Ouvrir le menu" onClick={() => setIsMobileMenuOpen(true)}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
                     <div className="header-search">
@@ -296,6 +302,7 @@ export default function Admin() {
                     {selectedClientId ? (
                         <DossierClient
                             client={selectedClient}
+                            detailsLoaded={detailsLoaded}
                             onBack={() => setSelectedClientId(null)}
                             onUpdate={refreshData}
                             showConfirm={showConfirm}

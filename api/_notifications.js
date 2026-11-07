@@ -152,8 +152,8 @@ export async function processSouscriptionLeads({ conn, transporter, from, baseUr
     await conn.execute(SOUSCRIPTION_LEADS_DDL);
 
     const res = await conn.execute(
-        'SELECT * FROM souscription_leads WHERE completed_at IS NULL AND unsubscribed_at IS NULL AND reminders_sent < ?',
-        [LEAD_REMINDER_OFFSETS_MS.length],
+        'SELECT * FROM souscription_leads WHERE completed_at IS NULL AND unsubscribed_at IS NULL AND reminders_sent < ? AND created_at > ?',
+        [LEAD_REMINDER_OFFSETS_MS.length, new Date(now.getTime() - LEAD_REMINDER_MAX_AGE_MS).toISOString()],
     );
 
     let sent = 0;

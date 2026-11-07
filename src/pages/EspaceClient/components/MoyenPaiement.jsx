@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseExtraInfo } from '../../../utils/contractLegalFields';
 import { adminDataService } from '../../../services/adminDataService';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
@@ -14,10 +15,7 @@ export default function MoyenPaiement({ clientData, setClientData }) {
             try {
                 let currentStripeId = clientData?.stripeCustomerId;
                 if (!currentStripeId && clientData?.extra_info) {
-                    try {
-                        const extra = JSON.parse(clientData.extra_info);
-                        currentStripeId = extra.stripe_customer_id;
-                    } catch { /* JSON invalide : on garde la valeur par défaut */ }
+                    currentStripeId = parseExtraInfo(clientData.extra_info).stripe_customer_id; // gère le double encodage
                 }
                 if (currentStripeId) {
                     const res = await fetch(`/api/get-payment-method?customerId=${currentStripeId}`);

@@ -193,15 +193,19 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
             amount_mismatch: 'le montant encaissé est inférieur au tarif attendu',
             missing_metadata: 'la session de paiement est incomplète',
             no_db: 'la base de données était indisponible au moment du paiement',
+            client_not_found: 'la fiche du client est introuvable',
+            not_paid: 'la session de paiement n’est pas réglée',
         };
+        const unknownClient = /@example\.invalid$/i.test(String(email || ''));
+        const who2 = nom || (unknownClient ? 'client inconnu' : email);
         const why = reasons[notes] || `cause : ${notes || 'inconnue'}`;
         built = {
-            subject: `⚠ Paiement reçu mais dossier NON activé — ${who}`,
-            text: `Un paiement a été encaissé mais le dossier n'a pas pu être activé automatiquement : ${why}.\n\nSession Stripe : ${documentName || '—'}\nClient : ${who}\n\nVérifiez le paiement dans Stripe puis traitez le dossier à la main : ${adminUrl}`,
+            subject: `Paiement reçu, dossier non activé : ${who2}`,
+            text: `Un paiement a été encaissé mais le dossier n'a pas pu être activé automatiquement : ${why}.\n\nSession Stripe : ${documentName || '—'}\nClient : ${who2}\n\nVérifiez le paiement dans Stripe puis traitez le dossier à la main : ${adminUrl}`,
             html: `
                 <h2 style="margin-top:0;color:#B91C1C;">Paiement reçu, dossier non activé</h2>
                 <p>Un client a payé mais son dossier n'a pas pu être activé automatiquement : <strong>${escapeHtml(why)}</strong>.</p>
-                ${box([field('Client', who), field('Session Stripe', documentName)].join(''))}
+                ${box([field('Client', who2), field('Session Stripe', documentName)].join(''))}
                 <p>Vérifiez le paiement dans Stripe, puis validez ou traitez le dossier à la main.</p>
                 ${emailButton(adminUrl, 'Ouvrir l’administration', '#0f172a')}`,
         };
@@ -232,7 +236,7 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
         subject: String(built.subject || '').replace(/[\r\n]+/g, ' ').trim(),
         to,
         logType: type || 'welcome',
-        clientEmail: type === 'contact_advisor' ? undefined : email,
+        clientEmail: email, // aussi pour contact_advisor : sinon le plafond par adresse ne le voyait jamais
         // Réponses clients → boîte pro (sauf lead/conseiller où l'on répond au prospect).
         replyTo: CONTACT_INBOX_TYPES.has(type) ? email : CONTACT_EMAIL,
         adminCopy,

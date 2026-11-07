@@ -1,12 +1,12 @@
 import { getDbConn } from './_db.js';
 import { requireUser, getOwnership, sendServerError } from './_auth.js';
-import { sanitizeClientExtra } from './_client-extra.js';
+import { sanitizeClientExtra, dropPlaceholders } from './_client-extra.js';
 import { CONTRACT_VERSION, hasSignedContract } from '../shared/contract.js';
 
 /** Les deux documents signables : clé de preuve (signature_logs.contract_ref) et clés d'extra_info concernées. */
 const SIGNED_KINDS = {
     contract: { ref: 'contrat_domiciliation', keys: /^contract(Signed|SignedAt|SignedUrl|SignatureUrl)$/, flag: 'contractSigned', signedAt: 'contractSignedAt' },
-    procuration: { ref: 'procuration_postale', keys: /^procuration(Signed|SignedAt|SignedUrl|SignatureUrl)$/, flag: 'procurationSigned', signedAt: 'procurationSignedAt' },
+    procuration: { ref: 'procuration_postale', keys: /^procuration(Signed|SignedAt|SignedUrl|SignatureUrl|Data)$/, flag: 'procurationSigned', signedAt: 'procurationSignedAt' },
 };
 
 /**
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
         }
         let cleanExtra;
         if (user.isAdmin) {
-            cleanExtra = { ...extraInfo };
+            cleanExtra = dropPlaceholders(extraInfo);
         } else {
             cleanExtra = sanitizeClientExtra(extraInfo, { allowSignature: allowedKinds.length > 0 });
             for (const [kind, def] of Object.entries(SIGNED_KINDS)) {

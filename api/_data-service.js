@@ -2,7 +2,7 @@ import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward, PRICING_GRID } 
 import { computeMissingDocuments } from '../shared/documentRequest.js';
 import { SOUSCRIPTION_LEADS_DDL } from '../shared/emailTables.js';
 import { ensureEmailLogTable } from './_email-kit.js';
-import { lightenExtraInfo, isTrustedDocumentUrl } from './_client-extra.js';
+import { lightenExtraInfo, isTrustedDocumentUrl, dropPlaceholders } from './_client-extra.js';
 
 /** Pièces déposées dans le formulaire d'inscription : clé de l'URL, clé du nom d'origine, libellé affiché dans « Mes documents ». */
 const SIGNUP_DOCUMENTS = [
@@ -10,6 +10,16 @@ const SIGNUP_DOCUMENTS = [
     ['pieceIdentiteVersoUrl', "Pièce d'identité (verso)"],
     ['justificatifDomicileUrl', 'Justificatif de domicile'],
 ];
+
+/** Type MIME d'une pièce : préfixe data:… sinon extension du lien (jamais « image/png » par défaut pour un PDF). */
+export function mimeOfDocumentUrl(url) {
+    const data = /^data:([a-z]+\/[a-z0-9.+-]+)[;,]/i.exec(url);
+    if (data) return data[1].toLowerCase();
+    if (/\.pdf(\?|$)/i.test(url)) return 'application/pdf';
+    if (/\.jpe?g(\?|$)/i.test(url)) return 'image/jpeg';
+    if (/\.webp(\?|$)/i.test(url)) return 'image/webp';
+    return 'image/png';
+}
 
 const BOOKING_STATUSES = new Set(['en_attente', 'confirmée', 'refusée', 'annulée']);
 const REEXPEDITION_STATUSES = new Set(['en_attente', 'expediee', 'refusee']);
@@ -167,7 +177,8 @@ export function createDataService({
         },
 
         /** Fusionne des champs dans extra_info (clients, sinon demandes). */
-        async updateClientExtraInfo(clientId, extraData) {
+        async updateClientExtraInfo(clientId, rawExtraData) {
+            const extraData = dropPlaceholders(rawExtraData); // le marqueur de la liste allégée n'est jamais un vrai fichier
             const res = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId]);
             if (res.rows[0]) {
                 const existing = parseExtraInfo(res.rows[0].extra_info);
@@ -202,7 +213,7 @@ export function createDataService({
                 try {
                     await conn.execute(sql, params);
                 } catch (err) {
-                    if (/doesn't exist|unknown table|unknown column/i.test(err?.message || '')) return;
+                    if (/doesn't exist|unknown table|unknown column|not found|errno 1146|errno 1054/i.test(err?.message || '')) return;
                     console.error(`Suppression client : ${label} non effectuée`, err?.message || err);
                     report.errors.push(label);
                 }
@@ -415,7 +426,13 @@ export function createDataService({
                 clientId = existingRow.id;
                 // Réactivation : on FUSIONNE avec la fiche existante (signatures, identifiants Stripe, grille
                 // tarifaire…) au lieu de la remplacer, et on garde le compte de connexion déjà lié.
-                extraInfoStr = JSON.stringify({ ...parseExtraInfo(existingRow.extra_info), ...finalExtraInfo });
+                const reactivated = { ...parseExtraInfo(existingRow.extra_info), ...finalExtraInfo };
+                // Anciennes données d'un abonnement terminé : à ne pas conserver (sinon plus de relance de paiement, et
+                // le dossier passe pour « déjà payé via Stripe »). La signature du contrat, elle, est conservée.
+                for (const stale of ['stripe_subscription_id', 'domicile_terminated_at', 'payment_issue_since']) {
+                    if (!(stale in finalExtraInfo)) delete reactivated[stale];
+                }
+                extraInfoStr = JSON.stringify(reactivated);
                 const keptClerkId = d.clerkId || existingRow.clerkId || '';
                 await conn.execute(
                     `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = ?, address = ?, phone = ?
@@ -431,7 +448,8 @@ export function createDataService({
                 );
             }
 
-            const isStripePayment = extraInfoStr.includes('stripe_customer_id') || extraInfoStr.includes('stripe_session_id');
+            const demandeInfoStr = JSON.stringify(finalExtraInfo);
+            const isStripePayment = demandeInfoStr.includes('stripe_customer_id') || demandeInfoStr.includes('stripe_session_id');
             // Paiement initial local uniquement pour un ajout manuel : pour un client Stripe,
             // la synchronisation remonte le vrai paiement (0 € avec un code promo, par exemple).
             if (!isStripePayment) {
@@ -531,7 +549,7 @@ export function createDataService({
                 await ensureEmailLogTable(conn);
                 const placeholders = addresses.map(() => '?').join(', ');
                 const res = await conn.execute(
-                    `SELECT * FROM email_logs WHERE to_email IN (${placeholders}) OR client_email IN (${placeholders}) ORDER BY sent_at DESC LIMIT 300`,
+                    `SELECT id, to_email, client_email, type, subject, status, error, sent_at, LEFT(body_text, 6000) AS body_text, source, message_id FROM email_logs WHERE to_email IN (${placeholders}) OR client_email IN (${placeholders}) ORDER BY sent_at DESC LIMIT 150`,
                     [...addresses, ...addresses]
                 );
                 return res.rows || [];
@@ -676,7 +694,7 @@ export function createDataService({
                 await service.addDocument(clientId, {
                     name: label,
                     size: 'Fourni à l’inscription',
-                    type: /\.pdf(\?|$)/i.test(url) ? 'application/pdf' : 'image/png',
+                    type: mimeOfDocumentUrl(url),
                     owner: 'client',
                     folder: 'Documents',
                     url,

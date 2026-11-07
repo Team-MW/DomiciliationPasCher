@@ -55,7 +55,7 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
     if (clientData?.amount) {
         planInfo.price = `${clientData.amount} €`;
         try {
-            const extra = typeof clientData.extra_info === 'string' ? JSON.parse(clientData.extra_info) : (clientData.extra_info || {});
+            const extra = parseExtraInfo(clientData.extra_info);
             planInfo.period = extra?.frequence === 'annuel' ? t('espaceClient.subscription.periodYearTtc') : t('espaceClient.subscription.periodMonthTtc');
         } catch (e) {
             planInfo.period = t('espaceClient.subscription.periodTtc');
