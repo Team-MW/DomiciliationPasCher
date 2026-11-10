@@ -18,13 +18,6 @@ const CARD_ICONS = {
             <line x1="8" y1="13" x2="13" y2="13" />
         </svg>
     ),
-    dissolution: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18" />
-            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-        </svg>
-    ),
 };
 
 export default function CreationEntrepriseSection() {
@@ -56,7 +49,7 @@ export default function CreationEntrepriseSection() {
                     <p className="creation-subtitle">{tr.creation.subtitle}</p>
                 </div>
 
-                {/* 3 cartes cliquables → Calendly */}
+                {/* 2 cartes cliquables → Calendly */}
                 <div className="creation-grid animate-in">
                     {tr.creation.cards.map((card, i) => (
                         <Link

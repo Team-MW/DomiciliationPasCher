@@ -420,3 +420,13 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
 - Cause 2 : seule issue = le code d'email de Clerk (souvent en spam / jamais reçu). Désormais `api/_email-verification.js` : code à 6 chiffres envoyé par NOTRE SMTP (historique visible, type `email_verification`), haché, 10 min, 5 essais, 1 envoi/45 s, 5/heure, puis `emailAddresses.updateEmailAddress(id, {verified:true})`. Les méthodes `sendEmailVerificationCode` / `confirmEmailVerificationCode` sont les SEULES permises sans email vérifié (data.js, avant le 403).
 - Admin : `verifyClerkEmail` (proposé après « Relier le compte » si l'email n'est pas vérifié). Ne jamais assouplir la règle « email vérifié obligatoire » côté serveur (usurpation de dossier).
 - À contrôler côté tableau de bord Clerk (non accessible d'ici) : Configure → Email, phone, username → Email address → « Verify at sign-up » activé, sinon des comptes s'ouvrent sans vérification.
+
+### Admins en dur, prix de l'ancienne grille, courrier déposé (2026-11-10)
+- `shared/adminEmails.js` (BUILT_IN_ADMIN_EMAILS) : admins toujours valables, FUSIONNÉS avec VITE_ADMIN_EMAILS (navigateur ET serveur). Pour ajouter un admin permanent : l'ajouter là.
+- Abonnement : la carte de la formule ACTUELLE affiche le prix du client (clientPlanPricing : ancienne grille 20 € HT), les autres formules le tarif en vigueur (un changement passe sur la grille actuelle, cf. api/change-plan.js) + note `switchLegacyNote`. Jamais deux prix pour la même formule.
+- Courrier déposé (admin → addClientMail) : le client est prévenu immédiatement (8-20 h Paris, pas si prévenu < 10 min, jamais si résilié) via processMailNotifications({clientId, minGapMs}) ; le cron horaire regroupe le reste. Le cron horaire ne tournait pas avant le correctif getParisHour : tant qu'il n'est pas déployé, aucun récap courrier ne part.
+
+### Cohérence des textes et des chiffres (2026-11-10)
+- Quand une carte / un élément est retiré d'une liste, relire l'en-tête de la section : « trois », « fermer »… (cas de la carte Dissolution sur /tarifs). Contrôle rapide : `grep -E "\b(deux|trois|quatre|cinq|[2-9]) (formules|étapes|accompagnements|…)"` dans src/i18n et comparer avec la longueur des tableaux.
+- `clients.renewal` vaut la date de souscription (jamais mise à jour) : ne JAMAIS l'afficher comme échéance. Utiliser `shared/renewal.js` → `nextRenewalIso(since, frequence)` (espace client, export Excel).
+- Prix dans les textes : 16/24/38 € HT, annuel 153,60/230,40/364,80, scan 0,50 €, réexp 3 €, colis 3 €, stockage 2 €/j après 15 j, salle 25/75/140 € : tous issus de shared/plans.js et src/utils/meetingPrices.js. Vérifié cohérent dans fr/en/ru et les pages le 2026-11-10.

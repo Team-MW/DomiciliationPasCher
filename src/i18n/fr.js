@@ -1294,9 +1294,9 @@ export default {
 },
   creation: {
     badge: '✨ Conseil et accompagnement',
-    title: 'Créer, conseiller, fermer :',
+    title: 'Créer ou se faire conseiller :',
     titleHighlight: 'on vous accompagne',
-    subtitle: "Trois accompagnements pour chaque étape de la vie de votre société. Choisissez le vôtre et réservez un échange de 30 minutes avec un conseiller.",
+    subtitle: "Deux accompagnements pour bien démarrer votre société. Choisissez le vôtre et réservez un échange de 30 minutes avec un conseiller.",
     cardCta: 'Prendre rendez-vous',
     cards: [
       {
@@ -1324,18 +1324,6 @@ export default {
           'Feuille de route et budget détaillés',
         ],
         tag: '🎁 Premier échange offert',
-      },
-      {
-        id: 'dissolution',
-        title: "Dissolution d'entreprise",
-        desc: 'Fermez votre société proprement, sans oubli administratif.',
-        features: [
-          'Dissolution et liquidation amiable',
-          'Procès-verbaux et formalités juridiques',
-          'Annonces légales de clôture',
-          'Radiation définitive au greffe',
-        ],
-        tag: "🛡️ Suivi jusqu'à la radiation",
       },
     ],
     reassurance: [

@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 
 import { parseExtraInfo } from './contractLegalFields';
+import { nextRenewalIso } from '../../shared/renewal.js';
 const TYPE_PROJET_LABELS = {
     creation: "Création d'entreprise",
     transfert: 'Transfert de siège',
@@ -58,7 +59,7 @@ function clientToRow(client) {
         'Formule': client.plan || '',
         'Statut': STATUS_LABELS[client.status] || client.status || '',
         'Date inscription': formatDate(client.since),
-        'Date renouvellement': formatDate(client.renewal),
+        'Prochaine échéance': formatDate(nextRenewalIso(client.since, extra.frequence) || ''),
         'Type projet': TYPE_PROJET_LABELS[extra.typeProjet] || extra.typeProjet || '',
         'Forme juridique': extra.formeJuridique || '',
         'Nom société': extra.nomSociete || client.company || '',

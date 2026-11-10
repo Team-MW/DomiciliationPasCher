@@ -9,6 +9,8 @@ import { getAuthUser, getOwnership, userOwnsStripeCustomer, isAdminEmail } from 
 import { sanitizeClientExtra, isSafeDocumentUrl, isTrustedDocumentUrl } from './_client-extra.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { fulfillCheckoutSession } from './_checkout-fulfillment.js';
+import { processMailNotifications } from './_notifications.js';
+import { getTransporter, getSmtpConfig } from './_smtp.js';
 import { sendEmailVerificationCode, confirmEmailVerificationCode, markClerkEmailVerified, VerificationError } from './_email-verification.js';
 import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
 import { parseExtraInfo } from '../src/utils/contractLegalFields.js';
@@ -338,7 +340,10 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
                 if (NEVER_EXPOSED.has(method) || !isServiceMethod) {
                     return res.status(404).json({ error: 'Méthode inconnue' });
                 }
-                return res.status(200).json({ result: await service[method](...args) ?? null });
+                const adminResult = await service[method](...args);
+                // Courrier déposé : le client est prévenu tout de suite (sans attendre le récap horaire), de 8 h à 20 h (Paris).
+                if (method === 'addClientMail') await notifyMailDeposit(conn, args[0], req);
+                return res.status(200).json({ result: adminResult ?? null });
             }
 
             const isClientMethod = Object.prototype.hasOwnProperty.call(CLIENT_METHODS, method)
@@ -373,6 +378,20 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
             return res.status(500).json({ error: 'Erreur serveur, réessayez plus tard.' });
         }
     };
+}
+
+/** Ne lève jamais : le courrier est déjà enregistré ; au pire, le récap horaire prévient le client. */
+async function notifyMailDeposit(conn, clientId, req) {
+    try {
+        const parisHour = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Paris' }).formatToParts(new Date()).find((p) => p.type === 'hour')?.value);
+        if (Number.isFinite(parisHour) && (parisHour < 8 || parisHour > 20)) return;
+        const transporter = getTransporter();
+        if (!transporter) return;
+        const baseUrl = readServerEnv('PUBLIC_SITE_URL') || getBaseUrl(req);
+        await processMailNotifications({ conn, transporter, from: getSmtpConfig()?.from, baseUrl, clientId, minGapMs: 10 * 60 * 1000 });
+    } catch (err) {
+        console.error('[data] notification courrier immédiate échouée:', err?.message || err);
+    }
 }
 
 async function deleteClerkUser(clerkId) {

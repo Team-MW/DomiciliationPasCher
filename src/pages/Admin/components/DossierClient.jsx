@@ -334,7 +334,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             const fileInput = document.getElementById('mail-file-input');
             if (fileInput) fileInput.value = '';
 
-            showAlert("Courrier ajouté. Le client recevra un email récapitulatif dans l'heure (un seul email pour tous les courriers du même passage).");
+            showAlert("Courrier ajouté. Le client est prévenu par email (de 8 h à 20 h). Si vous déposez plusieurs courriers à la suite, un seul récapitulatif part pour les suivants, dans l'heure.");
         } catch (err) {
             console.error("Erreur ajout courrier:", err);
             appAlert("Erreur de préparation : " + err.message);

@@ -1,5 +1,6 @@
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { readServerEnv } from './_env.js';
+import { BUILT_IN_ADMIN_EMAILS } from '../shared/adminEmails.js';
 
 /**
  * Authentification des handlers API.
@@ -44,7 +45,8 @@ export function getAdminEmails() {
 
 export function isAdminEmail(email) {
     if (!email) return false;
-    return getAdminEmails().includes(String(email).trim().toLowerCase());
+    const clean = String(email).trim().toLowerCase();
+    return BUILT_IN_ADMIN_EMAILS.includes(clean) || getAdminEmails().includes(clean);
 }
 
 function readBearer(req) {

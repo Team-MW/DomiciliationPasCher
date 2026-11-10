@@ -48,14 +48,22 @@ async function ensureMailNotifiedColumn(conn) {
 }
 
 /** Un seul email récapitulatif par client pour tous les courriers enregistrés depuis le dernier passage. */
-export async function processMailNotifications({ conn, transporter, from, baseUrl }) {
+export async function processMailNotifications({ conn, transporter, from, baseUrl, clientId = null, minGapMs = 0 }) {
     if (!conn || !transporter) return { mailDigestsSent: 0 };
     await ensureMailNotifiedColumn(conn);
+
+    // Envoi immédiat après un dépôt : un seul client, et pas si on vient de le prévenir (le récap horaire regroupera la suite).
+    if (clientId && minGapMs > 0) {
+        const last = await conn.execute("SELECT MAX(notified_at) AS last FROM mail WHERE clientId = ? AND notified_at LIKE '20%'", [clientId]);
+        const lastAt = last.rows?.[0]?.last;
+        if (lastAt && Date.now() - new Date(lastAt).getTime() < minGapMs) return { mailDigestsSent: 0 };
+    }
 
     const res = await conn.execute(
         `SELECT m.id, m.clientId, m.type, m.\`from\` AS mailFrom, m.date, m.status, m.preview, c.email, c.name, c.plan, c.status AS clientStatus, c.extra_info
          FROM mail m JOIN clients c ON c.id = m.clientId
-         WHERE m.notified_at IS NULL`
+         WHERE m.notified_at IS NULL${clientId ? ' AND m.clientId = ?' : ''}`,
+        clientId ? [clientId] : [],
     );
 
     const byClient = new Map();

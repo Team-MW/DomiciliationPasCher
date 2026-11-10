@@ -1294,9 +1294,9 @@ export default {
 },
   creation: {
     badge: '✨ Advice and support',
-    title: 'Start, advise, close:',
+    title: 'Start or get advice:',
     titleHighlight: 'we support you',
-    subtitle: 'Three services for every stage in the life of your company. Pick yours and book a 30-minute call with an advisor.',
+    subtitle: 'Two services to get your company off to a good start. Pick yours and book a 30-minute call with an advisor.',
     cardCta: 'Book an appointment',
     cards: [
       {
@@ -1324,18 +1324,6 @@ export default {
           'Detailed roadmap and budget',
         ],
         tag: '🎁 First call free',
-      },
-      {
-        id: 'dissolution',
-        title: 'Company dissolution',
-        desc: 'Close your company properly, without missing any paperwork.',
-        features: [
-          'Amicable dissolution and liquidation',
-          'Minutes and legal formalities',
-          'Closing legal notices',
-          'Final deregistration at the registry',
-        ],
-        tag: '🛡️ Support until deregistration',
       },
     ],
     reassurance: [

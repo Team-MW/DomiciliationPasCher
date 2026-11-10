@@ -4,6 +4,7 @@ import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { PLAN_CATALOG, resolvePlanId, clientPlanPricing } from '../../../data/plans.js';
 import { parseExtraInfo } from '../../../utils/contractLegalFields';
+import { nextRenewalIso } from '../../../../shared/renewal.js';
 import { appConfirm } from '../../../components/AppDialog/dialogApi';
 
 const PLAN_I18N_KEY = {
@@ -22,8 +23,12 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
     const status = clientData?.status || 'actif';
     const currentPlanId = resolvePlanId(plan);
     const canSwitch = Boolean(clientData?.id && clientData?.email && status !== 'echec_paiement' && status !== 'impayé');
-    const renewalDate = clientData?.renewal || t('espaceClient.subscription.autoRenew');
     let sinceDate = clientData?.since || 'Non spécifié';
+    // Échéance calculée depuis la souscription et la fréquence : la colonne `renewal` de la base vaut la date de souscription.
+    const renewalIso = nextRenewalIso(clientData?.since, parseExtraInfo(clientData?.extra_info)?.frequence);
+    const renewalDate = renewalIso
+        ? new Date(`${renewalIso}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+        : t('espaceClient.subscription.autoRenew');
 
     if (sinceDate !== 'Non spécifié') {
         const parsedDate = new Date(sinceDate);
@@ -145,7 +150,7 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
                             )}
                         </div>
                         <div>
-                            <span style={{ fontSize: '22px', fontWeight: 900, color: '#0f172a' }}>{catalog.ht} €</span>
+                            <span style={{ fontSize: '22px', fontWeight: 900, color: '#0f172a' }}>{isCurrent ? clientPlanPricing(catalog.id, clientExtra).ht : catalog.ht} €</span>
                             <span style={{ fontSize: '13px', color: 'var(--ec-text-sub)', fontWeight: 600, marginLeft: '4px' }}>
                                 {t('espaceClient.subscription.periodMonthHt')}
                             </span>
@@ -317,6 +322,9 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
                                 ×
                             </button>
                         </div>
+                        {clientPlanPricing(currentPlanId, clientExtra).legacy && (
+                            <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#64748b' }}>{t('espaceClient.subscription.switchLegacyNote')}</p>
+                        )}
                         {feedback && (
                             <div style={{
                                 margin: '16px 0',

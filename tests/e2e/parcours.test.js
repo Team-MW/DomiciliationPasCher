@@ -466,22 +466,26 @@ describe('9. Courrier et tâches automatiques (cron horaire)', () => {
         expect(rows("SELECT notified_at FROM mail WHERE id = 'old1'")[0].notified_at).toBe('legacy');
     });
 
-    it('nouveau courrier : un seul email récapitulatif au client, jamais deux fois', async () => {
-        const add = await data('admin', 'addClientMail', state.clientId, { type: 'Lettre recommandée', from: 'URSSAF', company: 'RW PATRIMOINE' });
-        expect(add.code).toBe(200);
+    it('nouveau courrier : le client est prévenu tout de suite (un seul email), le cron horaire ne le renvoie pas', async () => {
         const before = sentTo(CLIENT_EMAIL).length;
-        const r1 = await runCron('2026-11-09T11:00:00Z');
-        expect(r1.body.mailDigestsSent).toBe(1);
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-11-09T10:00:00Z')); // 11 h à Paris
+        let add;
+        try { add = await data('admin', 'addClientMail', state.clientId, { type: 'Lettre recommandée', from: 'URSSAF', company: 'RW PATRIMOINE' }); } finally { vi.useRealTimers(); }
+        expect(add.code).toBe(200);
         const mail = sentTo(CLIENT_EMAIL).at(-1);
         expect(sentTo(CLIENT_EMAIL).length).toBe(before + 1);
         expect(mail.html).toMatch(/URSSAF|recommandée/i);
-        const r2 = await runCron('2026-11-09T12:00:00Z');
-        expect(r2.body.mailDigestsSent).toBe(0);
+        const r1 = await runCron('2026-11-09T11:00:00Z');
+        expect(r1.body.mailDigestsSent).toBe(0);
+        expect(sentTo(CLIENT_EMAIL).length).toBe(before + 1);
         expect((await data('user_wr', 'getClientMail', state.clientId)).result.map((m) => m.from)).toContain('URSSAF');
     });
 
     it('la nuit (3 h à Paris) : aucun email de courrier ni de relance ; le courrier attend le matin', async () => {
-        await data('admin', 'addClientMail', state.clientId, { type: 'Colis', from: 'Amazon' });
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-11-10T01:00:00Z')); // 2 h à Paris : pas d'envoi immédiat
+        try { await data('admin', 'addClientMail', state.clientId, { type: 'Colis', from: 'Amazon' }); } finally { vi.useRealTimers(); }
         const before = ext.outbox.length;
         const night = await runCron('2026-11-10T02:00:00Z'); // 3 h à Paris
         expect(night.body.mailDigestsSent ?? 0).toBe(0);

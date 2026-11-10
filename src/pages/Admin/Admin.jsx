@@ -19,6 +19,8 @@ import CreateClientModal from './components/CreateClientModal';
 import { DemandeDetailsModal } from './components/DemandesTab';
 
 import { isAdminEmail } from '../../utils/adminEmail';
+import EmailVerifyPanel from '../EspaceClient/components/EmailVerifyPanel';
+import { useTranslation } from '../../i18n/LanguageContext';
 export default function Admin() {
     const { user, isLoaded } = useUser();
     const { signOut } = useClerk();
@@ -49,6 +51,8 @@ export default function Admin() {
     const showConfirm = useCallback((message, options = {}) => appConfirm(message, options), []);
     const showAlert = useCallback((message, options = {}) => appAlert(message, options), []);
 
+    const { t } = useTranslation();
+    const [emailUnverified, setEmailUnverified] = useState(false);
     const userEmail = user?.primaryEmailAddress?.emailAddress;
     const isAdmin = isAdminEmail(userEmail);
 
@@ -84,6 +88,8 @@ export default function Admin() {
                 }
             });
             setLoadErrors(failed);
+            // Compte admin dont l'email n'est pas vérifié : le serveur refuse tout ; on propose la vérification par code.
+            setEmailUnverified(results.some((res) => res.status === 'rejected' && String(res.reason?.message || '').includes('EMAIL_NOT_VERIFIED')));
 
             // Pastilles « nouveau » : localStorage peut être indisponible (navigation privée).
             const seen = (key) => {
@@ -185,6 +191,19 @@ export default function Admin() {
                     <button onClick={() => navigate('/')} style={{ marginTop: '24px', width: '100%', padding: '12px', background: 'transparent', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', color: '#64748b', fontWeight: '600' }}>
                         Retour au site
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (isAdmin && emailUnverified) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc', padding: 20, textAlign: 'center' }}>
+                <div style={{ maxWidth: 380, width: '100%', display: 'grid', gap: 12 }}>
+                    <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', fontFamily: 'Outfit, sans-serif' }}>Vérifiez votre adresse email</h1>
+                    <p style={{ color: '#64748b', fontSize: 15, margin: 0 }}>{userEmail} n’est pas encore vérifiée. Saisissez le code que nous venons de vous envoyer par email.</p>
+                    <EmailVerifyPanel t={t} onVerified={() => window.location.reload()} />
+                    <button onClick={handleLogout} style={{ padding: 12, background: 'transparent', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', color: '#64748b', fontWeight: 600 }}>Déconnexion</button>
                 </div>
             </div>
         );
