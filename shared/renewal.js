@@ -1,3 +1,4 @@
+import { parisDateIso } from './parisDate.js';
 import { addCalendarMonths } from './paymentGrace.js';
 
 /**
@@ -9,7 +10,7 @@ import { addCalendarMonths } from './paymentGrace.js';
  * @param {string} [todayIso] YYYY-MM-DD (défaut : aujourd'hui)
  * @returns {string|null} YYYY-MM-DD
  */
-export function nextRenewalIso(sinceIso, frequence, todayIso = new Date().toISOString().slice(0, 10)) {
+export function nextRenewalIso(sinceIso, frequence, todayIso = parisDateIso()) {
     const since = String(sinceIso || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(since)) return null;
     const step = frequence === 'annuel' ? 12 : 1;

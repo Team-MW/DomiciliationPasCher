@@ -440,6 +440,17 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
 ### Jamais de blocage après inscription (nov. 2026)
 - Règle du propriétaire : quelqu'un qui a payé doit TOUJOURS pouvoir créer son compte et entrer. Le serveur exige toujours un email vérifié (sinon vol de dossier), mais la vérification se fait seule :
   1. lien « Créer mon accès » de nos emails = `signupUrl()` avec `?v=` (HMAC de l'adresse, `api/_signup-proof.js`), gardé par `/inscription` dans `localStorage.dpc_signup_proof` ;
-  2. ou session Stripe payée avec la même adresse (`last_successful_session`, posé au retour de Checkout) ;
-  → `verifyEmailWithProof` valide le compte Clerk sans code. Le code par email (`EmailVerifyPanel`) n'est qu'un dernier recours.
+  → `verifyEmailWithProof` valide le compte Clerk sans code.
+  2. JAMAIS le paiement Stripe comme preuve : Stripe ne vérifie pas l'adresse saisie. Faille trouvée à l'audit du 10/11/2026 : payer 1 mois avec l'adresse d'un client sans compte suffisait à ouvrir son dossier. Le code par email (`EmailVerifyPanel`) n'est qu'un dernier recours.
 - Tout nouveau lien vers `/inscription` dans un email doit passer par `signupUrl(baseUrl, email)` (jamais une URL écrite à la main, elle n'aurait pas la preuve).
+
+### Audit du 10/11/2026 (tests/audit/*, 4 agents) — leçons
+- Notifications courrier : réserver les lignes (`notified_at = 'sending:<ms>:<id>'`) AVANT d'envoyer, libérer en cas d'échec ; sinon double email (double clic, cron + dépôt).
+- Dates « du jour » : `parisDateIso()` / `parisDaysBetween()` (shared/parisDate.js), jamais `toISOString().split('T')[0]` (veille entre 0 h et 2 h). Relances en jours calendaires de Paris.
+- `frequence` n'est modifiable qu'à la souscription (`sanitizeClientExtra(…, { allowFrequence: true })` dans addDemande seulement) : elle fixe le prix.
+- Réactivation (traiterDemande) : `since` repart d'aujourd'hui.
+- change-plan : JSON illisible → 500 sans toucher Stripe ; alignGrid = même formule uniquement.
+- Code de vérification : l'essai est consommé atomiquement AVANT la comparaison (anti-rafale).
+- `callDataApi` ne réessaie pas les 429 (refus volontaires à afficher) ; `syncStripePayments` lève une erreur au lieu de renvoyer « aucune facture ».
+- Dates affichées au client dans SA langue (`lang` → fr-FR / en-GB / ru-RU), jamais 'fr-FR' en dur ; date AAAA-MM-JJ lue à midi (`T12:00:00`).
+- Toute lecture de localStorage dans un chargement critique est entourée de try/catch (stockage bloqué = SecurityError).

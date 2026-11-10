@@ -1,3 +1,4 @@
+import { parisDateIso } from '../shared/parisDate.js';
 import { PLAN_CATALOG, resolvePlanId, canRequestPhysicalForward, PRICING_GRID } from '../shared/plans.js';
 import { computeMissingDocuments } from '../shared/documentRequest.js';
 import { SOUSCRIPTION_LEADS_DDL } from '../shared/emailTables.js';
@@ -91,7 +92,7 @@ export function createDataService({
 
             // Les clients historiques ont un id numérique (horodatage) : on garde ce format.
             const id = `${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-            const since = clientData.since || new Date().toISOString().split('T')[0];
+            const since = clientData.since || parisDateIso();
             const displayName = (clientData.name || '').trim()
                 || [finalExtraInfo.prenom, finalExtraInfo.nom].filter(Boolean).join(' ').trim();
             const company = clientData.company || finalExtraInfo.nomSociete || '';
@@ -412,7 +413,7 @@ export function createDataService({
 
             const existingClientRes = await conn.execute('SELECT id, extra_info, clerkId, clerkStatus FROM clients WHERE email = ?', [d.email]);
             let clientId;
-            const since = new Date().toISOString().split('T')[0];
+            const since = parisDateIso();
 
             const finalExtraInfo = normalizeSubscriptionExtra(parseExtraInfo(d.extra_info));
             const displayName = [finalExtraInfo.prenom, finalExtraInfo.nom].filter(Boolean).join(' ').trim()
@@ -435,9 +436,10 @@ export function createDataService({
                 extraInfoStr = JSON.stringify(reactivated);
                 const keptClerkId = d.clerkId || existingRow.clerkId || '';
                 await conn.execute(
-                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = ?, address = ?, phone = ?
+                    // Réactivation = nouvel abonnement : la date de souscription repart d'aujourd'hui (échéance, quotas).
+                    `UPDATE clients SET name = ?, company = ?, city = ?, plan = ?, status = 'actif', since = ?, renewal = ?, extra_info = ?, clerkId = ?, clerkStatus = ?, address = ?, phone = ?
                      WHERE id = ?`,
-                    [displayName, d.company, d.city || 'À définir', d.plan, since, extraInfoStr, keptClerkId, keptClerkId ? 'linked' : (existingRow.clerkStatus || 'invitation_sent'), address, phone, clientId]
+                    [displayName, d.company, d.city || 'À définir', d.plan, since, since, extraInfoStr, keptClerkId, keptClerkId ? 'linked' : (existingRow.clerkStatus || 'invitation_sent'), address, phone, clientId]
                 );
             } else {
                 clientId = `${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
@@ -630,7 +632,7 @@ export function createDataService({
 
         async addClientMail(clientId, data) {
             const id = newId('mail_');
-            const date = new Date().toISOString().split('T')[0];
+            const date = parisDateIso();
             const row = {
                 id,
                 clientId,
@@ -706,7 +708,7 @@ export function createDataService({
 
         async addDocument(clientId, fileInfo) {
             const id = newId('doc_');
-            const uploadedAt = new Date().toISOString().split('T')[0];
+            const uploadedAt = parisDateIso();
             await conn.execute(
                 `INSERT INTO documents (id, clientId, name, size, type, uploadedAt, owner, folder, url)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -843,7 +845,7 @@ export function createDataService({
             const id = p.id || newId('pay_');
             const amount = Number.isFinite(Number(p.amount)) ? Number(p.amount) : 0;
             const status = p.status || 'payé';
-            const date = p.date || new Date().toISOString().split('T')[0];
+            const date = p.date || parisDateIso();
             const method = p.method || 'Ajout Manuel';
             // Avant : FAC-AAAAMM-<4 premiers chiffres de l'id>, identique pour tous les clients
             // créés à la même période (ids = horodatages) → références en collision entre clients.

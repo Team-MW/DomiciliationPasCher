@@ -188,17 +188,13 @@ describe('Validation automatique, sans code (inscription depuis nos emails ou ju
         expect(ext.updates).toHaveLength(0);
     });
 
-    it('juste après le paiement Stripe (même navigateur) : validé si la session est payée avec CETTE adresse', async () => {
-        ext.sessions.cs_paid = { payment_status: 'paid', status: 'complete', customer_details: { email: 'Client@Test.fr' } };
-        ext.sessions.cs_open = { payment_status: 'unpaid', status: 'open', customer_details: { email: 'client@test.fr' } };
-        ext.sessions.cs_other = { payment_status: 'paid', status: 'complete', customer_details: { email: 'autre@test.fr' } };
+    it('un paiement Stripe ne prouve PAS l’adresse (Stripe ne la vérifie pas) : refusé, même payé avec cette adresse', async () => {
+        // Faille trouvée à l'audit : un pirate payait 1 mois avec l'adresse d'un client sans compte, puis validait un compte
+        // Clerk à cette adresse et ouvrait le dossier (Kbis, contrat, courrier).
+        ext.sessions.cs_paid = { payment_status: 'paid', status: 'complete', customer_details: { email: 'client@test.fr' } };
         makeUser('user_c', 'client@test.fr');
-        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_open' })).code).toBe(403);
-        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_other' })).code).toBe(403);
-        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_inconnue' })).code).toBe(403);
+        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_paid' })).code).toBe(403);
         expect(ext.updates).toHaveLength(0);
-        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_paid' })).result).toMatchObject({ verified: true });
-        expect(ext.updates).toHaveLength(1);
     });
 
     it('compte déjà vérifié : rien à faire', async () => {

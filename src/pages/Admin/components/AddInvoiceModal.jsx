@@ -1,3 +1,4 @@
+import { parisDateIso } from '../../../../shared/parisDate.js';
 import React, { useState } from 'react';
 
 /**
@@ -7,7 +8,7 @@ import React, { useState } from 'react';
  */
 export default function AddInvoiceModal({ defaultAmount, clientLabel, onCancel, onSubmit }) {
     const [amount, setAmount] = useState(String(defaultAmount ?? '').replace('.', ','));
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(() => parisDateIso());
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
 

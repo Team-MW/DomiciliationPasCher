@@ -11,7 +11,8 @@ import { fetchWithRetry } from '../utils/api';
  */
 
 export async function callDataApi(method, args = []) {
-    const res = await fetchWithRetry('/api/data', {
+    // Pas de nouvelle tentative sur 429 : c'est un refus volontaire (ex. code redemandé trop tôt) que l'écran doit afficher.
+    const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method, args }),
@@ -74,7 +75,9 @@ export const adminDataService = {
             if (sinceDate) url += `&since=${encodeURIComponent(sinceDate)}`;
             url += `&_t=${Date.now()}`; // anti-cache
             const res = await fetchWithRetry(url);
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
+            // Panne Stripe / serveur : on le DIT (avant : « Aucune facture » et statut « non_trouvé » comme si de rien n'était).
+            if (!res.ok || data.error) throw Object.assign(new Error(data.error || `Erreur serveur (${res.status})`), { status: res.status });
             return {
                 payments: data.payments || [],
                 // Jamais 'active' par défaut : une réponse incomplète ou une panne réseau
@@ -84,7 +87,7 @@ export const adminDataService = {
             };
         } catch (err) {
             console.error('Erreur sync Stripe:', err);
-            return { payments: [], subscriptionStatus: 'non_trouvé', foundCustomerId: null };
+            throw err;
         }
     },
 

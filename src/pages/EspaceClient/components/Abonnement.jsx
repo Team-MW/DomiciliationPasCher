@@ -14,26 +14,30 @@ const PLAN_I18N_KEY = {
 };
 
 export default function Abonnement({ clientData, setActiveTab, setClientData }) {
-    const { t } = useTranslation();
+    const { t, lang } = useTranslation();
+    const locale = lang === 'en' ? 'en-GB' : lang === 'ru' ? 'ru-RU' : 'fr-FR';
     const [switchingId, setSwitchingId] = useState(null);
     const [feedback, setFeedback] = useState(null);
     const [showPicker, setShowPicker] = useState(false);
 
-    const plan = clientData?.plan || 'Essentiel';
+    // Même formule que l'en-tête et le tableau de bord (repli sur extra_info.offre quand `plan` est vide).
+    const currentPlanId = clientPlanPricing(clientData?.plan, parseExtraInfo(clientData?.extra_info)).id;
+    const plan = PLAN_CATALOG[currentPlanId]?.name || 'Essentiel';
     const status = clientData?.status || 'actif';
-    const currentPlanId = resolvePlanId(plan);
-    const canSwitch = Boolean(clientData?.id && clientData?.email && status !== 'echec_paiement' && status !== 'impayé');
+    // Inscription payée mais pas encore validée : pas encore de dossier client → pas de changement de formule.
+    const canSwitch = Boolean(clientData?.id && clientData?.email && !clientData?.isTemporary
+        && !['echec_paiement', 'impayé', 'en_attente_validation'].includes(status));
     let sinceDate = clientData?.since || 'Non spécifié';
     // Échéance calculée depuis la souscription et la fréquence : la colonne `renewal` de la base vaut la date de souscription.
     const renewalIso = nextRenewalIso(clientData?.since, parseExtraInfo(clientData?.extra_info)?.frequence);
     const renewalDate = renewalIso
-        ? new Date(`${renewalIso}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+        ? new Date(`${renewalIso}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
         : t('espaceClient.subscription.autoRenew');
 
     if (sinceDate !== 'Non spécifié') {
-        const parsedDate = new Date(sinceDate);
+        const parsedDate = new Date(/^\d{4}-\d{2}-\d{2}$/.test(sinceDate) ? `${sinceDate}T12:00:00` : sinceDate);
         if (!isNaN(parsedDate.getTime())) {
-            sinceDate = parsedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            sinceDate = parsedDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
         }
     } else {
         sinceDate = t('espaceClient.subscription.unspecified');

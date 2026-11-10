@@ -1,3 +1,4 @@
+import { parisDaysBetween } from './parisDate.js';
 /** Pièces que le domiciliataire peut réclamer après validation du dossier. */
 export const DOC_LABELS = {
     statuts: 'Statuts',
@@ -7,7 +8,7 @@ export const DOC_LABELS = {
 /** Relances après la première demande (en jours). La dernière est le dernier rappel. */
 export const DOC_REMINDER_DAYS = [7, 30, 60, 80];
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+
 
 function hasDoc(documents, pattern) {
     return (documents || []).some((d) => d && pattern.test(String(d.name || '')));
@@ -46,7 +47,8 @@ export function dueDocumentReminder(request, now = new Date()) {
     // Demande créée à la validation du dossier : premier email au prochain passage du cron,
     // pour ne pas arriver en même temps que l'email « Dossier validé ».
     if (request.initial_pending) return { day: 0, initial: true, isLast: false, covered: [] };
-    const elapsedDays = Math.floor((now.getTime() - new Date(request.requested_at).getTime()) / DAY_MS);
+    // Jours calendaires (Paris) : le cron passe à 8 h, une demande faite à 15 h recevait sa relance J+7 au 8e jour.
+    const elapsedDays = parisDaysBetween(request.requested_at, now);
     const sent = new Set(request.reminders_sent || []);
     const due = DOC_REMINDER_DAYS.filter((day) => elapsedDays >= day && !sent.has(day));
     if (due.length === 0) return null;

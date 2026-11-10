@@ -76,7 +76,7 @@ describe('Réactivation : plus de clés périmées de l’ancien abonnement', ()
         const conn = { execute: vi.fn(async (sql, params) => {
             if (/^SELECT \* FROM demandes WHERE id/i.test(sql)) return { rows: [demande] };
             if (/^SELECT id, extra_info, clerkId, clerkStatus FROM clients/i.test(sql)) return { rows: [existing] };
-            if (/^UPDATE clients SET name/i.test(sql)) updates.push(JSON.parse(params[5]));
+            if (/^UPDATE clients SET name/i.test(sql)) updates.push(JSON.parse(params[6]));
             return { rows: [] };
         }) };
         await createDataService({ conn, sendEmail: async () => {} }).traiterDemande('d1');

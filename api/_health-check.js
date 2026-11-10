@@ -35,7 +35,7 @@ const primaryOf = (user) => user.emailAddresses?.find((e) => e.id === user.prima
 export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now() }) {
     const issues = [];
     const clients = (await conn.execute(
-        "SELECT id, name, email, status, clerkId, since, extra_info FROM clients WHERE status = 'actif'",
+        "SELECT id, name, email, plan, status, clerkId, since, extra_info FROM clients WHERE status = 'actif'",
     )).rows || [];
 
     // 1 + 2. Comptes de connexion

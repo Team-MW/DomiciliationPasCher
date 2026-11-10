@@ -1367,6 +1367,7 @@ export default {
     ariaLabel: "Cookie settings",
     title: "Your privacy matters",
     text: "We use audience measurement and advertising cookies (Google) only with your consent. You can accept or refuse, and change your choice at any time via “Manage cookies” at the bottom of the page.",
+    textShort: "Google cookies (analytics and ads) only with your consent, changeable at the bottom of the page.",
     learnMore: "Learn more",
     accept: "Accept all",
     refuse: "Refuse all",

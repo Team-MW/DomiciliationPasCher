@@ -44,17 +44,15 @@ export default function EmailVerifyPanel({ t, onVerified }) {
     useEffect(() => {
         if (autoSent.current) return;
         autoSent.current = true;
-        // 1. Sans rien demander : preuve du lien de nos emails, ou du paiement Stripe fait dans ce navigateur.
+        // 1. Sans rien demander : preuve du lien « Créer mon accès » de nos emails (jamais le paiement : adresse non vérifiée par Stripe).
         // 2. Sinon seulement : code par email.
         (async () => {
             const proof = {};
             try {
                 const saved = JSON.parse(localStorage.getItem('dpc_signup_proof') || 'null');
                 if (saved?.token) proof.token = saved.token;
-                const sessionId = localStorage.getItem('last_successful_session');
-                if (sessionId) proof.sessionId = sessionId;
             } catch { /* stockage indisponible */ }
-            if (proof.token || proof.sessionId) {
+            if (proof.token) {
                 try {
                     await callDataApi('verifyEmailWithProof', [proof]);
                     onVerified();
@@ -72,7 +70,7 @@ export default function EmailVerifyPanel({ t, onVerified }) {
                 <p style={{ margin: 0, fontSize: 14, color: '#475569' }} aria-live="polite">{t('espaceClient.shell.verifyAuto')}</p>
             ) : step === 'sent' || step === 'checking' ? (
                 <form onSubmit={check} style={{ display: 'grid', gap: 8 }}>
-                    <p style={{ margin: 0, fontSize: 14, color: '#475569' }}>{t('espaceClient.shell.verifySentTo')} <strong>{sentTo}</strong></p>
+                    {sentTo && <p style={{ margin: 0, fontSize: 14, color: '#475569' }}>{t('espaceClient.shell.verifySentTo')} <strong>{sentTo}</strong></p>}
                     <input
                         inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} autoFocus onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setCode(v); if (v.length === 6) submit(v); }}
                         placeholder={t('espaceClient.shell.verifyCodePlaceholder')} aria-label={t('espaceClient.shell.verifyCodePlaceholder')}

@@ -82,7 +82,8 @@ export function openStoredDocument(url, filename = 'document.pdf') {
 }
 
 export default function Docs({ documents, setDocuments, clientData, setClientData }) {
-    const { t } = useTranslation();
+    const { t, lang } = useTranslation();
+    const locale = lang === 'en' ? 'en-GB' : lang === 'ru' ? 'ru-RU' : 'fr-FR';
     const [isUploading, setIsUploading] = useState(false);
     const [showSignModal, setShowSignModal] = useState(false);
     const [signStatus, setSignStatus] = useState(null); // null | 'loading' | 'done' | 'error'
@@ -610,7 +611,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             </div>
                             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
                                 {isSigned
-                                    ? t('espaceClient.docs.signedOn').replace('{date}', signedAt ? new Date(signedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
+                                    ? t('espaceClient.docs.signedOn').replace('{date}', signedAt ? new Date(signedAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : '')
                                     : t('espaceClient.docs.legalHint')}
                             </div>
                         </div>
@@ -755,7 +756,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             </div>
                             <div style={{ fontSize: '12px', color: isProcSigned ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: '2px' }}>
                                 {isProcSigned
-                                    ? t('espaceClient.docs.signedOnFem').replace('{date}', procSignedAt ? new Date(procSignedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
+                                    ? t('espaceClient.docs.signedOnFem').replace('{date}', procSignedAt ? new Date(procSignedAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : '')
                                     : t('espaceClient.docs.procHint')}
                             </div>
                         </div>
@@ -1188,7 +1189,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                                         </div>
                                                         <div style={{ overflow: 'hidden' }}>
                                                             <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.name || t('espaceClient.docs.documentFallback')}</div>
-                                                            <div style={{ fontSize: '11px', color: '#64748B' }}>{t('espaceClient.docs.sharedOn').replace('{date}', new Date(doc.date).toLocaleDateString())}</div>
+                                                            <div style={{ fontSize: '11px', color: '#64748B' }}>{t('espaceClient.docs.sharedOn').replace('{date}', (() => { const raw = doc.uploadedAt || doc.date; const d = raw ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T12:00:00` : raw) : null; return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : '—'; })())}</div>
                                                         </div>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '6px' }}>

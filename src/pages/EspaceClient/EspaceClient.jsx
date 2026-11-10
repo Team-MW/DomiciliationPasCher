@@ -6,7 +6,7 @@ import { parseExtraInfo, resolvePersonalAddress } from '../../utils/contractLega
 import { resolveClientStatusFromStripe } from '../../utils/stripeClientStatus';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { setPreviewMode } from '../../utils/apiAuth';
-import { PRICING_GRID, clientPlanPricing } from '../../../shared/plans.js';
+import { PRICING_GRID, PLAN_CATALOG, clientPlanPricing } from '../../../shared/plans.js';
 import { appAlert } from '../../components/AppDialog/dialogApi';
 import { isAdminEmail } from '../../utils/adminEmail';
 import './EspaceClient.css';
@@ -130,7 +130,11 @@ export default function EspaceClient() {
                 const email = user.primaryEmailAddress?.emailAddress;
                 const cleanEmail = email?.trim().toLowerCase();
 
-                const savedSessionId = localStorage.getItem('last_successful_session');
+                // Stockage bloqué (navigation privée stricte, cookies refusés) : getItem LÈVE une erreur, qui faisait
+                // tomber le client sur « serveur injoignable » au lieu de son dossier.
+                let savedSessionId = null;
+                try { savedSessionId = localStorage.getItem('last_successful_session'); } catch { /* stockage indisponible */ }
+                const forgetSession = () => { try { localStorage.removeItem('last_successful_session'); } catch { /* stockage indisponible */ } };
                 // Recherche faite côté serveur à partir de l'email vérifié du compte Clerk
                 // (repli par session Stripe) ; le serveur lie aussi le Clerk ID à la fiche.
                 const account = await adminDataService.getMyAccount({ sessionId: savedSessionId || null });
@@ -138,10 +142,10 @@ export default function EspaceClient() {
 
                 if (account?.kind === 'client') {
                     data = { ...account.record };
-                    if (savedSessionId) localStorage.removeItem('last_successful_session');
+                    if (savedSessionId) forgetSession();
                 } else if (account?.kind === 'demande') {
                     const maDemande = account.record;
-                    if (savedSessionId) localStorage.removeItem('last_successful_session');
+                    if (savedSessionId) forgetSession();
                     const extra = parseExtraInfo(maDemande.extra_info);
                     data = {
                         id: maDemande.id,
@@ -499,7 +503,7 @@ export default function EspaceClient() {
                         ) : (
                             <div className="ec-status-tag">
                                 <span className="status-dot-green"></span>
-                                {t('espaceClient.shell.planActive').replace('{plan}', clientPlanPricing(clientData?.plan, parseExtraInfo(clientData?.extra_info)).name)}
+                                {t('espaceClient.shell.planActive').replace('{plan}', PLAN_CATALOG[clientPlanPricing(clientData?.plan, parseExtraInfo(clientData?.extra_info)).id]?.name)}
                             </div>
                         )}
                     </div>

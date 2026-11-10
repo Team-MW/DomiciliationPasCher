@@ -14,7 +14,12 @@ import {
 } from '../../../utils/meetingPrices';
 
 export default function Meeting({ clientData }) {
-    const { t } = useTranslation();
+    const { t, lang } = useTranslation();
+    const locale = lang === 'en' ? 'en-GB' : lang === 'ru' ? 'ru-RU' : 'fr-FR';
+    // Libellés enregistrés en français → traduits ; date AAAA-MM-JJ → date lisible dans la langue du client.
+    const typeLabel = (v) => ({ [MEETING_TYPES.room]: t('espaceClient.meeting.typeRoom'), [MEETING_TYPES.office]: t('espaceClient.meeting.typeOffice'), [MEETING_TYPES.cowork]: t('espaceClient.meeting.typeCowork') }[v] || v);
+    const durationLabel = (v) => ({ [MEETING_DURATIONS.hour]: t('espaceClient.meeting.hour'), [MEETING_DURATIONS.morning]: t('espaceClient.meeting.morning'), [MEETING_DURATIONS.afternoon]: t('espaceClient.meeting.afternoon'), [MEETING_DURATIONS.fullday]: t('espaceClient.meeting.fullday') }[v] || v);
+    const bookingDate = (v) => { const d = /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? new Date(`${v}T12:00:00`) : null; return d ? d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }) : (v || '—'); };
     const [bookings, setBookings] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
@@ -224,8 +229,8 @@ export default function Meeting({ clientData }) {
                             <div key={b.id} className="ec-activity-item">
                                 <div className="ec-activity-icon"><Icons.Calendar /></div>
                                 <div className="ec-activity-body">
-                                    <div className="ec-activity-title">{b.type}</div>
-                                    <div className="ec-activity-meta">{b.date} · {b.duration}</div>
+                                    <div className="ec-activity-title">{typeLabel(b.type)}</div>
+                                    <div className="ec-activity-meta">{bookingDate(b.date)} · {durationLabel(b.duration)}</div>
                                 </div>
                                 <span className={`ec-status-chip ${b.status === 'en_attente' ? 'unread' : ''}`}>
                                     {t(`espaceClient.meeting.statusLabel.${b.status === 'confirmée' || b.status === 'confirmee' ? 'confirmed' : b.status === 'refusée' || b.status === 'refusee' ? 'refused' : 'pending'}`)}

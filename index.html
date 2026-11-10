@@ -16,6 +16,10 @@
       ad_personalization: 'denied',
       wait_for_update: 500
     });
+    // Visiteur qui refuse : Google Ads reçoit des signaux SANS cookie (mode avancé) et les modélise en conversions.
+    // url_passthrough garde le gclid dans les liens internes jusqu'au paiement ; ads_data_redaction masque les données pub.
+    gtag('set', 'url_passthrough', true);
+    gtag('set', 'ads_data_redaction', true);
     try {
       var dpcConsent = JSON.parse(window.localStorage.getItem('dpc_cookie_consent') || 'null');
       var dpcMaxAge = 1000 * 60 * 60 * 24 * 182;

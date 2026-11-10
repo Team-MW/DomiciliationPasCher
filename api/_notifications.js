@@ -1,3 +1,4 @@
+import { parisDaysBetween } from '../shared/parisDate.js';
 import { sendBrandedMail } from './_email-kit.js';
 import { buildDocumentRequestEmail, buildMailDigestEmail, buildLeadReminderEmail, buildAccountCreatedEmail } from './_email-templates.js';
 import { computeMissingDocuments, dueDocumentReminder } from '../shared/documentRequest.js';
@@ -59,6 +60,12 @@ export async function processMailNotifications({ conn, transporter, from, baseUr
         if (lastAt && Date.now() - new Date(lastAt).getTime() < minGapMs) return { mailDigestsSent: 0 };
     }
 
+    // Réservation abandonnée (fonction coupée en plein envoi) depuis plus de 10 min : on la libère.
+    await conn.execute(
+        "UPDATE mail SET notified_at = NULL WHERE notified_at LIKE 'sending:%' AND notified_at < ?",
+        [`sending:${Date.now() - 10 * 60 * 1000}`],
+    );
+
     const res = await conn.execute(
         `SELECT m.id, m.clientId, m.type, m.\`from\` AS mailFrom, m.date, m.status, m.preview, c.email, c.name, c.plan, c.status AS clientStatus, c.extra_info
          FROM mail m JOIN clients c ON c.id = m.clientId
@@ -73,12 +80,23 @@ export async function processMailNotifications({ conn, transporter, from, baseUr
     }
 
     let sent = 0;
-    for (const { client, mails } of byClient.values()) {
-        const ids = mails.map((m) => m.id);
-        const markNotified = (value) => conn.execute(
-            `UPDATE mail SET notified_at = ? WHERE id IN (${ids.map(() => '?').join(', ')})`,
-            [value, ...ids],
+    for (const { client, mails: candidates } of byClient.values()) {
+        // Réserver les courriers AVANT d'envoyer : deux dépôts simultanés (double clic, deux admins, cron + dépôt)
+        // lisaient les mêmes courriers « non notifiés » et envoyaient chacun le même email au client.
+        // Un envoi est déjà en cours pour ce client (cron + dépôt au même moment) : on le laisse finir, le reste partira au
+        // prochain passage, plutôt que deux emails à la même seconde.
+        const busy = await conn.execute("SELECT id FROM mail WHERE clientId = ? AND notified_at LIKE 'sending:%' LIMIT 1", [client.clientId]);
+        if (busy.rows?.length) continue;
+        const token = `sending:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+        const candidateIds = candidates.map((m) => m.id);
+        await conn.execute(
+            `UPDATE mail SET notified_at = ? WHERE notified_at IS NULL AND id IN (${candidateIds.map(() => '?').join(', ')})`,
+            [token, ...candidateIds],
         );
+        const claimed = new Set(((await conn.execute('SELECT id FROM mail WHERE notified_at = ?', [token])).rows || []).map((r) => String(r.id)));
+        const mails = candidates.filter((m) => claimed.has(String(m.id)));
+        if (!mails.length) continue; // un autre envoi s'en occupe déjà
+        const markNotified = (value) => conn.execute('UPDATE mail SET notified_at = ? WHERE notified_at = ?', [value, token]);
         const extra = parseExtra(client.extra_info);
         const to = String(extra.emailCourrier || client.email || '').trim();
         if (!to || client.clientStatus === 'résilié') {
@@ -92,6 +110,7 @@ export async function processMailNotifications({ conn, transporter, from, baseUr
             sent++;
         } catch (err) {
             console.error('Cron courrier: envoi échoué pour', to, err.message);
+            await markNotified(null); // libéré : le prochain passage réessaiera
         }
     }
     return { mailDigestsSent: sent };
@@ -227,7 +246,7 @@ export async function processPendingPayments({ conn, transporter, from, baseUrl,
         if (extra.payment_status !== 'pending' || !extra.payment_token || !extra.payment_requested_at) continue;
         if (extra.stripe_subscription_id || client.status === 'résilié') continue;
 
-        const elapsedDays = Math.floor((now.getTime() - new Date(extra.payment_requested_at).getTime()) / (24 * 60 * 60 * 1000));
+        const elapsedDays = parisDaysBetween(extra.payment_requested_at, now); // jours calendaires : J+2 = surlendemain
         const already = new Set(extra.payment_reminders_sent || []);
         const due = PAYMENT_REMINDER_DAYS.filter((day) => elapsedDays >= day && !already.has(day));
         if (due.length === 0) continue;

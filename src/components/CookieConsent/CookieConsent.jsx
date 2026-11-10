@@ -47,7 +47,9 @@ export default function CookieConsent() {
                 <div className="cookie-consent-copy">
                     <p className="cookie-consent-title">{c.title}</p>
                     <p id="cookie-consent-text" className="cookie-consent-text">
-                        {c.text}{' '}
+                        <span className="cookie-consent-text-full">{c.text}</span>
+                        {/* Mobile : texte court, pour ne pas cacher le haut de la page (titre, bouton « Commencer »). */}
+                        <span className="cookie-consent-text-short">{c.textShort || c.text}</span>{' '}
                         <Link to="/confidentialite" className="cookie-consent-link">{c.learnMore}</Link>
                     </p>
                 </div>

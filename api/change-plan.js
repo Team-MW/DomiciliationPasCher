@@ -43,17 +43,26 @@ export default async function handler(req, res) {
         }
         const email = String(client.email || '').trim().toLowerCase();
 
-        let extra = {};
+        // Double encodage géré ; JSON illisible → on REFUSE (sinon tout le dossier était écrasé par 3 champs).
+        let extra;
         try {
-            extra = typeof client.extra_info === 'string'
-                ? JSON.parse(client.extra_info)
-                : (client.extra_info || {});
-        } catch { extra = {}; }
+            extra = typeof client.extra_info === 'string' ? JSON.parse(client.extra_info || '{}') : (client.extra_info || {});
+            if (typeof extra === 'string') extra = JSON.parse(extra);
+        } catch {
+            extra = null;
+        }
+        if (!extra || typeof extra !== 'object' || Array.isArray(extra)) {
+            return res.status(500).json({ error: 'extra_info_unreadable', message: 'Dossier illisible : changement de formule impossible, contactez-nous.' });
+        }
 
         if (alignGrid && !user.isAdmin) {
             return res.status(403).json({ error: 'Accès réservé à l’administration' });
         }
         const currentId = resolvePlanId(client.plan);
+        // Passage au tarif actuel = MÊME formule (sinon montée en gamme gratuite jusqu'à l'échéance, sans prorata).
+        if (alignGrid && currentId !== planId) {
+            return res.status(400).json({ error: 'alignGrid_same_plan_only' });
+        }
         if (currentId === planId && !(alignGrid && !isCurrentPricing(extra))) {
             return res.status(200).json({ ok: true, unchanged: true, plan: catalog.name, planId });
         }

@@ -2452,7 +2452,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             </div>
                             {(() => {
                                 const pricing = clientPlanPricing(client.plan, parseExtraInfo(client.extra_info));
-                                if (!pricing.legacy) return null;
+                                // Seulement si le prix change vraiment (Essentiel 20 → 16) : Confort/Premium ont le même prix, et
+                                // les basculer réduirait leurs scans illimités à 40 / 100.
+                                if (!pricing.legacy || pricing.ht === currentGridHt(client.plan)) return null;
                                 return (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '10px' }}>
                                         <span style={{ fontSize: '11px', fontWeight: '600', color: '#92400E', textTransform: 'uppercase' }}>Ancien tarif</span>

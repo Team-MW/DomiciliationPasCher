@@ -1,3 +1,4 @@
+import { parisDateIso } from '../shared/parisDate.js';
 // Source unique de vérité pour la détection des impayés Stripe.
 // Utilisée par /api/stripe-failed-payments (affichage admin) et par le cron quotidien
 // (relance email). Dupliquer cette logique est ce qui a produit les divergences passées.
@@ -7,7 +8,7 @@ import { earliestIsoDate } from '../shared/paymentGrace.js';
 // Statuts d'abonnement qui traduisent un problème de paiement.
 export const FAILING_SUB_STATUSES = ['past_due', 'unpaid', 'incomplete'];
 
-const toDateString = (unix) => (unix ? new Date(unix * 1000).toISOString().split('T')[0] : null);
+const toDateString = (unix) => (unix ? parisDateIso(new Date(unix * 1000)) : null);
 const idOf = (ref) => (typeof ref === 'string' ? ref : ref?.id || null);
 const isTerminated = (obj) => obj?.metadata?.dpc_domicile_terminated === '1';
 

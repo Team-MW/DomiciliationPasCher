@@ -57,11 +57,11 @@ describe('Réactivation d’un client existant (traiterDemande)', () => {
         }) };
         await createDataService({ conn, sendEmail: async () => {} }).traiterDemande('d1');
         const params = updates[0];
-        const merged = JSON.parse(params[5]);
+        const merged = JSON.parse(params[6]);
         expect(merged.stripe_customer_id).toBe('cus_KEEP1');
         expect(merged.contractSignedAt).toBe('2026-10-01');
-        expect(params[6]).toBe('user_keep');
-        expect(params[7]).toBe('linked');
+        expect(params[7]).toBe('user_keep');
+        expect(params[8]).toBe('linked');
     });
 });
 

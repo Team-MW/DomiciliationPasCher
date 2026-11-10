@@ -8,11 +8,12 @@ import { LanguageProvider } from '../src/i18n/LanguageContext';
 import { DialogProvider } from '../src/components/AppDialog/DialogProvider';
 import Abonnement from '../src/pages/EspaceClient/components/Abonnement.jsx';
 
-const renderIt = (extra) => render(
+// Langue française imposée (jsdom annonce un navigateur anglais : les dates suivent la langue du client).
+const renderIt = (extra) => { try { localStorage.setItem('dpc_lang', 'fr'); } catch { /* */ } return render(
     <LanguageProvider><DialogProvider>
         <Abonnement clientData={{ id: 'c1', email: 'a@b.fr', plan: 'Essentiel', status: 'actif', since: '2026-11-06', extra_info: JSON.stringify(extra) }} setClientData={() => {}} />
     </DialogProvider></LanguageProvider>,
-);
+); };
 
 describe('Abonnement : un seul prix par formule, jamais deux pour la même', () => {
     it('ancien client (Essentiel à 20 € HT) : le sélecteur affiche 20 € pour sa formule actuelle, pas 16 €, et explique le changement', () => {

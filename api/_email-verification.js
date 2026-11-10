@@ -87,6 +87,12 @@ export async function confirmEmailVerificationCode({ conn }, userId, rawCode) {
     if (!row) throw new VerificationError(400, 'Aucun code en cours : demandez-en un nouveau.');
     if (Date.now() > Number(row.expires_at)) throw new VerificationError(400, 'Ce code a expiré : demandez-en un nouveau.');
     if (Number(row.attempts) >= MAX_ATTEMPTS) throw new VerificationError(429, 'Trop d’essais incorrects : demandez un nouveau code.');
+    // L'essai est consommé AVANT de comparer, en une seule requête : 40 essais envoyés en même temps ne passent plus tous.
+    const claim = await conn.execute(
+        'UPDATE email_verifications SET attempts = attempts + 1 WHERE user_id = ? AND attempts < ? AND expires_at > ?',
+        [userId, MAX_ATTEMPTS, Date.now()],
+    );
+    if (Number(claim?.rowsAffected ?? claim?.changes ?? 1) === 0) throw new VerificationError(429, 'Trop d’essais incorrects : demandez un nouveau code.');
 
     const { clerk, primary, email } = await loadPrimary(userId);
     if (row.email !== email) throw new VerificationError(400, 'L’adresse du compte a changé : demandez un nouveau code.');
@@ -94,7 +100,6 @@ export async function confirmEmailVerificationCode({ conn }, userId, rawCode) {
     const expected = Buffer.from(String(row.code_hash));
     const given = Buffer.from(hashCode(userId, email, code));
     if (expected.length !== given.length || !timingSafeEqual(expected, given)) {
-        await conn.execute('UPDATE email_verifications SET attempts = attempts + 1 WHERE user_id = ?', [userId]);
         throw new VerificationError(400, 'Code incorrect.');
     }
 
@@ -111,26 +116,17 @@ export async function markClerkEmailVerified(userId) {
 }
 
 /**
- * Validation automatique, sans code : le client prouve qu'il reçoit les emails de l'adresse du compte
- * - soit par le lien « Créer mon accès » de nos emails (preuve signée ?v=),
- * - soit par le paiement Stripe fait juste avant dans le même navigateur (session payée avec CETTE adresse).
- * Sinon : refus, et l'écran passe au code envoyé par email.
+ * Validation automatique, sans code : le client a ouvert le lien « Créer mon accès » de NOS emails (preuve signée ?v=),
+ * donc il reçoit bien les emails de cette adresse.
+ * PAS de preuve par paiement Stripe : Stripe ne vérifie pas l'adresse saisie au paiement. Un pirate pouvait payer un
+ * mois avec l'adresse d'un client sans compte, puis « valider » un compte à cette adresse et ouvrir son dossier.
  */
-export async function verifyEmailWithProof({ getStripe }, userId, proof = {}) {
+export async function verifyEmailWithProof(_ctx, userId, proof = {}) {
     const { clerk, primary, email } = await loadPrimary(userId);
     if (primary.verification?.status === 'verified') return { verified: true, alreadyVerified: true };
-    let ok = Boolean(proof?.token) && isValidSignupProof(email, proof.token);
-    if (!ok && proof?.sessionId && /^cs_[A-Za-z0-9_]+$/.test(String(proof.sessionId))) {
-        try {
-            const session = await getStripe().checkout.sessions.retrieve(String(proof.sessionId));
-            const paid = session?.payment_status === 'paid' || session?.status === 'complete';
-            const payer = String(session?.customer_details?.email || session?.customer_email || '').trim().toLowerCase();
-            ok = paid && payer === email;
-        } catch {
-            ok = false;
-        }
+    if (!proof?.token || !isValidSignupProof(email, proof.token)) {
+        throw new VerificationError(403, 'Preuve insuffisante : un code va vous être envoyé par email.');
     }
-    if (!ok) throw new VerificationError(403, 'Preuve insuffisante : un code va vous être envoyé par email.');
     await clerk.emailAddresses.updateEmailAddress(primary.id, { verified: true });
     return { verified: true };
 }

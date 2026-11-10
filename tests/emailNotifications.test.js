@@ -122,8 +122,12 @@ describe('nouveau courrier', () => {
 
     it('envoie un seul récapitulatif par client et marque les courriers', async () => {
         const transporter = { sendMail: vi.fn().mockResolvedValue({}) };
+        const claims = {};
         const conn = {
-            execute: vi.fn(async (sql) => {
+            execute: vi.fn(async (sql, params = []) => {
+                // Réservation avant envoi : chaque client récupère ses propres courriers.
+                if (sql.startsWith('UPDATE mail SET notified_at = ? WHERE notified_at IS NULL')) { claims[params[0]] = params.slice(1); return {}; }
+                if (sql.startsWith('SELECT id FROM mail WHERE notified_at = ?')) return { rows: (claims[params[0]] || []).map((id) => ({ id })) };
                 if (sql.includes('FROM mail m JOIN clients')) {
                     return {
                         rows: [
@@ -141,8 +145,10 @@ describe('nouveau courrier', () => {
         const recipients = transporter.sendMail.mock.calls.map(([m]) => m.to);
         expect(recipients).toEqual(['c1@test.fr', 'courrier@deux.fr']);
         expect(transporter.sendMail.mock.calls[0][0].subject).toBe('Un colis et 1 autre courrier vous attendent');
-        const marks = conn.execute.mock.calls.filter(([sql]) => sql.startsWith('UPDATE mail SET notified_at = ?'));
-        expect(marks[0][1].slice(1)).toEqual(['m1', 'm2']);
+        const claimsSql = conn.execute.mock.calls.filter(([sql]) => sql.startsWith('UPDATE mail SET notified_at = ? WHERE notified_at IS NULL'));
+        expect(claimsSql[0][1].slice(1)).toEqual(['m1', 'm2']);
+        const marks = conn.execute.mock.calls.filter(([sql]) => sql === 'UPDATE mail SET notified_at = ? WHERE notified_at = ?');
+        expect(marks[0][1][0]).toMatch(/^20\d\d-/);
     });
 });
 

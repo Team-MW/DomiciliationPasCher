@@ -1367,6 +1367,7 @@ export default {
     ariaLabel: "Gestion des cookies",
     title: "Votre vie privée compte",
     text: "Nous utilisons des cookies de mesure d’audience et publicitaires (Google) uniquement avec votre accord. Vous pouvez accepter ou refuser, et modifier votre choix à tout moment via « Gérer les cookies » en bas de page.",
+    textShort: "Cookies Google (audience et publicité) uniquement avec votre accord, modifiable en bas de page.",
     learnMore: "En savoir plus",
     accept: "Tout accepter",
     refuse: "Tout refuser",

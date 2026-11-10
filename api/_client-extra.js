@@ -41,12 +41,16 @@ const SIGNED_DOC_KEY = /SignedUrl$/;
 const SIGNATURE_IMAGE = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
 const SIGNATURE_IMAGE_MAX_CHARS = 300_000;
 
-export function sanitizeClientExtra(data, { allowSignature = false } = {}) {
+/** La fréquence fixe le prix facturé : choisie à la souscription (demande), jamais modifiable ensuite par le client. */
+const FREQUENCY_KEY = /^frequence$/i;
+
+export function sanitizeClientExtra(data, { allowSignature = false, allowFrequence = false } = {}) {
     const clean = {};
     for (const [key, value] of Object.entries(data || {})) {
         if (key === 'stripe_customer_id') continue;
         if (value === HEAVY_PLACEHOLDER) continue;
         if (CLIENT_FORBIDDEN_EXTRA.test(key)) continue;
+        if (!allowFrequence && FREQUENCY_KEY.test(key)) continue;
         if (!allowSignature && SIGNATURE_KEYS.test(key)) continue;
         if (allowSignature && SIGNATURE_IMAGE_KEY.test(key) && SIGNATURE_KEYS.test(key)) {
             // Une signature est une image PNG dessinée dans le navigateur, jamais un lien vers un autre site (pixel espion).

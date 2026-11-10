@@ -221,7 +221,7 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
                             <div style={{ fontSize: '12px', color: scanOver ? '#b45309' : '#64748b', marginTop: '4px' }}>
                                 {scanOver
                                     ? t('espaceClient.mail.scanQuotaOver').replace('{price}', `${EXTRA_FEES_HT.scanPerPage.toFixed(2).replace('.', ',')} €`)
-                                    : t('espaceClient.mail.scanQuotaHint').replace('{date}', periodStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))}
+                                    : t('espaceClient.mail.scanQuotaHint').replace('{date}', periodStart.toLocaleDateString(lang === 'en' ? 'en-GB' : lang === 'ru' ? 'ru-RU' : 'fr-FR', { day: 'numeric', month: 'long' }))}
                             </div>
                         </>
                     )}

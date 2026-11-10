@@ -58,7 +58,7 @@ const PUBLIC_METHODS = {
         // (ils sont ouverts tels quels dans l'admin) ; offre alignée sur le forfait choisi.
         // Même liste noire que pour un client connecté (signature, version du contrat, tarifs, clerk…) :
         // un visiteur anonyme ne doit pas pouvoir fabriquer un contrat « signé » ni un identifiant Stripe.
-        const safeExtra = sanitizeClientExtra(extra);
+        const safeExtra = sanitizeClientExtra(extra, { allowFrequence: true }); // souscription : le prix est recalculé ici
         if (typeof extra.email === 'string') safeExtra.email = extra.email.trim().toLowerCase().slice(0, 254);
         safeExtra.offre = catalog.offre;
         safeExtra.grille_tarifaire = PRICING_GRID; // souscrit avec la grille et le contrat actuels

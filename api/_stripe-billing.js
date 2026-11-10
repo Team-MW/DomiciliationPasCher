@@ -1,3 +1,4 @@
+import { parisDateIso } from '../shared/parisDate.js';
 /**
  * Historique de facturation et statut d'abonnement Stripe d'un client.
  * Partagé par /api/list-payments et par le recalcul serveur du statut (api/data.js).
@@ -104,7 +105,7 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
             amount: inv.total / 100, 
             currency: inv.currency,
             status: status,
-            date: new Date(inv.created * 1000).toISOString().split('T')[0],
+            date: parisDateIso(new Date(inv.created * 1000)),
             method: 'Carte (Stripe)',
             invoice_ref: inv.number || `FAC-TMP-${inv.id.substring(3, 9)}`,
             invoice_pdf: inv.invoice_pdf || null,
@@ -131,7 +132,7 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
             amount: pi.amount / 100,
             currency: pi.currency,
             status: status,
-            date: new Date(pi.created * 1000).toISOString().split('T')[0],
+            date: parisDateIso(new Date(pi.created * 1000)),
             method: pi.payment_method_types?.[0] === 'card' ? 'Carte (Stripe)' : (pi.payment_method_types?.[0] || 'Stripe'),
             invoice_ref: pi.description || `PAIEMENT-${pi.id.substring(3, 9)}`,
             receipt_url: pi.latest_charge?.receipt_url || null

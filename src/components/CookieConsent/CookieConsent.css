@@ -77,25 +77,57 @@
     outline-offset: 2px;
 }
 
+.cookie-consent-text-short {
+    display: none;
+}
+
+/* Mobile : petite barre collée en bas (≈ 120 px), texte court sur 2-3 lignes, les deux boutons sur une seule ligne.
+   Avant : carte en colonne qui couvrait plus de la moitié de l'écran et cachait le titre et « Commencer ». */
 @media (max-width: 640px) {
     .cookie-consent {
-        left: 12px;
-        right: 12px;
-        bottom: 12px;
+        left: 0;
+        right: 0;
+        bottom: 0;
     }
 
     .cookie-consent-inner {
         flex-direction: column;
         align-items: stretch;
-        gap: 14px;
-        padding: 16px;
+        gap: 10px;
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+        border-radius: 14px 14px 0 0;
+        border-left: 0;
+        border-right: 0;
+        border-bottom: 0;
+        box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.14);
+    }
+
+    .cookie-consent-title {
+        display: none;
+    }
+
+    .cookie-consent-text {
+        font-size: 12.5px;
+        line-height: 1.45;
+    }
+
+    .cookie-consent-text-full {
+        display: none;
+    }
+
+    .cookie-consent-text-short {
+        display: inline;
     }
 
     .cookie-consent-actions {
-        flex-direction: column;
+        flex-direction: row;
+        gap: 8px;
     }
 
     .cookie-consent-btn {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
+        padding: 10px 8px;
+        font-size: 13.5px;
     }
 }
