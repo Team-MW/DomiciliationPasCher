@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
 import usePageMeta from '../../components/Seo/usePageMeta';
+import useScrollReveal from '../../hooks/useScrollReveal';
 import './About.css';
 
 export default function About() {
     const { tr } = useTranslation();
+    useScrollReveal(); // sans ça, tous les blocs `animate-in` de la page restaient invisibles
 
     usePageMeta({
         title: tr.about.pageTitle,

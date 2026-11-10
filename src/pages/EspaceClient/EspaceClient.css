@@ -2664,3 +2664,9 @@ select.ec-input {
 }
 
 .ec-chat-error { margin: 0; padding: 8px 16px; font-size: 13px; color: #B91C1C; background: #FEF2F2; border-top: 1px solid #FECACA; }
+
+/* Tableau de bord : boutons plus faciles à toucher sur mobile */
+@media (max-width: 768px) {
+    .ecd-step-action { min-height: 40px; }
+    .ecd-link { min-height: 40px; display: inline-flex; align-items: center; }
+}

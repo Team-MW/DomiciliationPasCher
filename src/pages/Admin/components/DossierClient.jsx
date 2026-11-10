@@ -644,7 +644,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 const ok = await showConfirm(`Compte de connexion trouvé :\n${detail}\n\nLe relier à ce dossier ?`, { title: 'Relier le compte', confirmText: 'Relier' });
                 if (ok) {
                     await adminDataService.linkClerkAccount(client.id, a.id);
-                    await showAlert('Compte relié : le client accède maintenant à son espace avec ce compte.', { title: 'Compte relié' });
+                    let verifiedNote = '';
+                    if (!a.verified && await showConfirm(`L’adresse ${a.email} n’est pas vérifiée : le client sera bloqué par « email non vérifié ».\n\nLa marquer comme vérifiée (à faire seulement si vous êtes sûr qu’il s’agit bien de lui) ?`, { title: 'Email non vérifié', confirmText: 'Marquer comme vérifiée' })) {
+                        await adminDataService.verifyClerkEmail(a.id);
+                        verifiedNote = '\nL’adresse email est maintenant vérifiée.';
+                    }
+                    await showAlert(`Compte relié : le client accède maintenant à son espace avec ce compte.${verifiedNote}`, { title: 'Compte relié' });
                     onUpdate();
                     return;
                 }

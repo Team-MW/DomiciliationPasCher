@@ -6,7 +6,7 @@ import { sendBrandedMail, logEmail, htmlToText, isSingleEmail, escapeHtml, escap
 import {
     buildDocumentRequestEmail, buildAccountCreatedEmail, buildMailDigestEmail, buildWelcomeEmail, buildApprovalEmail,
     buildPostSignatureEmail, buildNewMessageEmail, buildProcurationEmail, buildConsultationEmail,
-    buildReexpeditionSentEmail, buildReexpeditionRefusedEmail, buildPaymentFailedEmail, buildPaymentReminderEmail,
+    buildReexpeditionSentEmail, buildReexpeditionRefusedEmail, buildPaymentFailedEmail, buildPaymentReminderEmail, buildEmailVerificationEmail,
 } from './_email-templates.js';
 
 export function safeHttpUrl(value) {
@@ -29,7 +29,7 @@ export const EMAIL_TYPES = Object.freeze([
     'new_message', 'admin_new_message', 'new_mail', 'consultation_creation', 'admin_reexpedition',
     'reexpedition_sent', 'reexpedition_refused', 'souscription_lead', 'contact_advisor',
     'request_documents', 'account_created', 'admin_document_uploaded',
-    'admin_payment_received', 'admin_payment_problem',
+    'admin_payment_received', 'admin_payment_problem', 'email_verification',
 ]);
 
 export function isKnownEmailType(type) {
@@ -56,7 +56,7 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
         err.statusCode = 400;
         throw err;
     }
-    const { email, type: rawType, amount, paymentLink: rawPaymentLink, content: msgContent, telephone, projetType, dateDispo, message: customMsg, address, notes, company, plan, documents, isCreation, contractSignedAt, paymentToken, frequence, documentName, mailType, mailFrom, mailDate } = body;
+    const { code: verificationCode, email, type: rawType, amount, paymentLink: rawPaymentLink, content: msgContent, telephone, projetType, dateDispo, message: customMsg, address, notes, company, plan, documents, isCreation, contractSignedAt, paymentToken, frequence, documentName, mailType, mailFrom, mailDate } = body;
     const type = rawType === 'welcome' ? undefined : rawType;
     // « Client » (valeur de repli des appelants) n'est pas un nom : « Bonjour, » plutôt que « Bonjour Client, ».
     const nom = displayName(body.nom) || undefined;
@@ -68,7 +68,9 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
     let built;
     let adminCopy;
 
-    if (type === 'payment_failed') {
+    if (type === 'email_verification') {
+        built = buildEmailVerificationEmail({ nom, code: verificationCode });
+    } else if (type === 'payment_failed') {
         built = buildPaymentFailedEmail({ nom, amount, payUrl: paymentLink || `${baseUrl}/app/espace-client?tab=paiement` });
     } else if (type === 'payment_reminder') {
         built = buildPaymentReminderEmail({ nom, amount, payUrl: paymentLink || `${baseUrl}/app/espace-client?tab=factures` });

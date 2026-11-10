@@ -9,6 +9,7 @@ import { getAuthUser, getOwnership, userOwnsStripeCustomer, isAdminEmail } from 
 import { sanitizeClientExtra, isSafeDocumentUrl, isTrustedDocumentUrl } from './_client-extra.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { fulfillCheckoutSession } from './_checkout-fulfillment.js';
+import { sendEmailVerificationCode, confirmEmailVerificationCode, markClerkEmailVerified, VerificationError } from './_email-verification.js';
 import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
 import { parseExtraInfo } from '../src/utils/contractLegalFields.js';
 import { resolveClientStatusFromStripe } from '../src/utils/stripeClientStatus.js';
@@ -111,6 +112,18 @@ const CLIENT_METHODS = {
             });
         }
         return { clientId, clientEmail: email, accounts };
+    },
+
+    /** ADMIN — marque l'email d'un compte de connexion comme vérifié (le client est bloqué par « email non vérifié »). */
+    async verifyClerkEmail(ctx, [clerkUserId]) {
+        if (!ctx.user?.isAdmin) throw new HttpError(403, 'Accès réservé à l’administration');
+        if (!/^user_[A-Za-z0-9]+$/.test(String(clerkUserId || ''))) throw new HttpError(400, 'Identifiant de compte invalide');
+        try {
+            return await markClerkEmailVerified(clerkUserId);
+        } catch (err) {
+            if (err instanceof VerificationError) throw new HttpError(err.status, err.message);
+            throw new HttpError(404, 'Compte de connexion introuvable dans Clerk');
+        }
     },
 
     /** ADMIN — relie un compte de connexion à la fiche : le client y accède avec CE compte, quelle que soit son adresse. */
@@ -305,6 +318,9 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
             const user = await getAuth(req);
             if (!user) return res.status(401).json({ error: 'Authentification requise' });
             // Connecté mais email NON vérifié : on le dit (avant : 401 générique, que le site affichait « Aucun dossier trouvé »).
+            // Seules actions permises sans email vérifié : prouver son adresse (code envoyé par notre serveur d'emails).
+            if (method === 'sendEmailVerificationCode') return res.status(200).json({ result: await sendEmailVerificationCode(ctx, user.userId) });
+            if (method === 'confirmEmailVerificationCode') return res.status(200).json({ result: await confirmEmailVerificationCode(ctx, user.userId, args[0]) });
             if (!user.email) return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED' });
             ctx.user = user;
 
@@ -344,7 +360,7 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
                 : await service[method](...args);
             return res.status(200).json({ result: result ?? null });
         } catch (err) {
-            if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+            if (err instanceof HttpError || err instanceof VerificationError) return res.status(err.status).json({ error: err.message });
             // Doublon d'email (création de client) : message affichable, pas un « Erreur serveur » qui pousse à réessayer.
             if (err?.code === 'ER_DUP_ENTRY' || /duplicate entry/i.test(err?.message || '')) {
                 return res.status(409).json({ error: /email/i.test(err?.message || '') ? 'Cette adresse email est déjà utilisée par un autre client.' : 'Cet enregistrement existe déjà.' });

@@ -402,3 +402,21 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
   - Toute lecture d'`extra_info` passe par `parseExtraInfo` (double encodage) : `grep "JSON.parse(.*extra" src` doit rester vide hors de cette fonction.
   - Un effet qui dépend d'un objet recréé à chaque rendu (`client`) relance tout : mémoïser (`useMemo`) ou dépendre de l'id.
   - Sous-agents : les trouvailles de « relecture » sont à vérifier ; un test qui ne lit que le source (regex) ne prouve pas le comportement.
+- **2026-11-08 — Balayage visuel (19 pages × 4 largeurs × 3 langues)** :
+  - Toute page qui utilise la classe `animate-in` (cachée par défaut, opacité 0) DOIT appeler `useScrollReveal()` (ou avoir son
+    IntersectionObserver) : sinon la page est BLANCHE. « À propos » l'était pour tous les visiteurs. Un test parcourt `src/` pour le garantir.
+  - Une capture « pleine page » ne défile pas : les sections `animate-in` y paraissent vides. Faire défiler avant de capturer, ou mesurer l'opacité.
+  - Cibles tactiles mobiles ≥ 40 px (`hamburger`, boutons de pied de page, « Voir le détail »). Texte secondaire : contraste ≥ 4,5:1 (#64748B sur blanc au minimum).
+  - Une page = un `h1` (le tunnel `/souscription` et « Accès réservé » n'en avaient pas).
+  - Script de balayage réutilisable : débordement horizontal, erreurs JS, images cassées, boutons < 32 px, liens internes, numéros et emails affichés.
+
+### Tests de parcours sur base SQL réelle (2026-11-08)
+- `tests/e2e/parcours.test.js` + `cas-limites.test.js` (60 tests) font tourner les VRAIS gestionnaires `api/*` sur une base SQL en mémoire (`tests/helpers/sqlJsConn.js`, sql.js) avec nodemailer, Stripe et Clerk simulés : inscription → paiement → validation admin → connexion → documents → messages → emails → cron, plus pannes SMTP, webhook seul, ancien client, lien de paiement admin, réservation de salle et matrice anti-fuite entre clients.
+- Pièges du harnais : `ensureEmailLogTable` est mémorisé au niveau du module, donc le schéma de test d'`email_logs` doit déjà contenir les colonnes migrées ; les relances J+N utilisent `floor(jours écoulés)`, donc tester à une heure postérieure à la demande.
+- Toute nouvelle méthode de `createDataService` est automatiquement couverte par la matrice « intrus » : ne pas l'exclure sans raison.
+
+### Client bloqué par « email non vérifié » (2026-11-10)
+- Cause 1 : `_auth.verify` mettait en cache 5 min le résultat « email non vérifié » → « Rafraîchir » restait bloqué même après vérification. Ne JAMAIS mettre en cache un compte non vérifié.
+- Cause 2 : seule issue = le code d'email de Clerk (souvent en spam / jamais reçu). Désormais `api/_email-verification.js` : code à 6 chiffres envoyé par NOTRE SMTP (historique visible, type `email_verification`), haché, 10 min, 5 essais, 1 envoi/45 s, 5/heure, puis `emailAddresses.updateEmailAddress(id, {verified:true})`. Les méthodes `sendEmailVerificationCode` / `confirmEmailVerificationCode` sont les SEULES permises sans email vérifié (data.js, avant le 403).
+- Admin : `verifyClerkEmail` (proposé après « Relier le compte » si l'email n'est pas vérifié). Ne jamais assouplir la règle « email vérifié obligatoire » côté serveur (usurpation de dossier).
+- À contrôler côté tableau de bord Clerk (non accessible d'ici) : Configure → Email, phone, username → Email address → « Verify at sign-up » activé, sinon des comptes s'ouvrent sans vérification.

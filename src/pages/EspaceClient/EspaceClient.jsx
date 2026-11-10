@@ -14,6 +14,7 @@ import './EspaceClient.css';
 // Components
 import Sidebar from './components/Sidebar';
 import AccountStateScreen from './components/AccountStateScreen';
+import EmailVerifyPanel from './components/EmailVerifyPanel';
 import Overview from './components/Overview';
 import Mail from './components/Mail';
 import Adresse from './components/Adresse';
@@ -334,6 +335,7 @@ export default function EspaceClient() {
                 accountLabel={t('espaceClient.shell.connectedAs')}
                 actions={(
                     <>
+                        {loadError === 'email' && <EmailVerifyPanel t={t} onVerified={() => window.location.reload()} />}
                         <button type="button" className="ecs-btn ecs-btn-primary" onClick={() => window.location.reload()}>{t('espaceClient.shell.refresh')}</button>
                         <button type="button" className="ecs-btn ecs-btn-ghost" onClick={handleLogout}>{t('espaceClient.shell.logout')}</button>
                     </>

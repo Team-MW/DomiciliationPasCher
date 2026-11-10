@@ -513,3 +513,19 @@ export function buildRenewalReminderEmail({ nom, periodEndIso, baseUrl }) {
     return { subject, text, html };
 }
 
+
+/* ---------- Vérification de l'adresse email (code à 6 chiffres) ---------- */
+
+export function buildEmailVerificationEmail({ nom, code }) {
+    const digits = String(code ?? '').replace(/\D/g, '').slice(0, 6);
+    const subject = `Votre code de vérification : ${digits || '------'}`;
+    const text = `${greetingText(nom)}\n\nVoici votre code pour vérifier votre adresse email et accéder à votre espace client :\n\n${digits}\n\nIl est valable 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.\n\n${signatureText()}`;
+    const html = `
+        ${heading('Vérifiez votre adresse email')}
+        <p>${greetingHtml(nom)}</p>
+        <p>Voici votre code pour accéder à votre espace client :</p>
+        <p style="font-size:32px;font-weight:800;letter-spacing:8px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin:20px 0;color:#0f172a;">${escapeHtml(digits)}</p>
+        <p>Ce code est valable <strong>10 minutes</strong>. Si vous n’êtes pas à l’origine de cette demande, ignorez simplement cet email.</p>
+        ${signatureHtml()}`;
+    return { subject, text, html };
+}

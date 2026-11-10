@@ -510,3 +510,15 @@ button {
 @media (prefers-reduced-motion: reduce) {
   @keyframes dpc-pulse { from, to { transform: none; } }
 }
+
+/* Accessibilité : si le visiteur demande moins de mouvement, les blocs apparaissent sans animation (et jamais cachés). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in { opacity: 1; transform: none; transition: none; }
+}
+
+/* Cibles tactiles : au moins ~40 px de haut sur mobile (le bouton Menu faisait 31 px, « Gérer les cookies » 21 px). */
+@media (max-width: 768px) {
+  .hamburger { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .footer-legal-btn { min-height: 40px; padding-top: 10px; padding-bottom: 10px; }
+  .pricing-details-btn { min-height: 40px; }
+}

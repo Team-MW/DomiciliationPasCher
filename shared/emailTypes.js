@@ -27,6 +27,7 @@ export const EMAIL_TYPE_INFO = Object.freeze({
     domicile_terminated: { label: 'Résiliation pour impayé', category: 'Paiement', source: 'auto' },
     souscription_reminder: { label: 'Relance inscription non terminée', category: 'Prospect', source: 'auto' },
     consultation_creation: { label: 'Demande de consultation (accusé)', category: 'Prospect', source: 'client' },
+    email_verification: { label: 'Code de vérification de l’adresse email', category: 'Compte', source: 'client' },
     admin_new_client: { label: 'Alerte : nouveau client', category: 'Interne', source: 'interne' },
     admin_new_message: { label: 'Alerte : message du client', category: 'Interne', source: 'interne' },
     admin_reexpedition: { label: 'Alerte : réexpédition demandée', category: 'Interne', source: 'interne' },

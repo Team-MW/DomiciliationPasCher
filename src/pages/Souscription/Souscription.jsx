@@ -441,7 +441,7 @@ export default function Souscription() {
                 ))}
             </div>
             <div className="sous-step-num">{PHASES[currentPhase].label} · écran {step + 1}/{CURRENT_STEPS.length}</div>
-            <h2>{currentMeta.title}</h2>
+            <h1>{currentMeta.title}</h1>
             <p>{stepHint}</p>
         </div>
     );

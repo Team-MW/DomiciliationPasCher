@@ -71,7 +71,8 @@ async function verify(token) {
     const verified = primary?.verification?.status === 'verified';
     const email = verified ? String(primary.emailAddress || '').trim().toLowerCase() : '';
     const user = { userId, email };
-    userCache.set(userId, { user, expires: Date.now() + USER_CACHE_TTL_MS });
+    // Jamais de cache pour un email non vérifié : le client le vérifie puis rafraîchit, il doit être reconnu tout de suite.
+    if (email) userCache.set(userId, { user, expires: Date.now() + USER_CACHE_TTL_MS });
     return user;
 }
 

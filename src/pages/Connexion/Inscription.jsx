@@ -83,7 +83,7 @@ export default function InscriptionPage() {
             <main className="auth-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
                 <div className="ec-pending-card" style={{ maxWidth: '450px', width: '90%' }}>
                     <div className="pending-icon" style={{ fontSize: '48px', marginBottom: '16px' }}>🛡️</div>
-                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>Accès réservé</h2>
+                    <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0F172A', marginBottom: '12px' }}>Accès réservé</h1>
                     <p style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.6', marginBottom: '24px' }}>
                         Cette page sert à créer l’accès des clients ayant souscrit. Indiquez l’adresse e-mail utilisée lors de votre paiement pour continuer.
                     </p>
