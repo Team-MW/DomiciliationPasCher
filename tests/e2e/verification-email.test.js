@@ -3,7 +3,8 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { createSqlJsConn } from '../helpers/sqlJsConn.js';
 
-const ext = vi.hoisted(() => ({ conn: null, outbox: [], smtpDown: false, clerk: {}, updates: [] }));
+const ext = vi.hoisted(() => ({ conn: null, outbox: [], smtpDown: false, clerk: {}, updates: [], sessions: {} }));
+vi.mock('../../api/_stripe-client.js', () => ({ getStripe: () => ({ checkout: { sessions: { retrieve: async (id) => { if (!ext.sessions[id]) throw Object.assign(new Error('No such session'), { code: 'resource_missing' }); return ext.sessions[id]; } } } }) }));
 vi.mock('../../api/_db.js', () => ({ getDbConn: () => ext.conn }));
 vi.mock('nodemailer', () => ({
     default: { createTransport: () => ({ sendMail: async (mail) => {
@@ -47,7 +48,7 @@ beforeAll(() => {
 });
 beforeEach(async () => {
     ext.conn = await createSqlJsConn();
-    Object.assign(ext, { outbox: [], smtpDown: false, clerk: {}, updates: [] });
+    Object.assign(ext, { outbox: [], smtpDown: false, clerk: {}, updates: [], sessions: {} });
     // Même règle que la vraie vérification : un compte sans email vérifié → email vide.
     __setAuthVerifierForTests(async (token) => {
         const u = ext.clerk[token];
@@ -161,3 +162,48 @@ describe('Déblocage « email non vérifié » par code', () => {
         expect((await call('admin', 'verifyClerkEmail', 'user_inconnu')).code).toBe(404);
     });
 });
+
+describe('Validation automatique, sans code (inscription depuis nos emails ou juste après le paiement)', () => {
+    it('lien « Créer mon accès » de l’email : le compte est validé directement, aucun code envoyé', async () => {
+        const { signupUrl } = await import('../../api/_email-templates.js');
+        const url = new URL(signupUrl('https://site.test', 'Sherinee.Amrii@gmail.com'));
+        expect(url.searchParams.get('email')).toBe('sherinee.amrii@gmail.com');
+        const token = url.searchParams.get('v');
+        expect(token).toMatch(/^[\w-]{32}$/);
+
+        makeUser('user_sh', 'sherinee.amrii@gmail.com');
+        expect((await call('user_sh', 'getMyAccount', {})).error).toBe('EMAIL_NOT_VERIFIED');
+        const r = await call('user_sh', 'verifyEmailWithProof', { token });
+        expect(r.result).toMatchObject({ verified: true });
+        expect(ext.updates).toEqual([{ id: 'idn_user_sh', params: { verified: true } }]);
+        expect(ext.outbox).toHaveLength(0);
+    });
+
+    it('le lien reçu pour UNE adresse ne valide pas un compte créé avec une autre (pas de vol de dossier)', async () => {
+        const { signupUrl } = await import('../../api/_email-templates.js');
+        const token = new URL(signupUrl('https://site.test', 'pirate@test.fr')).searchParams.get('v');
+        makeUser('user_victime', 'victime@test.fr');
+        expect((await call('user_victime', 'verifyEmailWithProof', { token })).code).toBe(403);
+        expect((await call('user_victime', 'verifyEmailWithProof', { token: 'x'.repeat(32) })).code).toBe(403);
+        expect(ext.updates).toHaveLength(0);
+    });
+
+    it('juste après le paiement Stripe (même navigateur) : validé si la session est payée avec CETTE adresse', async () => {
+        ext.sessions.cs_paid = { payment_status: 'paid', status: 'complete', customer_details: { email: 'Client@Test.fr' } };
+        ext.sessions.cs_open = { payment_status: 'unpaid', status: 'open', customer_details: { email: 'client@test.fr' } };
+        ext.sessions.cs_other = { payment_status: 'paid', status: 'complete', customer_details: { email: 'autre@test.fr' } };
+        makeUser('user_c', 'client@test.fr');
+        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_open' })).code).toBe(403);
+        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_other' })).code).toBe(403);
+        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_inconnue' })).code).toBe(403);
+        expect(ext.updates).toHaveLength(0);
+        expect((await call('user_c', 'verifyEmailWithProof', { sessionId: 'cs_paid' })).result).toMatchObject({ verified: true });
+        expect(ext.updates).toHaveLength(1);
+    });
+
+    it('compte déjà vérifié : rien à faire', async () => {
+        makeUser('user_ok', 'ok@test.fr', 'verified');
+        expect((await call('user_ok', 'verifyEmailWithProof', {})).result).toMatchObject({ alreadyVerified: true });
+    });
+});
+

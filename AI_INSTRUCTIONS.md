@@ -430,3 +430,16 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
 - Quand une carte / un élément est retiré d'une liste, relire l'en-tête de la section : « trois », « fermer »… (cas de la carte Dissolution sur /tarifs). Contrôle rapide : `grep -E "\b(deux|trois|quatre|cinq|[2-9]) (formules|étapes|accompagnements|…)"` dans src/i18n et comparer avec la longueur des tableaux.
 - `clients.renewal` vaut la date de souscription (jamais mise à jour) : ne JAMAIS l'afficher comme échéance. Utiliser `shared/renewal.js` → `nextRenewalIso(since, frequence)` (espace client, export Excel).
 - Prix dans les textes : 16/24/38 € HT, annuel 153,60/230,40/364,80, scan 0,50 €, réexp 3 €, colis 3 €, stockage 2 €/j après 15 j, salle 25/75/140 € : tous issus de shared/plans.js et src/utils/meetingPrices.js. Vérifié cohérent dans fr/en/ru et les pages le 2026-11-10.
+
+### Contrôle de santé quotidien (nov. 2026)
+- `api/_health-check.js`, lancé par le cron quotidien (8 h UTC) : signale aux admins par UN email (seulement s'il y a un problème) les clients actifs bloqués par « email non vérifié » (compte relié ou à l'adresse du client), les dossiers actifs > 3 jours sans compte de connexion, les `stripe_customer_id` introuvables chez Stripe, les emails en échec sur 24 h. Il ne modifie jamais rien.
+- Toute nouvelle cause de blocage client découverte en production doit y être ajoutée (avec son test dans `tests/healthCheck.test.js`) : le but est d'être prévenu avant l'appel du client.
+- Prix affiché = prix prélevé : le contrôle quotidien compare l'abonnement Stripe actif au prix de `clientPlanPricing` (cas « casin », souscrit le 6 nov. 2026 avant la mise en ligne de 15 h 52 : affiché 20 € car facturé 20 €). Ne JAMAIS forcer l'affichage à 16 € sans changer Stripe : utiliser le bouton admin « Passer au tarif actuel » (`/api/change-plan` avec `alignGrid: true`, admin seulement, nouveau prix à la prochaine échéance sans prorata, pose `grille_tarifaire`).
+- Le bouton admin du compte de connexion est toujours visible (« Vérifier son compte de connexion » quand un compte est relié) et la recherche inclut le compte relié par son identifiant : sinon un compte relié mais non vérifié était impossible à débloquer.
+
+### Jamais de blocage après inscription (nov. 2026)
+- Règle du propriétaire : quelqu'un qui a payé doit TOUJOURS pouvoir créer son compte et entrer. Le serveur exige toujours un email vérifié (sinon vol de dossier), mais la vérification se fait seule :
+  1. lien « Créer mon accès » de nos emails = `signupUrl()` avec `?v=` (HMAC de l'adresse, `api/_signup-proof.js`), gardé par `/inscription` dans `localStorage.dpc_signup_proof` ;
+  2. ou session Stripe payée avec la même adresse (`last_successful_session`, posé au retour de Checkout) ;
+  → `verifyEmailWithProof` valide le compte Clerk sans code. Le code par email (`EmailVerifyPanel`) n'est qu'un dernier recours.
+- Tout nouveau lien vers `/inscription` dans un email doit passer par `signupUrl(baseUrl, email)` (jamais une URL écrite à la main, elle n'aurait pas la preuve).

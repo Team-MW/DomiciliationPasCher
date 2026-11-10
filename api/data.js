@@ -11,7 +11,7 @@ import { fetchStripeBilling } from './_stripe-billing.js';
 import { fulfillCheckoutSession } from './_checkout-fulfillment.js';
 import { processMailNotifications } from './_notifications.js';
 import { getTransporter, getSmtpConfig } from './_smtp.js';
-import { sendEmailVerificationCode, confirmEmailVerificationCode, markClerkEmailVerified, VerificationError } from './_email-verification.js';
+import { sendEmailVerificationCode, confirmEmailVerificationCode, markClerkEmailVerified, verifyEmailWithProof, VerificationError } from './_email-verification.js';
 import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
 import { parseExtraInfo } from '../src/utils/contractLegalFields.js';
 import { resolveClientStatusFromStripe } from '../src/utils/stripeClientStatus.js';
@@ -102,7 +102,7 @@ const CLIENT_METHODS = {
         const lastWord = String(client.name || '').trim().split(/\s+/).pop();
         const terms = [...new Set([extra.nom, lastWord].map((t) => String(t || '').trim()).filter((t) => t.length >= 3))];
         const email = String(client.email || '').trim().toLowerCase();
-        const users = await listClerkUsers({ email, terms });
+        const users = await listClerkUsers({ email, terms, ids: client.clerkId ? [client.clerkId] : [] });
         const accounts = [];
         for (const user of users) {
             const taken = await ctx.conn.execute('SELECT id FROM clients WHERE clerkId = ? AND id <> ? LIMIT 1', [user.id, clientId]);
@@ -322,6 +322,7 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
             // Connecté mais email NON vérifié : on le dit (avant : 401 générique, que le site affichait « Aucun dossier trouvé »).
             // Seules actions permises sans email vérifié : prouver son adresse (code envoyé par notre serveur d'emails).
             if (method === 'sendEmailVerificationCode') return res.status(200).json({ result: await sendEmailVerificationCode(ctx, user.userId) });
+            if (method === 'verifyEmailWithProof') return res.status(200).json({ result: await verifyEmailWithProof(ctx, user.userId, args[0]) });
             if (method === 'confirmEmailVerificationCode') return res.status(200).json({ result: await confirmEmailVerificationCode(ctx, user.userId, args[0]) });
             if (!user.email) return res.status(403).json({ error: 'EMAIL_NOT_VERIFIED' });
             ctx.user = user;
@@ -405,12 +406,14 @@ async function deleteClerkUser(clerkId) {
 }
 
 /** Comptes Clerk retrouvés par adresse exacte puis par recherche de nom (dédoublonnés). */
-async function listClerkUsers({ email, terms = [] }) {
+async function listClerkUsers({ email, terms = [], ids = [] }) {
     const secretKey = readServerEnv('CLERK_SECRET_KEY');
     if (!secretKey) throw new HttpError(500, 'Clerk non configuré');
     const clerk = createClerkClient({ secretKey });
     const found = new Map();
     const collect = (result) => { for (const user of (result?.data || result || [])) if (user?.id) found.set(user.id, user); };
+    // Le compte déjà relié, même s'il a une autre adresse ou un autre nom (pour pouvoir le débloquer).
+    if (ids.length) collect(await clerk.users.getUserList({ userId: ids, limit: 10 }));
     if (email) collect(await clerk.users.getUserList({ emailAddress: [email], limit: 10 }));
     for (const term of terms) collect(await clerk.users.getUserList({ query: term, limit: 10 }));
     return [...found.values()].map((user) => {

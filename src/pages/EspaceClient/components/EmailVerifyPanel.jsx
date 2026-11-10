@@ -6,7 +6,7 @@ import { callDataApi } from '../../../services/adminDataService';
  * c'est le même envoi que les emails de bienvenue, donc il arrive quand le reste arrive.
  */
 export default function EmailVerifyPanel({ t, onVerified }) {
-    const [step, setStep] = useState('idle'); // idle | sending | sent | checking
+    const [step, setStep] = useState('auto'); // auto | idle | sending | sent | checking
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [sentTo, setSentTo] = useState('');
@@ -44,13 +44,33 @@ export default function EmailVerifyPanel({ t, onVerified }) {
     useEffect(() => {
         if (autoSent.current) return;
         autoSent.current = true;
-        send();
+        // 1. Sans rien demander : preuve du lien de nos emails, ou du paiement Stripe fait dans ce navigateur.
+        // 2. Sinon seulement : code par email.
+        (async () => {
+            const proof = {};
+            try {
+                const saved = JSON.parse(localStorage.getItem('dpc_signup_proof') || 'null');
+                if (saved?.token) proof.token = saved.token;
+                const sessionId = localStorage.getItem('last_successful_session');
+                if (sessionId) proof.sessionId = sessionId;
+            } catch { /* stockage indisponible */ }
+            if (proof.token || proof.sessionId) {
+                try {
+                    await callDataApi('verifyEmailWithProof', [proof]);
+                    onVerified();
+                    return;
+                } catch { /* preuve d'une autre adresse : on passe au code */ }
+            }
+            send();
+        })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
         <div className="ecs-verify" style={{ display: 'grid', gap: 8, marginBottom: 8 }}>
-            {step === 'sent' || step === 'checking' ? (
+            {step === 'auto' ? (
+                <p style={{ margin: 0, fontSize: 14, color: '#475569' }} aria-live="polite">{t('espaceClient.shell.verifyAuto')}</p>
+            ) : step === 'sent' || step === 'checking' ? (
                 <form onSubmit={check} style={{ display: 'grid', gap: 8 }}>
                     <p style={{ margin: 0, fontSize: 14, color: '#475569' }}>{t('espaceClient.shell.verifySentTo')} <strong>{sentTo}</strong></p>
                     <input

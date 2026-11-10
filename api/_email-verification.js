@@ -12,6 +12,7 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { createClerkClient } from '@clerk/backend';
 import { readServerEnv } from './_env.js';
+import { isValidSignupProof } from './_signup-proof.js';
 
 export const CODE_TTL_MS = 10 * 60 * 1000;
 export const MAX_ATTEMPTS = 5;
@@ -107,6 +108,31 @@ export async function markClerkEmailVerified(userId) {
     const { clerk, primary, email } = await loadPrimary(userId);
     if (primary.verification?.status !== 'verified') await clerk.emailAddresses.updateEmailAddress(primary.id, { verified: true });
     return { verified: true, email };
+}
+
+/**
+ * Validation automatique, sans code : le client prouve qu'il reçoit les emails de l'adresse du compte
+ * - soit par le lien « Créer mon accès » de nos emails (preuve signée ?v=),
+ * - soit par le paiement Stripe fait juste avant dans le même navigateur (session payée avec CETTE adresse).
+ * Sinon : refus, et l'écran passe au code envoyé par email.
+ */
+export async function verifyEmailWithProof({ getStripe }, userId, proof = {}) {
+    const { clerk, primary, email } = await loadPrimary(userId);
+    if (primary.verification?.status === 'verified') return { verified: true, alreadyVerified: true };
+    let ok = Boolean(proof?.token) && isValidSignupProof(email, proof.token);
+    if (!ok && proof?.sessionId && /^cs_[A-Za-z0-9_]+$/.test(String(proof.sessionId))) {
+        try {
+            const session = await getStripe().checkout.sessions.retrieve(String(proof.sessionId));
+            const paid = session?.payment_status === 'paid' || session?.status === 'complete';
+            const payer = String(session?.customer_details?.email || session?.customer_email || '').trim().toLowerCase();
+            ok = paid && payer === email;
+        } catch {
+            ok = false;
+        }
+    }
+    if (!ok) throw new VerificationError(403, 'Preuve insuffisante : un code va vous être envoyé par email.');
+    await clerk.emailAddresses.updateEmailAddress(primary.id, { verified: true });
+    return { verified: true };
 }
 
 export { VerificationError };

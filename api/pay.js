@@ -1,3 +1,4 @@
+import { signupUrl } from './_email-templates.js'; // le lien de paiement est arrivé dans la boîte du client : il prouve l'adresse
 import { getStripe } from './_stripe-client.js';
 import { getDbConn } from './_db.js';
 import { getBaseUrl, escapeHtml, wrapEmail, emailButton, sendBrandedMail, PHONE_DISPLAY } from './_email-kit.js';
@@ -68,7 +69,7 @@ export default async function handler(req, res) {
                 return redirect(res, `${baseUrl}/api/pay?token=${token}`);
             }
             if (client.extra.stripe_session_id === session.id) {
-                return redirect(res, `${baseUrl}/inscription`);
+                return redirect(res, signupUrl(baseUrl, client.email));
             }
             const patch = adminPaymentPatch(session, client.extra);
             await conn.execute(
@@ -92,7 +93,7 @@ export default async function handler(req, res) {
                     console.error('Pay link: notification admin non envoyée', mailErr.message);
                 }
             }
-            return redirect(res, `${baseUrl}/inscription`);
+            return redirect(res, signupUrl(baseUrl, client.email));
         }
 
         if (client.extra.payment_status === 'paid') {
@@ -125,7 +126,7 @@ export default async function handler(req, res) {
                         stripe_subscription_id: existingSub.id,
                     };
                     await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify({ ...client.extra, ...patch }), client.id]);
-                    return redirect(res, `${baseUrl}/inscription`);
+                    return redirect(res, signupUrl(baseUrl, client.email));
                 }
             } catch (subErr) {
                 // Stripe injoignable : on continue comme avant plutôt que de bloquer un client qui veut payer.

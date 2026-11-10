@@ -1,7 +1,7 @@
 import { getStripe } from './_stripe-client.js';
 import { getDbConn } from './_db.js';
 import { requireUser, getOwnership, sendServerError } from './_auth.js';
-import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
+import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID, isCurrentPricing } from '../shared/plans.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -9,6 +9,8 @@ export default async function handler(req, res) {
     }
 
     const { clientId, planId } = req.body || {};
+    // ADMIN : passer un client de l'ancienne grille au tarif actuel (même formule), dans Stripe ET dans le dossier.
+    const alignGrid = req.body?.alignGrid === true;
     const catalog = PLAN_CATALOG[planId];
     if (!clientId || !catalog) {
         return res.status(400).json({ error: 'Paramètres invalides' });
@@ -41,17 +43,30 @@ export default async function handler(req, res) {
         }
         const email = String(client.email || '').trim().toLowerCase();
 
-        const currentId = resolvePlanId(client.plan);
-        if (currentId === planId) {
-            return res.status(200).json({ ok: true, unchanged: true, plan: catalog.name, planId });
-        }
-
         let extra = {};
         try {
             extra = typeof client.extra_info === 'string'
                 ? JSON.parse(client.extra_info)
                 : (client.extra_info || {});
         } catch { extra = {}; }
+
+        if (alignGrid && !user.isAdmin) {
+            return res.status(403).json({ error: 'Accès réservé à l’administration' });
+        }
+        const currentId = resolvePlanId(client.plan);
+        if (currentId === planId && !(alignGrid && !isCurrentPricing(extra))) {
+            return res.status(200).json({ ok: true, unchanged: true, plan: catalog.name, planId });
+        }
+        const saveGrid = async (customerId) => {
+            const merged = {
+                ...extra,
+                offre: catalog.offre,
+                grille_tarifaire: PRICING_GRID,
+                ...(customerId ? { stripe_customer_id: customerId } : {}),
+            };
+            await conn.execute('UPDATE clients SET plan = ?, extra_info = ? WHERE id = ?', [catalog.name, JSON.stringify(merged), clientId]);
+            return merged;
+        };
 
         const stripe = getStripe();
         let customerId = extra.stripe_customer_id || extra.stripeCustomerId || null;
@@ -61,6 +76,11 @@ export default async function handler(req, res) {
                 limit: 1,
             });
             customerId = customers.data[0]?.id || null;
+        }
+        if (!customerId && alignGrid) {
+            // Pas de paiement Stripe (facturation manuelle) : seul le dossier change.
+            const merged = await saveGrid(null);
+            return res.status(200).json({ ok: true, plan: catalog.name, planId, stripeUpdated: false, extra_info: merged });
         }
         if (!customerId) {
             return res.status(404).json({
@@ -83,6 +103,10 @@ export default async function handler(req, res) {
             });
         }
         const sub = (subs.data || []).find((s) => ['active', 'trialing'].includes(s.status));
+        if ((!sub || !sub.items?.data?.[0]) && alignGrid) {
+            const merged = await saveGrid(customerId);
+            return res.status(200).json({ ok: true, plan: catalog.name, planId, stripeUpdated: false, extra_info: merged });
+        }
         if (!sub || !sub.items?.data?.[0]) {
             return res.status(404).json({
                 error: 'no_subscription',
@@ -105,7 +129,8 @@ export default async function handler(req, res) {
 
         await stripe.subscriptions.update(sub.id, {
             items: [{ id: item.id, price: price.id }],
-            proration_behavior: 'always_invoice',
+            // Passage au tarif actuel : le nouveau prix s'applique à la prochaine échéance, sans facture de prorata.
+            proration_behavior: alignGrid ? 'none' : 'always_invoice',
             metadata: {
                 ...(sub.metadata || {}),
                 planId,
@@ -114,22 +139,14 @@ export default async function handler(req, res) {
         });
 
         // Un changement de formule se fait au tarif en vigueur : le client passe sur la grille actuelle.
-        const merged = {
-            ...extra,
-            offre: catalog.offre,
-            grille_tarifaire: PRICING_GRID,
-            stripe_customer_id: customerId,
-        };
-        await conn.execute(
-            'UPDATE clients SET plan = ?, extra_info = ? WHERE id = ?',
-            [catalog.name, JSON.stringify(merged), clientId]
-        );
+        const merged = await saveGrid(customerId);
 
         return res.status(200).json({
             ok: true,
             plan: catalog.name,
             planId,
             amountTtc,
+            stripeUpdated: true,
             extra_info: merged,
         });
     } catch (error) {

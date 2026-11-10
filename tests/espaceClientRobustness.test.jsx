@@ -86,14 +86,15 @@ describe('Espace client : robustesse', () => {
     it.each([
         ['serveur en panne (500)', Object.assign(new Error('Erreur serveur (500)'), { status: 500 }), /serveur n’a pas répondu/],
         ['session invalide (401)', Object.assign(new Error('Authentification requise'), { status: 401 }), /session n’a pas pu être vérifiée/],
-        ['email non vérifié (403)', Object.assign(new Error('EMAIL_NOT_VERIFIED'), { status: 403 }), /n’est pas vérifiée/],
+        ['email non vérifié (403)', Object.assign(new Error('EMAIL_NOT_VERIFIED'), { status: 403 }), /cette adresse email est bien la vôtre/],
     ])('compte inaccessible : %s → message d’erreur précis, JAMAIS « Aucun dossier trouvé »', async (_label, error, expected) => {
         go(); H.account = null;
         svc.getMyAccount.mockRejectedValueOnce(error);
         mount();
         await waitFor(() => expect(document.body.textContent).toMatch(expected));
         expect(document.body.textContent).not.toMatch(/Aucun dossier trouvé/);
-        expect(document.body.textContent).toMatch(/Connexion à votre dossier impossible/);
+        // Email non vérifié : écran neutre « Dernière étape » (validation automatique), pas « impossible ».
+        expect(document.body.textContent).toMatch(error.status === 403 ? /Dernière étape : activation de votre accès/ : /Connexion à votre dossier impossible/);
     });
 
     it('vraiment aucun dossier (réponse vide) : « Aucun dossier trouvé » reste affiché', async () => {

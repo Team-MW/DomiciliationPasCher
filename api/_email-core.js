@@ -1,3 +1,4 @@
+import { signupUrl } from './_email-templates.js';
 import nodemailer from 'nodemailer';
 import { ADMIN_EMAIL } from './_smtp.js';
 import { readServerEnv } from './_env.js';
@@ -167,7 +168,7 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
     } else if (type === 'account_created') {
         const payUrl = paymentToken
             ? `${baseUrl}/api/pay?token=${encodeURIComponent(paymentToken)}`
-            : `${baseUrl}/inscription`;
+            : signupUrl(baseUrl, email);
         built = buildAccountCreatedEmail({ nom, email, planName: plan, frequence, payUrl, baseUrl });
     } else if (type === 'admin_document_uploaded') {
         built = {

@@ -37,7 +37,7 @@ const REMOTE_METHODS = [
     'getClients', 'getClientById', 'getClientByEmail', 'getClientBySessionId', 'addClient',
     'updateClientClerkId', 'updateDemandeClerkId', 'updateClientProfile', 'updateClientAddress',
     'updateClientStatus', 'updateClientExtraInfo', 'deleteClient', 'getMyAccount',
-    'clerkAccountsForClient', 'linkClerkAccount', 'verifyClerkEmail', 'sendEmailVerificationCode', 'confirmEmailVerificationCode',
+    'clerkAccountsForClient', 'linkClerkAccount', 'verifyClerkEmail', 'sendEmailVerificationCode', 'verifyEmailWithProof', 'confirmEmailVerificationCode',
     // demandes et souscription
     'getDemandes', 'getInscriptionsNonFinalisees', 'addDemande', 'getDemandeBySessionId',
     'hasPendingDemandeForSession', 'checkPaymentStatus', 'traiterDemande', 'startDocumentRequest',

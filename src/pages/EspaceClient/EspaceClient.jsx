@@ -329,7 +329,7 @@ export default function EspaceClient() {
                 tone="warning"
                 icon="clock"
                 kicker={t('espaceClient.shell.loadErrorKicker')}
-                title={t('espaceClient.shell.loadErrorTitle')}
+                title={t(loadError === 'email' ? 'espaceClient.shell.loadErrorTitle_email' : 'espaceClient.shell.loadErrorTitle')}
                 body={<p>{t(`espaceClient.shell.loadError_${loadError}`)}</p>}
                 accountEmail={accountEmail}
                 accountLabel={t('espaceClient.shell.connectedAs')}

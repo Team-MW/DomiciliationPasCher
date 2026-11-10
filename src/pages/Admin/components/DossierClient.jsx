@@ -10,7 +10,9 @@ import { resolveClientStatusFromStripe } from '../../../utils/stripeClientStatus
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
 import { parseExtraInfo } from '../../../utils/contractLegalFields';
 import { HEAVY_PLACEHOLDER } from '../../../../shared/heavyPlaceholder.js';
-import { clientPlanPricing } from '../../../../shared/plans.js';
+import { clientPlanPricing, PLAN_CATALOG, resolvePlanId } from '../../../../shared/plans.js';
+
+const currentGridHt = (plan) => PLAN_CATALOG[resolvePlanId(plan)]?.ht;
 import AddInvoiceModal from './AddInvoiceModal';
 import EmailHistory from './EmailHistory';
 
@@ -668,6 +670,33 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
         } catch (e) {
             console.error(e);
             await showAlert(`Recherche impossible : ${e.message || e}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Client de l'ancienne grille (souscrit avant le 6 nov. 2026 à 15 h 52) : le passer au tarif actuel de SA formule,
+    // dans Stripe (prochaine échéance, sans prorata) ET dans le dossier, pour que prix affiché = prix prélevé.
+    const handleAlignGrid = async () => {
+        const planId = resolvePlanId(client.plan);
+        const pricing = clientPlanPricing(client.plan, parseExtraInfo(client.extra_info));
+        const ok = await showConfirm(`Passer ${client.name} de ${pricing.ht} € HT à ${currentGridHt(client.plan)} € HT/mois (${pricing.name}) ?\n\nLe prélèvement Stripe change dès la prochaine échéance (pas de facture de prorata) et l’espace client affiche le nouveau prix. Le client passe aussi sur le contrat actuel.`, { title: 'Tarif actuel', confirmText: 'Passer au tarif actuel' });
+        if (!ok) return;
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/change-plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId: client.id, planId, alignGrid: true }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) throw new Error(data.message || data.error || `Erreur ${res.status}`);
+            await showAlert(data.stripeUpdated
+                ? 'Tarif actuel appliqué : nouveau montant dans Stripe dès la prochaine échéance, et affiché dans l’espace client.'
+                : 'Tarif actuel appliqué au dossier. Aucun abonnement Stripe actif trouvé : pensez à facturer au nouveau montant.', { title: 'Tarif mis à jour' });
+            onUpdate();
+        } catch (e) {
+            await showAlert(`Changement impossible : ${e.message || e}`);
         } finally {
             setIsLoading(false);
         }
@@ -2405,14 +2434,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>CLERK USER ID</span>
                                 <code style={{ fontSize: '11px', background: '#F8FAFC', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', wordBreak: 'break-all', color: '#334155' }}>{client.clerkId || "user_unknown"}</code>
-                                {(!client.clerkId || client.clerkId === "user_unknown") && (
-                                    <button
-                                        onClick={handleFindClerkAccount}
-                                        style={{ marginTop: '8px', padding: '6px 12px', fontSize: '11px', background: '#0F172A', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 700 }}
-                                    >
-                                        Chercher son compte de connexion
-                                    </button>
-                                )}
+                                {/* Toujours visible : sert aussi à débloquer un compte déjà relié dont l'email n'est pas vérifié. */}
+                                <button
+                                    onClick={handleFindClerkAccount}
+                                    style={{ marginTop: '8px', padding: '6px 12px', fontSize: '11px', background: '#0F172A', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+                                >
+                                    {(!client.clerkId || client.clerkId === "user_unknown") ? 'Chercher son compte de connexion' : 'Vérifier son compte de connexion'}
+                                </button>
                                 {(!client.clerkId || client.clerkId === "user_unknown") && (
                                     <button
                                         onClick={handleSendClerkInvitation}
@@ -2422,6 +2450,22 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                     </button>
                                 )}
                             </div>
+                            {(() => {
+                                const pricing = clientPlanPricing(client.plan, parseExtraInfo(client.extra_info));
+                                if (!pricing.legacy) return null;
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '10px' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: '600', color: '#92400E', textTransform: 'uppercase' }}>Ancien tarif</span>
+                                        <span style={{ fontSize: '12px', color: '#78350F' }}>{pricing.name} à {pricing.ht} € HT/mois (ancienne grille). Tarif actuel : {currentGridHt(client.plan)} € HT.</span>
+                                        <button
+                                            onClick={handleAlignGrid}
+                                            style={{ marginTop: '6px', padding: '6px 12px', fontSize: '11px', background: '#B45309', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+                                        >
+                                            Passer au tarif actuel
+                                        </button>
+                                    </div>
+                                );
+                            })()}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase' }}>GÉRANT</span>
                                 <span style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A' }}>{client.name}</span>

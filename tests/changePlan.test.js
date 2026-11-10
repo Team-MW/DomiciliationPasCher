@@ -45,7 +45,8 @@ describe('POST /api/change-plan', () => {
         // Le titulaire de la fiche (même email vérifié) est connecté.
         __setAuthVerifierForTests(async (token) => (token === 'owner'
             ? { userId: 'user_owner', email: 'client@example.com' }
-            : token === 'other' ? { userId: 'user_other', email: 'autre@example.com' } : null));
+            : token === 'other' ? { userId: 'user_other', email: 'autre@example.com' }
+                : token === 'admin' ? { userId: 'user_admin', email: 'mwcrea.agency@gmail.com' } : null));
         execute.mockImplementation(async (sql, params = []) => {
             // Requête de propriété (getOwnership) : seule la fiche au même email remonte.
             if (/clerkId = \?/.test(sql)) {
@@ -159,5 +160,40 @@ describe('POST /api/change-plan', () => {
         }, res);
         expect(subscriptionsUpdate).not.toHaveBeenCalled();
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ unchanged: true }));
+    });
+
+    describe('alignGrid : passer un ancien client au tarif actuel (même formule)', () => {
+        const legacyEssentiel = { ...clientRow, plan: 'Essentiel', extra_info: JSON.stringify({ stripe_customer_id: 'cus_1', frequence: 'mensuel' }) };
+        beforeEach(() => {
+            execute.mockImplementation(async (sql, params = []) => {
+                if (/clerkId = \?/.test(sql)) return { rows: params[0] === legacyEssentiel.email ? [legacyEssentiel] : [] };
+                return { rows: [legacyEssentiel] };
+            });
+        });
+
+        it('admin : 16 € HT (19,20 TTC) dans Stripe sans prorata, et marqueur de grille posé', async () => {
+            const res = mockRes();
+            await handler({ method: 'POST', headers: { authorization: 'Bearer admin' }, body: { clientId: 'cli_1', planId: 'essentiel', alignGrid: true } }, res);
+            expect(pricesCreate).toHaveBeenCalledWith(expect.objectContaining({ unit_amount: 1920 }));
+            expect(subscriptionsUpdate).toHaveBeenCalledWith('sub_1', expect.objectContaining({ proration_behavior: 'none' }));
+            const update = execute.mock.calls.find(([sql]) => /^UPDATE clients/.test(sql));
+            expect(JSON.parse(update[1][1]).grille_tarifaire).toBe('2026-11');
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, stripeUpdated: true }));
+        });
+
+        it('refusé au client lui-même (il ne choisit pas son tarif)', async () => {
+            const res = mockRes();
+            await handler({ method: 'POST', headers: { authorization: 'Bearer owner' }, body: { clientId: 'cli_1', planId: 'essentiel', alignGrid: true } }, res);
+            expect(res.status).toHaveBeenCalledWith(403);
+            expect(subscriptionsUpdate).not.toHaveBeenCalled();
+        });
+
+        it('sans abonnement Stripe actif : seul le dossier passe au tarif actuel', async () => {
+            subscriptionsList.mockResolvedValue({ data: [] });
+            const res = mockRes();
+            await handler({ method: 'POST', headers: { authorization: 'Bearer admin' }, body: { clientId: 'cli_1', planId: 'essentiel', alignGrid: true } }, res);
+            expect(subscriptionsUpdate).not.toHaveBeenCalled();
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, stripeUpdated: false }));
+        });
     });
 });

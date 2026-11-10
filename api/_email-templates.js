@@ -6,6 +6,7 @@
  * Règles : vouvoiement, une action principale par email (emailButton), signature SIGNATURE,
  * toute donnée utilisateur passée par escapeHtml, liens absolus, montants au format 28,80 €.
  */
+import { signupProofToken } from './_signup-proof.js';
 import {
     escapeHtml, emailButton, CONTACT_EMAIL, PHONE_DISPLAY, PHONE_HREF,
     greetingText, greetingHtml, formatEuro, signatureHtml, signatureText, escapeMultiline,
@@ -33,7 +34,11 @@ const heading = (title) => `<h2 style="margin-top:0;color:#0f172a;">${escapeHtml
  * connexion : il doit d'abord le créer (/inscription, email prérempli et vérifié), sinon la page
  * « Se connecter » lui répond « compte introuvable » (cas réel : William R., nov. 2026).
  */
-export const signupUrl = (baseUrl, email) => `${baseUrl}/inscription${email ? `?email=${encodeURIComponent(String(email).trim().toLowerCase())}` : ''}`;
+export const signupUrl = (baseUrl, email) => {
+    const clean = email ? String(email).trim().toLowerCase() : '';
+    // ?v= : preuve signée que la personne reçoit les emails de cette adresse → compte validé sans code.
+    return `${baseUrl}/inscription${clean ? `?email=${encodeURIComponent(clean)}&v=${signupProofToken(clean)}` : ''}`;
+};
 const normEmail = (email) => (email ? String(email).trim().toLowerCase() : '');
 const accessBlockHtml = (baseUrl, rawEmail, email = normEmail(rawEmail)) => `
         ${emailButton(signupUrl(baseUrl, email), 'Créer mon accès à l’espace client')}
@@ -227,7 +232,7 @@ export function planPriceLine(planName, frequence, extra) {
 
 export function buildAccountCreatedEmail({ nom, email, planName, frequence, payUrl, baseUrl, isReminder = false, extra }) {
     const priceLine = planPriceLine(planName, frequence, extra);
-    const signupUrl = `${baseUrl}/inscription`;
+    const accountUrl = signupUrl(baseUrl, email);
     const commitment = frequence === 'annuel'
         ? 'Abonnement annuel renouvelé tacitement, résiliable avec un préavis d\'un mois avant l\'échéance.'
         : `Engagement minimum de ${MIN_COMMITMENT_MONTHS} mois, puis résiliable avec un préavis d'un mois.`;
@@ -238,7 +243,7 @@ export function buildAccountCreatedEmail({ nom, email, planName, frequence, payU
         ? 'Petit rappel : votre abonnement n\'a pas encore démarré. Il vous suffit d\'enregistrer votre carte bancaire.'
         : '';
 
-    const text = `${greetingText(nom)}\n\n${reminderLine ? `${reminderLine}\n\n` : ''}Notre équipe a préparé votre dossier de domiciliation.\n\nFormule : ${priceLine}\n${commitment}\n\n1. Enregistrez votre carte bancaire pour démarrer votre abonnement (paiement sécurisé par Stripe) : ${payUrl}\n\n2. Créez ensuite votre accès à l'espace client avec cette adresse email (${email}) : ${signupUrl}\n\nVos factures seront disponibles dans votre espace client.\n\n${signatureText()}`;
+    const text = `${greetingText(nom)}\n\n${reminderLine ? `${reminderLine}\n\n` : ''}Notre équipe a préparé votre dossier de domiciliation.\n\nFormule : ${priceLine}\n${commitment}\n\n1. Enregistrez votre carte bancaire pour démarrer votre abonnement (paiement sécurisé par Stripe) : ${payUrl}\n\n2. Créez ensuite votre accès à l'espace client avec cette adresse email (${email}) : ${accountUrl}\n\nVos factures seront disponibles dans votre espace client.\n\n${signatureText()}`;
 
     const html = `
         ${heading('Votre dossier est prêt')}
@@ -248,7 +253,7 @@ export function buildAccountCreatedEmail({ nom, email, planName, frequence, payU
         <p style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 16px;border-radius:8px;"><strong>Formule :</strong> ${escapeHtml(priceLine)}<br><span style="font-size:13px;color:#64748b;">${escapeHtml(commitment)}</span></p>
         ${emailButton(payUrl, 'Enregistrer ma carte et démarrer mon abonnement')}
         <p style="font-size:13px;color:#64748b;">Paiement sécurisé par Stripe. Vos factures seront disponibles dans votre espace client.</p>
-        <p>Créez ensuite votre accès à l'espace client avec cette adresse email : <strong>${escapeHtml(email)}</strong> — <a href="${escapeHtml(signupUrl)}">créer mon accès</a>.</p>
+        <p>Créez ensuite votre accès à l'espace client avec cette adresse email : <strong>${escapeHtml(email)}</strong> — <a href="${escapeHtml(accountUrl)}">créer mon accès</a>.</p>
         ${signatureHtml()}`;
 
     return { subject, text, html };

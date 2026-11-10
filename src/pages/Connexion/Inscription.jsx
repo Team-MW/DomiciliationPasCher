@@ -20,6 +20,14 @@ export default function InscriptionPage() {
         return /^\S+@\S+\.\S+$/.test(raw.trim()) ? raw.trim().toLowerCase() : '';
     });
 
+    // Preuve signée du lien de nos emails (?v=) : gardée pour valider le compte automatiquement après sa création.
+    useEffect(() => {
+        const v = new URLSearchParams(window.location.search).get('v');
+        if (prefillEmail && v && /^[\w-]{16,64}$/.test(v)) {
+            try { localStorage.setItem('dpc_signup_proof', JSON.stringify({ email: prefillEmail, token: v })); } catch { /* stockage indisponible */ }
+        }
+    }, [prefillEmail]);
+
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const hasTicket = urlParams.has('__clerk_ticket');

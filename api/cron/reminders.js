@@ -7,6 +7,7 @@ import { readServerEnv } from '../_env.js';
 import { sendBrandedMail, getBaseUrl, publicSiteUrl } from '../_email-kit.js';
 import { buildRenewalReminderEmail } from '../_email-templates.js';
 import { addCalendarMonths } from '../../shared/paymentGrace.js';
+import { runHealthCheck } from '../_health-check.js';
 import { processMailNotifications, processDocumentRequests, processSouscriptionLeads, processPendingPayments } from '../_notifications.js';
 
 const DAILY_RUN_HOUR_UTC = 8;
@@ -81,6 +82,13 @@ export default async function handler(req, res) {
         remindersSent = await sendRenewalReminders(stripe, conn);
     } catch (error) {
         console.error('Cron: rappels d’échéance:', error);
+    }
+
+    // Contrôle de santé : signale aux admins les clients bloqués (email non vérifié, pas de compte, Stripe introuvable…).
+    try {
+        Object.assign(hourly, await runHealthCheck({ ...ctx, stripe }));
+    } catch (error) {
+        console.error('Cron: contrôle de santé:', error);
     }
 
     try {
