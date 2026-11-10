@@ -628,8 +628,19 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 await showAlert("Aucun compte de connexion trouvé pour ce client (ni à son adresse, ni à son nom).\n\nIl ne s'est donc pas encore inscrit : envoyez-lui l'invitation (bouton violet) ou demandez-lui d'ouvrir le lien de l'email « Créer mon accès ».", { title: 'Aucun compte trouvé' });
                 return;
             }
-            if (accounts.some((a) => a.linkedHere)) {
-                await showAlert('Un compte de connexion est déjà relié à ce dossier.', { title: 'Déjà relié' });
+            const linked = accounts.find((a) => a.linkedHere);
+            if (linked) {
+                // Compte déjà relié mais bloqué par « email non vérifié » : l'admin doit pouvoir le débloquer d'ici aussi.
+                if (!linked.verified) {
+                    const ok = await showConfirm(`Le compte relié (${linked.email}) a une adresse email NON vérifiée : le client est bloqué à la connexion.\n\nLa marquer comme vérifiée (à faire seulement si vous êtes sûr qu’il s’agit bien de lui) ?`, { title: 'Email non vérifié', confirmText: 'Marquer comme vérifiée' });
+                    if (ok) {
+                        await adminDataService.verifyClerkEmail(linked.id);
+                        await showAlert('L’adresse email est maintenant vérifiée : le client peut se connecter.', { title: 'Email vérifié' });
+                        onUpdate();
+                    }
+                    return;
+                }
+                await showAlert(`Un compte de connexion est déjà relié à ce dossier (${linked.email}, adresse vérifiée).`, { title: 'Déjà relié' });
                 return;
             }
             const candidates = accounts.filter((a) => !a.linkedElsewhere);
