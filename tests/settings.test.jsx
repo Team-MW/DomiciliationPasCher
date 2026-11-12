@@ -11,6 +11,7 @@ const { updateClientAddress, updateClientExtraInfo } = vi.hoisted(() => ({
     }),
 }));
 
+vi.mock('@clerk/clerk-react', () => ({ useClerk: () => ({ openUserProfile: vi.fn() }) }));
 vi.mock('../src/services/adminDataService', () => ({
     adminDataService: { updateClientAddress, updateClientExtraInfo },
 }));

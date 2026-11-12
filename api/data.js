@@ -8,9 +8,11 @@ import { createDataService } from './_data-service.js';
 import { getAuthUser, getOwnership, userOwnsStripeCustomer, isAdminEmail } from './_auth.js';
 import { sanitizeClientExtra, isSafeDocumentUrl, isTrustedDocumentUrl } from './_client-extra.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
-import { fulfillCheckoutSession } from './_checkout-fulfillment.js';
+import { fulfillCheckoutSession, isCheckoutSessionPaid } from './_checkout-fulfillment.js';
 import { processMailNotifications } from './_notifications.js';
 import { getTransporter, getSmtpConfig } from './_smtp.js';
+import { sendLoginLink } from './_login-link.js';
+import { tooManyRecentEmails } from './email.js';
 import { sendEmailVerificationCode, confirmEmailVerificationCode, markClerkEmailVerified, verifyEmailWithProof, VerificationError } from './_email-verification.js';
 import { PLAN_CATALOG, resolvePlanId, planAmountTtc, PRICING_GRID } from '../shared/plans.js';
 import { parseExtraInfo } from '../src/utils/contractLegalFields.js';
@@ -47,8 +49,14 @@ const PUBLIC_METHODS = {
     },
     async addDemande(ctx, [d]) {
         const demande = { ...(d || {}) };
-        if (!demande.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(demande.email))) {
+        demande.email = String(demande.email || '').trim().toLowerCase();
+        if (!demande.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(demande.email)) {
             throw new HttpError(400, 'Email invalide');
+        }
+        // Déjà payé (demande payée en attente de validation, ou client en cours) : refuser plutôt que de créer
+        // une 2e demande et un 2e abonnement Stripe (brouillon resté dans le navigateur, retour Stripe non vu…).
+        if (await ctx.service.hasPaidDossier(demande.email)) {
+            throw new HttpError(409, 'Un dossier déjà payé existe pour cette adresse email : inutile de payer à nouveau. Créez votre accès ou connectez-vous avec cette adresse.');
         }
         // Le montant affiché à l'admin est recalculé : il ne vient plus du navigateur.
         const extra = parseExtraInfo(demande.extra_info);
@@ -65,6 +73,22 @@ const PUBLIC_METHODS = {
         demande.extra_info = safeExtra;
         const created = await ctx.service.addDemande(demande);
         return { id: created.id, status: created.status };
+    },
+    /** « Recevoir un lien de connexion » : envoyé par notre serveur d'emails (ne dépend pas des emails de Clerk). */
+    async sendLoginLink(ctx, [email]) {
+        const secretKey = readServerEnv('CLERK_SECRET_KEY');
+        const smtp = getSmtpConfig();
+        const result = await sendLoginLink({
+            conn: ctx.conn,
+            clerk: secretKey ? createClerkClient({ secretKey }) : null,
+            transporter: getTransporter(),
+            from: smtp?.from,
+            baseUrl: ctx.baseUrl,
+            email,
+            isRateLimited: (e) => tooManyRecentEmails(ctx.conn, e, 'login_link'),
+        });
+        if (!result.ok) throw new HttpError(400, result.error);
+        return { ok: true }; // même réponse que le compte existe ou non
     },
     async checkPaymentStatus(ctx, [email]) {
         return ctx.service.checkPaymentStatus(email);
@@ -152,6 +176,16 @@ const CLIENT_METHODS = {
         const { service, conn, user } = ctx;
         const sessionId = /^cs_[A-Za-z0-9_]+$/.test(String(options?.sessionId || '')) ? options.sessionId : null;
         const canLink = (row) => row && (!row.clerkId || row.clerkId === user.userId);
+        // Session Stripe transmise par le navigateur : lue une fois, et si elle est payée mais que la demande n'a
+        // jamais été confirmée (webhook ET retour navigateur en échec), on la confirme ici (réparation automatique).
+        const session = sessionId ? await sessionOfUser(ctx, sessionId) : null;
+        if (session && isCheckoutSessionPaid(session) && session.metadata?.demande_id) {
+            try {
+                await fulfillCheckoutSession(session, { conn, baseUrl: ctx.baseUrl, sendEmail: ctx.sendEmail });
+            } catch (err) {
+                console.error('[getMyAccount] confirmation de la session impossible:', err?.message || err);
+            }
+        }
 
         let client = await service.getClientByEmail(user.email);
         if (!client) {
@@ -160,9 +194,17 @@ const CLIENT_METHODS = {
         }
         // Repli par session Stripe (email de paiement différent de l'email du compte) :
         // uniquement si la fiche n'est encore liée à aucun autre compte.
-        if (!client && sessionId && await sessionBelongsToUser(ctx, sessionId)) {
+        if (!client && session) {
             const bySession = await service.getClientBySessionId(sessionId);
             if (canLink(bySession)) client = bySession;
+        }
+        // Ancien client résilié qui vient de souscrire à nouveau : montrer sa nouvelle demande, pas l'écran « résilié ».
+        if (client && client.status === 'résilié') {
+            const again = (await conn.execute(
+                "SELECT id FROM demandes WHERE status = 'en_attente' AND ((email = ? AND email <> '') OR (clerkId = ? AND clerkId <> '')) LIMIT 1",
+                [user.email, user.userId]
+            )).rows[0];
+            if (again) client = null;
         }
         if (client) {
             if (!client.clerkId) {
@@ -176,7 +218,7 @@ const CLIENT_METHODS = {
             "SELECT * FROM demandes WHERE status = 'en_attente' AND ((email = ? AND email <> '') OR (clerkId = ? AND clerkId <> '')) ORDER BY date DESC LIMIT 1",
             [user.email, user.userId]
         )).rows[0];
-        if (!demande && sessionId && await sessionBelongsToUser(ctx, sessionId)) {
+        if (!demande && session) {
             const bySession = await service.getDemandeBySessionId(sessionId);
             if (canLink(bySession)) demande = bySession;
         }
@@ -276,14 +318,15 @@ const CLIENT_METHODS = {
  * Le repli par session Stripe ne lie une fiche au compte que si la session a été payée
  * avec l'email de ce compte : un session_id vu dans une URL partagée ne suffit pas.
  */
-async function sessionBelongsToUser(ctx, sessionId) {
+/** Session Stripe si elle appartient à l'utilisateur connecté (même email), sinon null. */
+async function sessionOfUser(ctx, sessionId) {
     try {
         const session = await ctx.getStripe().checkout.sessions.retrieve(String(sessionId));
         const emails = [session.customer_details?.email, session.customer_email, session.metadata?.email]
             .filter(Boolean).map((e) => String(e).trim().toLowerCase());
-        return emails.includes(ctx.user.email);
+        return emails.includes(ctx.user.email) ? session : null;
     } catch {
-        return false;
+        return null;
     }
 }
 
@@ -310,14 +353,21 @@ export function createHandler({ getConn = getDbConn, getAuth = getAuthUser } = {
         const sendEmail = (emailBody) => deliverEmail(emailBody, { baseUrl: getBaseUrl(req), source: 'manuel' });
         const service = createDataService({ conn, sendEmail, deleteClerkUser, findClerkUserIdsByEmail, isProtectedEmail: isAdminEmail });
         let stripe = null;
-        const ctx = { conn, service, sendEmail, getStripe: () => (stripe ||= getStripe()) };
+        const ctx = { conn, service, sendEmail, baseUrl: getBaseUrl(req), getStripe: () => (stripe ||= getStripe()) };
 
         try {
             if (Object.prototype.hasOwnProperty.call(PUBLIC_METHODS, method)) {
                 return res.status(200).json({ result: await PUBLIC_METHODS[method](ctx, args) ?? null });
             }
 
-            const user = await getAuth(req);
+            let user;
+            try {
+                user = await getAuth(req);
+            } catch (err) {
+                if (!err?.upstream) throw err;
+                console.error('[data] service de connexion indisponible:', err.message);
+                return res.status(503).json({ error: 'Service de connexion momentanément indisponible. Réessayez dans un instant.' });
+            }
             if (!user) return res.status(401).json({ error: 'Authentification requise' });
             // Connecté mais email NON vérifié : on le dit (avant : 401 générique, que le site affichait « Aucun dossier trouvé »).
             // Seules actions permises sans email vérifié : prouver son adresse (code envoyé par notre serveur d'emails).

@@ -1,6 +1,7 @@
 import { getStripe } from './_stripe-client.js';
 import { getDbConn } from './_db.js';
 import { getBaseUrl } from './_email-kit.js';
+import { deliverEmail } from './_email-core.js';
 import { fulfillCheckoutSession, isCheckoutSessionPaid } from './_checkout-fulfillment.js';
 import { sendServerError } from './_auth.js';
 
@@ -29,6 +30,21 @@ export default async function handler(req, res) {
         if (isPaid && session.metadata?.type !== 'meeting_booking') {
             try {
                 fulfillment = await fulfillCheckoutSession(session, { conn: getDbConn(), baseUrl: getBaseUrl(req) });
+                // Paiement acquis mais dossier non confirmé (formule différente, demande introuvable…) :
+                // même alerte admin que le webhook, sinon le client paie et personne ne le voit.
+                if (fulfillment && !fulfillment.ok && fulfillment.reason) {
+                    try {
+                        await deliverEmail({
+                            type: 'admin_payment_problem',
+                            email: String(session.customer_details?.email || session.metadata?.email || 'inconnu@example.invalid'),
+                            nom: String(session.metadata?.clientName || session.customer_details?.name || ''),
+                            notes: fulfillment.reason,
+                            documentName: session.id,
+                        }, { baseUrl: getBaseUrl(req), source: 'interne' });
+                    } catch (mailErr) {
+                        console.error('[verify-session] alerte admin non envoyée:', mailErr);
+                    }
+                }
             } catch (err) {
                 // Le paiement est acquis : on n'affiche pas d'échec au client, le webhook rattrapera.
                 console.error('[verify-session] traitement de la session impossible:', err);

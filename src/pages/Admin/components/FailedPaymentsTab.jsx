@@ -80,7 +80,8 @@ export default function FailedPaymentsTab({ clients, onSelect, onUpdate, showCon
     // Les fiches remises « actif » à la main par l'admin pendant cette session sont respectées :
     // avant, l'effet les repassait aussitôt en échec (le rafraîchissement relançait l'effet).
     useEffect(() => {
-        const toFlag = rows.filter(r => r.failure && r.client && r.client.status === 'actif'
+        // Un client qui a par ailleurs un abonnement sain n'est pas re-flagué (vieil impayé d'un ancien abonnement).
+        const toFlag = rows.filter(r => r.failure && !r.failure.hasHealthySubscription && r.client && r.client.status === 'actif'
             && !manualOverrides.current.has(r.client.id));
         if (toFlag.length === 0) return;
         let cancelled = false;

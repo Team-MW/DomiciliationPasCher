@@ -1,7 +1,8 @@
 
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Suspense, useEffect } from 'react';
-import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, ClerkLoading, ClerkLoaded, useUser } from '@clerk/clerk-react';
+import AuthLoading from './components/AuthLoading/AuthLoading';
 import Navbar from './components/Navbar/Navbar';
 import { isAdminEmail } from './utils/adminEmail';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -11,6 +12,7 @@ import Home from './pages/Home/Home';
 import ScrollToTop from './components/ScrollToTop/ScrollToTop';
 import Landing from './pages/Landing/Landing';
 import CookieConsent from './components/CookieConsent/CookieConsent';
+import PromoBanner from './components/PromoBanner/PromoBanner';
 
 import { useTranslation } from './i18n/LanguageContext';
 import { DialogProvider } from './components/AppDialog/DialogProvider.jsx';
@@ -95,8 +97,12 @@ export function ProtectedRoute({ children }) {
 
   return (
     <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut><Navigate to={loginTo} replace /></SignedOut>
+      {/* Clerk pas (encore) chargé : message au lieu d'une page vide. */}
+      <ClerkLoading><AuthLoading /></ClerkLoading>
+      <ClerkLoaded>
+        <SignedIn>{children}</SignedIn>
+        <SignedOut><Navigate to={loginTo} replace /></SignedOut>
+      </ClerkLoaded>
     </>
   );
 }
@@ -104,13 +110,19 @@ export function ProtectedRoute({ children }) {
 /* Route publique uniquement : redirige vers l'app si déjà connecté */
 export function PublicOnlyRoute({ children }) {
   const { user, isLoaded } = useUser();
-  
+  const params = new URLSearchParams(window.location.search);
+  // Lien de connexion par email (?ticket=) ouvert alors qu'une session est déjà active (autre compte, Google…) :
+  // on laisse la page présenter le jeton à Clerk, sinon le lien « ne fait rien » et ouvre le mauvais espace.
+  if (params.has('ticket')) return children;
+
   if (isLoaded && user) {
+    // Un `redirect` interne explicite (ex. admin qui est aussi client → /app/espace-client) est honoré en premier.
+    const redirect = safeAppRedirect(params.get('redirect'));
+    if (redirect) return <Navigate to={redirect} replace />;
     if (isAdminEmail(user.primaryEmailAddress?.emailAddress)) {
       return <Navigate to="/app/admin" replace />;
     }
-    const redirect = safeAppRedirect(new URLSearchParams(window.location.search).get('redirect'));
-    return <Navigate to={redirect || '/app/espace-client'} replace />;
+    return <Navigate to="/app/espace-client" replace />;
   }
 
   return children;
@@ -138,6 +150,7 @@ function App() {
     <BrowserRouter>
       <DialogProvider>
       <ScrollToTop />
+      <PromoBanner />
       <ErrorBoundary>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>

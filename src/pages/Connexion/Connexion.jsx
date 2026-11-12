@@ -1,5 +1,8 @@
-import { SignIn } from '@clerk/clerk-react';
+import { SignIn, ClerkLoading } from '@clerk/clerk-react';
+import AuthLoading from '../../components/AuthLoading/AuthLoading';
 import usePageMeta from '../../components/Seo/usePageMeta';
+import { LoginLinkRequest } from './LoginLink';
+import { useTicketSignIn } from './useTicketSignIn';
 import './Auth.css';
 import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 
@@ -14,6 +17,9 @@ export default function ConnexionPage() {
     // Lien « Activer mon accès » de nos emails : adresse préremplie.
     const prefillEmail = (() => { const raw = String(new URLSearchParams(window.location.search).get('email') || '').trim().toLowerCase(); return /^\S+@\S+\.\S+$/.test(raw) ? raw : ''; })();
     usePageMeta({ title: 'Connexion à votre espace client — Domiciliation Pas Cher', path: '/connexion', noindex: true });
+    // Lien de connexion reçu par email : connexion directe, sans mot de passe ni code.
+    const ticket = String(new URLSearchParams(window.location.search).get('ticket') || '');
+    const ticketState = useTicketSignIn(ticket, afterAuth);
 
     return (
         <main className="auth-page">
@@ -50,11 +56,20 @@ export default function ConnexionPage() {
             </div>
 
             <div className="auth-right">
+                {ticketState === 'working' && (
+                    <p className="auth-first-login" role="status"><strong>Connexion en cours…</strong> Votre espace client s’ouvre dans un instant.</p>
+                )}
+                {ticketState === 'failed' && (
+                    <p className="auth-link-error auth-link-expired" role="alert">
+                        Ce lien de connexion a expiré ou a déjà servi. Recevez-en un nouveau ci-dessous, ou connectez-vous avec votre mot de passe.
+                    </p>
+                )}
                 <p className="auth-first-login">
                     <strong>Première connexion après votre souscription ?</strong>{' '}
                     Créez d’abord votre accès avec l’adresse e-mail utilisée lors du paiement :{' '}
                     <a href="/inscription">créer mon accès</a>.
                 </p>
+                <ClerkLoading><AuthLoading /></ClerkLoading>
                 <SignIn
                     initialValues={prefillEmail ? { emailAddress: prefillEmail } : undefined}
                     signUpUrl="/inscription"
@@ -82,6 +97,7 @@ export default function ConnexionPage() {
                         },
                     }}
                 />
+                <LoginLinkRequest defaultEmail={prefillEmail} defaultOpen={ticketState === 'failed'} key={ticketState} />
             </div>
         </main>
     );

@@ -454,4 +454,66 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
 - `callDataApi` ne réessaie pas les 429 (refus volontaires à afficher) ; `syncStripePayments` lève une erreur au lieu de renvoyer « aucune facture ».
 - Dates affichées au client dans SA langue (`lang` → fr-FR / en-GB / ru-RU), jamais 'fr-FR' en dur ; date AAAA-MM-JJ lue à midi (`T12:00:00`).
 - Toute lecture de localStorage dans un chargement critique est entourée de try/catch (stockage bloqué = SecurityError).
-- Compte Clerk non vérifié (cas William R., 12/11/2026) : le contrôle du matin envoie TOUT SEUL au client l'email « Activer mon accès » (`buildAccessActivationEmail`, lien `/connexion?email=&v=`), au plus tous les 3 jours (`extra_info.access_activation_sent_at`). La preuve `?v=` est captée sur n'importe quelle page (`src/utils/signupProof.js`, appelé dans main.jsx) puis utilisée par EmailVerifyPanel après connexion. Cause de fond : réglage Clerk « Verify at sign-up » désactivé.
+- Compte Clerk non vérifié (cas William R., 12/11/2026) : le contrôle du matin envoie TOUT SEUL au client l'email « Activer mon accès » (`buildAccessActivationEmail`, lien `/connexion?email=&v=`), au plus tous les 3 jours (`extra_info.access_activation_sent_at`). La preuve `?v=` est captée sur n'importe quelle page (`src/utils/signupProof.js`, appelé dans main.jsx) puis utilisée par EmailVerifyPanel après connexion. Cause de fond : réglage Clerk « Verify at sign-up » désactivé. NE PAS conseiller de l'activer tant que les liens de nos emails portent la preuve : Clerk redemanderait un code (envoyé par Clerk, déjà « jamais reçu » par des clients) même à ceux qui arrivent par notre lien.
+- Tous les liens d'accès des emails (Accéder à mon espace client, Créer mon accès, Se connecter) passent par `withProof()` / `signupUrl()` / `accessActivationUrl()` : n'importe quel clic valide le compte (test : tests/emailProofLinks.test.js).
+- Après paiement, le bouton « Créer mon espace client » préremplit l'adresse saisie au formulaire (`pending_emailjs`, lue avant d'être effacée) : le compte est créé avec l'adresse du dossier. verify-session ne renvoie JAMAIS l'email (règle de confidentialité testée).
+
+---
+
+## Ajouts du 12/11/2026 (bandeau promo, BIENVENUE, lien de connexion)
+
+- **Bandeau promo** (`src/components/PromoBanner/`) : fixé en haut, hauteur réelle publiée dans `--promo-h`
+  (la navbar, le méga-menu et `body` se décalent d'autant). Masqué sur `/souscription`, `/inscription`,
+  `/connexion`, `/app/*` (`promoBannerRules.js`). Croix = fermé pour la visite (sessionStorage).
+- **Code BIENVENUE** : accepté UNIQUEMENT sur l'Essentiel mensuel, vérifié côté serveur dans `api/checkout.js`
+  (`action: 'checkPromo'` pour le bouton « Appliquer » du tunnel, puis revérifié au paiement). Le code doit
+  exister et être actif dans Stripe (désactiver = Stripe → Codes promo). Une seule fois par client (refusé si
+  l'email a déjà eu un abonnement). `payment_method_collection: 'always'` : carte enregistrée même à 0 €.
+  Code noté dans `extra_info.code_promo` → Annexe 1 du contrat.
+- **Lien de connexion** (`api/_login-link.js`, méthode publique `sendLoginLink`) : envoyé par NOTRE SMTP,
+  jeton Clerk à usage unique (1 h) + preuve `?v=`. `/connexion?ticket=` connecte sans mot de passe ni code.
+  Le contrôle du matin met un jeton de 7 jours dans l'email « Activer mon accès ».
+- **Emails Clerk non reçus** : le domaine a `DMARC p=reject` et il manquait les CNAME DKIM de Clerk
+  (`clk._domainkey`, `clk2._domainkey`). Tant qu'ils manquent, ne pas compter sur les emails de Clerk.
+- **Écarts restants au cahier des charges du 05/11** (non construits) : table et facturation des extras,
+  SEPA, résiliation en ligne, photo d'enveloppe séparée du scan, changement de formule au mois suivant,
+  outils admin colis/réexpédition/salle, alerte 80 jours, emails 5 et 6, mise en demeure J+22,
+  statut « reçue » de la procuration, mentions de pénalités sur les factures Stripe.
+- **12/11 (suite)** : demande du propriétaire, PAS de « mois offert » annoncé. Le bandeau affiche seulement
+  « -20 % en paiement annuel ». Badge BIENVENUE de Tarifs, indice du tunnel, relance email et 2 questions FAQ
+  retirés. Le champ code promo et la restriction serveur (Essentiel mensuel) restent en place.
+- **12/11 (documents)** : CGV_domiciliation.pdf et Contrat_domiciliation_modele.pdf (racine, version du 12/11)
+  sont publiés dans `public/documents/` (même fichier, test `contractDocuments`). Si le propriétaire les remplace,
+  recopier les deux fichiers ET réaligner `/cgv` (CGV.jsx) et `contractBuilderCurrent.js` sur le texte.
+  Liens : pied de page (« CGV en PDF »), page /cgv, espace client (onglet Documents + bas du menu).
+  Accueil : « dès 12,80 € HT/mois » toujours accompagné de « en paiement annuel ».
+
+---
+
+## Audit « zéro bug » du 12/11/2026 (5 agents, ~60 constats, correctifs appliqués)
+
+Leçons à garder :
+- **Statut client ≠ statut Stripe brut** : un abonnement `canceled` ne résilie JAMAIS la fiche (Stripe annule ~3 semaines
+  après un refus de carte, la grâce est de 2 mois) ; un abonnement sain (`active/trialing`) l'emporte sur un vieil impayé
+  (`fetchStripeBilling.hasHealthySubscription`). Seul le cron `_payment-dunning` résilie.
+- **Retour Stripe sur l'accueil** : 3 états visibles (`checking` / `unknown` / `unpaid`) + modale « reçu, en cours » si
+  `confirmed:false`. Ne jamais laisser l'accueil muet après `?success=true`.
+- **Double paiement** : `addDemande` répond 409 si `hasPaidDossier(email)` (demande payée ou client non résilié) ;
+  le tunnel affiche « Créer mon accès / Me connecter ».
+- **/connexion** : `.auth-right::before` doit rester `pointer-events:none` (il bloquait tous les liens du panneau).
+  Bandeau cookies EN HAUT sur /souscription, /connexion, /inscription (il recouvrait « Suivant » et les liens de secours).
+- **Clerk non chargé** : `ClerkLoading` → `AuthLoading` (message après 8 s) dans ProtectedRoute, /connexion, /inscription.
+  Panne Clerk (5xx/429/réseau) → 503 « service de connexion indisponible », pas 401.
+- **Adresse principale Clerk** : `pickPrimaryEmail` (api/_auth.js) partagé avec la vérification d'email (sinon boucle 403/déjà vérifié).
+- **Lien `?ticket=`** : PublicOnlyRoute ne redirige pas ; session existante → signOut puis retour sur le lien (une fois).
+- **getMyAccount** : répare une session payée non confirmée (fulfill) ; un résilié qui a repayé voit sa demande.
+- **traiterDemande** : `since` = date du paiement (`extra.paid_at`) ; email approval avec `displayName` (jamais « - 📞 ») ;
+  champs `payment_token/requested_at/reminders_sent` purgés et `payment_status:'paid'` si payé via Checkout.
+- **Documents** : règle partagée « Statuts OU Kbis » (`computeMissingDocuments`) ; un dépôt libre du client après la demande
+  suspend les relances et alerte l'admin (`client_upload_noticed`).
+- **Réservations** : accepter/refuser envoie email `booking_decision` + message client.
+- **Espace client** : signature = seulement si le serveur confirme `contractSigned` (sinon 409) ; attestation après contrat
+  signé ; client annuel voit le montant annuel ; PDF trop lourd contrôlé AVANT le verrou « Transfert… ».
+- **Historique prod** : avant le 06/11/2026, `SMTP_*` et `CRON_SECRET` manquaient sur Vercel → aucun email serveur, aucun cron.
+  Les clients inscrits avant cette date n'ont jamais reçu bienvenue/code : c'est l'origine des « inscrits bloqués ».
+- Tests : `tests/auditFixes20261112.test.js`. Le smoke navigateur recoche les CGV après restauration du brouillon.

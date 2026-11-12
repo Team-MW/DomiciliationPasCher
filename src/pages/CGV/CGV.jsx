@@ -5,7 +5,7 @@ import usePageMeta from '../../components/Seo/usePageMeta';
 
 /*
  * Conditions générales de vente — texte fourni par le Domiciliataire (CGV_domiciliation.pdf,
- * en vigueur au 06/11/2026). Les prix, quotas et frais sont lus dans shared/plans.js : ils
+ * en vigueur au 12/11/2026, aussi téléchargeable : public/documents/CGV_domiciliation.pdf). Les prix, quotas et frais sont lus dans shared/plans.js : ils
  * reproduisent les montants du document et restent alignés sur le reste du site.
  */
 
@@ -14,6 +14,7 @@ const F = EXTRA_FEES_HT;
 const PLANS = [P.essentiel, P['scan-plus'], P.physique];
 const euro = (n) => `${Number(n).toFixed(2).replace('.', ',')} €`;
 const CONTACT = 'contact@domiciliation-pas-cher.com';
+const CGV_PDF_URL = '/documents/CGV_domiciliation.pdf';
 
 const cellStyle = { border: '1px solid #E2E8F0', padding: '8px 10px', textAlign: 'left', verticalAlign: 'top' };
 const headStyle = { ...cellStyle, background: '#1A56DB', color: '#FFFFFF', fontWeight: 700 };
@@ -71,13 +72,16 @@ export default function CGV() {
     ];
 
     return (
-        <LegalLayout title="Conditions générales de vente" subtitle="domiciliation-pas-cher.com · domiciliation d'entreprise à Toulouse · CGV en vigueur au 06/11/2026">
+        <LegalLayout title="Conditions générales de vente" subtitle="domiciliation-pas-cher.com · domiciliation d'entreprise à Toulouse · CGV en vigueur au 12/11/2026">
+            <p className="legal-download">
+                <a href={CGV_PDF_URL} target="_blank" rel="noopener noreferrer" download>Télécharger les CGV (PDF)</a>
+            </p>
             <LegalH2 first>Article 1 – Identification du prestataire</LegalH2>
             <p>
                 Les présentes conditions générales de vente (les « CGV ») sont proposées par la société CASSIN LUDOVIC, SAS,
                 au capital de 2 000,00 €, immatriculée au RCS Toulouse 101 512 531, SIRET 101 512 531 00019, dont le siège et
-                l'adresse de domiciliation sont situés 150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse,
-                exerçant sous le nom commercial domiciliation-pas-cher.com (le « Domiciliataire »).
+                l'adresse de domiciliation sont situés 150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse
+                (le « Domiciliataire »).
             </p>
             <p>
                 Le Domiciliataire est titulaire de l'agrément préfectoral de domiciliation n° AG/DOM/2026/06. Numéro de TVA
@@ -139,7 +143,7 @@ export default function CGV() {
             </p>
             <p>
                 Le Client complète dans son espace client la procuration postale permettant au Domiciliataire de réceptionner
-                les envois recommandés.
+                ses envois recommandés.
             </p>
             <p>
                 Les Prestations débutent à réception du dossier complet. Le Domiciliataire peut refuser une souscription,
@@ -160,17 +164,12 @@ export default function CGV() {
             <p>Les offres promotionnelles en vigueur sont présentées sur le site. À la date des CGV :</p>
             <ul>
                 <li>
-                    <strong>Code BIENVENUE</strong> : le premier mois d'abonnement est offert pour la formule {P.essentiel.name}{' '}
-                    souscrite en paiement mensuel. Le code est utilisable une seule fois par Client. Le mois offert est compris
-                    dans la durée minimale d'engagement de {MIN_COMMITMENT_MONTHS} mois.
-                </li>
-                <li>
                     <strong>Paiement annuel</strong> : une remise de 20 % s'applique au prix de l'abonnement de toute formule
                     payée annuellement en une fois.
                 </li>
             </ul>
             <p>
-                Ces deux offres ne sont pas cumulables. Le Domiciliataire peut mettre fin à une offre promotionnelle à tout
+                Le Domiciliataire peut mettre fin à une offre promotionnelle à tout
                 moment, sans effet sur les abonnements déjà souscrits.
             </p>
 
@@ -211,7 +210,7 @@ export default function CGV() {
 
             <LegalH2>Article 10 – Durée, renouvellement et résiliation</LegalH2>
             <p>
-                Conformément à l'article R123-168 du Code de commerce, le contrat est conclu pour une durée minimale de{' '}
+                Conformément à l'article R123-168 du Code de commerce, le Contrat est conclu pour une durée minimale de{' '}
                 {MIN_COMMITMENT_MONTHS} mois.
             </p>
             <ul>
@@ -367,7 +366,7 @@ export default function CGV() {
             </p>
             <p>Si une clause des CGV est déclarée nulle, les autres clauses restent applicables.</p>
 
-            <p style={{ marginTop: '32px', color: '#64748B' }}>CGV en vigueur au 06/11/2026.</p>
+            <p style={{ marginTop: '32px', color: '#64748B' }}>CGV en vigueur au 12/11/2026.</p>
         </LegalLayout>
     );
 }

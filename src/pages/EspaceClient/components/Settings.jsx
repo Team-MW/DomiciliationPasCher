@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminDataService } from '../../../services/adminDataService';
 import { useTranslation } from '../../../i18n/LanguageContext';
+import { useClerk } from '@clerk/clerk-react';
 import AddressAutocomplete from '../../../components/AddressAutocomplete/AddressAutocomplete';
 import { parseExtraInfo, resolveForwardingAddress, resolvePersonalAddress } from '../../../utils/contractLegalFields';
 
@@ -12,6 +13,7 @@ const LANGUAGES = [
 
 export default function Settings({ clientData, setClientData }) {
     const { t, lang, setLang } = useTranslation();
+    const { openUserProfile } = useClerk();
     const [address, setAddress] = useState(clientData?.address || '');
     const [forwardAddress, setForwardAddress] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -97,6 +99,18 @@ export default function Settings({ clientData, setClientData }) {
 
     return (
         <div className="ec-tab-animate">
+            <div className="ec-content-card" style={{ marginBottom: '24px' }}>
+                <div className="ec-card-header">
+                    <h2>{t('espaceClient.settings.securityTitle')}</h2>
+                </div>
+                <div className="ec-card-body" style={{ padding: '24px 32px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--ec-text-sub)' }}>{t('espaceClient.settings.securityHint')}</p>
+                    <button type="button" className="ec-btn-primary" onClick={() => openUserProfile?.()} style={{ padding: '12px 20px', fontSize: '14px' }}>
+                        {t('espaceClient.settings.changePassword')}
+                    </button>
+                </div>
+            </div>
+
             <div className="ec-content-card" style={{ marginBottom: '24px' }}>
                 <div className="ec-card-header">
                     <h2>{t('espaceClient.settings.languageTitle')}</h2>
@@ -212,7 +226,7 @@ export default function Settings({ clientData, setClientData }) {
                     </div>
 
                     <div className="form-grid" style={{ marginBottom: '24px' }}>
-                        <ReadOnlyField label={t('espaceClient.settings.fullName')} value={clientData?.name} />
+                        <ReadOnlyField label={t('espaceClient.settings.fullName')} value={String(clientData?.name || '').replace(/\s*-?\s*📞.*$/, '')} />
                         <ReadOnlyField label={t('espaceClient.settings.email')} value={clientData?.email} />
                         <ReadOnlyField label={t('espaceClient.settings.phone')} value={clientData?.phone} />
                         <ReadOnlyField label={t('espaceClient.settings.company')} value={clientData?.company} />

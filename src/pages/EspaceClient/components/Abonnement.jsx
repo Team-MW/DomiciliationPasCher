@@ -13,6 +13,9 @@ const PLAN_I18N_KEY = {
     physique: 'forward',
 };
 
+/** 16 → « 16 », 153.6 → « 153,60 ». */
+const euro = (n) => (Number.isInteger(Number(n)) ? String(Number(n)) : Number(n).toFixed(2).replace('.', ','));
+
 export default function Abonnement({ clientData, setActiveTab, setClientData }) {
     const { t, lang } = useTranslation();
     const locale = lang === 'en' ? 'en-GB' : lang === 'ru' ? 'ru-RU' : 'fr-FR';
@@ -52,8 +55,9 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
         return {
             // Nom actuel de la formule pour tous (Scan+ = Confort) ; un ancien client garde seulement son prix.
             title: copy?.title || PLAN_CATALOG[pricing.id].name,
-            price: `${pricing.ht} €`,
-            period: t('espaceClient.subscription.periodMonthHt'),
+            // Client annuel : montant réellement facturé (par an), pas « 16 € / mois ».
+            price: clientExtra?.frequence === 'annuel' ? `${euro(pricing.annualHt)} €` : `${euro(pricing.ht)} €`,
+            period: clientExtra?.frequence === 'annuel' ? t('espaceClient.subscription.periodYearHt') : t('espaceClient.subscription.periodMonthHt'),
             badge: copy?.badge || '',
             features: Array.isArray(copy?.features) ? copy.features : [],
         };
@@ -154,9 +158,9 @@ export default function Abonnement({ clientData, setActiveTab, setClientData }) 
                             )}
                         </div>
                         <div>
-                            <span style={{ fontSize: '22px', fontWeight: 900, color: '#0f172a' }}>{isCurrent ? clientPlanPricing(catalog.id, clientExtra).ht : catalog.ht} €</span>
+                            <span style={{ fontSize: '22px', fontWeight: 900, color: '#0f172a' }}>{euro(isCurrent && clientExtra?.frequence === 'annuel' ? clientPlanPricing(catalog.id, clientExtra).annualHt : (isCurrent ? clientPlanPricing(catalog.id, clientExtra).ht : catalog.ht))} €</span>
                             <span style={{ fontSize: '13px', color: 'var(--ec-text-sub)', fontWeight: 600, marginLeft: '4px' }}>
-                                {t('espaceClient.subscription.periodMonthHt')}
+                                {isCurrent && clientExtra?.frequence === 'annuel' ? t('espaceClient.subscription.periodYearHt') : t('espaceClient.subscription.periodMonthHt')}
                             </span>
                         </div>
                         <button

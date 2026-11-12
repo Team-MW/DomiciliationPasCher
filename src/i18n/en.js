@@ -11,6 +11,8 @@ export default {
     dialogNotice: 'Notice',
     dialogOk: 'OK',
     dialogCancel: 'Cancel',
+    authUnavailableTitle: "Sign-in service unavailable",
+    authUnavailableText: "The sign-in module could not load (unstable network, ad blocker or temporary incident). Reload the page; if it persists, call us.",
     dialogClose: 'Close',
   },
 
@@ -97,6 +99,7 @@ export default {
     legal: {
       mentionsLegales: 'Legal notice',
       cgv: 'Terms and conditions',
+      cgvPdf: 'Terms (PDF)',
       confidentialite: 'Privacy policy',
       manageCookies: "Manage cookies",
     },
@@ -110,7 +113,8 @@ export default {
 
     hero: {
       title: 'Domicile your business',
-      titleHighlight: 'in Toulouse from €16 excl. VAT/month',
+      titleHighlight: 'in Toulouse from €12.80 excl. VAT/month',
+      priceNote: 'Annual billing price (€153.60 excl. VAT/year) · €16 excl. VAT/month on monthly billing',
       subtitle: 'Get an official legal address in Toulouse. 100% online sign-up, certificate issued within 24 hours once your file is approved.',
       ctaPrimary: 'Get started',
       ctaSecondary: 'Discover our services',
@@ -335,7 +339,7 @@ export default {
 
     finalCta: {
       title: 'Ready to take the leap?',
-      subtitle: 'Join more than 2,000 entrepreneurs. Get started in 5 minutes, from €16 excl. VAT/month.',
+      subtitle: 'Join more than 2,000 entrepreneurs. Get started in 5 minutes, from €12.80 excl. VAT/month with annual billing.',
       ctaPrimary: 'Get started',
       ctaSecondary: 'Discover our services →',
       badges: ['Cancel after 3 months (1-month notice)', 'Certificate within 24 h', 'Responsive support', '100% legal'],
@@ -349,6 +353,15 @@ export default {
         'To obtain your domiciliation certificate (required to register your company with the registry) and follow your mail, create your client area now.',
       info: 'This takes less than a minute: it links your payment to your client account.',
       cta: 'Create my client area',
+      pendingSubtitle: "Payment received, your file is being recorded",
+      checkingTitle: "Checking your payment…",
+      checkingText: "A few seconds, please keep this page open.",
+      unknownTitle: "We could not verify your payment",
+      unknownText: "If your bank approved the payment, it is recorded and we confirm it automatically: do not pay twice. Retry the check or create your client area now. Any doubt? Call us on 09 60 39 69 07.",
+      retry: "Retry",
+      unpaidTitle: "Payment not completed",
+      unpaidText: "Your bank did not approve the payment and nothing was charged. You can resume your sign-up where you left off.",
+      resume: "Resume my sign-up",
     },
   },
 
@@ -550,6 +563,8 @@ export default {
         { q: "Is the annual subscription refundable?", a: "No. Your services continue until the end of the paid period." },
         { q: "How do I book the meeting room?", a: "By email, 48 hours in advance, at €25 excl. VAT per hour. Free cancellation up to 24 hours before." },
         { q: "Which documents do I need to provide?", a: "ID document, proof of address, articles of association or Kbis, and the La Poste mail proxy in your client area." },
+        { q: "When are extras billed?", a: "The following month, itemised line by line on your invoice (excl. VAT, VAT and incl. VAT)." },
+        { q: "Can I change plans?", a: "Yes, from your client area, under Subscription. The change is immediate and the difference is prorated." },
       ],
     },
 
@@ -1361,6 +1376,14 @@ export default {
     about: { description: 'Discover Domiciliation Pas Cher: an approved domiciliation centre in Toulouse, our values and our commitment to simple, reliable and affordable domiciliation.' },
     rendezVous: { description: 'Book a free 30-minute appointment with an advisor for your company formation: choice of legal structure, transparent estimate and an action plan through to your Kbis.' },
     fichesPratiques: { description: 'Practical guides for entrepreneurs: taxation, registered office transfer, governance, domiciliation, company formation and legal news.' },
+  },
+
+  promoBanner: {
+    ariaLabel: "Current offer",
+    desktop: "20% off all plans with annual billing",
+    mobile: "20% off with annual billing",
+    cta: "See offers",
+    close: "Close banner",
   },
 
   cookieConsent: {

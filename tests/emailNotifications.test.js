@@ -61,7 +61,7 @@ describe('demande de statuts / Kbis', () => {
         const conn = {
             execute: vi.fn(async (sql) => {
                 if (sql.startsWith('SELECT id, email')) return { rows: [{ id: 'c1', email: 'c@test.fr', name: 'C', extra_info: JSON.stringify(extra) }] };
-                if (sql.startsWith('SELECT name FROM documents')) return { rows: docs };
+                if (sql.startsWith('SELECT name')) return { rows: docs };
                 return { rows: [] };
             }),
         };
@@ -346,6 +346,13 @@ describe('faits affichés dans les emails', () => {
         expect(text).toContain('le 31 janvier 2027');
         expect(text).toContain('au plus tard le 31 décembre 2026');
         expect(html).toContain(`${BASE}/app/espace-client?tab=messages`);
+    });
+
+    it('échéance annuelle : le montant du renouvellement est indiqué (obligatoire)', () => {
+        const { text, html } = buildRenewalReminderEmail({ nom: 'Jean', periodEndIso: '2027-01-31', amountCents: 18432, baseUrl: BASE });
+        expect(text).toContain('pour un montant de 184,32 € TTC');
+        expect(html).toContain('184,32 € TTC');
+        expect(buildRenewalReminderEmail({ nom: 'J', periodEndIso: '2027-01-31', baseUrl: BASE }).text).not.toMatch(/montant de|NaN|null/);
     });
 
     it('courrier : ne prétend jamais qu’un pli est numérisé sans aperçu, Essentiel = retrait/réexpédition', () => {

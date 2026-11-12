@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 const signUpProps = vi.hoisted(() => ({ last: null }));
 vi.mock('@clerk/clerk-react', () => ({
     SignUp: (props) => { signUpProps.last = props; return <div data-testid="clerk-signup" />; },
+    ClerkLoading: () => null,
 }));
 const svc = vi.hoisted(() => ({ checkPaymentStatus: vi.fn() }));
 vi.mock('../src/services/adminDataService', () => ({ adminDataService: svc }));

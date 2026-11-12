@@ -9,6 +9,7 @@ import { generateAttestationPdf, generateContratPdf } from '../../../utils/pdfGe
 import { resolveClientStatusFromStripe } from '../../../utils/stripeClientStatus';
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
 import { parseExtraInfo } from '../../../utils/contractLegalFields';
+import { openDataUrl } from '../../../utils/openDataUrl';
 import { HEAVY_PLACEHOLDER } from '../../../../shared/heavyPlaceholder.js';
 import { clientPlanPricing, PLAN_CATALOG, resolvePlanId } from '../../../../shared/plans.js';
 
@@ -900,7 +901,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             {docRequest.completed_at
                                                 ? `terminée le ${new Date(docRequest.completed_at).toLocaleDateString('fr-FR')}`
                                                 : docRequest.initial_pending
-                                                ? 'premier email prévu au prochain envoi quotidien (10 h)'
+                                                ? 'premier email prévu au prochain envoi quotidien (vers 9 h)'
                                                 : `relances envoyées : ${(docRequest.reminders_sent || []).length ? (docRequest.reminders_sent || []).map((d) => `J+${d}`).join(', ') : 'aucune pour l’instant'}`}
                                         </span>
                                         {!docRequest.completed_at && (
@@ -1780,14 +1781,17 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px' }}>
-                                                <a
-                                                    href={m.preview}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    style={{ padding: '8px 16px', background: '#F8FAFC', color: '#0F172A', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', cursor: 'pointer' }}
-                                                >
-                                                    Ouvrir
-                                                </a>
+                                                {m.preview && (
+                                                    <a
+                                                        href={m.preview}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => { if (String(m.preview).startsWith('data:')) { e.preventDefault(); openDataUrl(m.preview); } }}
+                                                        style={{ padding: '8px 16px', background: '#F8FAFC', color: '#0F172A', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '13px', fontWeight: '600', textDecoration: 'none', cursor: 'pointer' }}
+                                                    >
+                                                        Ouvrir
+                                                    </a>
+                                                )}
                                                 <button
                                                     onClick={async () => {
                                                         if (!(await showConfirm('Supprimer définitivement ce courrier ?', { isDanger: true, confirmText: 'Supprimer' }))) return;
@@ -2267,7 +2271,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                                     <option value="mensuel">Mensuelle</option>
                                                 </select>
                                             ) : (
-                                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.frequence === 'annuel' ? 'Annuelle (2 mois off.)' : 'Mensuelle'}</div>
+                                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>{extra.frequence === 'annuel' ? (extra.grille_tarifaire ? 'Annuelle (−20 %)' : 'Annuelle (10 mensualités)') : 'Mensuelle'}</div>
                                             )}
                                         </div>
                                     </div>

@@ -11,6 +11,7 @@
  */
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { createClerkClient } from '@clerk/backend';
+import { pickPrimaryEmail } from './_auth.js';
 import { readServerEnv } from './_env.js';
 import { isValidSignupProof } from './_signup-proof.js';
 
@@ -43,7 +44,8 @@ async function loadPrimary(userId) {
     if (!secretKey) throw new VerificationError(500, 'Clerk non configuré');
     const clerk = createClerkClient({ secretKey });
     const clerkUser = await clerk.users.getUser(userId);
-    const primary = clerkUser.emailAddresses?.find((e) => e.id === clerkUser.primaryEmailAddressId) || clerkUser.emailAddresses?.[0];
+    // Même règle de sélection que api/_auth.js (sinon : 403 d'un côté, « déjà vérifié » de l'autre → rechargement en boucle).
+    const primary = pickPrimaryEmail(clerkUser);
     if (!primary?.emailAddress) throw new VerificationError(400, 'Aucune adresse email sur ce compte.');
     return { clerk, clerkUser, primary, email: String(primary.emailAddress).trim().toLowerCase() };
 }

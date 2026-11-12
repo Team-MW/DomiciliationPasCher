@@ -72,6 +72,11 @@ export async function fulfillCheckoutSession(session, { conn, baseUrl, sendEmail
         }
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
         const firstTime = await service.confirmDemandePayment(meta.demande_id, session.id, customerId);
+        // Code promo utilisé (tunnel ou page Stripe) : repris dans l'Annexe 1 du contrat.
+        const discounted = Number(session.total_details?.amount_discount) > 0;
+        if (firstTime && (meta.promo_code || discounted) && !extra.code_promo) {
+            await setDemandeFlag(conn, meta.demande_id, 'code_promo', String(meta.promo_code || 'Code promo').slice(0, 40));
+        }
         const email = String(demande.email || meta.email || session.customer_details?.email || '').trim().toLowerCase();
         // Bienvenue : au premier passage, OU si le premier envoi a échoué (marqueur welcome_pending) :
         // sans ça, un incident SMTP ponctuel faisait perdre définitivement l'email.

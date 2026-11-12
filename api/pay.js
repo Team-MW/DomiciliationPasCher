@@ -97,7 +97,8 @@ export default async function handler(req, res) {
         }
 
         if (client.extra.payment_status === 'paid') {
-            return redirect(res, `${baseUrl}/connexion`);
+            // Déjà payé : lien d'accès AVEC preuve d'adresse (sinon : compte créé non vérifié → code requis).
+            return redirect(res, signupUrl(baseUrl, client.email));
         }
 
         // Prix applicable à ce client : grille actuelle, ou ancienne grille s'il a été créé avant.

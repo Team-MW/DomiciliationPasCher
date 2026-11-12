@@ -16,11 +16,24 @@ function hasDoc(documents, pattern) {
 
 /** Liste des pièces encore manquantes parmi `requested`, d'après l'extra_info et les documents du client. */
 export function computeMissingDocuments(requested, { extra = {}, documents = [] } = {}) {
+    const hasKbis = Boolean(extra.kbisUrl) || hasDoc(documents, /kbis/i);
     return (requested || []).filter((doc) => {
-        if (doc === 'kbis') return !(extra.kbisUrl || hasDoc(documents, /kbis/i));
-        if (doc === 'statuts') return !hasDoc(documents, /statut/i);
+        if (doc === 'kbis') return !hasKbis;
+        // La carte « Projet Statut » de l'espace client accepte « Statuts ou extrait KBIS » : un Kbis vaut statuts.
+        if (doc === 'statuts') return !(hasDoc(documents, /statut/i) || hasKbis);
         return false;
     });
+}
+
+/**
+ * Documents déposés par le client (dépôt libre, nom quelconque) depuis la demande : on ne peut pas savoir si ce sont
+ * les pièces demandées. On suspend les relances et on prévient l'admin, plutôt que d'envoyer un « dernier rappel » à tort.
+ */
+export function clientUploadsSince(documents, requestedAt) {
+    const since = Date.parse(requestedAt || '');
+    if (!Number.isFinite(since)) return [];
+    const sinceDay = new Date(since).toISOString().slice(0, 10);
+    return (documents || []).filter((d) => d && d.owner === 'client' && String(d.uploadedAt || '').slice(0, 10) >= sinceDay);
 }
 
 export function formatDocumentList(missing) {

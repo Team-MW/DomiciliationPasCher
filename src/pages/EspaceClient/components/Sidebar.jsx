@@ -69,6 +69,11 @@ export default function Sidebar({ activeTab, setActiveTab, mailCount, unreadMsgs
             </nav>
 
             <div className="ec-sidebar-footer">
+                <div className="ec-sidebar-legal">
+                    <a href="/cgv" target="_blank" rel="noopener noreferrer">{t('espaceClient.docs.refSidebarCgv')}</a>
+                    <span aria-hidden="true">·</span>
+                    <a href="/documents/Contrat_domiciliation_modele.pdf" target="_blank" rel="noopener noreferrer">{t('espaceClient.docs.refSidebarContract')}</a>
+                </div>
                 <div className="ec-user-card">
                     <UserButton afterSignOutUrl="/" />
                     <div className="ec-user-info">

@@ -10,6 +10,9 @@ import AddressAutocomplete from '../../../components/AddressAutocomplete/Address
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { parseExtraInfo, getContractLegalFields } from '../../../utils/contractLegalFields';
 import { appAlert, appConfirm } from '../../../components/AppDialog/dialogApi';
+
+/** Documents fournis par le Domiciliataire (public/documents/). */
+const REF_DOCS = { cgv: '/documents/CGV_domiciliation.pdf', contract: '/documents/Contrat_domiciliation_modele.pdf' };
 import { sendAdminDocumentUploadedEmail } from '../../../utils/emailService';
 
 
@@ -304,8 +307,15 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
     const confirmFileUpload = async () => {
         if (!fileToName) return;
-        setIsUploading(true);
         const originalFile = fileToName;
+        // Contrôle AVANT le verrou : un PDF trop lourd laissait le bouton « Transfert… » bloqué jusqu'au rechargement.
+        if (isPdfTooLarge(originalFile)) {
+            setFileToName(null);
+            setCustomFileName('');
+            await appAlert(t('espaceClient.docs.pdfTooLarge'));
+            return;
+        }
+        setIsUploading(true);
 
         const originalExt = originalFile.name.includes('.') ? originalFile.name.substring(originalFile.name.lastIndexOf('.')) : '';
         let finalName = customFileName.trim() || originalFile.name;
@@ -315,11 +325,6 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
 
         setFileToName(null);
         setCustomFileName('');
-
-        if (isPdfTooLarge(originalFile)) {
-            await appAlert(t('espaceClient.docs.pdfTooLarge'));
-            return;
-        }
 
         try {
             const isPdf = originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf');
@@ -409,6 +414,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
             });
             if (!response.ok) throw new Error(`API error: ${response.status}`);
             const updatedExtra = await response.json();
+            // Le serveur peut avoir filtré la signature (preuve absente) tout en répondant 200 : on ne dit pas « signé » à tort.
+            if (!(updatedExtra.merged || updatedExtra)?.contractSigned) throw new Error('SIGNATURE_NOT_SAVED');
 
             if (setClientData) {
                 setClientData(prev => ({ ...prev, extra_info: JSON.stringify(updatedExtra.merged || updatedExtra) }));
@@ -925,6 +932,8 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '13px', borderRadius: '8px', cursor: 'pointer', opacity: downloadingDocId ? 0.7 : 1 }}
                                 onClick={async (e) => {
                                     if (!checkApproval()) { e.preventDefault(); return; }
+                                    // L'attestation suppose un contrat signé (le texte de la page le promet dans cet ordre).
+                                    if (!isSigned) { e.preventDefault(); appAlert(t('espaceClient.docs.attestationNeedsContract')); return; }
                                     if (downloadingDocId) return;
                                     setDownloadingDocId('attestation');
                                     try {
@@ -1037,6 +1046,39 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                             </span>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* ── DOCUMENTS CONTRACTUELS (CGV + contrat type, fichiers fournis par le Domiciliataire) ── */}
+            <div className="ec-content-card ec-ref-docs">
+                <div className="ec-card-header">
+                    <div className="ec-breadcrumb">
+                        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>{t('espaceClient.docs.refDocsTitle')}</h2>
+                    </div>
+                </div>
+                <div style={{ padding: '20px 24px 24px' }}>
+                    <p style={{ margin: '0 0 14px', color: '#64748B', fontSize: '14px' }}>{t('espaceClient.docs.refDocsIntro')}</p>
+                    <ul className="ec-ref-list">
+                        <li>
+                            <div>
+                                <strong>{t('espaceClient.docs.refCgv')}</strong>
+                                <span>{t('espaceClient.docs.refCgvHint')}</span>
+                            </div>
+                            <div className="ec-ref-actions">
+                                <a href="/cgv" target="_blank" rel="noopener noreferrer">{t('espaceClient.docs.refCgvRead')}</a>
+                                <a href={REF_DOCS.cgv} target="_blank" rel="noopener noreferrer" download>{t('espaceClient.docs.refPdf')}</a>
+                            </div>
+                        </li>
+                        <li>
+                            <div>
+                                <strong>{t('espaceClient.docs.refContract')}</strong>
+                                <span>{t('espaceClient.docs.refContractHint')}</span>
+                            </div>
+                            <div className="ec-ref-actions">
+                                <a href={REF_DOCS.contract} target="_blank" rel="noopener noreferrer" download>{t('espaceClient.docs.refPdf')}</a>
+                            </div>
+                        </li>
+                    </ul>
                 </div>
             </div>
 
@@ -1483,6 +1525,7 @@ export default function Docs({ documents, setDocuments, clientData, setClientDat
                                     value={legalForm.address}
                                     onChange={(value) => setLegalForm((f) => ({ ...f, address: value }))}
                                     placeholder={t('espaceClient.settings.addressPlaceholder')}
+                                    inputStyle={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit' }}
                                 />
                             </div>
                             <div>

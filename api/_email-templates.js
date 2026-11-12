@@ -40,11 +40,20 @@ export const signupUrl = (baseUrl, email) => {
     return `${baseUrl}/inscription${clean ? `?email=${encodeURIComponent(clean)}&v=${signupProofToken(clean)}` : ''}`;
 };
 const normEmail = (email) => (email ? String(email).trim().toLowerCase() : '');
+/**
+ * Ajoute la preuve signée (?email=&v=) à un lien vers l'espace client / la connexion : quel que soit le bouton cliqué
+ * dans l'email, le compte est validé sans code (cas Sherine A. : bloquée après avoir cliqué « Accéder à mon espace client »).
+ */
+const withProof = (url, email) => {
+    const clean = normEmail(email);
+    if (!clean) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}email=${encodeURIComponent(clean)}&v=${signupProofToken(clean)}`;
+};
 const accessBlockHtml = (baseUrl, rawEmail, email = normEmail(rawEmail)) => `
         ${emailButton(signupUrl(baseUrl, email), 'Créer mon accès à l’espace client')}
-        <p style="font-size:14px;color:#475569;text-align:center;margin-top:-12px;">Première connexion : choisissez votre mot de passe avec l’adresse <strong>${escapeHtml(email || 'utilisée lors de votre souscription')}</strong>.<br>Vous avez déjà créé votre accès ? <a href="${escapeHtml(`${baseUrl}/connexion`)}" style="color:#1A56DB;">Se connecter</a></p>`;
+        <p style="font-size:14px;color:#475569;text-align:center;margin-top:-12px;">Première connexion : choisissez votre mot de passe avec l’adresse <strong>${escapeHtml(email || 'utilisée lors de votre souscription')}</strong>.<br>Vous avez déjà créé votre accès ? <a href="${escapeHtml(withProof(`${baseUrl}/connexion`, email))}" style="color:#1A56DB;">Se connecter</a></p>`;
 const accessBlockText = (baseUrl, rawEmail, email = normEmail(rawEmail)) => `Première connexion : créez votre accès (mot de passe) avec l'adresse ${email || 'utilisée lors de votre souscription'} : ${signupUrl(baseUrl, email)}
-Vous avez déjà créé votre accès ? Se connecter : ${baseUrl}/connexion`;
+Vous avez déjà créé votre accès ? Se connecter : ${withProof(`${baseUrl}/connexion`, email)}`;
 const infoBox = (inner) => `<p style="background:#eff6ff;border-left:4px solid #1A56DB;padding:12px 16px;border-radius:6px;">${inner}</p>`;
 const alertBox = (inner) => `<p style="background:#fff7ed;border-left:4px solid #ea580c;padding:12px 16px;border-radius:6px;">${inner}</p>`;
 
@@ -190,7 +199,11 @@ export function buildLeadReminderEmail({ firstName, planId, step, resumeUrl, uns
     const intro = reminderIndex >= 2
         ? 'Votre dossier vous attend toujours : il ne vous reste que quelques minutes pour obtenir votre adresse à Toulouse.'
         : 'Vous avez commencé votre inscription : il ne vous reste que quelques étapes pour obtenir votre adresse à Toulouse.';
-    const perks = ["Sans frais d'ouverture de dossier", '20 % de remise en paiement annuel', 'Attestation de domiciliation sous 24 h'];
+    const perks = [
+        "Sans frais d'ouverture de dossier",
+        '20 % de remise en paiement annuel',
+        'Attestation de domiciliation sous 24 h',
+    ];
 
     const text = `${greetingText(firstName)}\n\n${intro}\n\nFormule choisie : ${priceLine}\nÉtapes restantes : ${remaining.join(', ')}\n\nVos informations sont sauvegardées : vous reprenez à l'étape où vous vous êtes arrêté, sans rien ressaisir.\n\n${perks.map((p) => `- ${p}`).join('\n')}\n\nReprendre mon inscription : ${resumeUrl}\n\nUne question ? Appelez-nous au ${PHONE_DISPLAY} ou répondez à cet email.\n\n${signatureText()}`;
 
@@ -285,7 +298,7 @@ export function buildWelcomeEmail({ nom, baseUrl, email }) {
 /* ---------- Dossier validé ---------- */
 
 export function buildApprovalEmail({ nom, baseUrl, email }) {
-    const url = clientSpace(baseUrl);
+    const url = withProof(clientSpace(baseUrl), email);
     const subject = 'Votre dossier de domiciliation est validé';
     const addressText = DOMICILIATION_ADDRESS_LINES.join('\n');
     const text = `${greetingText(nom)}\n\nBonne nouvelle : votre dossier de domiciliation est validé.\n\nVotre adresse de domiciliation, à communiquer en entier à vos correspondants (précédée du nom de votre société), bâtiment et lot compris :\n\n${addressText}\n\nSans le bâtiment et le numéro de lot, votre courrier risque de ne pas être distribué.\n\nDepuis votre espace client, vous consultez vos documents et suivez la réception de votre courrier : ${url}\n${accessBlockText(baseUrl, email)}\n\nMerci pour votre confiance.\n\n${signatureText()}`;
@@ -496,7 +509,7 @@ export function buildTerminationEmail({ nom, amount }) {
  * disponible en libre-service dans l'espace client : on indique comment nous écrire.
  * @param {string} [periodEndIso] date d'échéance AAAA-MM-JJ
  */
-export function buildRenewalReminderEmail({ nom, periodEndIso, baseUrl }) {
+export function buildRenewalReminderEmail({ nom, periodEndIso, amountCents = null, baseUrl }) {
     const url = clientSpace(baseUrl, 'messages');
     const end = formatDate(periodEndIso);
     const noticeLimit = formatDate(addCalendarMonths(periodEndIso, -1, { clamp: true }));
@@ -504,7 +517,10 @@ export function buildRenewalReminderEmail({ nom, periodEndIso, baseUrl }) {
     const what = end
         ? `Votre abonnement annuel de domiciliation arrive à échéance le ${end}.`
         : 'Votre abonnement annuel de domiciliation arrive à échéance dans 2 mois.';
-    const renew = 'Sans action de votre part, il sera renouvelé automatiquement pour un an (reconduction tacite) : vous n\'avez rien à faire pour conserver votre adresse.';
+    const amount = Number.isFinite(Number(amountCents)) && amountCents !== null && Number(amountCents) > 0
+        ? `${(Number(amountCents) / 100).toFixed(2).replace('.', ',')} € TTC`
+        : '';
+    const renew = `Sans action de votre part, il sera renouvelé automatiquement pour un an (reconduction tacite)${amount ? `, pour un montant de ${amount}` : ''} : vous n'avez rien à faire pour conserver votre adresse.`;
     const cancel = `Si vous ne souhaitez pas le renouveler, écrivez-nous depuis la messagerie de votre espace client ou à ${CONTACT_EMAIL}${noticeLimit ? `, au plus tard le ${noticeLimit}` : ''} (préavis d'un mois avant l'échéance).`;
     const text = `${greetingText(nom)}\n\n${what}\n\n${renew}\n\n${cancel}\n\nOuvrir la messagerie : ${url}\n\n${signatureText()}`;
     const html = `
@@ -545,16 +561,74 @@ export const accessActivationUrl = (baseUrl, email) => {
  * Envoyé automatiquement (contrôle du matin) à un client dont le compte de connexion n'a pas d'adresse vérifiée :
  * un clic suffit, il n'a aucun code à saisir et n'est jamais bloqué.
  */
-export function buildAccessActivationEmail({ nom, email, baseUrl }) {
-    const url = accessActivationUrl(baseUrl, email);
+export function buildAccessActivationEmail({ nom, email, baseUrl, loginUrl = null }) {
+    // loginUrl : lien qui connecte directement (jeton Clerk), sans mot de passe. Sinon : activation puis connexion.
+    const url = loginUrl || accessActivationUrl(baseUrl, email);
+    const how = loginUrl
+        ? 'Cliquez : votre espace client s’ouvre directement, sans mot de passe ni code (lien valable 7 jours).'
+        : 'Cliquez, connectez-vous, et votre espace client s’ouvre directement : aucun code à saisir.';
     const subject = 'Activez votre accès à l’espace client (1 clic)';
-    const text = `${greetingText(nom)}\n\nVotre compte est presque prêt : il reste à confirmer que cette adresse (${normEmail(email)}) est bien la vôtre.\n\nCliquez sur ce lien puis connectez-vous, votre espace client s'ouvre directement : ${url}\n\nAucun code à saisir. Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email.\n\n${signatureText()}`;
+    const text = `${greetingText(nom)}\n\nVotre compte est presque prêt : il reste à confirmer que cette adresse (${normEmail(email)}) est bien la vôtre.\n\n${how}\n${url}\n\nSi vous n'êtes pas à l'origine de cette inscription, ignorez cet email.\n\n${signatureText()}`;
     const html = `
         ${heading('Activez votre accès en 1 clic')}
         <p>${greetingHtml(nom)}</p>
         <p>Votre compte est presque prêt : il reste à confirmer que l’adresse <strong>${escapeHtml(normEmail(email))}</strong> est bien la vôtre.</p>
         ${emailButton(url, 'Activer mon accès')}
-        <p style="font-size:14px;color:#475569;">Cliquez, connectez-vous, et votre espace client s’ouvre directement : aucun code à saisir.<br>Si vous n’êtes pas à l’origine de cette inscription, ignorez simplement cet email.</p>
+        <p style="font-size:14px;color:#475569;">${escapeHtml(how)}<br>Si vous n’êtes pas à l’origine de cette inscription, ignorez simplement cet email.</p>
+        ${signatureHtml()}`;
+    return { subject, text, html };
+}
+
+
+/* ---------- Lien de connexion en 1 clic (sans mot de passe ni code) ---------- */
+
+export function buildLoginLinkEmail({ nom, url }) {
+    const subject = 'Votre lien de connexion à l’espace client';
+    const text = `${greetingText(nom)}\n\nVoici votre lien pour ouvrir votre espace client, sans mot de passe ni code :\n${url}\n\nCe lien fonctionne une seule fois, pendant 1 heure. Besoin d'un nouveau lien ? Cliquez sur « Recevoir un lien de connexion » sur la page de connexion.\n\nVous pourrez ensuite choisir un nouveau mot de passe dans votre espace (Paramètres → « Changer mon mot de passe »).\n\nSi vous n'avez rien demandé, ignorez cet email : personne ne peut se connecter sans ce lien.\n\n${signatureText()}`;
+    const html = `
+        ${heading('Votre lien de connexion')}
+        <p>${greetingHtml(nom)}</p>
+        <p>Un clic suffit pour ouvrir votre espace client, <strong>sans mot de passe ni code</strong>.</p>
+        ${emailButton(url, 'Ouvrir mon espace client')}
+        <p style="font-size:14px;color:#475569;">Ce lien fonctionne une seule fois, pendant 1 heure. Vous pourrez ensuite choisir un nouveau mot de passe depuis votre espace (Paramètres → « Changer mon mot de passe »).<br>Si vous n’avez rien demandé, ignorez cet email : personne ne peut se connecter sans ce lien.</p>
+        ${signatureHtml()}`;
+    return { subject, text, html };
+}
+
+/** Client connu (il a payé) mais sans compte de connexion : lien « Créer mon accès », adresse déjà validée. */
+export function buildCreateAccessEmail({ nom, email, baseUrl }) {
+    const url = signupUrl(baseUrl, email);
+    const subject = 'Créez votre accès à l’espace client';
+    const text = `${greetingText(nom)}\n\nVous n'avez pas encore créé votre accès à l'espace client avec l'adresse ${normEmail(email)}.\n\nCréez-le ici (2 minutes, aucun code à saisir) : ${url}\n\n${signatureText()}`;
+    const html = `
+        ${heading('Créez votre accès')}
+        <p>${greetingHtml(nom)}</p>
+        <p>Vous n’avez pas encore créé votre accès à l’espace client avec l’adresse <strong>${escapeHtml(normEmail(email))}</strong>.</p>
+        ${emailButton(url, 'Créer mon accès')}
+        <p style="font-size:14px;color:#475569;">2 minutes, aucun code à saisir : votre adresse est déjà confirmée par ce lien.</p>
+        ${signatureHtml()}`;
+    return { subject, text, html };
+}
+
+
+/* ---------- Réservation de salle : décision de l'équipe ---------- */
+
+export function buildBookingDecisionEmail({ nom, bookingType, bookingDate, bookingDuration, bookingStatus, baseUrl }) {
+    const accepted = bookingStatus === 'confirmée';
+    const url = clientSpace(baseUrl, 'meeting');
+    const when = [formatDate(bookingDate) || bookingDate, bookingDuration].filter(Boolean).join(' · ');
+    const what = `${bookingType || 'Votre réservation'}${when ? ` — ${when}` : ''}`;
+    const subject = accepted ? 'Votre réservation est confirmée' : 'Votre réservation n’a pas pu être acceptée';
+    const body = accepted
+        ? 'Votre réservation est confirmée. Présentez-vous à l’accueil à l’heure prévue ; le règlement éventuel est détaillé dans votre espace client.'
+        : 'Nous ne pouvons pas accueillir cette réservation au créneau demandé (indisponibilité). Si un paiement a été effectué, il vous est remboursé. Vous pouvez proposer un autre créneau depuis votre espace client.';
+    const text = `${greetingText(nom)}\n\n${what}\n\n${body}\n\nMes réservations : ${url}\n\n${signatureText()}`;
+    const html = `
+        ${heading(subject)}
+        <p>${greetingHtml(nom)}</p>
+        <p><strong>${escapeHtml(what)}</strong></p>
+        <p>${escapeHtml(body)}</p>
+        ${emailButton(url, 'Voir mes réservations')}
         ${signatureHtml()}`;
     return { subject, text, html };
 }

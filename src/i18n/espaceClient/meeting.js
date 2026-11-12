@@ -26,6 +26,7 @@ export default {
             pending: 'En attente',
             confirmed: 'Confirmée',
             refused: 'Refusée',
+            cancelled: 'Annulée',
         },
     },
     en: {
@@ -55,6 +56,7 @@ export default {
             pending: 'Pending',
             confirmed: 'Confirmed',
             refused: 'Declined',
+            cancelled: 'Cancelled',
         },
     },
     ru: {
@@ -84,6 +86,7 @@ export default {
             pending: 'Ожидает',
             confirmed: 'Подтверждено',
             refused: 'Отклонено',
+            cancelled: 'Отменено',
         },
     },
 };

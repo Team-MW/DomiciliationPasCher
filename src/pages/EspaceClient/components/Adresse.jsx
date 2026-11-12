@@ -117,7 +117,7 @@ export default function Adresse({ clientData, setActiveTab }) {
                             {companyName}
                         </div>
                         <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>
-{t('espaceClient.address.representative').replace('{name}', clientData?.name || t('espaceClient.address.managerFallback'))}
+{t('espaceClient.address.representative').replace('{name}', String(clientData?.name || '').replace(/\s*-?\s*📞.*$/, '') || t('espaceClient.address.managerFallback'))}
                         </div>
                     </div>
 

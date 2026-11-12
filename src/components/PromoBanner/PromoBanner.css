@@ -1,0 +1,104 @@
+/* Bandeau promo : fixé tout en haut, au-dessus de la navbar (qui se décale de --promo-h). */
+.promo-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 7px 44px;
+    background: #1A56DB;
+    color: #FFFFFF;
+    text-align: center;
+}
+
+.promo-banner-inner {
+    min-width: 0;
+}
+
+.promo-banner p {
+    margin: 0;
+}
+
+.promo-banner-main {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.promo-banner-small {
+    font-size: 11.5px;
+    line-height: 1.35;
+    opacity: 0.88;
+}
+
+.promo-banner-mobile {
+    display: none;
+}
+
+.promo-banner-link {
+    color: #FFFFFF;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    white-space: nowrap;
+}
+
+.promo-banner-link:hover {
+    color: #DBEAFE;
+}
+
+.promo-banner-close {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+
+.promo-banner-close:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.promo-banner-link:focus-visible,
+.promo-banner-close:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+    .promo-banner {
+        padding: 5px 38px 5px 10px;
+    }
+
+    .promo-banner-main {
+        font-size: 12.5px;
+        line-height: 1.35;
+    }
+
+    .promo-banner-small {
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+    .promo-banner-desktop {
+        display: none;
+    }
+
+    .promo-banner-mobile {
+        display: inline;
+    }
+}

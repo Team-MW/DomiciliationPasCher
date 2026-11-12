@@ -190,6 +190,34 @@
     background-image: radial-gradient(#1A56DB 0.5px, transparent 0.5px);
     background-size: 24px 24px;
     opacity: 0.03;
+    /* Décor uniquement : avant, ce calque recouvrait les liens « créer mon accès » et « Recevoir un lien de
+       connexion » (clic sans effet, en production aussi). */
+    pointer-events: none;
+    z-index: 0;
+}
+
+.auth-right > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Écran « Accès réservé » de /inscription (styles auparavant absents de cette page). */
+.auth-page .ec-pending-card {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 520px;
+    margin: 40px auto;
+    padding: 32px 28px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    text-align: center;
+    box-sizing: border-box;
+}
+.auth-page .ec-pending-card h2 { font-size: 20px; margin: 12px 0 8px; color: #0F172A; }
+.auth-page .ec-pending-card p { color: #475569; line-height: 1.55; }
+.auth-page .ec-pending-card input[type="email"] {
+    width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1.5px solid #CBD5E1; border-radius: 10px; font-size: 14px; margin-bottom: 10px; font-family: inherit;
 }
 
 /* Clerk overrides - keep card clean */
@@ -234,3 +262,20 @@
 }
 .auth-first-login a { color: #1A56DB; font-weight: 700; }
 .auth-right { flex-direction: column; }
+
+/* ── Lien de connexion par email (ne dépend pas des emails de Clerk) ── */
+.auth-link-toggle { max-width: 400px; margin: 14px auto 0; font-size: 14px; color: #475569; text-align: center; line-height: 1.5; }
+.auth-link-toggle button { background: none; border: 0; padding: 0; color: #1A56DB; font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-family: inherit; }
+.auth-link-box { max-width: 400px; width: 100%; margin: 16px auto 0; padding: 16px; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; box-sizing: border-box; }
+.auth-link-title { margin: 0 0 4px; font-weight: 700; color: #0F172A; font-size: 15px; }
+.auth-link-desc { margin: 0 0 12px; font-size: 13.5px; color: #64748B; line-height: 1.5; }
+.auth-link-label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; }
+.auth-link-row { display: flex; gap: 8px; }
+.auth-link-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1.5px solid #CBD5E1; border-radius: 10px; font-size: 14px; font-family: inherit; }
+.auth-link-row input:focus { outline: none; border-color: #1A56DB; box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.15); }
+.auth-link-row button { padding: 10px 14px; border-radius: 10px; border: 0; background: #1A56DB; color: #FFFFFF; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+.auth-link-row button:disabled { opacity: 0.6; cursor: default; }
+.auth-link-ok { margin: 0; font-size: 14px; color: #047857; line-height: 1.5; }
+.auth-link-error { margin: 8px 0 0; font-size: 13.5px; color: #B91C1C; line-height: 1.5; }
+.auth-link-expired { max-width: 400px; margin: 0 auto 16px; padding: 12px 14px; border-radius: 10px; background: #FEF2F2; border: 1px solid #FECACA; }
+@media (max-width: 420px) { .auth-link-row { flex-direction: column; } }

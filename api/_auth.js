@@ -67,8 +67,18 @@ async function verify(token) {
     const cached = userCache.get(userId);
     if (cached && cached.expires > Date.now()) return cached.user;
 
-    const clerkUser = await clerk.users.getUser(userId);
-    const primary = clerkUser.emailAddresses?.find((e) => e.id === clerkUser.primaryEmailAddressId);
+    let clerkUser;
+    try {
+        clerkUser = await clerk.users.getUser(userId);
+    } catch (err) {
+        // Panne amont (réseau, 429, 5xx Clerk) : ce n'est PAS un jeton invalide, le client ne doit pas lire
+        // « déconnectez-vous puis reconnectez-vous » pour rien → 503. Compte supprimé / introuvable : 401 comme avant.
+        const status = Number(err?.status || err?.statusCode);
+        const upstream = status >= 500 || status === 429 || /ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|fetch failed|network/i.test(String(err?.message || ''));
+        if (upstream) throw Object.assign(new Error(`Clerk indisponible: ${err?.message || err}`), { upstream: true, status: 503 });
+        throw err;
+    }
+    const primary = pickPrimaryEmail(clerkUser);
     // Un email non vérifié n'est pas une preuve d'identité : on refuse de s'en servir.
     const verified = primary?.verification?.status === 'verified';
     const email = verified ? String(primary.emailAddress || '').trim().toLowerCase() : '';
@@ -79,7 +89,20 @@ async function verify(token) {
 }
 
 /**
+ * Adresse « principale » d'un compte Clerk : celle marquée principale ; sinon, s'il n'y en a qu'une de vérifiée,
+ * celle-là (même règle que l'envoi du code de vérification, sinon le client tournait en boucle entre 403 et « déjà vérifié »).
+ */
+export function pickPrimaryEmail(clerkUser) {
+    const list = clerkUser?.emailAddresses || [];
+    const byId = list.find((e) => e.id === clerkUser.primaryEmailAddressId);
+    if (byId) return byId;
+    const verified = list.filter((e) => e.verification?.status === 'verified');
+    return verified.length === 1 ? verified[0] : list[0];
+}
+
+/**
  * Renvoie { userId, email, isAdmin } ou null si aucun jeton valide.
+ * Panne Clerk : lève une erreur marquée `upstream` (les handlers répondent 503, pas 401).
  * Ne répond jamais lui-même : à utiliser quand l'authentification est optionnelle.
  */
 export async function getAuthUser(req) {
@@ -90,6 +113,7 @@ export async function getAuthUser(req) {
         if (!user?.userId) return null;
         return { ...user, isAdmin: isAdminEmail(user.email) };
     } catch (err) {
+        if (err?.upstream) throw err;
         console.warn('[auth] jeton refusé:', err?.message || err);
         return null;
     }

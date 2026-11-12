@@ -219,6 +219,18 @@ export default function Home() {
     const pageRef = useAnimateOnScroll();
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [payerEmail, setPayerEmail] = useState('');
+    // Retour de Stripe : 'checking' (vérification), 'unknown' (serveur/réseau en panne : on ne sait pas),
+    // 'unpaid' (session lue mais non payée). Avant : rien à l'écran dans ces cas, le client croyait son paiement perdu.
+    const [paymentCheck, setPaymentCheck] = useState(() => {
+        try {
+            const p = new URLSearchParams(window.location.search);
+            if (p.get('success') !== 'true' || !p.get('session_id')) return null;
+            return localStorage.getItem(`dpc_payment_handled_${p.get('session_id')}`) === '1' ? null : 'checking';
+        } catch { return 'checking'; }
+    });
+    const [successPending, setSuccessPending] = useState(false); // payé mais dossier pas encore confirmé (le webhook rattrape)
+    const [retryTick, setRetryTick] = useState(0);
     const [pendingStatus, setPendingStatus] = useState(false);
 
     const features = tr.home.features.items.map((item, i) => ({
@@ -271,41 +283,41 @@ export default function Home() {
         const handleScroll = () => setShowScrollTop(window.scrollY > 600);
         window.addEventListener('scroll', handleScroll, { passive: true });
         
-        // --- EMAIL JS ON PAYMENT SUCCESS ---
+
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Retour de paiement Stripe (?success=true&session_id=…) : vérification côté serveur.
+    useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const successSessionId = params.get('session_id');
-        const handledKey = successSessionId ? `dpc_payment_handled_${successSessionId}` : null;
-        // Une session Stripe n'est traitée qu'une fois : rechargement, retour arrière et
-        // double exécution des effets en dev renvoyaient l'email de bienvenue et l'alerte admin.
-        const alreadyHandled = handledKey && localStorage.getItem(handledKey) === '1';
-        if (params.get('success') === 'true' && !alreadyHandled) {
-            const sessionId = successSessionId;
-            if (handledKey) localStorage.setItem(handledKey, '1');
-
-            const verifyAndConfirm = async () => {
-                let isValid = true;
-                let stripeData = null;
-                
-                // Sans session Stripe, `?success=true` seul ne prouve rien (annulation, URL tapée à la main).
-                if (!sessionId) {
-                    isValid = false;
-                } else {
-                    try {
-                        const res = await fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`);
-                        stripeData = await res.json();
-                        isValid = stripeData.success;
-                    } catch (err) {
-                        console.error("Erreur verification Stripe:", err);
-                        isValid = false;
-                    }
-                }
-
-                if (isValid) {
-                    setShowSuccessModal(true);
-                    // La demande est confirmée côté serveur par /api/verify-session (à partir des
-                    // métadonnées Stripe, jamais d'un id stocké dans le navigateur), qui envoie
-                    // aussi l'email de bienvenue et arrête les relances d'inscription.
-                    // Toujours nettoyer le brouillon après paiement validé.
+        if (params.get('success') !== 'true') return undefined;
+        const sessionId = params.get('session_id');
+        // Sans session Stripe, `?success=true` seul ne prouve rien (URL tapée à la main).
+        if (!sessionId) return undefined;
+        const handledKey = `dpc_payment_handled_${sessionId}`;
+        // Une session n'est traitée qu'une fois (rechargement, retour arrière) ; le serveur est de toute façon idempotent.
+        try { if (localStorage.getItem(handledKey) === '1') return undefined; } catch { /* stockage indisponible */ }
+        let cancelled = false;
+        (async () => {
+            let data = null;
+            let httpOk = false;
+            try {
+                const res = await fetch(`/api/verify-session?session_id=${encodeURIComponent(sessionId)}`);
+                httpOk = res.ok;
+                data = await res.json();
+            } catch (err) {
+                console.error('Erreur verification Stripe:', err);
+            }
+            if (cancelled) return;
+            if (data && data.success) {
+                try {
+                    // Adresse saisie au formulaire (gardée dans CE navigateur) : préremplit l'inscription,
+                    // pour que le compte soit créé avec la même adresse que le dossier.
+                    const typed = String(localStorage.getItem('pending_emailjs') || '').trim().toLowerCase();
+                    if (/^\S+@\S+\.\S+$/.test(typed)) setPayerEmail(typed);
+                    // La demande est confirmée côté serveur par /api/verify-session (métadonnées Stripe), qui envoie
+                    // aussi l'email de bienvenue. Le brouillon est nettoyé : plus de 2e paiement possible par erreur.
+                    localStorage.setItem(handledKey, '1');
                     localStorage.removeItem('dpc_souscription_draft');
                     localStorage.removeItem('dpc_souscription_step');
                     localStorage.setItem('last_successful_session', sessionId);
@@ -313,17 +325,18 @@ export default function Home() {
                     localStorage.removeItem('pending_emailjs');
                     localStorage.removeItem('pending_namejs');
                     localStorage.setItem('allow_registration', 'true');
-                } else {
-                    if (handledKey) localStorage.removeItem(handledKey);
-                    console.error("Paiement non valide selon Stripe.");
-                }
-            };
-
-            verifyAndConfirm();
-        }
-
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+                } catch { /* stockage indisponible : l'écran s'affiche quand même */ }
+                setSuccessPending(!data.confirmed);
+                setPaymentCheck(null);
+                setShowSuccessModal(true);
+            } else if (httpOk && data && data.success === false && data.status && data.status !== 'paid') {
+                setPaymentCheck('unpaid'); // Stripe a répondu : non payé (carte refusée, abandon)
+            } else {
+                setPaymentCheck('unknown'); // serveur ou réseau en panne : le paiement est peut-être passé
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [retryTick]);
 
     return (
         <main ref={pageRef} className="page-wrapper">
@@ -358,6 +371,7 @@ export default function Home() {
                                 {tr.home.hero.title}<br />
                                 <span>{tr.home.hero.titleHighlight}</span>
                             </h1>
+                            {tr.home.hero.priceNote && <p className="hero-price-note">{tr.home.hero.priceNote}</p>}
 
                             <p className="hero-subtitle">
                                 {tr.home.hero.subtitle}
@@ -718,6 +732,27 @@ export default function Home() {
                 </svg>
             </button>
             
+            {paymentCheck && (
+                <div className="payment-check-overlay" role="dialog" aria-live="polite" aria-label={tr.home.successModal[`${paymentCheck}Title`]} style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(8, 12, 24, 0.92)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px',
+                }}>
+                    <div style={{ background: '#FFFFFF', maxWidth: '480px', width: '100%', borderRadius: '24px', padding: '36px 32px', textAlign: 'center' }}>
+                        <h2 style={{ fontSize: '22px', fontWeight: 900, color: '#0F172A', margin: '0 0 12px' }}>{tr.home.successModal[`${paymentCheck}Title`]}</h2>
+                        <p style={{ fontSize: '15px', color: '#475569', lineHeight: 1.6, margin: '0 0 24px' }}>{tr.home.successModal[`${paymentCheck}Text`]}</p>
+                        {paymentCheck === 'checking' && <div aria-hidden="true" style={{ width: '14px', height: '14px', borderRadius: '9999px', background: '#1A56DB', margin: '0 auto', animation: 'dpc-pulse 1.2s infinite' }} />}
+                        {paymentCheck === 'unknown' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <button type="button" className="btn btn-primary" onClick={() => { setPaymentCheck('checking'); setRetryTick((n) => n + 1); }}>{tr.home.successModal.retry}</button>
+                                <Link to="/inscription" className="btn btn-ghost" onClick={() => setPaymentCheck(null)}>{tr.home.successModal.cta}</Link>
+                            </div>
+                        )}
+                        {paymentCheck === 'unpaid' && (
+                            <Link to="/souscription" className="btn btn-primary" onClick={() => setPaymentCheck(null)}>{tr.home.successModal.resume}</Link>
+                        )}
+                    </div>
+                </div>
+            )}
             {showSuccessModal && (
                 <div style={{
                     position: 'fixed',
@@ -767,7 +802,7 @@ export default function Home() {
                             lineHeight: '1.2'
                         }}>
                             {tr.home.successModal.title}<br/>
-                            <span style={{ color: '#10B981', fontSize: '20px', fontWeight: '800' }}>{tr.home.successModal.subtitle}</span>
+                            <span style={{ color: '#10B981', fontSize: '20px', fontWeight: '800' }}>{successPending ? tr.home.successModal.pendingSubtitle : tr.home.successModal.subtitle}</span>
                         </h2>
                         
                         <div style={{
@@ -796,7 +831,7 @@ export default function Home() {
                         </p>
                         
                         <Link 
-                            to="/inscription"
+                            to={payerEmail ? `/inscription?email=${encodeURIComponent(payerEmail)}` : '/inscription'}
                             onClick={() => setShowSuccessModal(false)}
                             style={{
                                 display: 'block',

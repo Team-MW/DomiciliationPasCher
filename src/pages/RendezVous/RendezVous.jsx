@@ -9,7 +9,9 @@ const CALENDLY_SCRIPT = 'https://assets.calendly.com/assets/external/widget.js';
 // Pas de valeur par défaut : l'ancienne pointait vers l'agenda du développeur
 // (calendly.com/dev-microdidact), où auraient atterri les rendez-vous clients si la variable
 // manquait en production. Sans VITE_CALENDLY_URL, la page propose le contact par email.
-const CALENDLY_URL = (import.meta.env.VITE_CALENDLY_URL || '').trim();
+// Seule une URL Calendly est acceptée : une variable mal renseignée affichait un cadre vide.
+const RAW_CALENDLY_URL = (import.meta.env.VITE_CALENDLY_URL || '').trim().replace(/["']+$/, '');
+const CALENDLY_URL = /^https:\/\/calendly\.com\/[^\s"']+$/.test(RAW_CALENDLY_URL) ? RAW_CALENDLY_URL : '';
 
 export default function RendezVous() {
     const { tr } = useTranslation();

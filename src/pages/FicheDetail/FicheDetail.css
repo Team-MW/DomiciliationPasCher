@@ -104,7 +104,7 @@
 
 .fd-aside {
     position: sticky;
-    top: calc(var(--navbar-height, 80px) + 16px);
+    top: calc(var(--navbar-height, 80px) + var(--promo-h, 0px) + 16px);
     min-width: 0;
 }
 

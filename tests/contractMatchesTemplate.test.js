@@ -65,4 +65,10 @@ describe('Le contrat généré reprend le nouveau contrat (Contrat_domiciliation
         expect(text).not.toMatch(/\[(dénomination|siren|prénom nom|date|formule|référence|périodicité)/);
         expect(text).not.toContain('undefined');
     });
+
+    it("en-tête du modèle et plus de phrase « mois offert » (supprimée du contrat de novembre 2026)", () => {
+        const text = generated('Confort', 24);
+        expect(text).toContain(normalize('Référence : CONTRAT-c1 · Date : 6 novembre 2026 · Formule : Confort – Mensuelle'));
+        expect(text).not.toContain('mois offert');
+    });
 });

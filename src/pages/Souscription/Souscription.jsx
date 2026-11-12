@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { handleCheckout } from '../../utils/stripe';
+import { handleCheckout, checkPromoCode } from '../../utils/stripe';
 import { adminDataService } from '../../services/adminDataService';
 import { uploadFile } from '../../utils/cloudinary';
 import { sendSouscriptionLeadEmail } from '../../utils/emailService';
@@ -186,12 +186,14 @@ export default function Souscription() {
                 // Le choix fait sur Tarifs / l'accueil (?plan, ?frequence) l'emporte sur un ancien brouillon.
                 const fromUrl = {};
                 if (searchParams.has('plan')) fromUrl.offre = defaultData.offre;
-                if (searchParams.has('frequence')) fromUrl.frequence = defaultData.frequence;
+                // Une formule cliquée sans fréquence = mensuel (un vieux brouillon « annuel » affichait un autre prix que la carte).
+                if (searchParams.has('frequence') || searchParams.has('plan')) fromUrl.frequence = defaultData.frequence;
                 return {
                     ...defaultData,
                     ...parsed,
                     ...fromUrl,
                     ...NO_DOCUMENT_FILES,
+                    cgv: false, // les justificatifs sont à rejoindre : on refait valider les CGV au moment de payer
                 };
             }
         } catch { /* JSON invalide : on garde la valeur par défaut */ }
@@ -270,6 +272,10 @@ export default function Souscription() {
     // Verrou anti double paiement : un 2e clic pendant la redirection créait une 2e session Stripe.
     const payLockRef = useRef(false);
     const [payError, setPayError] = useState('');
+    const [alreadyPaid, setAlreadyPaid] = useState(false); // dossier déjà payé pour cet email (409)
+    // Code promo (BIENVENUE : 1er mois offert, Essentiel en mensuel uniquement). Vérifié par le serveur.
+    const [promoInput, setPromoInput] = useState('');
+    const [promo, setPromo] = useState({ status: 'idle' });
     const [success] = useState(false);
     const [coachOpen, setCoachOpen] = useState(false);
     const lastCoachedPhase = useRef(null);
@@ -410,6 +416,23 @@ export default function Souscription() {
 
     const currentPlan = PLAN_CATALOG[OFFRE_TO_PLAN[data.offre] || 'essentiel'];
     const currentPlanName = currentPlan.name;
+    const promoPlanId = OFFRE_TO_PLAN[data.offre] || 'essentiel';
+    // Un code validé ne vaut que pour la formule et la fréquence vérifiées : en changer l'annule.
+    const promoKey = `${promoPlanId}|${data.frequence}`;
+    const promoView = promo.key && promo.key !== promoKey ? { status: 'idle' } : promo;
+    const promoApplied = promoView.status === 'valid' ? promoView : null;
+
+    const applyPromo = async () => {
+        const code = promoInput.trim();
+        if (!code) { setPromo({ status: 'invalid', message: 'Saisissez un code promo.' }); return; }
+        setPromo({ status: 'checking' });
+        try {
+            const result = await checkPromoCode({ code, planId: promoPlanId, interval: data.frequence === 'annuel' ? 'year' : 'month', email: data.email });
+            setPromo(result.valid ? { status: 'valid', code: result.code, label: result.label, key: promoKey } : { status: 'invalid', message: result.message, key: promoKey });
+        } catch (err) {
+            setPromo({ status: 'invalid', message: err.message });
+        }
+    };
     const currentPlanPrice = fmtEuro(currentPlan.ht);
     const currentMeta = CURRENT_STEPS[step] || CURRENT_STEPS[0];
     const currentPhase = currentMeta.phase ?? 0;
@@ -1060,6 +1083,27 @@ export default function Souscription() {
                                 </div>
                             </div>
 
+                            <div className="promo-field">
+                                <label htmlFor="promo-code" className="promo-field-label">Code promo</label>
+                                <div className="promo-field-row">
+                                    <input
+                                        id="promo-code"
+                                        type="text"
+                                        autoComplete="off"
+                                        autoCapitalize="characters"
+                                        placeholder="Votre code"
+                                        value={promoInput}
+                                        onChange={(e) => { setPromoInput(e.target.value.toUpperCase()); if (promo.status !== 'idle') setPromo({ status: 'idle' }); }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPromo(); } }}
+                                    />
+                                    <button type="button" className="promo-field-btn" onClick={applyPromo} disabled={promoView.status === 'checking' || loading}>
+                                        {promoView.status === 'checking' ? 'Vérification…' : 'Appliquer'}
+                                    </button>
+                                </div>
+                                {promoView.status === 'valid' && <p className="promo-field-ok" role="status">Code {promoView.code} appliqué : {promoView.label}</p>}
+                                {promoView.status === 'invalid' && <p className="promo-field-error" role="alert">{promoView.message}</p>}
+                            </div>
+
                             <div className="recap-total" style={{ flexDirection: 'column', gap: '8px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                                     <div className="rt-label" style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}>Total HT</div>
@@ -1073,6 +1117,12 @@ export default function Souscription() {
                                     <div className="rt-label">Total TTC</div>
                                     <div className="rt-value">{prixTotalTTC()}</div>
                                 </div>
+                                {data.frequence === 'annuel' && (
+                                    <div className="recap-discount-row"><span>Remise annuelle</span><strong>-20 % appliqué</strong></div>
+                                )}
+                                {promoApplied && (
+                                    <div className="recap-discount-row"><span>Code {promoApplied.code}</span><strong>{promoApplied.label}</strong></div>
+                                )}
                             </div>
 
                             <label className="cgv-field">
@@ -1180,12 +1230,25 @@ export default function Souscription() {
                                                 `${window.location.origin}/souscription`,
                                                 data.email,
                                                 `${data.prenom} ${data.nom}`,
-                                                { demande_id: demande.id }
+                                                { demande_id: demande.id },
+                                                promoApplied ? promoApplied.code : ''
                                             );
                                             redirecting = true; // la page part vers Stripe : le bouton reste bloqué
                                         } catch (err) {
                                             // Dossier non créé ou paiement non lancé : le client doit le savoir et pouvoir réessayer.
                                             console.error('Paiement :', err);
+                                            if (err?.status === 409) {
+                                                // Déjà payé : on n'encaisse pas deux fois, on oriente vers l'accès.
+                                                setAlreadyPaid(true);
+                                                setPayError(err.message);
+                                                return;
+                                            }
+                                            if (err?.code === 'PROMO_INVALID') {
+                                                // Code refusé au dernier moment (désactivé entre-temps…) : on l'affiche sur le champ, rien n'est payé.
+                                                setPromo({ status: 'invalid', message: err.message });
+                                                setPayError(`${err.message} Retirez le code ou corrigez-le, puis cliquez à nouveau sur « Payer ».`);
+                                                return;
+                                            }
                                             setPayError(`${err?.message || 'Une erreur est survenue.'} Si le problème continue, contactez-nous au 09 60 39 69 07.`);
                                         } finally {
                                             if (!redirecting) {
@@ -1198,6 +1261,12 @@ export default function Souscription() {
                                     {loading ? 'Envoi de vos documents et redirection vers le paiement…' : (!data.cgv ? 'Acceptez les CGV pour continuer' : `Payer ${prixTotalTTC()} de façon sécurisée ->`)}
                                 </button>
                                 {payError && <p className="field-error" role="alert" style={{ textAlign: 'center', marginTop: '0.75rem' }}>{payError}</p>}
+                                {alreadyPaid && (
+                                    <p style={{ textAlign: 'center', marginTop: '0.75rem', display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                        <Link to={`/inscription?email=${encodeURIComponent(String(data.email || '').trim().toLowerCase())}`} className="cgv-link">Créer mon accès</Link>
+                                        <Link to={`/connexion?email=${encodeURIComponent(String(data.email || '').trim().toLowerCase())}`} className="cgv-link">Me connecter</Link>
+                                    </p>
+                                )}
                                 <div className="stripe-badge" style={{ justifyContent: 'center', marginTop: '1rem', borderTop: 'none' }}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                                     <span>Paiement sécurisé via Stripe · SSL 256-bit</span>

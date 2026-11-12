@@ -334,12 +334,19 @@ describe('Relances documents (statuts / Kbis)', () => {
         expect(docReq().reminders_sent).toEqual([7, 30]);
     });
 
-    it('documents déposés : demande clôturée, plus aucune relance', async () => {
+    it('un Kbis déjà déposé vaut aussi pour les statuts (carte « Statuts ou Kbis ») : aucune relance, demande clôturée', async () => {
         await startAt('2026-11-01T08:00:00.000Z', { kbisUrl: 'https://res.cloudinary.com/d/kbis.pdf' });
         await run('2026-11-01T08:00:00.000Z');
+        expect(sentTo('client@x.fr')).toHaveLength(0);
+        expect(docReq().completed_at).toBeTruthy();
+    });
+
+    it('documents déposés (statuts puis Kbis) : demande clôturée, plus aucune relance', async () => {
+        await startAt('2026-11-01T08:00:00.000Z');
+        await run('2026-11-01T08:00:00.000Z');
         expect(sentTo('client@x.fr')[0].text).toMatch(/statuts/i);
-        expect(sentTo('client@x.fr')[0].text).not.toMatch(/il nous manque : statuts et/i);
         await ext.conn.execute("INSERT INTO documents (id, clientId, name, url) VALUES ('d1', 'c1', 'Statuts SAS.pdf', '#')");
+        await ext.conn.execute("INSERT INTO documents (id, clientId, name, url) VALUES ('d2', 'c1', 'Extrait Kbis.pdf', '#')");
         await run('2026-11-08T08:00:00.000Z');
         expect(sentTo('client@x.fr')).toHaveLength(1);
         expect(docReq().completed_at).toBeTruthy();

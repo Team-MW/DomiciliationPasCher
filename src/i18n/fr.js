@@ -11,6 +11,8 @@ export default {
     dialogNotice: 'Notification',
     dialogOk: 'OK',
     dialogCancel: 'Annuler',
+    authUnavailableTitle: "Service de connexion indisponible",
+    authUnavailableText: "Le module de connexion n’a pas pu se charger (réseau instable, bloqueur de publicité ou incident passager). Rechargez la page ; si cela persiste, appelez-nous.",
     dialogClose: 'Fermer',
   },
 
@@ -96,7 +98,8 @@ export default {
     },
     legal: {
       mentionsLegales: 'Mentions légales',
-      cgv: 'CGV',
+      cgv: 'Conditions générales de vente (CGV)',
+      cgvPdf: 'CGV en PDF',
       confidentialite: 'Politique de confidentialité',
       manageCookies: "Gérer les cookies",
     },
@@ -110,7 +113,8 @@ export default {
 
     hero: {
       title: 'Domiciliez votre entreprise',
-      titleHighlight: 'à Toulouse dès 16 € HT/mois',
+      titleHighlight: 'à Toulouse dès 12,80 € HT/mois',
+      priceNote: 'Tarif en paiement annuel (153,60 € HT/an) · 16 € HT/mois en mensuel',
       subtitle: 'Obtenez une adresse juridique officielle à Toulouse. Souscription 100 % en ligne, attestation émise sous 24 h après validation de votre dossier.',
       ctaPrimary: 'Commencer maintenant',
       ctaSecondary: 'Découvrir nos services',
@@ -335,7 +339,7 @@ export default {
 
     finalCta: {
       title: 'Prêt à franchir le pas ?',
-      subtitle: 'Rejoignez plus de 2 000 entrepreneurs. Démarrez en 5 minutes, dès 16 € HT/mois.',
+      subtitle: 'Rejoignez plus de 2 000 entrepreneurs. Démarrez en 5 minutes, dès 12,80 € HT/mois en paiement annuel.',
       ctaPrimary: 'Commencer maintenant',
       ctaSecondary: 'Découvrir nos services →',
       badges: ['Résiliable après 3 mois (préavis 1 mois)', 'Attestation sous 24 h', 'Support réactif', '100 % légal'],
@@ -349,6 +353,15 @@ export default {
         "Pour obtenir votre attestation de domiciliation (indispensable pour immatriculer votre entreprise au greffe) et suivre votre courrier, créez dès maintenant votre espace client.",
       info: "Cette étape prend moins d'une minute : elle relie votre paiement à votre compte client.",
       cta: 'Créer mon espace client',
+      pendingSubtitle: "Paiement reçu, dossier en cours d’enregistrement",
+      checkingTitle: "Vérification de votre paiement…",
+      checkingText: "Quelques secondes, ne fermez pas cette page.",
+      unknownTitle: "Nous n’avons pas pu vérifier votre paiement",
+      unknownText: "Si votre banque a validé le paiement, il est bien enregistré et nous le confirmons automatiquement : ne payez pas une seconde fois. Réessayez la vérification ou créez votre espace client dès maintenant. Un doute ? Appelez-nous au 09 60 39 69 07.",
+      retry: "Réessayer",
+      unpaidTitle: "Paiement non finalisé",
+      unpaidText: "Votre paiement n’a pas été validé par la banque et aucun montant n’a été prélevé. Vous pouvez reprendre votre souscription là où vous en étiez.",
+      resume: "Reprendre ma souscription",
     },
   },
 
@@ -377,7 +390,7 @@ export default {
         period: "HT/mois",
         subtitle: "Adresse officielle + notification de votre courrier",
         cta: "Choisir Essentiel",
-        note: "Engagement légal de 3 mois, puis résiliable avec 1 mois de préavis",
+        note: "Engagement de 3 mois, puis résiliation avec un préavis d’un mois",
         features: [
           { ok: true, text: "Adresse juridique officielle (siège social)" },
           { ok: true, text: "Réception et stockage du courrier" },
@@ -402,7 +415,7 @@ export default {
         period: "HT/mois",
         subtitle: "Adresse + numérisation de votre courrier",
         cta: "Choisir Confort",
-        note: "Engagement légal de 3 mois, puis résiliable avec 1 mois de préavis",
+        note: "Engagement de 3 mois, puis résiliation avec un préavis d’un mois",
         features: [
           { ok: true, text: "Adresse juridique officielle (siège social)" },
           { ok: true, text: "Réception et stockage du courrier" },
@@ -426,7 +439,7 @@ export default {
         period: "HT/mois",
         subtitle: "Numérisation étendue, réexpéditions et colis inclus",
         cta: "Choisir Premium",
-        note: "Engagement légal de 3 mois, puis résiliable avec 1 mois de préavis",
+        note: "Engagement de 3 mois, puis résiliation avec un préavis d’un mois",
         features: [
           { ok: true, text: "Adresse juridique officielle (siège social)" },
           { ok: true, text: "Réception et stockage du courrier" },
@@ -550,6 +563,8 @@ export default {
         { q: "L'abonnement annuel est-il remboursable ?", a: "Non. Vos services continuent jusqu'à la fin de la période payée." },
         { q: "Comment réserver la salle de réunion ?", a: "Par email, 48 h à l'avance, au tarif de 25 € HT de l'heure. Annulation gratuite jusqu'à 24 h avant." },
         { q: "Quels documents fournir ?", a: "Pièce d'identité, justificatif de domicile, statuts ou Kbis, et la procuration La Poste dans votre espace client." },
+        { q: "Quand sont facturés les extras ?", a: "Le mois suivant, détaillés ligne par ligne sur votre facture (HT, TVA et TTC)." },
+        { q: "Puis-je changer de formule ?", a: "Oui, depuis votre espace client, rubrique Abonnement. Le changement est immédiat et la différence est calculée au prorata." },
       ],
     },
 
@@ -1361,6 +1376,14 @@ export default {
     about: { description: "Découvrez Domiciliation Pas Cher : centre de domiciliation agréé à Toulouse, nos valeurs et notre engagement pour une domiciliation simple, fiable et accessible." },
     rendezVous: { description: "Réservez un rendez-vous gratuit de 30 minutes avec un conseiller pour votre création d'entreprise : choix du statut juridique, chiffrage transparent et plan d'action jusqu'au Kbis." },
     fichesPratiques: { description: "Fiches pratiques pour entrepreneurs : fiscalité, transfert de siège social, gouvernance, domiciliation, création d'entreprise et actualités légales." },
+  },
+
+  promoBanner: {
+    ariaLabel: "Offre en cours",
+    desktop: "-20 % sur tous les abonnements en paiement annuel",
+    mobile: "-20 % en paiement annuel",
+    cta: "Voir les offres",
+    close: "Fermer le bandeau",
   },
 
   cookieConsent: {

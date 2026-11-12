@@ -41,7 +41,7 @@ export default function MeetingTab({ bookings, clients, onUpdate, showAlert }) {
                                         background: b.status === 'en_attente' ? '#FEF3C7' : b.status === 'confirmée' ? '#D1FAE5' : '#FEE2E2',
                                         color: b.status === 'en_attente' ? '#D97706' : b.status === 'confirmée' ? '#059669' : '#DC2626',
                                     }}>
-                                        {b.status.toUpperCase()}
+                                        {String(b.status || 'inconnu').toUpperCase()}
                                     </span>
                                     <span className="case-date">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>

@@ -25,10 +25,12 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
     // statut de la fiche client inchangé, au lieu de le forcer à 'actif' à tort.
     let subscriptionStatus = 'non_trouvé';
     let bestRank = Infinity;
+    let healthyStatus = null;
     for (const cid of customerIds) {
         try {
             const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 100 });
             for (const sub of subs.data) {
+                if (sub.status === 'active' || sub.status === 'trialing') healthyStatus = healthyStatus || sub.status;
                 const rank = STATUS_PRIORITY.indexOf(sub.status);
                 if (rank !== -1 && rank < bestRank) {
                     bestRank = rank;
@@ -39,6 +41,10 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
             console.warn(`Could not fetch subscriptions for ${cid}:`, err.message);
         }
     }
+    // Un abonnement SAIN l'emporte : un ancien abonnement impayé/annulé (réabonnement, 2e carte, 2e fiche Stripe)
+    // ne doit pas afficher « Compte suspendu » à un client qui paie. Même règle que le cron (_stripe-failures.js).
+    const hasHealthySubscription = Boolean(healthyStatus);
+    if (hasHealthySubscription) subscriptionStatus = healthyStatus;
 
     const allInvoices = [];
     const allPIs = [];
@@ -144,6 +150,7 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
     return {
         payments,
         subscriptionStatus,
+        hasHealthySubscription,
         foundCustomerId: customerIds.length > 0 ? customerIds[0] : null,
     };
 }

@@ -459,7 +459,7 @@ export default function EspaceClient() {
                         if (tab === 'messages') setUnreadMsgsCount(0);
                         if (tab === 'docs' && clientData) {
                             setHasNewDocs(false);
-                            localStorage.setItem(`client_seen_docs_${clientData.id}`, documents.length.toString());
+                            try { localStorage.setItem(`client_seen_docs_${clientData.id}`, documents.length.toString()); } catch { /* stockage bloqué : l'onglet change quand même */ }
                         }
                         if (tab === 'factures' && clientData) {
                             setHasNewFactures(false);

@@ -135,6 +135,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
         expect(mockRes.json).toHaveBeenCalledWith({
             payments: [],
             subscriptionStatus: 'non_trouvé',
+            hasHealthySubscription: false,
             foundCustomerId: null
         });
     });
@@ -305,7 +306,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
         expect(subscriptionStatus).toBe('non_trouvé');
     });
 
-    test('retient le statut le plus préoccupant quand plusieurs abonnements coexistent', async () => {
+    test('un abonnement sain l’emporte sur un ancien impayé (réabonnement) : le client n’est pas bloqué', async () => {
         stripeMocks.listCustomers.mockResolvedValue({ data: [{ id: 'cus_test_123' }] });
         stripeMocks.listPaymentIntents.mockResolvedValue({ data: [] });
         stripeMocks.listInvoices.mockResolvedValue({ data: [] });
@@ -315,6 +316,7 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
 
         await handler(mockReq, mockRes);
 
-        expect(mockRes.json.mock.calls[0][0].subscriptionStatus).toBe('past_due');
+        expect(mockRes.json.mock.calls[0][0].subscriptionStatus).toBe('active');
+        expect(mockRes.json.mock.calls[0][0].hasHealthySubscription).toBe(true);
     });
 });

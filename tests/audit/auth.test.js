@@ -169,9 +169,12 @@ describe('Identité : jeton et email Clerk', () => {
         expect((await call('user_new', 'getMyAccount', {})).code).toBe(200);
     });
 
-    it('primaryEmailAddressId absent / incohérent : traité comme non vérifié (aucun accès)', async () => {
+    it('primaryEmailAddressId absent : l’unique adresse VÉRIFIÉE sert d’identité ; une adresse non vérifiée ne donne aucun accès', async () => {
+        // Même règle que l'envoi du code (sinon : 403 d'un côté, « déjà vérifié » de l'autre → rechargement en boucle).
         makeUser('user_weird', 'alice@x.fr', 'verified', { primaryEmailAddressId: null });
-        expect((await call('user_weird', 'getMyAccount', {})).error).toBe('EMAIL_NOT_VERIFIED');
+        expect((await call('user_weird', 'getMyAccount', {})).code).toBe(200);
+        makeUser('user_weird2', 'zed@x.fr', 'unverified', { primaryEmailAddressId: null });
+        expect((await call('user_weird2', 'getMyAccount', {})).error).toBe('EMAIL_NOT_VERIFIED');
     });
 
     it('PUBLIC_METHODS restent accessibles sans compte, mais rien d’autre', async () => {

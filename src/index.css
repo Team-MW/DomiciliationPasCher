@@ -63,6 +63,8 @@
 
   /* Layout — source unique de vérité */
   --navbar-height: 72px;
+  /* Hauteur du bandeau promo (posée par PromoBanner, 0 quand il est masqué). */
+  --promo-h: 0px;
   --container-width: 1200px;
   --container-pad: clamp(16px, 4vw, 32px);
   --section-pad-y: clamp(64px, 8vw, 96px);
@@ -92,6 +94,8 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Bandeau promo fixe en haut : tout le contenu descend d'autant. */
+  padding-top: var(--promo-h, 0px);
   overflow-x: hidden;
 }
 

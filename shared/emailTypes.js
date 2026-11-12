@@ -14,6 +14,8 @@ export const EMAIL_TYPE_INFO = Object.freeze({
     payment_link_reminder: { label: 'Relance du lien de paiement', category: 'Paiement', source: 'auto' },
     approval: { label: 'Dossier validé', category: 'Compte', source: 'manuel' },
     access_activation: { label: 'Activation de l’accès (lien 1 clic)', category: 'Compte', source: 'auto' },
+    login_link: { label: 'Lien de connexion demandé', category: 'Compte', source: 'client' },
+    booking_decision: { label: 'Réservation acceptée / refusée', category: 'Réservations', source: 'manuel' },
     request_documents: { label: 'Demande de documents', category: 'Documents', source: 'auto' },
     request_documents_reminder: { label: 'Relance documents manquants', category: 'Documents', source: 'auto' },
     post_signature: { label: 'Contrat signé (accusé)', category: 'Documents', source: 'client' },

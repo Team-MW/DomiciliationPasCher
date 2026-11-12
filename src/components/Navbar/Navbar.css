@@ -4,7 +4,7 @@
 
 .navbar {
     position: fixed;
-    top: 0;
+    top: var(--promo-h, 0px);
     left: 0;
     right: 0;
     z-index: 9999;
@@ -179,7 +179,7 @@
 
 .mega-menu {
     position: fixed;
-    top: var(--navbar-height);
+    top: calc(var(--navbar-height) + var(--promo-h, 0px));
     left: 0;
     right: 0;
     background: white;

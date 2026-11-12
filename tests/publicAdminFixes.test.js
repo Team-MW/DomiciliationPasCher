@@ -18,7 +18,8 @@ describe('Accueil : « Choisir <formule> » ouvre le tunnel sur CETTE formule', 
     it('Souscription : le choix de l’URL (?plan, ?frequence) l’emporte sur un ancien brouillon', () => {
         const src = fs.readFileSync('src/pages/Souscription/Souscription.jsx', 'utf8');
         expect(src).toContain("if (searchParams.has('plan')) fromUrl.offre = defaultData.offre;");
-        expect(src).toContain("if (searchParams.has('frequence')) fromUrl.frequence = defaultData.frequence;");
+        // Formule cliquée sans fréquence = mensuel (un vieux brouillon « annuel » affichait un autre prix que la carte).
+        expect(src).toContain("if (searchParams.has('frequence') || searchParams.has('plan')) fromUrl.frequence = defaultData.frequence;");
     });
 });
 

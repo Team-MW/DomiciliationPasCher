@@ -13,6 +13,7 @@
  * au plus une fois tous les 3 jours. Le reste est seulement signalé.
  */
 import { createClerkClient } from '@clerk/backend';
+import { createLoginTicket, loginLinkUrl, ACTIVATION_LINK_TTL_SECONDS } from './_login-link.js';
 import { readServerEnv } from './_env.js';
 import { ADMIN_EMAIL } from './_smtp.js';
 import { sendBrandedMail, escapeHtml, emailButton, formatEuro } from './_email-kit.js';
@@ -40,11 +41,21 @@ export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(
     const clients = (await conn.execute(
         "SELECT id, name, email, plan, status, clerkId, since, extra_info FROM clients WHERE status = 'actif'",
     )).rows || [];
+    // Demandes payées pas encore validées : leur compte peut déjà être bloqué « email non vérifié ».
+    let pendingDemandes = [];
+    try {
+        pendingDemandes = ((await conn.execute(
+            "SELECT id, clientName AS name, email, clerkId, extra_info FROM demandes WHERE status = 'en_attente'",
+        )).rows || []).map((d) => ({ ...d, table: 'demandes' }));
+    } catch (err) {
+        console.warn('[health] demandes en attente illisibles:', err?.message || err);
+    }
+    const accounts = [...clients, ...pendingDemandes];
 
     // 1 + 2. Comptes de connexion
     if (clerk) {
         try {
-            const linkedIds = clients.map((c) => c.clerkId).filter(Boolean);
+            const linkedIds = accounts.map((c) => c.clerkId).filter(Boolean);
             const users = new Map();
             for (let i = 0; i < linkedIds.length; i += 100) {
                 const page = await clerk.users.getUserList({ userId: linkedIds.slice(i, i + 100), limit: 100 });
@@ -54,8 +65,8 @@ export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(
             const recent = await clerk.users.getUserList({ limit: 100, orderBy: '-created_at' });
             for (const u of recent?.data || recent || []) if (!users.has(u.id)) users.set(u.id, u);
 
-            const byEmail = new Map(clients.map((c) => [clean(c.email), c]));
-            const byClerk = new Map(clients.filter((c) => c.clerkId).map((c) => [c.clerkId, c]));
+            const byEmail = new Map(accounts.map((c) => [clean(c.email), c]));
+            const byClerk = new Map(accounts.filter((c) => c.clerkId).map((c) => [c.clerkId, c]));
             for (const user of users.values()) {
                 const primary = primaryOf(user);
                 if (!primary || primary.verification?.status === 'verified') continue;
@@ -64,6 +75,8 @@ export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(
                 issues.push({
                     kind: 'unverified',
                     clientId: client.id,
+                    table: client.table || 'clients',
+                    clerkUserId: user.id,
                     client: client.name,
                     email: primary.emailAddress,
                     detail: 'Adresse email du compte NON vérifiée : le client est bloqué à la connexion. Fiche client → « Trouver le compte de connexion » → « Marquer comme vérifiée » (après avoir confirmé que c’est bien lui).',
@@ -168,7 +181,7 @@ export async function runHealthCheck({ conn, stripe, transporter, from, baseUrl 
     const secretKey = readServerEnv('CLERK_SECRET_KEY');
     const clerk = secretKey ? createClerkClient({ secretKey }) : null;
     const issues = await collectHealthIssues({ conn, stripe, clerk });
-    if (transporter) await sendActivationLinks({ conn, transporter, from, baseUrl, issues });
+    if (transporter) await sendActivationLinks({ conn, transporter, from, baseUrl, issues, clerk });
     if (!issues.length || !transporter) return { healthIssues: issues.length, healthReportSent: false };
     const mail = buildHealthReportEmail(issues, { baseUrl });
     await sendBrandedMail(transporter, { conn, from, to: ADMIN_EMAIL, type: 'admin_health_report', source: 'auto', ...mail });
@@ -181,11 +194,12 @@ export const ACTIVATION_RESEND_MS = 3 * DAY_MS;
  * Client bloqué par « email non vérifié » : on lui envoie nous-mêmes le lien « Activer mon accès » (preuve signée de
  * l'adresse) au lieu d'attendre qu'il bute sur l'écran ou appelle. Une fois tous les 3 jours au plus.
  */
-export async function sendActivationLinks({ conn, transporter, from, baseUrl, issues, now = Date.now() }) {
+export async function sendActivationLinks({ conn, transporter, from, baseUrl, issues, clerk = null, now = Date.now() }) {
     for (const issue of issues) {
         if (issue.kind !== 'unverified' || !issue.clientId || !issue.email) continue;
         try {
-            const row = (await conn.execute('SELECT name, extra_info FROM clients WHERE id = ?', [issue.clientId])).rows?.[0];
+            const table = issue.table === 'demandes' ? 'demandes' : 'clients';
+            const row = (await conn.execute(table === 'demandes' ? 'SELECT clientName AS name, extra_info FROM demandes WHERE id = ?' : 'SELECT name, extra_info FROM clients WHERE id = ?', [issue.clientId])).rows?.[0];
             if (!row) continue;
             let extra;
             try {
@@ -200,9 +214,17 @@ export async function sendActivationLinks({ conn, transporter, from, baseUrl, is
                 issue.detail = `Lien « Activer mon accès » déjà envoyé le ${new Date(last).toLocaleDateString('fr-FR')} : le client n’a pas encore cliqué. ${issue.detail}`;
                 continue;
             }
-            const mail = buildAccessActivationEmail({ nom: row.name, email: issue.email, baseUrl });
+            // Lien qui CONNECTE directement (jeton Clerk 7 jours) : plus besoin du mot de passe. Sinon, lien d'activation simple.
+            let loginUrl = null;
+            try {
+                const ticket = await createLoginTicket(clerk, issue.clerkUserId, ACTIVATION_LINK_TTL_SECONDS);
+                if (ticket) loginUrl = loginLinkUrl(baseUrl, issue.email, ticket);
+            } catch (err) {
+                console.error('[health] jeton de connexion non créé:', err?.message || err);
+            }
+            const mail = buildAccessActivationEmail({ nom: row.name, email: issue.email, baseUrl, loginUrl });
             await sendBrandedMail(transporter, { conn, from, to: issue.email, clientEmail: issue.email, type: 'access_activation', source: 'auto', ...mail });
-            await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify({ ...extra, access_activation_sent_at: new Date(now).toISOString() }), issue.clientId]);
+            await conn.execute(`UPDATE ${table} SET extra_info = ? WHERE id = ?`, [JSON.stringify({ ...extra, access_activation_sent_at: new Date(now).toISOString() }), issue.clientId]);
             issue.detail = 'Lien « Activer mon accès » envoyé automatiquement ce matin au client : un clic suffit, rien à faire de votre côté. Si besoin : fiche client → « Vérifier son compte de connexion ».';
         } catch (err) {
             console.error('[health] lien d’activation non envoyé:', err?.message || err);

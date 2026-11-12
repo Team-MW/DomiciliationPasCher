@@ -233,7 +233,7 @@ export default function Meeting({ clientData }) {
                                     <div className="ec-activity-meta">{bookingDate(b.date)} · {durationLabel(b.duration)}</div>
                                 </div>
                                 <span className={`ec-status-chip ${b.status === 'en_attente' ? 'unread' : ''}`}>
-                                    {t(`espaceClient.meeting.statusLabel.${b.status === 'confirmée' || b.status === 'confirmee' ? 'confirmed' : b.status === 'refusée' || b.status === 'refusee' ? 'refused' : 'pending'}`)}
+                                    {t(`espaceClient.meeting.statusLabel.${b.status === 'confirmée' || b.status === 'confirmee' ? 'confirmed' : b.status === 'refusée' || b.status === 'refusee' ? 'refused' : b.status === 'annulée' || b.status === 'annulee' ? 'cancelled' : 'pending'}`)}
                                 </span>
                             </div>
                         ))}

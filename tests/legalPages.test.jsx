@@ -77,7 +77,7 @@ describe('pages légales', () => {
         expect(norm(screen.getByTestId('cgv-formules-5').textContent)).toBe(norm('Numérisation du contenu du courrierNon40 plis par mois100 plis par mois'));
         expect(norm(screen.getByTestId('cgv-extras-0').textContent)).toContain('0,50 € par pli');
         expect(document.body.textContent).toContain('FR91101512531');
-        expect(document.body.textContent).toContain('CGV en vigueur au 06/11/2026.');
+        expect(document.body.textContent).toContain('CGV en vigueur au 12/11/2026.');
     });
 
     test('confidentialité : bandeau projet, sous-traitants, durées à compléter', () => {
@@ -94,7 +94,9 @@ describe('pages légales', () => {
     test('pied de page : CGV et confidentialité pointent vers leurs pages', () => {
         wrap(<Footer />);
         const legal = document.querySelector('.footer-legal');
-        expect(within(legal).getByRole('link', { name: 'CGV' }).getAttribute('href')).toBe('/cgv');
+        expect(within(legal).getByRole('link', { name: 'Conditions générales de vente (CGV)' }).getAttribute('href')).toBe('/cgv');
+        // Le PDF officiel des CGV est téléchargeable depuis le pied de page.
+        expect(within(legal).getByRole('link', { name: 'CGV en PDF' }).getAttribute('href')).toBe('/documents/CGV_domiciliation.pdf');
         expect(within(legal).getByRole('link', { name: 'Politique de confidentialité' }).getAttribute('href')).toBe('/confidentialite');
         expect(within(legal).getByRole('button', { name: 'Gérer les cookies' })).toBeInTheDocument();
     });

@@ -38,3 +38,11 @@
 .legal-content a {
     color: #1A56DB;
 }
+
+/* Lien de téléchargement du document officiel (CGV en PDF). */
+.legal-content .legal-download { margin: 0 0 20px; }
+.legal-download a {
+    display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px;
+    border: 1.5px solid #1A56DB; color: #1A56DB; font-weight: 700; text-decoration: none; font-size: 14px;
+}
+.legal-download a:hover { background: #EFF6FF; }

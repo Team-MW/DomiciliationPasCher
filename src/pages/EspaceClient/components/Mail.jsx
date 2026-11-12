@@ -22,7 +22,9 @@ export default function Mail({ mail = [], clientData, setActiveTab, onMailRead }
         return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
     };
     const extra = useMemo(() => parseExtraInfo(clientData?.extra_info), [clientData?.extra_info]);
-    const canForward = canRequestPhysicalForward(clientData?.plan, extra);
+    // Dossier payé mais pas encore validé : pas de réexpédition possible (le serveur répondrait « Client introuvable »).
+    const isPendingValidation = Boolean(clientData?.isTemporary) || clientData?.status === 'en_attente_validation';
+    const canForward = canRequestPhysicalForward(clientData?.plan, extra) && !isPendingValidation;
     const personalAddress = resolvePersonalAddress(clientData, extra);
     const forwardingAddress = resolveForwardingAddress(extra);
 

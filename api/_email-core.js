@@ -1,4 +1,6 @@
-import { signupUrl } from './_email-templates.js';
+import { signupUrl,
+    buildBookingDecisionEmail,
+} from './_email-templates.js';
 import nodemailer from 'nodemailer';
 import { ADMIN_EMAIL } from './_smtp.js';
 import { readServerEnv } from './_env.js';
@@ -30,7 +32,7 @@ export const EMAIL_TYPES = Object.freeze([
     'new_message', 'admin_new_message', 'new_mail', 'consultation_creation', 'admin_reexpedition',
     'reexpedition_sent', 'reexpedition_refused', 'souscription_lead', 'contact_advisor',
     'request_documents', 'account_created', 'admin_document_uploaded',
-    'admin_payment_received', 'admin_payment_problem', 'email_verification',
+    'admin_payment_received', 'admin_payment_problem', 'email_verification', 'booking_decision',
 ]);
 
 export function isKnownEmailType(type) {
@@ -57,7 +59,7 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
         err.statusCode = 400;
         throw err;
     }
-    const { code: verificationCode, email, type: rawType, amount, paymentLink: rawPaymentLink, content: msgContent, telephone, projetType, dateDispo, message: customMsg, address, notes, company, plan, documents, isCreation, contractSignedAt, paymentToken, frequence, documentName, mailType, mailFrom, mailDate } = body;
+    const { code: verificationCode, email, type: rawType, amount, paymentLink: rawPaymentLink, content: msgContent, telephone, projetType, dateDispo, message: customMsg, address, notes, company, plan, documents, isCreation, contractSignedAt, paymentToken, frequence, documentName, mailType, mailFrom, mailDate, bookingType, bookingDate, bookingDuration, bookingStatus } = body;
     const type = rawType === 'welcome' ? undefined : rawType;
     // « Client » (valeur de repli des appelants) n'est pas un nom : « Bonjour, » plutôt que « Bonjour Client, ».
     const nom = displayName(body.nom) || undefined;
@@ -77,6 +79,8 @@ export function buildTransactionalEmail(body = {}, { baseUrl = SITE_URL } = {}) 
         built = buildPaymentReminderEmail({ nom, amount, payUrl: paymentLink || `${baseUrl}/app/espace-client?tab=factures` });
     } else if (type === 'post_signature') {
         built = buildPostSignatureEmail({ nom, baseUrl });
+    } else if (type === 'booking_decision') {
+        built = buildBookingDecisionEmail({ nom, bookingType, bookingDate, bookingDuration, bookingStatus, baseUrl });
     } else if (type === 'new_message') {
         built = buildNewMessageEmail({ nom, content: msgContent, baseUrl });
     } else if (type === 'admin_new_message') {

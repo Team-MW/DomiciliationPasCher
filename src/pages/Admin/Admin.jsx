@@ -349,6 +349,11 @@ export default function Admin() {
                                 const created = await adminDataService.traiterDemande(id);
                                 refreshData();
                                 setSelectedDemande(null);
+                                if (!created) {
+                                    // 2e clic « Approuver » (autre onglet, autre admin) : rien ne s'est passé, ne pas dire le contraire.
+                                    await showAlert('Cette demande a déjà été traitée (ou n’existe plus) : aucun email n’a été renvoyé.', { title: 'Déjà traitée', isWarning: true });
+                                    return;
+                                }
                                 const emailFailed = created?.emailSent === false;
                                 await showAlert(emailFailed
                                     ? "Accès créé, mais l'email de validation n'a pas pu être envoyé. Vérifiez la configuration SMTP."

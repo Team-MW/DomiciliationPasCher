@@ -13,6 +13,11 @@ describe('resolveClientStatusFromStripe', () => {
         expect(resolveClientStatusFromStripe('impayé', 'trialing')).toBe('actif');
     });
 
+    it('un abonnement Stripe « canceled » ne résilie jamais la fiche (seul le cron des impayés le fait, à 2 mois)', () => {
+        expect(resolveClientStatusFromStripe('actif', 'canceled')).toBe('actif');
+        expect(resolveClientStatusFromStripe('echec_paiement', 'canceled')).toBe('echec_paiement');
+    });
+
     it('ne débloque pas un résilié tout seul', () => {
         expect(resolveClientStatusFromStripe('résilié', 'active')).toBe('résilié');
     });

@@ -107,7 +107,11 @@ describe('BUGS — vérification d’email / accès au dossier', () => {
 
         // 1. L'attaquant dépose une demande PUBLIQUE avec l'email de la victime…
         const dem = await call(null, 'addDemande', { clientName: 'Pirate', email: 'victime@x.fr', company: 'X', plan: 'Essentiel', extra_info: { offre: 'notification', frequence: 'mensuel', email: 'victime@x.fr' } });
-        expect(dem.code).toBe(200);
+        // Depuis le 12/11 : un dossier payé existe déjà pour cet email → la demande publique est refusée (409),
+        // l'attaque s'arrête ici (et un vrai client ne peut plus payer deux fois).
+        expect(dem.code).toBe(409);
+        expect(ext.createdSessions).toHaveLength(0);
+        if (dem.code === 409) return;
         // 2. … et ouvre un paiement : Stripe reçoit l'email de la victime (client Stripe de la victime réutilisé).
         const co = mockRes();
         await checkoutHandler({ method: 'POST', headers: { host: 'site.test', origin: 'https://site.test' }, body: { metadata: { demande_id: dem.result.id }, email: 'pirate@x.fr' } }, co);

@@ -22,6 +22,9 @@ export function getParisHour(date = new Date()) {
     return Number.isFinite(hour) ? hour : 12; // valeur neutre : mieux vaut tourner que ne jamais tourner
 }
 
+/** Passage quotidien long (Clerk, Stripe par client) : la durée par défaut de Vercel (10 s) ne suffit pas. */
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
     // Vercel envoie CRON_SECRET en Bearer sur chaque invocation planifiée. Sans ce secret
     // l'URL est publiquement appelable, et ce cron envoie des emails aux clients : on refuse
@@ -147,7 +150,10 @@ export async function sendRenewalReminders(stripe, conn, now = new Date()) {
                 if (customer && customer.email && !customer.deleted) {
                     // Rappel légal : l'abonnement n'est marqué « rappelé » QUE si l'email est parti.
                     // Sinon il repart au passage suivant (rattrapage sur 7 jours).
-                    const sent = await sendReminderEmail(customer.email, customer.name, conn, periodEndDay);
+                    // Montant du renouvellement (obligatoire dans le rappel) : prix TTC de l'abonnement × quantité.
+                    const unit = Number(item.price?.unit_amount ?? item.plan?.amount);
+                    const amountCents = Number.isFinite(unit) ? unit * (Number(item.quantity) || 1) : null;
+                    const sent = await sendReminderEmail(customer.email, customer.name, conn, periodEndDay, amountCents);
                     if (!sent) continue;
                     await stripe.subscriptions.update(sub.id, {
                         metadata: { ...(sub.metadata || {}), dpc_renewal_reminded: periodEndDay },
@@ -166,7 +172,7 @@ export async function sendRenewalReminders(stripe, conn, now = new Date()) {
 }
 
 /** @returns {Promise<boolean>} true si l'email est parti. */
-export async function sendReminderEmail(email, name, conn, periodEndDay) {
+export async function sendReminderEmail(email, name, conn, periodEndDay, amountCents = null) {
     try {
         const transporter = getTransporter();
         if (!transporter) {
@@ -177,6 +183,7 @@ export async function sendReminderEmail(email, name, conn, periodEndDay) {
         const { subject, text, html } = buildRenewalReminderEmail({
             nom: name,
             periodEndIso: periodEndDay,
+            amountCents,
             baseUrl: publicSiteUrl(),
         });
 

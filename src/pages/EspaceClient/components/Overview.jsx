@@ -65,7 +65,7 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
                 tab: 'docs',
                 cta: t('espaceClient.overview.coachGoSign'),
             };
-        } else if (status === 'actif' && !extra.procurationSigned) {
+        } else if (status === 'actif' && !extra.procurationSigned && extra.kbisUrl) {
             next = {
                 key: 'proc',
                 title: t('espaceClient.overview.coachProcTitle'),

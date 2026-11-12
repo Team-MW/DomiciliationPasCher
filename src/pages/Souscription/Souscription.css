@@ -1725,3 +1725,26 @@
     .courrier-card .cc-left { flex: 1 1 auto; }
     .courrier-card .cc-right { flex-direction: column-reverse; align-items: flex-end; gap: 8px; }
 }
+
+/* ── Code promo (BIENVENUE) ── */
+.promo-field { margin: 18px 0 14px; }
+.promo-field-label { display: block; font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 6px; }
+.promo-field-row { display: flex; gap: 8px; }
+.promo-field-row input {
+    flex: 1; min-width: 0; padding: 10px 12px; border: 1.5px solid #CBD5E1; border-radius: 10px;
+    font-size: 14px; font-family: inherit; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.promo-field-row input:focus { outline: none; border-color: #1A56DB; box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.15); }
+.promo-field-btn {
+    padding: 10px 16px; border-radius: 10px; border: 1.5px solid #1A56DB; background: #FFFFFF;
+    color: #1A56DB; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.promo-field-btn:hover:not(:disabled) { background: #EFF6FF; }
+.promo-field-btn:disabled { opacity: 0.6; cursor: default; }
+.promo-field-ok { margin: 6px 0 0; font-size: 13px; color: #047857; font-weight: 600; }
+.promo-field-error { margin: 6px 0 0; font-size: 13px; color: #B91C1C; }
+.promo-field-hint { margin: 6px 0 0; font-size: 12.5px; color: #64748B; }
+.recap-discount-row {
+    display: flex; justify-content: space-between; width: 100%;
+    font-size: 0.95rem; color: #A7F3D0; font-weight: 600;
+}

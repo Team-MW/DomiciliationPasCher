@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { OPEN_CONSENT_EVENT, readConsent, saveConsent } from './consent';
 import './CookieConsent.css';
@@ -10,6 +10,9 @@ export default function CookieConsent() {
     const [open, setOpen] = useState(() => readConsent() === null);
     const firstButtonRef = useRef(null);
     const reopenedRef = useRef(false);
+    const { pathname } = useLocation();
+    // Tunnel et pages de connexion : barre d'actions collée en bas → le bandeau passe en haut (le bandeau promo y est masqué).
+    const atTop = /^\/(souscription|connexion|inscription)(\/|$)/.test(pathname);
 
     useEffect(() => {
         const onOpen = () => {
@@ -37,7 +40,7 @@ export default function CookieConsent() {
 
     return (
         <div
-            className="cookie-consent"
+            className={`cookie-consent${atTop ? ' cookie-consent-top' : ''}`}
             role="dialog"
             aria-modal="false"
             aria-label={c.ariaLabel}

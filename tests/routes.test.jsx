@@ -26,6 +26,8 @@ vi.mock('@clerk/clerk-react', () => {
         useUser: () => mockUseUser(),
         SignedIn: ({ children }) => <div data-testid="signed-in">{children}</div>,
         SignedOut: ({ children }) => <div data-testid="signed-out">{children}</div>,
+        ClerkLoading: () => null,
+        ClerkLoaded: ({ children }) => <>{children}</>,
     };
 });
 

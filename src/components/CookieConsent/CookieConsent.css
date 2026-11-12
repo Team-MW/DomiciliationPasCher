@@ -131,3 +131,24 @@
         font-size: 13.5px;
     }
 }
+
+/* Tunnel / connexion : bandeau en haut, pour ne jamais recouvrir « Suivant », « Payer » ni les liens de secours. */
+.cookie-consent-top {
+    top: 16px;
+    bottom: auto;
+}
+
+@media (max-width: 640px) {
+    .cookie-consent-top {
+        top: 0;
+        bottom: auto;
+    }
+
+    .cookie-consent-top .cookie-consent-inner {
+        border-radius: 0 0 14px 14px;
+        border-top: 0;
+        border-bottom: 1px solid #E2E8F0;
+        padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+        box-shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
+    }
+}

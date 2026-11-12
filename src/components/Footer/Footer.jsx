@@ -96,6 +96,7 @@ export default function Footer() {
                         <div className="footer-legal">
                             <Link to="/mentions-legales">{footer.legal.mentionsLegales}</Link>
                             <Link to="/cgv">{footer.legal.cgv}</Link>
+                            <a href="/documents/CGV_domiciliation.pdf" target="_blank" rel="noopener noreferrer">{footer.legal.cgvPdf}</a>
                             <Link to="/confidentialite">{footer.legal.confidentialite}</Link>
                             <button type="button" className="footer-legal-btn" onClick={openCookieConsent}>
                                 {footer.legal.manageCookies}

@@ -68,6 +68,15 @@ export default async function handler(req, res) {
                 if (proof.rows?.length) allowedKinds.push(kind);
             }
         }
+        if (!user.isAdmin) {
+            // Le client voulait signer mais aucune preuve récente n'existe : on le dit (avant : 200 et signature retirée en silence).
+            const refused = Object.keys(SIGNED_KINDS).filter((kind) =>
+                Object.keys(extraInfo || {}).some((key) => SIGNED_KINDS[kind].keys.test(key))
+                && !existing[SIGNED_KINDS[kind].flag] && !allowedKinds.includes(kind));
+            if (refused.length) {
+                return res.status(409).json({ error: 'Preuve de signature introuvable : recommencez la signature (elle n’a pas été enregistrée).' });
+            }
+        }
         let cleanExtra;
         if (user.isAdmin) {
             cleanExtra = dropPlaceholders(extraInfo);

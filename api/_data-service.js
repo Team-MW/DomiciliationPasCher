@@ -180,8 +180,19 @@ export function createDataService({
         /** Fusionne des champs dans extra_info (clients, sinon demandes). */
         async updateClientExtraInfo(clientId, rawExtraData) {
             const extraData = dropPlaceholders(rawExtraData); // le marqueur de la liste allégée n'est jamais un vrai fichier
+            // Fiche illisible (JSON cassé) : écrire maintenant remplacerait tout (Stripe, signature, grille) par 2 champs.
+            const assertReadable = (raw) => {
+                if (raw === null || raw === undefined || raw === '') return;
+                try {
+                    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    if (typeof parsed === 'string') JSON.parse(parsed);
+                } catch {
+                    throw new Error('Fiche client illisible : modification refusée pour ne rien perdre. Contactez-nous.');
+                }
+            };
             const res = await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId]);
             if (res.rows[0]) {
+                assertReadable(res.rows[0].extra_info);
                 const existing = parseExtraInfo(res.rows[0].extra_info);
                 const merged = { ...existing, ...extraData };
                 await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), clientId]);
@@ -189,6 +200,7 @@ export function createDataService({
             }
             const dem = await conn.execute('SELECT extra_info FROM demandes WHERE id = ?', [clientId]);
             if (dem.rows[0]) {
+                assertReadable(dem.rows[0].extra_info);
                 const existing = parseExtraInfo(dem.rows[0].extra_info);
                 const merged = { ...existing, ...extraData };
                 await conn.execute('UPDATE demandes SET extra_info = ? WHERE id = ?', [JSON.stringify(merged), clientId]);
@@ -260,6 +272,7 @@ export function createDataService({
                 }
                 try {
                     await conn.execute("DELETE FROM demandes WHERE LOWER(email) = ? OR (clerkId = ? AND clerkId <> '')", [email, clerkRef]);
+                    if (clerkRef) await soft('codes de vérification', 'DELETE FROM email_verifications WHERE user_id = ?', [clerkRef]);
                 } catch (err) {
                     if (/unknown column/i.test(err?.message || '')) {
                         await soft('demande', 'DELETE FROM demandes WHERE LOWER(email) = ?', [email]); // base ancienne sans clerkId
@@ -362,6 +375,7 @@ export function createDataService({
                 ...existing,
                 // Payée via Checkout = prix de la grille actuelle (même pour une demande ancienne).
                 grille_tarifaire: PRICING_GRID,
+                paid_at: new Date().toISOString(),
                 ...(sessionId ? { stripe_session_id: sessionId } : {}),
                 ...(customerId ? { stripe_customer_id: customerId } : {}),
             };
@@ -394,6 +408,16 @@ export function createDataService({
             return Boolean(d);
         },
 
+        /** Dossier déjà payé pour cet email : demande payée (en attente de validation) ou client non résilié. */
+        async hasPaidDossier(email) {
+            const cleanEmail = String(email || '').trim().toLowerCase();
+            if (!cleanEmail) return false;
+            const d = await conn.execute("SELECT id FROM demandes WHERE email = ? AND status = 'en_attente' LIMIT 1", [cleanEmail]);
+            if (d.rows.length > 0) return true;
+            const c = await conn.execute("SELECT id FROM clients WHERE email = ? AND status <> 'résilié' LIMIT 1", [cleanEmail]);
+            return c.rows.length > 0;
+        },
+
         async checkPaymentStatus(email) {
             if (!email) return false;
             const cleanEmail = email.trim().toLowerCase();
@@ -413,9 +437,13 @@ export function createDataService({
 
             const existingClientRes = await conn.execute('SELECT id, extra_info, clerkId, clerkStatus FROM clients WHERE email = ?', [d.email]);
             let clientId;
+            // Réactivation : la date repart d'aujourd'hui. Nouveau client : date du PAIEMENT (anniversaire Stripe),
+            // pas du clic « Traiter » de l'admin (sinon échéance et quotas décalés de plusieurs jours).
             const since = parisDateIso();
 
             const finalExtraInfo = normalizeSubscriptionExtra(parseExtraInfo(d.extra_info));
+            const paidAt = Date.parse(finalExtraInfo.paid_at || '');
+            const sinceNew = Number.isFinite(paidAt) ? parisDateIso(new Date(paidAt)) : since;
             const displayName = [finalExtraInfo.prenom, finalExtraInfo.nom].filter(Boolean).join(' ').trim()
                 || String(d.clientName || '').replace(/\s*-?\s*📞.*$/, '').trim();
             const address = resolvePersonalAddress({}, finalExtraInfo).slice(0, 255);
@@ -433,6 +461,12 @@ export function createDataService({
                 for (const stale of ['stripe_subscription_id', 'domicile_terminated_at', 'payment_issue_since']) {
                     if (!(stale in finalExtraInfo)) delete reactivated[stale];
                 }
+                // Dossier créé par l'admin (lien de paiement en attente) mais payé via le site : plus de relances
+                // « enregistrez votre carte », plus de bannière « paiement en attente ».
+                if (finalExtraInfo.stripe_session_id || finalExtraInfo.stripe_customer_id) {
+                    for (const key of ['payment_token', 'payment_requested_at', 'payment_reminders_sent']) delete reactivated[key];
+                    reactivated.payment_status = 'paid';
+                }
                 extraInfoStr = JSON.stringify(reactivated);
                 const keptClerkId = d.clerkId || existingRow.clerkId || '';
                 await conn.execute(
@@ -446,15 +480,23 @@ export function createDataService({
                 await conn.execute(
                     `INSERT INTO clients (id, name, email, company, city, plan, status, since, renewal, clerkId, clerkStatus, extra_info, address, phone)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [clientId, displayName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', since, since, d.clerkId || '', d.clerkId ? 'linked' : 'invitation_sent', extraInfoStr, address, phone]
+                    [clientId, displayName, d.email, d.company, d.city || 'À définir', d.plan, 'actif', sinceNew, sinceNew, d.clerkId || '', d.clerkId ? 'linked' : 'invitation_sent', extraInfoStr, address, phone]
                 );
             }
 
             const demandeInfoStr = JSON.stringify(finalExtraInfo);
             const isStripePayment = demandeInfoStr.includes('stripe_customer_id') || demandeInfoStr.includes('stripe_session_id');
+            // Fiche illisible (JSON cassé) : on ne sait pas si c'est un paiement Stripe → pas de faux paiement « Ajout Manuel ».
+            let extraReadable = true;
+            try {
+                if (d.extra_info) {
+                    const parsed = typeof d.extra_info === 'string' ? JSON.parse(d.extra_info) : d.extra_info;
+                    if (typeof parsed === 'string') JSON.parse(parsed);
+                }
+            } catch { extraReadable = false; }
             // Paiement initial local uniquement pour un ajout manuel : pour un client Stripe,
             // la synchronisation remonte le vrai paiement (0 € avec un code promo, par exemple).
-            if (!isStripePayment) {
+            if (!isStripePayment && extraReadable) {
                 await service.addPayment(clientId, {
                     amount: d.amount,
                     status: 'payé',
@@ -478,7 +520,7 @@ export function createDataService({
             let emailSent = false;
             if (d.email) {
                 try {
-                    await sendEmail({ email: d.email, nom: d.clientName || 'Client', type: 'approval' });
+                    await sendEmail({ email: d.email, nom: displayName || 'Client', type: 'approval' });
                     emailSent = true;
                 } catch (err) {
                     console.error('Email de validation non envoyé :', err);
@@ -751,6 +793,26 @@ export function createDataService({
         async updateBookingStatus(bookingId, status) {
             if (!BOOKING_STATUSES.has(status)) throw new Error(`Statut de réservation invalide : ${String(status).slice(0, 40)} (introuvable dans la liste autorisée)`);
             await conn.execute('UPDATE bookings SET status = ? WHERE id = ?', [status, bookingId]);
+            // Le client a lu « vous recevrez une notification dès sa validation » : on la lui envoie (email + message).
+            if (status === 'confirmée' || status === 'refusée') {
+                try {
+                    const row = (await conn.execute(
+                        'SELECT b.type, b.date, b.duration, b.clientId, c.email, c.name FROM bookings b LEFT JOIN clients c ON c.id = b.clientId WHERE b.id = ?',
+                        [bookingId]
+                    )).rows?.[0];
+                    if (row?.clientId) {
+                        const content = status === 'confirmée'
+                            ? `Votre réservation (${row.type || 'salle'} · ${row.date || ''}${row.duration ? ` · ${row.duration}` : ''}) est confirmée.`
+                            : `Votre réservation (${row.type || 'salle'} · ${row.date || ''}${row.duration ? ` · ${row.duration}` : ''}) n’a pas pu être acceptée à ce créneau. Vous pouvez en proposer un autre.`;
+                        await service.addMessage(row.clientId, { content, sender: 'admin' });
+                        if (row.email && typeof sendEmail === 'function') {
+                            await sendEmail({ type: 'booking_decision', email: row.email, nom: row.name, bookingType: row.type, bookingDate: row.date, bookingDuration: row.duration, bookingStatus: status });
+                        }
+                    }
+                } catch (err) {
+                    console.error('Réservation : notification client non envoyée :', err?.message || err);
+                }
+            }
             return { id: bookingId, status };
         },
 

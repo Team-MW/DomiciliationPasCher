@@ -15,9 +15,9 @@ const FAILED_CLIENT_STATUSES = ['echec_paiement', 'impayé'];
 export function resolveClientStatusFromStripe(currentStatus, subscriptionStatus) {
     if (!subscriptionStatus) return currentStatus;
 
-    if (subscriptionStatus === 'canceled' && currentStatus !== 'résilié') {
-        return 'résilié';
-    }
+    // `canceled` ne résilie JAMAIS la fiche ici : Stripe annule un abonnement ~3 semaines après un refus de
+    // carte, alors que le client a 2 mois pour régulariser (seul le cron des impayés résilie, à l'échéance).
+    // Un ancien abonnement annulé (client passé au virement, réabonnement) ne doit pas non plus fermer l'espace.
     if (FAILING_SUB_STATUSES.includes(subscriptionStatus) && currentStatus === 'actif') {
         return 'echec_paiement';
     }

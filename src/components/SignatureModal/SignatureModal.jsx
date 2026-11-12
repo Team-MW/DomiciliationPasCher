@@ -2,8 +2,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import { parseExtraInfo } from '../../utils/contractLegalFields';
 import { createPortal } from 'react-dom';
 import { appAlert } from '../AppDialog/dialogApi';
+import { useTranslation } from '../../i18n/LanguageContext';
 
 export default function SignatureModal({ clientData, onClose, onSigned }) {
+    const { t } = useTranslation();
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [hasSignature, setHasSignature] = useState(false);
@@ -107,7 +109,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
             await onSigned(dataUrl);
         } catch (err) {
             console.error('Erreur signature:', err);
-            appAlert('Erreur lors de la sauvegarde. Réessayez.');
+            appAlert(t('espaceClient.docs.signSaveError'));
         } finally {
             setIsSaving(false);
         }
@@ -126,15 +128,15 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
                             ✍️
                         </div>
                         <div>
-                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>Signature Électronique</h2>
-                            <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748B' }}>Contrat — {clientData?.company || clientName}</p>
+                            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>{t('espaceClient.docs.signModalTitle')}</h2>
+                            <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748B' }}>{t('espaceClient.docs.signModalSubtitle').replace('{name}', clientData?.company || clientName)}</p>
                         </div>
                     </div>
                     <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '20px', color: '#94A3B8', cursor: 'pointer', padding: '4px' }}>✕</button>
                 </div>
 
                 <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '24px', lineHeight: 1.5 }}>
-                    En signant, vous acceptez le contrat de domiciliation et confirmez l'exactitude de votre dossier.
+                    {t('espaceClient.docs.signConsent')}
                 </p>
 
                 {/* Mode selector */}
@@ -147,7 +149,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
                             color: mode === m ? '#1D4ED8' : '#64748B',
                             fontWeight: 600, fontSize: '13px', transition: 'all 0.2s'
                         }}>
-                            {m === 'draw' ? 'Dessiner' : 'Taper au clavier'}
+                            {m === 'draw' ? t('espaceClient.docs.signDraw') : t('espaceClient.docs.signType')}
                         </button>
                     ))}
                 </div>
@@ -177,7 +179,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
                             justifyContent: 'center', color: '#94A3B8', fontSize: '14px',
                             pointerEvents: 'none', userSelect: 'none'
                         }}>
-                            {mode === 'draw' ? 'Dessinez votre signature ici' : 'Saisissez votre nom ci-dessous'}
+                            {mode === 'draw' ? t('espaceClient.docs.signDrawHint') : t('espaceClient.docs.signTypeHint')}
                         </div>
                     )}
                 </div>
@@ -188,7 +190,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
                         type="text"
                         value={typedName}
                         onChange={e => setTypedName(e.target.value)}
-                        placeholder={clientName || 'Votre nom complet'}
+                        placeholder={clientName || t('espaceClient.docs.signNamePlaceholder')}
                         style={{
                             width: '100%', padding: '12px 16px', borderRadius: '10px',
                             border: '1px solid #CBD5E1', fontSize: '15px', fontFamily: 'Georgia, serif',
@@ -205,7 +207,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
                         background: '#FFFFFF', color: '#64748B', fontWeight: 600, fontSize: '14px',
                         cursor: 'pointer', transition: 'background 0.2s'
                     }}>
-                        Effacer
+                        {t('espaceClient.docs.signClear')}
                     </button>
                     <button
                         onClick={handleValidate}
@@ -218,7 +220,7 @@ export default function SignatureModal({ clientData, onClose, onSigned }) {
                             transition: 'background 0.2s'
                         }}
                     >
-                        {isSaving ? 'Validation...' : 'Valider la signature'}
+                        {isSaving ? t('espaceClient.docs.signValidating') : t('espaceClient.docs.signValidate')}
                     </button>
                 </div>
             </div>

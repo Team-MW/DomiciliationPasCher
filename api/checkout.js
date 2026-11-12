@@ -73,6 +73,69 @@ export function resolveCheckoutPrice({ planId, interval, metadata = {} }) {
 
 const clip = (value, max = 200) => String(value ?? '').slice(0, max);
 
+/* ── Code promo (BIENVENUE : 1er mois offert, Essentiel en mensuel uniquement, cahier des charges §2/§5) ── */
+export const PROMO_NOT_ELIGIBLE = 'Le code BIENVENUE est réservé à la formule Essentiel en mensuel.';
+export const PROMO_NOT_ELIGIBLE_OTHER = 'Les codes promo sont réservés à la formule Essentiel en mensuel.';
+export const PROMO_UNKNOWN = 'Ce code promo n’existe pas ou n’est plus valable.';
+export const PROMO_ALREADY_CUSTOMER = 'Ce code est réservé à une première souscription.';
+
+export function normalizePromoCode(value) {
+    const code = String(value ?? '').trim().toUpperCase();
+    return /^[A-Z0-9_-]{2,40}$/.test(code) ? code : '';
+}
+
+/** Seule l'Essentiel en mensuel accepte un code (refusé sur Confort, Premium et tout prix annuel). */
+export function isPromoEligible(planId, interval) {
+    return planId === 'essentiel' && interval === 'month';
+}
+
+export function promoNotEligibleMessage(code) {
+    return code === 'BIENVENUE' ? PROMO_NOT_ELIGIBLE : PROMO_NOT_ELIGIBLE_OTHER;
+}
+
+/** Code actif dans Stripe (désactivé dans Stripe = refusé ici aussi). */
+export async function findActivePromotionCode(stripe, code) {
+    const list = await stripe.promotionCodes.list({ code, active: true, limit: 1 });
+    return list?.data?.[0] || null;
+}
+
+/** Libellé du récapitulatif : « 1er mois : 0 € » pour un coupon 100 % sur un mois. */
+export function promoSummary(promotionCode) {
+    const coupon = promotionCode?.coupon || promotionCode?.promotion?.coupon || {};
+    const percent = Number(coupon.percent_off) || 0;
+    const amount = Number(coupon.amount_off) || 0;
+    const firstMonthOnly = coupon.duration === 'once';
+    if (percent >= 100 && firstMonthOnly) return { label: '1er mois : 0 €', percentOff: 100, firstMonthOnly };
+    if (percent > 0) return { label: `-${percent} %${firstMonthOnly ? ' sur le 1er mois' : ''}`, percentOff: percent, firstMonthOnly };
+    if (amount > 0) return { label: `-${(amount / 100).toFixed(2).replace('.', ',')} €${firstMonthOnly ? ' sur le 1er mois' : ''}`, amountOffCents: amount, firstMonthOnly };
+    return { label: 'Code promo appliqué', firstMonthOnly };
+}
+
+/** Le client a-t-il déjà eu un abonnement ? (un code de bienvenue ne sert qu'une fois par client) */
+async function hadSubscriptionBefore(stripe, email) {
+    if (!email) return false;
+    const customers = await stripe.customers.list({ email, limit: 3 });
+    for (const c of customers?.data || []) {
+        const subs = await stripe.subscriptions.list({ customer: c.id, status: 'all', limit: 1 });
+        if (subs?.data?.length) return true;
+    }
+    return false;
+}
+
+/**
+ * Vérifie un code AVANT l'envoi des documents et le paiement (bouton « Appliquer » du tunnel) :
+ * le client voit tout de suite si son code marche, au lieu d'un refus sur la page Stripe.
+ */
+export async function checkPromo(stripe, { code: rawCode, planId, interval, email }) {
+    const code = normalizePromoCode(rawCode);
+    if (!code) return { valid: false, message: 'Saisissez un code promo valide.' };
+    if (!isPromoEligible(planId, interval)) return { valid: false, code, message: promoNotEligibleMessage(code) };
+    const promotion = await findActivePromotionCode(stripe, code);
+    if (!promotion) return { valid: false, code, message: PROMO_UNKNOWN };
+    if (await hadSubscriptionBefore(stripe, email)) return { valid: false, code, message: PROMO_ALREADY_CUSTOMER };
+    return { valid: true, code, promotionCodeId: promotion.id, ...promoSummary(promotion) };
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
@@ -84,6 +147,19 @@ export default async function handler(req, res) {
     } catch (error) {
         console.error('[checkout]', error);
         return res.status(500).json({ error: 'La Clé Secrète Stripe (STRIPE_SECRET_KEY) est manquante ou invalide.' });
+    }
+
+    // Vérification d'un code promo depuis le tunnel (aucune demande ni paiement créé).
+    if (req.body?.action === 'checkPromo') {
+        try {
+            const planId = resolvePlanId(req.body.planId);
+            const interval = req.body.interval === 'annuel' || req.body.interval === 'year' ? 'year' : 'month';
+            const result = await checkPromo(stripe, { code: req.body.code, planId, interval, email: String(req.body.email || '').trim().toLowerCase() });
+            const { promotionCodeId: _id, ...publicResult } = result;
+            return res.status(200).json(publicResult);
+        } catch (error) {
+            return sendServerError(res, error, 'checkout:promo');
+        }
     }
 
     try {
@@ -153,6 +229,17 @@ export default async function handler(req, res) {
         };
         if (price.mode === 'subscription') priceData.recurring = { interval };
 
+        // Code promo saisi dans le tunnel : revérifié ici (le navigateur ne décide de rien).
+        const promoEligible = price.mode === 'subscription' && isPromoEligible(planId, interval);
+        const promoCode = price.mode === 'subscription' ? normalizePromoCode(req.body?.promoCode) : '';
+        let promotionCodeId = null;
+        if (promoCode) {
+            const check = await checkPromo(stripe, { code: promoCode, planId, interval, email });
+            if (!check.valid) return res.status(400).json({ error: check.message, code: 'PROMO_INVALID' });
+            promotionCodeId = check.promotionCodeId;
+            metadata = { ...metadata, promo_code: promoCode };
+        }
+
         // --- Client Stripe : réutiliser l'existant, sinon créer (clé d'idempotence anti double-clic) ---
         let customerId = null;
         if (email) {
@@ -181,11 +268,16 @@ export default async function handler(req, res) {
             payment_method_types: ['card'],
             line_items: [{ price_data: priceData, quantity: 1 }],
             mode: price.mode,
-            allow_promotion_codes: interval === 'month', // codes promo : abonnements mensuels uniquement
+            // Codes promo : Essentiel en mensuel uniquement (avant : tous les mensuels, Confort et Premium compris).
+            allow_promotion_codes: promoEligible && !promotionCodeId,
             success_url: withCheckoutSessionId(sameOriginUrl(successUrl, origin, defaultSuccess), origin),
             cancel_url: sameOriginUrl(cancelUrl, origin, `${origin}/souscription`),
             metadata,
         };
+
+        if (promotionCodeId) sessionOptions.discounts = [{ promotion_code: promotionCodeId }];
+        // Abonnement : moyen de paiement toujours enregistré, même avec un 1er mois à 0 € (sinon rien à prélever ensuite).
+        if (price.mode === 'subscription') sessionOptions.payment_method_collection = 'always';
 
         if (customerId) sessionOptions.customer = customerId;
         else if (email) sessionOptions.customer_email = email;

@@ -2074,3 +2074,5 @@
         height: 52px;
     }
 }
+/* Précision du prix « dès 12,80 € » : tarif en paiement annuel (pas de prix d'appel trompeur). */
+.hero-price-note { margin: -8px 0 14px; font-size: 14px; color: #64748B; font-weight: 500; }

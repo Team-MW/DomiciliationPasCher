@@ -137,12 +137,18 @@ describe('Signature : preuve du bon document, date posée par le serveur, jamais
         expect(JSON.parse(conn.stored.extra).contractSigned).toBeUndefined();
     });
 
-    it('sans aucune preuve récente : aucune clé de signature n’est écrite', async () => {
+    it('sans aucune preuve récente : signature refusée (409) et rien n’est écrit — le client est prévenu au lieu de croire avoir signé', async () => {
         const conn = makeConn({ proofs: [] });
-        await call(conn, { contractSigned: true, contractSignatureUrl: png, nom: 'Ada' });
-        const saved = JSON.parse(conn.stored.extra);
-        expect(saved.contractSigned).toBeUndefined();
-        expect(saved.nom).toBe('Ada');
+        const r = await call(conn, { contractSigned: true, contractSignatureUrl: png, nom: 'Ada' });
+        expect(r.code).toBe(409);
+        expect(conn.stored.extra).toBe('{}'); // inchangé
+    });
+
+    it('sans clé de signature : les autres champs (nom…) sont enregistrés normalement', async () => {
+        const conn = makeConn({ proofs: [] });
+        const r = await call(conn, { nom: 'Ada' });
+        expect(r.code).toBe(200);
+        expect(JSON.parse(conn.stored.extra).nom).toBe('Ada');
     });
 
     it('un contrat déjà signé n’est jamais ré-écrasé par le client', async () => {

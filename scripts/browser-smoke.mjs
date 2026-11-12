@@ -201,6 +201,9 @@ async function checkSubscriptionFunnel(browser, base) {
 
         // L'URL reflète le choix en cours (rechargement / retour de Stripe sans retour à l'ancienne formule).
         if (!/plan=essentiel/.test(page.url()) || !/frequence=mensuel/.test(page.url())) fail(where, `l’URL ne reflète pas la formule choisie (${page.url()})`);
+        // Les CGV sont à revalider après restauration d'un brouillon (comme un vrai client).
+        const cgvBox = page.locator('.cgv-field input[type=checkbox]');
+        if (await cgvBox.count() && !(await cgvBox.isChecked())) { await cgvBox.check(); await page.waitForTimeout(150); }
         // Double clic : un seul paiement doit être lancé.
         await page.locator('.sous-pay-btn').dblclick();
         await page.waitForFunction(() => location.search.includes('funnel_checkout_ok'), null, { timeout: 8000 }).catch(() => {});

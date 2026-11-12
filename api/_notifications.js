@@ -1,7 +1,8 @@
 import { parisDaysBetween } from '../shared/parisDate.js';
+import { ADMIN_EMAIL } from './_smtp.js';
 import { sendBrandedMail } from './_email-kit.js';
 import { buildDocumentRequestEmail, buildMailDigestEmail, buildLeadReminderEmail, buildAccountCreatedEmail } from './_email-templates.js';
-import { computeMissingDocuments, dueDocumentReminder } from '../shared/documentRequest.js';
+import { computeMissingDocuments, dueDocumentReminder, clientUploadsSince } from '../shared/documentRequest.js';
 import { SOUSCRIPTION_LEADS_DDL, LEAD_REMINDER_OFFSETS_MS } from '../shared/emailTables.js';
 
 function parseExtra(raw) {
@@ -130,12 +131,31 @@ export async function processDocumentRequests({ conn, transporter, from, baseUrl
         if (!request || request.completed_at || client.status === 'résilié') continue;
 
         try {
-            const docsRes = await conn.execute('SELECT name FROM documents WHERE clientId = ?', [client.id]);
+            const docsRes = await conn.execute('SELECT name, owner, uploadedAt FROM documents WHERE clientId = ?', [client.id]);
             const missing = computeMissingDocuments(request.missing, { extra, documents: docsRes.rows || [] });
             const save = (patch) => mergeClientExtra(conn, client.id, extra, (e) => ({ ...e, doc_request: { ...(e.doc_request || request), ...patch } }));
 
             if (missing.length === 0) {
                 await save({ completed_at: now.toISOString() });
+                continue;
+            }
+            // Le client a déposé un fichier (nom libre : « scan001.pdf ») depuis la demande : relances suspendues,
+            // l'admin vérifie et clôture la demande. Avant : « Dernier rappel… » envoyé malgré le dépôt.
+            if (request.client_upload_noticed) continue;
+            const uploads = clientUploadsSince(docsRes.rows || [], request.requested_at);
+            if (uploads.length > 0) {
+                await save({ client_upload_noticed: now.toISOString() });
+                try {
+                    const names = uploads.map((d) => d.name).filter(Boolean).join(', ') || 'document';
+                    await sendBrandedMail(transporter, {
+                        conn, from, to: ADMIN_EMAIL, type: 'admin_document_uploaded', source: 'auto',
+                        subject: `Document déposé par ${client.name || client.email} — à vérifier`,
+                        text: `${client.name || client.email} (${client.email}) a déposé : ${names}.\n\nPièces encore réclamées automatiquement : ${missing.join(', ')}. Les relances sont suspendues : vérifiez le document dans sa fiche puis arrêtez la demande de documents si tout est bon.`,
+                        html: `<p><strong>${client.name || client.email}</strong> (${client.email}) a déposé : <strong>${names}</strong>.</p><p>Pièces encore réclamées automatiquement : ${missing.join(', ')}. Les relances sont <strong>suspendues</strong> : vérifiez le document dans sa fiche, puis arrêtez la demande de documents si tout est bon.</p>`,
+                    });
+                } catch (err) {
+                    console.error('Cron documents: alerte admin non envoyée:', err.message);
+                }
                 continue;
             }
 

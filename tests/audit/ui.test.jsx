@@ -26,6 +26,8 @@ vi.mock('@clerk/clerk-react', () => ({
     SignUp: (props) => <div data-testid="clerk-signup" data-email={props.initialValues?.emailAddress || ''} />,
     SignedIn: ({ children }) => <>{children}</>,
     SignedOut: () => null,
+    ClerkLoading: () => null,
+    ClerkLoaded: ({ children }) => <>{children}</>,
 }));
 vi.mock('../../src/i18n/detectLanguage', () => ({ detectLanguageFromIP: vi.fn().mockResolvedValue(null) }));
 vi.mock('../../src/utils/emailService', () => ({
@@ -229,17 +231,20 @@ describe('Abonnement : prix affiché = clientPlanPricing (ancien / actuel, mensu
     it.each(cases)('%s / grille %s / %s', (plan, grid, frequence) => {
         const extra = { frequence, ...(grid ? { grille_tarifaire: grid } : {}) };
         const expected = clientPlanPricing(plan, extra);
+        // Client annuel : montant annuel réellement facturé (153,60 €…), pas « 16 € / mois ».
+        const euro = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ','));
+        const shown = frequence === 'annuel' ? euro(expected.annualHt) : euro(expected.ht);
         render(<LanguageProvider><DialogProvider>
             <Abonnement clientData={{ id: 'c1', email: 'a@b.fr', plan, status: 'actif', since: '2026-05-04', extra_info: JSON.stringify(extra) }} setClientData={() => {}} />
         </DialogProvider></LanguageProvider>);
         // carte principale
         const main = screen.getByRole('heading', { level: 3, name: new RegExp(PLAN_CATALOG[expected.id].name) }).parentElement;
-        expect(main.textContent).toContain(`${expected.ht} €`);
+        expect(main.textContent).toContain(`${shown} €`);
         // sélecteur : la carte « actuelle » porte le même prix, les autres le tarif en vigueur
         fireEvent.click(screen.getByRole('button', { name: /changer l.offre/i }));
         const dialogCards = [...document.body.querySelectorAll('.ec-content-card')].filter((c) => /Formule actuelle/.test(c.textContent));
         expect(dialogCards.length).toBeGreaterThan(0);
-        for (const card of dialogCards) expect(card.textContent).toContain(`${expected.ht} €`);
+        for (const card of dialogCards) expect(card.textContent).toContain(`${shown} €`);
         const legacyNote = screen.queryByText(/reste à votre tarif d’origine/i);
         expect(Boolean(legacyNote)).toBe(expected.legacy);
     });

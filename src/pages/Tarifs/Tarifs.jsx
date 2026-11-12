@@ -119,7 +119,7 @@ export default function Tarifs() {
                                         </ul>
                                     )}
                                     <Link
-                                        to={`/souscription?plan=${plan.id}${isAnnual ? '&frequence=annuel' : ''}`}
+                                        to={`/souscription?plan=${plan.id}&frequence=${isAnnual ? 'annuel' : 'mensuel'}`}
                                         className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'}`}
                                         style={{ width: '100%', justifyContent: 'center' }}
                                         id={`cta-${plan.id}`}

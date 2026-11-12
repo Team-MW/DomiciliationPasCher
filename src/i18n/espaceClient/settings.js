@@ -1,5 +1,8 @@
 export default {
     fr: {
+        securityTitle: "Sécurité",
+        changePassword: "Changer mon mot de passe",
+        securityHint: "Mot de passe, adresse email de connexion et appareils connectés.",
         languageTitle: 'Langue',
         languageLabel: "Langue d'affichage",
         languageHint: 'Votre choix est mémorisé sur cet appareil.',
@@ -40,6 +43,9 @@ export default {
         },
     },
     en: {
+        securityTitle: "Security",
+        changePassword: "Change my password",
+        securityHint: "Password, sign-in email address and connected devices.",
         languageTitle: 'Language',
         languageLabel: 'Display language',
         languageHint: 'Your choice is saved on this device.',
@@ -80,6 +86,9 @@ export default {
         },
     },
     ru: {
+        securityTitle: "Безопасность",
+        changePassword: "Изменить пароль",
+        securityHint: "Пароль, адрес электронной почты для входа и подключённые устройства.",
         languageTitle: 'Язык',
         languageLabel: 'Язык интерфейса',
         languageHint: 'Ваш выбор сохраняется на этом устройстве.',

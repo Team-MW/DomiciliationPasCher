@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SignUp } from '@clerk/clerk-react';
+import { SignUp, ClerkLoading } from '@clerk/clerk-react';
+import AuthLoading from '../../components/AuthLoading/AuthLoading';
 import { adminDataService } from '../../services/adminDataService';
 import { appAlert } from '../../components/AppDialog/dialogApi';
 import usePageMeta from '../../components/Seo/usePageMeta';
@@ -69,10 +70,10 @@ export default function InscriptionPage() {
                 setIsAllowed(true);
                 setShowFallback(false);
             } else {
-                await appAlert("Aucun paiement validé trouvé pour cet e-mail. Vérifiez l'adresse ou contactez le support.");
+                await appAlert("Aucun paiement validé trouvé pour cet e-mail. Vérifiez l'adresse ou contactez le support.", { isWarning: true, title: 'Aucun paiement trouvé' });
             }
         } catch (err) {
-            await appAlert("La vérification a échoué. Réessayez dans quelques instants ou contactez le support.");
+            await appAlert("La vérification a échoué. Réessayez dans quelques instants ou contactez le support.", { isWarning: true, title: 'Vérification impossible' });
         } finally {
             setIsChecking(false);
         }
@@ -98,7 +99,7 @@ export default function InscriptionPage() {
                     
                     {!showFallback ? (
                         <>
-                            <button className="btn-primary" onClick={() => navigate('/souscription')} style={{ width: '100%', marginBottom: '12px', padding: '12px' }}>
+                            <button type="button" className="btn btn-primary" onClick={() => navigate('/souscription')} style={{ width: '100%', marginBottom: '12px', padding: '12px' }}>
                                 Choisir un forfait
                             </button>
                             <button className="btn-outline" onClick={() => setShowFallback(true)} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid #E2E8F0', borderRadius: '8px', cursor: 'pointer' }}>
@@ -115,7 +116,7 @@ export default function InscriptionPage() {
                                 onChange={e => setFallbackEmail(e.target.value)}
                                 style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0', marginBottom: '12px' }}
                             />
-                            <button type="submit" disabled={isChecking} className="btn-primary" style={{ width: '100%', padding: '12px' }}>
+                            <button type="submit" disabled={isChecking} className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>
                                 {isChecking ? 'Vérification…' : 'Vérifier et accéder'}
                             </button>
                             <button type="button" onClick={() => setShowFallback(false)} style={{ width: '100%', marginTop: '12px', background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: '14px' }}>
@@ -168,6 +169,7 @@ export default function InscriptionPage() {
             </div>
 
             <div className="auth-right">
+                <ClerkLoading><AuthLoading /></ClerkLoading>
                 <SignUp
                     initialValues={prefillEmail ? { emailAddress: prefillEmail } : undefined}
                     signInUrl="/connexion"

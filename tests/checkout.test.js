@@ -8,6 +8,8 @@ vi.mock('stripe', () => {
     const create = vi.fn();
     const update = vi.fn();
     const sessionsCreate = vi.fn();
+    const promoList = vi.fn();
+    const subsList = vi.fn();
     return {
         default: class {
             constructor() {
@@ -21,7 +23,9 @@ vi.mock('stripe', () => {
                         sessions: {
                             create: sessionsCreate,
                         }
-                    }
+                    },
+                    promotionCodes: { list: promoList },
+                    subscriptions: { list: subsList },
                 };
             }
         }
@@ -49,6 +53,7 @@ const DEMANDES = {
     req_scan: { plan: 'Scan+', email: 'test@example.com', status: 'en_attente_paiement', extra_info: '{"frequence":"mensuel"}' },
     req_phys: { plan: 'Physique+', email: 'new-client@example.com', status: 'en_attente_paiement', extra_info: '{"frequence":"annuel"}' },
     req_paid: { plan: 'Essentiel', email: 'a@b.fr', status: 'en_attente', extra_info: '{}' },
+    req_ess: { plan: 'Essentiel', email: 'ess@x.fr', status: 'en_attente_paiement', extra_info: '{"frequence":"mensuel"}' },
 };
 vi.mock('../api/_db.js', () => ({
     getDbConn: vi.fn(() => ({
@@ -110,6 +115,8 @@ describe('Checkout API Handler (api/checkout.js)', () => {
             create: stripe.customers.create,
             update: stripe.customers.update,
             sessionsCreate: stripe.checkout.sessions.create,
+            promoList: stripe.promotionCodes.list,
+            subsList: stripe.subscriptions.list,
         };
     });
 
@@ -172,7 +179,8 @@ describe('Checkout API Handler (api/checkout.js)', () => {
                 quantity: 1,
             }],
             mode: 'subscription',
-            allow_promotion_codes: true, // codes promo actifs en mensuel
+            allow_promotion_codes: false, // Confort : pas de code promo (BIENVENUE = Essentiel mensuel uniquement)
+            payment_method_collection: 'always',
             success_url: 'http://localhost/success?session_id={CHECKOUT_SESSION_ID}',
             cancel_url: 'http://localhost/cancel',
             customer: 'cus_existing123',
@@ -319,5 +327,80 @@ describe('Checkout API Handler (api/checkout.js)', () => {
         mockReq.body = meetingBody({ metadata: { ...meetingBody().metadata, duration: '1 semaine' } });
         await handler(mockReq, mockRes);
         expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+});
+
+describe('Code promo BIENVENUE (Essentiel en mensuel uniquement)', () => {
+    let stripeMocks;
+    const res = () => ({ status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() });
+    const BIENVENUE = { id: 'promo_1', code: 'BIENVENUE', coupon: { percent_off: 100, duration: 'once' } };
+    beforeEach(() => {
+        vi.clearAllMocks();
+        process.env.STRIPE_SECRET_KEY = 'sk_test_mock_secret_key';
+        const stripe = new Stripe();
+        stripeMocks = {
+            list: stripe.customers.list, sessionsCreate: stripe.checkout.sessions.create,
+            promoList: stripe.promotionCodes.list, subsList: stripe.subscriptions.list,
+        };
+        stripeMocks.list.mockResolvedValue({ data: [] });
+        stripeMocks.subsList.mockResolvedValue({ data: [] });
+        stripeMocks.sessionsCreate.mockResolvedValue({ id: 'cs_1', url: 'https://stripe.com/x' });
+    });
+    const call = async (body) => {
+        const r = res();
+        await handler({ method: 'POST', headers: { origin: 'http://localhost' }, body }, r);
+        return r;
+    };
+
+    test('vérification depuis le tunnel : Essentiel mensuel + code actif → « 1er mois : 0 € »', async () => {
+        stripeMocks.promoList.mockResolvedValue({ data: [BIENVENUE] });
+        const r = await call({ action: 'checkPromo', code: ' bienvenue ', planId: 'essentiel', interval: 'month', email: 'new@x.fr' });
+        expect(stripeMocks.promoList).toHaveBeenCalledWith({ code: 'BIENVENUE', active: true, limit: 1 });
+        expect(r.json).toHaveBeenCalledWith({ valid: true, code: 'BIENVENUE', label: '1er mois : 0 €', percentOff: 100, firstMonthOnly: true });
+    });
+
+    test.each([['scan-plus', 'month'], ['physique', 'month'], ['essentiel', 'year'], ['essentiel', 'annuel']])('refusé sur %s / %s avec le message du cahier des charges', async (planId, interval) => {
+        const r = await call({ action: 'checkPromo', code: 'BIENVENUE', planId, interval });
+        expect(r.json).toHaveBeenCalledWith(expect.objectContaining({ valid: false, message: 'Le code BIENVENUE est réservé à la formule Essentiel en mensuel.' }));
+        expect(stripeMocks.promoList).not.toHaveBeenCalled();
+    });
+
+    test('code inconnu ou désactivé dans Stripe : refusé', async () => {
+        stripeMocks.promoList.mockResolvedValue({ data: [] });
+        const r = await call({ action: 'checkPromo', code: 'BIENVENUE', planId: 'essentiel', interval: 'month' });
+        expect(r.json).toHaveBeenCalledWith(expect.objectContaining({ valid: false, message: 'Ce code promo n’existe pas ou n’est plus valable.' }));
+    });
+
+    test('déjà client (abonnement passé) : une seule fois par client', async () => {
+        stripeMocks.promoList.mockResolvedValue({ data: [BIENVENUE] });
+        stripeMocks.list.mockResolvedValue({ data: [{ id: 'cus_old' }] });
+        stripeMocks.subsList.mockResolvedValue({ data: [{ id: 'sub_old' }] });
+        const r = await call({ action: 'checkPromo', code: 'BIENVENUE', planId: 'essentiel', interval: 'month', email: 'old@x.fr' });
+        expect(r.json).toHaveBeenCalledWith(expect.objectContaining({ valid: false, message: 'Ce code est réservé à une première souscription.' }));
+    });
+
+    test('paiement Essentiel mensuel avec code : remise appliquée, carte toujours enregistrée, code noté', async () => {
+        stripeMocks.promoList.mockResolvedValue({ data: [BIENVENUE] });
+        const r = await call({ interval: 'month', promoCode: 'BIENVENUE', metadata: { demande_id: 'req_ess' } });
+        expect(r.status).toHaveBeenCalledWith(200);
+        const opts = stripeMocks.sessionsCreate.mock.calls[0][0];
+        expect(opts.discounts).toEqual([{ promotion_code: 'promo_1' }]);
+        expect(opts.allow_promotion_codes).toBe(false); // Stripe refuse discounts + allow_promotion_codes ensemble
+        expect(opts.payment_method_collection).toBe('always');
+        expect(opts.metadata.promo_code).toBe('BIENVENUE');
+    });
+
+    test('paiement Essentiel mensuel sans code : champ code de Stripe disponible', async () => {
+        await call({ interval: 'month', metadata: { demande_id: 'req_ess' } });
+        const opts = stripeMocks.sessionsCreate.mock.calls[0][0];
+        expect(opts.allow_promotion_codes).toBe(true);
+        expect(opts.discounts).toBeUndefined();
+    });
+
+    test('paiement Confort avec BIENVENUE forcé par le navigateur : refusé, aucune session', async () => {
+        const r = await call({ interval: 'month', promoCode: 'BIENVENUE', metadata: { demande_id: 'req_scan' } });
+        expect(r.status).toHaveBeenCalledWith(400);
+        expect(r.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'PROMO_INVALID' }));
+        expect(stripeMocks.sessionsCreate).not.toHaveBeenCalled();
     });
 });

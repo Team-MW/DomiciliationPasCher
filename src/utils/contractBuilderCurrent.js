@@ -1,6 +1,7 @@
 import { cleanForPdf } from './pdfGenerator';
 import { resolvePersonalAddress, resolveForwardingAddress } from './contractLegalFields';
-import { PLAN_CATALOG, EXTRA_FEES_HT, annualHt, clientPlanPricing } from '../../shared/plans.js';
+import { PLAN_CATALOG, EXTRA_FEES_HT, MIN_COMMITMENT_MONTHS, NOTICE_MONTHS, annualHt, clientPlanPricing } from '../../shared/plans.js';
+import { DOMICILIATION_ADDRESS_ONE_LINE, AGREMENT_NUMBER, COMPANY_SIREN, COMPANY_SIRET } from '../../shared/company.js';
 
 /**
  * Contrat de domiciliation — version de novembre 2026 (grille Essentiel / Confort / Premium).
@@ -9,6 +10,11 @@ import { PLAN_CATALOG, EXTRA_FEES_HT, annualHt, clientPlanPricing } from '../../
  */
 
 const euro = (n) => `${Number(n).toFixed(2).replace('.', ',')} €`;
+// « trois (3) », « quarante (40) »… comme dans le contrat type ; chiffre seul si le nombre n'a pas d'équivalent ici.
+const NUMBER_WORDS = { 1: 'un', 2: 'deux', 3: 'trois', 40: 'quarante', 100: 'cent' };
+const nb = (n) => (NUMBER_WORDS[n] ? `${NUMBER_WORDS[n]} (${n})` : String(n));
+// « 101 512 531 » / « 101 512 531 00019 »
+const groupSiren = (n) => String(n).replace(/^(\d{3})(\d{3})(\d{3})(\d*)$/, (_, a, b, c, d) => [a, b, c, d].filter(Boolean).join(' '));
 const euroShort = (n) => `${Number.isInteger(Number(n)) ? Number(n) : Number(n).toFixed(2).replace('.', ',')} €`;
 
 export function describeCurrentPlan(clientData, extra) {
@@ -18,6 +24,10 @@ export function describeCurrentPlan(clientData, extra) {
     const isAnnuel = extra?.frequence === 'annuel';
     let promo = 'Aucune';
     if (isAnnuel) promo = pricing.legacy ? "Tarif annuel d'origine conservé (10 mensualités)" : 'Remise annuelle de 20 %';
+    else if (extra?.code_promo) {
+        const code = String(extra.code_promo).slice(0, 40);
+        promo = code === 'BIENVENUE' ? 'Code BIENVENUE (1er mois offert)' : `Code ${code}`;
+    }
     return {
         id: pricing.id,
         name: PLAN_CATALOG[pricing.id].name,
@@ -43,7 +53,7 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
     const immatriculation = siren
         ? `immatriculée au Registre du Commerce et des Sociétés de ${villeRcs} sous le numéro ${siren.slice(0, 9)}`
         : 'en cours d’immatriculation';
-    const immatriculationCourte = siren ? `SIREN ${siren.slice(0, 9)}` : 'en cours d’immatriculation';
+    const immatriculationCourte = siren ? siren.slice(0, 9) : 'en cours d’immatriculation';
     const clientAddress = cleanForPdf(resolvePersonalAddress(clientData, extra) || '[adresse personnelle]');
     const forwardingAddress = cleanForPdf(resolveForwardingAddress(extra) || 'à renseigner dans l’espace client');
     const dateNaissance = extra.dateNaissance ? cleanForPdf(new Date(extra.dateNaissance).toLocaleDateString('fr-FR')) : '[date de naissance]';
@@ -62,10 +72,9 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
-        doc.text('CONTRAT DE DOMICILIATION · domiciliation-pas-cher.com', 115, 18);
-        doc.text('Référence : CONTRAT-' + clientData.id, 115, 22);
-        doc.text('Date : ' + dateDebut, 115, 26);
-        doc.text(`Formule : ${plan.name} – ${plan.periodicite}`, 115, 30); // valeurs du catalogue (tiret conservé)
+        // En-tête du contrat type : deux lignes alignées à droite (valeurs du catalogue, tiret conservé).
+        doc.text('CONTRAT DE DOMICILIATION · domiciliation-pas-cher.com', 195, 20, { align: 'right' });
+        doc.text(`Référence : CONTRAT-${clientData.id} · Date : ${dateDebut} · Formule : ${plan.name} – ${plan.periodicite}`, 195, 26, { align: 'right' });
         doc.setDrawColor(203, 213, 225);
         doc.line(15, 38, 195, 38);
         doc.setFontSize(8);
@@ -120,7 +129,7 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
     currentY = 62;
 
     addTitle('Entre les soussignés :');
-    addParagraph("La société CASSIN LUDOVIC, SAS, au capital social de 2 000,00 €, immatriculée au Registre du Commerce et des Sociétés de Toulouse sous le numéro 101 512 531 et dont l'établissement (SIRET : 101 512 531 00019) est autorisé à exercer l'activité de domiciliation sous le numéro AG/DOM/2026/06 à l'adresse de domiciliation : 150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse, représentée par Ludovic CASSIN agissant en qualité de Président, ci-après dénommée (« le Domiciliataire »)");
+    addParagraph(`La société CASSIN LUDOVIC, SAS, au capital social de 2 000,00 €, immatriculée au Registre du Commerce et des Sociétés de Toulouse sous le numéro ${groupSiren(COMPANY_SIREN)} et dont l'établissement (SIRET : ${groupSiren(COMPANY_SIRET)}) est autorisé à exercer l'activité de domiciliation sous le numéro ${AGREMENT_NUMBER} à l'adresse de domiciliation : ${DOMICILIATION_ADDRESS_ONE_LINE}, représentée par Ludovic CASSIN agissant en qualité de Président, ci-après dénommée (« le Domiciliataire »)`);
     addText("D'UNE PART,", 9.5, true, [15, 23, 42]);
     currentY += 4;
     addText('ET', 10, true, [15, 23, 42]);
@@ -142,7 +151,7 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
     // ---------------- ARTICLE 2 ----------------
     addTitle('ARTICLE 2 : PRESTATIONS');
     addSub('2.1 Domiciliation');
-    addParagraph("Le Domiciliataire permet au Domicilié d'établir son siège social à l'adresse Chez CASSIN LUDOVIC 150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse.");
+    addParagraph(`Le Domiciliataire permet au Domicilié d'établir son siège social à l'adresse Chez CASSIN LUDOVIC ${DOMICILIATION_ADDRESS_ONE_LINE}.`);
     addParagraph("Le Domicilié communique à ses expéditeurs l'adresse exacte, comprenant le numéro de bureau, mentionnée ci-dessus comme adresse postale, afin de garantir la réception de son courrier par le Domiciliataire et toute notification. Tout courrier qui ne porterait pas précisément l'adresse postale spécifiée pourrait ne pas être réceptionné dans les délais impartis, ou pourrait ne pas être réceptionné et être renvoyé à l'expéditeur par les services postaux.");
     addParagraph("Le Domiciliataire réceptionne et conserve le courrier du Domicilié et l'informe de chaque arrivée par email, avec une photographie de l'enveloppe. Le Domicilié peut retirer son courrier et ses colis sur place, du lundi au vendredi de 9h à 18h, sur rendez-vous pris par email au moins vingt-quatre (24) heures à l'avance, ou quarante-huit (48) heures pour un colis volumineux.");
 
@@ -151,12 +160,12 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
     addParagraph(`La réalisation de cette Prestation implique des frais complémentaires optionnels, au tarif de ${euro(F.meetingRoomHour)} HT par heure, et doit faire l'objet d'une demande écrite préalable du Domicilié au Domiciliataire, par email au moins quarante-huit (48) heures à l'avance. Toute réservation annulée moins de vingt-quatre (24) heures avant son début est due.`);
 
     addSub('2.3 Réexpédition du courrier');
-    addParagraph(`Selon la formule souscrite (précisée en Annexe 1), le Domiciliataire réexpédie le courrier postal du Domicilié au format papier, à l'adresse indiquée par le Domicilié dans son espace client. La formule ${P.physique.name} inclut deux (2) réexpéditions par mois, l'affranchissement étant refacturé au coût réel. Toute autre réexpédition est facturée ${euro(F.forward)} HT, plus le coût réel de l'affranchissement.`);
+    addParagraph(`Selon la formule souscrite (précisée en Annexe 1), le Domiciliataire réexpédie le courrier postal du Domicilié au format papier, à l'adresse indiquée par le Domicilié dans son espace client. La formule ${P.physique.name} inclut ${nb(P.physique.forwardsIncluded)} réexpéditions par mois, l'affranchissement étant refacturé au coût réel. Toute autre réexpédition est facturée ${euro(F.forward)} HT, plus le coût réel de l'affranchissement.`);
 
     addSub('2.4 Numérisation du courrier');
     addParagraph("La transmission par le Domiciliataire au Domicilié de son courrier postal sous format numérique à travers un cloud privé et sécurisé dans l'espace client.");
     addParagraph("À ce titre, le Domicilié donne autorisation au Domiciliataire d'ouvrir le courrier postal en son nom afin de pouvoir réaliser sa numérisation.");
-    addParagraph(`La numérisation est incluse dans la limite de quarante (${P['scan-plus'].scanQuota}) plis par mois pour la formule ${P['scan-plus'].name} et de cent (${P.physique.scanQuota}) plis par mois pour la formule ${P.physique.name}. Au-delà, chaque pli est facturé ${euro(F.scanPerPage)} HT. Les quotas ne sont pas reportables. La numérisation est réalisée sous vingt-quatre (24) heures ouvrées après réception.`);
+    addParagraph(`La numérisation est incluse dans la limite de ${nb(P['scan-plus'].scanQuota)} plis par mois pour la formule ${P['scan-plus'].name} et de ${nb(P.physique.scanQuota)} plis par mois pour la formule ${P.physique.name}. Au-delà, chaque pli est facturé ${euro(F.scanPerPage)} HT. Les quotas ne sont pas reportables. La numérisation est réalisée sous vingt-quatre (24) heures ouvrées après réception.`);
 
     addSub('2.5 Réception des colis');
     addParagraph('Le Domiciliataire réceptionne les colis d\'un poids de cinq (5) kilogrammes au plus. Sont refusés : les colis de plus de cinq (5) kilogrammes, les objets dangereux ou illicites, les denrées périssables et les objets de valeur.');
@@ -218,16 +227,15 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
 
     // ---------------- ARTICLE 5 ----------------
     addTitle('ARTICLE 5 : DURÉE');
-    addParagraph(`Le Contrat est conclu à compter du ${dateDebut} pour la durée précisée en Annexe 1, laquelle ne pourra être inférieure à trois (3) mois conformément à l'article R123-168 du Code de commerce.`);
+    addParagraph(`Le Contrat est conclu à compter du ${dateDebut} pour la durée précisée en Annexe 1, laquelle ne pourra être inférieure à ${nb(MIN_COMMITMENT_MONTHS)} mois conformément à l'article R123-168 du Code de commerce.`);
     addParagraph("Le Contrat se renouvelle, tacitement, par périodes successives correspondant à la durée initiale du Contrat (abonnement annuel), à l'exception des Contrats de trois (3) mois qui se renouvellent, tacitement, par périodes successives d'un (1) mois, sauf résiliation dans les conditions prévues à l'article 6 du Contrat.");
-    addParagraph("Lorsque le Domicilié bénéficie d'un mois offert dans le cadre d'une offre promotionnelle, ce mois est inclus dans la durée minimale de trois (3) mois.");
     addParagraph("L'exécution des Prestations par le Domiciliataire ne débutera qu'à compter du jour où le Domicilié aura transmis les documents et informations sollicités pour la réalisation de ses obligations figurant à l'article 3.2.");
     addParagraph("Dans l'attente de la transmission de ces éléments ou à défaut de transmission, les montants évoqués à l'article 4.1 seront dus au Domiciliataire.");
 
     // ---------------- ARTICLE 6 ----------------
     addTitle('ARTICLE 6 : MODALITÉS DE RÉSILIATION');
     addSub('6.1 Résiliation par le Domicilié');
-    addParagraph("Le Domicilié peut résilier le Contrat depuis son espace client, avec un préavis d'un (1) mois avant la fin de la période en cours. La résiliation ne peut prendre effet avant l'expiration de la durée minimale de trois (3) mois.");
+    addParagraph(`Le Domicilié peut résilier le Contrat depuis son espace client, avec un préavis d'${nb(NOTICE_MONTHS)} mois avant la fin de la période en cours. La résiliation ne peut prendre effet avant l'expiration de la durée minimale de ${nb(MIN_COMMITMENT_MONTHS)} mois.`);
     addParagraph("Lorsque le Domicilié bénéficie de la Prestation de domiciliation, c'est-à-dire lorsque son siège social est immatriculé dans les locaux du Domiciliataire, afin de valider la résiliation, le Domicilié devra produire tout document officiel démontrant le transfert ou la radiation de son siège social (par exemple un extrait Kbis). À défaut, le Contrat produira ses effets aux conditions en vigueur au jour de la résiliation, et ce, jusqu'à la transmission dudit document.");
     addSub('6.2 Résiliation par le Domiciliataire');
     addParagraph("En cas de manquement du Domicilié à ses obligations prévues aux articles 3.2 ou 4 du Contrat, le Domiciliataire peut résilier le Contrat après une mise en demeure par email restée sans effet pendant huit (8) jours, ou sans délai en cas de manquement grave (fausse déclaration, usage frauduleux de l'adresse, refus de fournir les pièces réglementaires). Les montants déjà payés par le Domicilié restent acquis au Domiciliataire, sans préjudice de toute demande de réparation complémentaire pour le préjudice subi. Le Domicilié reste redevable de tout frais dû en application des articles 2 et 4.");
@@ -363,7 +371,7 @@ export const buildCurrentContractContent = (doc, clientData, extra, isSigned, si
 
     addParagraph(`Paiement annuel : remise de 20 % sur le prix de l'abonnement (${euro(annualHt(P.essentiel.ht))} HT, ${euro(annualHt(P['scan-plus'].ht))} HT ou ${euro(annualHt(P.physique.ht))} HT par an).`);
     addParagraph(`Prestations complémentaires (HT) : numérisation hors quota ${euro(F.scanPerPage)} par pli ; réexpédition ${euro(F.forward)} + affranchissement réel ; colis ${euro(F.parcel)} (hors ${P.physique.name}) ; conservation d'un colis au-delà de 15 jours ${euro(F.parcelStoragePerDay)} par jour ; salle de réunion ${euro(F.meetingRoomHour)} par heure.`);
-    addParagraph("Durée d'engagement légale : conformément à l'article R123-168 du Code de commerce, la durée minimale de tout contrat de domiciliation est de trois (3) mois, quelle que soit la formule souscrite. Résiliation ensuite avec un préavis d'un (1) mois. Paiement non remboursable en cas de résiliation par le Domicilié.");
+    addParagraph(`Durée d'engagement légale : conformément à l'article R123-168 du Code de commerce, la durée minimale de tout contrat de domiciliation est de ${nb(MIN_COMMITMENT_MONTHS)} mois, quelle que soit la formule souscrite. Résiliation ensuite avec un préavis d'${nb(NOTICE_MONTHS)} mois. Paiement non remboursable en cas de résiliation par le Domicilié.`);
 
     // Offre souscrite
     checkPageBreak(50); // titre + encadré + « Fait à » gardés ensemble
