@@ -6,9 +6,13 @@ import './index.css'
 import App from './App.jsx'
 import { LanguageProvider, preloadInitialLanguage } from './i18n/LanguageContext.jsx'
 import { installApiAuth } from './utils/apiAuth.js'
+import { captureSignupProofFromUrl } from './utils/signupProof.js'
 
 // Jeton Clerk joint automatiquement à chaque appel /api/* (contrôle d'accès côté serveur).
 installApiAuth()
+
+// Lien « Activer mon accès » / « Créer mon accès » de nos emails : preuve gardée pour valider le compte sans code.
+captureSignupProofFromUrl()
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 

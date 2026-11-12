@@ -11,6 +11,8 @@ function postLoginUrl() {
 
 export default function ConnexionPage() {
     const afterAuth = postLoginUrl();
+    // Lien « Activer mon accès » de nos emails : adresse préremplie.
+    const prefillEmail = (() => { const raw = String(new URLSearchParams(window.location.search).get('email') || '').trim().toLowerCase(); return /^\S+@\S+\.\S+$/.test(raw) ? raw : ''; })();
     usePageMeta({ title: 'Connexion à votre espace client — Domiciliation Pas Cher', path: '/connexion', noindex: true });
 
     return (
@@ -54,6 +56,7 @@ export default function ConnexionPage() {
                     <a href="/inscription">créer mon accès</a>.
                 </p>
                 <SignIn
+                    initialValues={prefillEmail ? { emailAddress: prefillEmail } : undefined}
                     signUpUrl="/inscription"
                     fallbackRedirectUrl={afterAuth}
                     forceRedirectUrl={afterAuth}

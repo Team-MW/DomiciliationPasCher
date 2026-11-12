@@ -534,3 +534,27 @@ export function buildEmailVerificationEmail({ nom, code }) {
         ${signatureHtml()}`;
     return { subject, text, html };
 }
+
+/** Lien « Activer mon accès » : page de connexion + preuve signée (?v=) qui valide le compte sans code. */
+export const accessActivationUrl = (baseUrl, email) => {
+    const clean = String(email || '').trim().toLowerCase();
+    return `${baseUrl}/connexion?email=${encodeURIComponent(clean)}&v=${signupProofToken(clean)}`;
+};
+
+/**
+ * Envoyé automatiquement (contrôle du matin) à un client dont le compte de connexion n'a pas d'adresse vérifiée :
+ * un clic suffit, il n'a aucun code à saisir et n'est jamais bloqué.
+ */
+export function buildAccessActivationEmail({ nom, email, baseUrl }) {
+    const url = accessActivationUrl(baseUrl, email);
+    const subject = 'Activez votre accès à l’espace client (1 clic)';
+    const text = `${greetingText(nom)}\n\nVotre compte est presque prêt : il reste à confirmer que cette adresse (${normEmail(email)}) est bien la vôtre.\n\nCliquez sur ce lien puis connectez-vous, votre espace client s'ouvre directement : ${url}\n\nAucun code à saisir. Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email.\n\n${signatureText()}`;
+    const html = `
+        ${heading('Activez votre accès en 1 clic')}
+        <p>${greetingHtml(nom)}</p>
+        <p>Votre compte est presque prêt : il reste à confirmer que l’adresse <strong>${escapeHtml(normEmail(email))}</strong> est bien la vôtre.</p>
+        ${emailButton(url, 'Activer mon accès')}
+        <p style="font-size:14px;color:#475569;">Cliquez, connectez-vous, et votre espace client s’ouvre directement : aucun code à saisir.<br>Si vous n’êtes pas à l’origine de cette inscription, ignorez simplement cet email.</p>
+        ${signatureHtml()}`;
+    return { subject, text, html };
+}

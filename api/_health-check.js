@@ -8,12 +8,15 @@
  * 4. Emails en échec dans les dernières 24 h.
  * 5. Prix affiché dans l'espace client ≠ montant réellement prélevé par Stripe (ex. 20 € affiché, 16 € attendu).
  *
- * Un seul email aux admins, seulement s'il y a quelque chose à faire. Ne modifie JAMAIS rien : il signale.
+ * Un seul email aux admins, seulement s'il y a quelque chose à faire.
+ * Seule action automatique : un client au compte non vérifié reçoit le lien « Activer mon accès » (1 clic, preuve signée),
+ * au plus une fois tous les 3 jours. Le reste est seulement signalé.
  */
 import { createClerkClient } from '@clerk/backend';
 import { readServerEnv } from './_env.js';
 import { ADMIN_EMAIL } from './_smtp.js';
 import { sendBrandedMail, escapeHtml, emailButton, formatEuro } from './_email-kit.js';
+import { buildAccessActivationEmail } from './_email-templates.js';
 import { clientPlanPricing } from '../shared/plans.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -60,6 +63,7 @@ export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(
                 if (!client) continue;
                 issues.push({
                     kind: 'unverified',
+                    clientId: client.id,
                     client: client.name,
                     email: primary.emailAddress,
                     detail: 'Adresse email du compte NON vérifiée : le client est bloqué à la connexion. Fiche client → « Trouver le compte de connexion » → « Marquer comme vérifiée » (après avoir confirmé que c’est bien lui).',
@@ -164,8 +168,44 @@ export async function runHealthCheck({ conn, stripe, transporter, from, baseUrl 
     const secretKey = readServerEnv('CLERK_SECRET_KEY');
     const clerk = secretKey ? createClerkClient({ secretKey }) : null;
     const issues = await collectHealthIssues({ conn, stripe, clerk });
+    if (transporter) await sendActivationLinks({ conn, transporter, from, baseUrl, issues });
     if (!issues.length || !transporter) return { healthIssues: issues.length, healthReportSent: false };
     const mail = buildHealthReportEmail(issues, { baseUrl });
-    await sendBrandedMail(transporter, { conn, from, to: ADMIN_EMAIL, type: 'admin_health_report', source: 'cron', ...mail });
+    await sendBrandedMail(transporter, { conn, from, to: ADMIN_EMAIL, type: 'admin_health_report', source: 'auto', ...mail });
     return { healthIssues: issues.length, healthReportSent: true };
+}
+
+export const ACTIVATION_RESEND_MS = 3 * DAY_MS;
+
+/**
+ * Client bloqué par « email non vérifié » : on lui envoie nous-mêmes le lien « Activer mon accès » (preuve signée de
+ * l'adresse) au lieu d'attendre qu'il bute sur l'écran ou appelle. Une fois tous les 3 jours au plus.
+ */
+export async function sendActivationLinks({ conn, transporter, from, baseUrl, issues, now = Date.now() }) {
+    for (const issue of issues) {
+        if (issue.kind !== 'unverified' || !issue.clientId || !issue.email) continue;
+        try {
+            const row = (await conn.execute('SELECT name, extra_info FROM clients WHERE id = ?', [issue.clientId])).rows?.[0];
+            if (!row) continue;
+            let extra;
+            try {
+                extra = typeof row.extra_info === 'string' ? JSON.parse(row.extra_info || '{}') : (row.extra_info || {});
+                if (typeof extra === 'string') extra = JSON.parse(extra);
+            } catch {
+                continue; // fiche illisible : on n'écrit rien
+            }
+            if (!extra || typeof extra !== 'object') continue;
+            const last = Date.parse(extra.access_activation_sent_at || '');
+            if (Number.isFinite(last) && now - last < ACTIVATION_RESEND_MS) {
+                issue.detail = `Lien « Activer mon accès » déjà envoyé le ${new Date(last).toLocaleDateString('fr-FR')} : le client n’a pas encore cliqué. ${issue.detail}`;
+                continue;
+            }
+            const mail = buildAccessActivationEmail({ nom: row.name, email: issue.email, baseUrl });
+            await sendBrandedMail(transporter, { conn, from, to: issue.email, clientEmail: issue.email, type: 'access_activation', source: 'auto', ...mail });
+            await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify({ ...extra, access_activation_sent_at: new Date(now).toISOString() }), issue.clientId]);
+            issue.detail = 'Lien « Activer mon accès » envoyé automatiquement ce matin au client : un clic suffit, rien à faire de votre côté. Si besoin : fiche client → « Vérifier son compte de connexion ».';
+        } catch (err) {
+            console.error('[health] lien d’activation non envoyé:', err?.message || err);
+        }
+    }
 }

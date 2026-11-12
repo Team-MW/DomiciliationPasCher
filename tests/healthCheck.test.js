@@ -113,3 +113,30 @@ describe('buildHealthReportEmail', () => {
         expect(mail.text).toContain('Clients bloqués par « email non vérifié » (1)');
     });
 });
+
+describe('lien « Activer mon accès » envoyé automatiquement aux clients bloqués', () => {
+    it('envoie le lien signé une fois, puis pas avant 3 jours ; le rapport admin le dit', async () => {
+        const { sendActivationLinks } = await import('../api/_health-check.js');
+        const { isValidSignupProof } = await import('../api/_signup-proof.js');
+        await addClient('c1', 'william@icloud.com', { clerkId: 'user_w' });
+        const outbox = [];
+        const transporter = { sendMail: async (m) => { outbox.push(m); return { messageId: 'x' }; } };
+        const run = async (now) => {
+            const issues = await collectHealthIssues({ conn, clerk: fakeClerk([user('user_w', 'william@icloud.com', false)]), now });
+            await sendActivationLinks({ conn, transporter, from: 's@test.fr', baseUrl: 'https://site.test', issues, now });
+            return issues;
+        };
+        const issues = await run(NOW);
+        expect(outbox).toHaveLength(1);
+        expect(outbox[0].to).toBe('william@icloud.com');
+        const link = new URL(/https:\/\/site\.test\/connexion\?[^"\s]+/.exec(outbox[0].html)[0].replace(/&amp;/g, '&'));
+        expect(link.searchParams.get('email')).toBe('william@icloud.com');
+        expect(isValidSignupProof('william@icloud.com', link.searchParams.get('v'))).toBe(true);
+        expect(issues[0].detail).toMatch(/envoyé automatiquement/);
+
+        await run(NOW + 24 * 3600 * 1000);
+        expect(outbox).toHaveLength(1); // pas de relance le lendemain
+        await run(NOW + 4 * 24 * 3600 * 1000);
+        expect(outbox).toHaveLength(2); // relance après 3 jours
+    });
+});

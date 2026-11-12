@@ -454,3 +454,4 @@ Une ligne par piège découvert : date, ce qui s'est passé, la règle qui en d�
 - `callDataApi` ne réessaie pas les 429 (refus volontaires à afficher) ; `syncStripePayments` lève une erreur au lieu de renvoyer « aucune facture ».
 - Dates affichées au client dans SA langue (`lang` → fr-FR / en-GB / ru-RU), jamais 'fr-FR' en dur ; date AAAA-MM-JJ lue à midi (`T12:00:00`).
 - Toute lecture de localStorage dans un chargement critique est entourée de try/catch (stockage bloqué = SecurityError).
+- Compte Clerk non vérifié (cas William R., 12/11/2026) : le contrôle du matin envoie TOUT SEUL au client l'email « Activer mon accès » (`buildAccessActivationEmail`, lien `/connexion?email=&v=`), au plus tous les 3 jours (`extra_info.access_activation_sent_at`). La preuve `?v=` est captée sur n'importe quelle page (`src/utils/signupProof.js`, appelé dans main.jsx) puis utilisée par EmailVerifyPanel après connexion. Cause de fond : réglage Clerk « Verify at sign-up » désactivé.
