@@ -23,12 +23,17 @@ export function pendingPaymentPatch(extra, billing) {
     return next;
 }
 
-/** @returns {Promise<{changed: boolean}>} */
-export async function reconcilePendingPayment({ conn, clientId, billing }) {
+/**
+ * @param {{ conn, clientId, billing, notify?: (info: {email: string, nom: string}) => Promise<void> }} args
+ *   `notify` : prévenir le client que son dossier est actif (il n'est pas revenu sur le site après le paiement,
+ *   il n'a donc jamais vu « Créer mon accès »). Appelé une seule fois, quand la fiche vient d'être rattachée.
+ * @returns {Promise<{changed: boolean}>}
+ */
+export async function reconcilePendingPayment({ conn, clientId, billing, notify = null }) {
     if (!conn || !clientId || !billing?.hasHealthySubscription) return { changed: false };
     let row;
     try {
-        row = (await conn.execute('SELECT extra_info FROM clients WHERE id = ?', [clientId])).rows?.[0];
+        row = (await conn.execute('SELECT email, name, extra_info FROM clients WHERE id = ?', [clientId])).rows?.[0];
     } catch {
         return { changed: false };
     }
@@ -44,5 +49,12 @@ export async function reconcilePendingPayment({ conn, clientId, billing }) {
     const next = pendingPaymentPatch(extra, billing);
     if (!next) return { changed: false };
     await conn.execute('UPDATE clients SET extra_info = ? WHERE id = ?', [JSON.stringify(next), clientId]);
+    if (notify && row.email) {
+        try {
+            await notify({ email: String(row.email), nom: String(row.name || '').replace(/\s*-?\s*📞.*$/, '') });
+        } catch (err) {
+            console.error('[reconcile] email « dossier actif » non envoyé:', err?.message || err);
+        }
+    }
     return { changed: true, subscriptionId: next.stripe_subscription_id || null };
 }

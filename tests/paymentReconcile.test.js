@@ -48,11 +48,14 @@ describe('reconcilePendingPayment + relances + tunnel', () => {
         await service.init();
         await insertPending(conn, 'c1', 'mfk@x.fr');
         expect(await service.hasPaidDossier('mfk@x.fr')).toBe(false); // carte non enregistrée : peut payer via le site
-        expect((await reconcilePendingPayment({ conn, clientId: 'c1', billing: billingOk })).changed).toBe(true);
+        const notify = vi.fn(async () => {});
+        expect((await reconcilePendingPayment({ conn, clientId: 'c1', billing: billingOk, notify })).changed).toBe(true);
+        expect(notify).toHaveBeenCalledWith({ email: 'mfk@x.fr', nom: 'MFK' }); // « dossier actif, créez votre accès »
         const extra = JSON.parse((await conn.execute("SELECT extra_info FROM clients WHERE id = 'c1'")).rows[0].extra_info);
         expect(extra).toMatchObject({ payment_status: 'paid', stripe_subscription_id: 'sub_1', grille_tarifaire: '2026-11' });
         expect(extra.payment_token).toBeUndefined();
-        expect((await reconcilePendingPayment({ conn, clientId: 'c1', billing: billingOk })).changed).toBe(false);
+        expect((await reconcilePendingPayment({ conn, clientId: 'c1', billing: billingOk, notify })).changed).toBe(false);
+        expect(notify).toHaveBeenCalledTimes(1);
         expect(await service.hasPaidDossier('mfk@x.fr')).toBe(true);
     });
 
@@ -87,5 +90,23 @@ describe('reconcilePendingPayment + relances + tunnel', () => {
         const transporter = { sendMail: vi.fn(async () => ({})) };
         const res = await processPendingPayments({ conn, transporter, from: 's@x.fr', baseUrl: 'https://s', now: new Date('2026-11-14T08:00:00.000Z'), stripe });
         expect(res.paymentRemindersSent).toBe(1);
+    });
+});
+
+describe('fetchStripeBilling : identifiant relié ET fiches Stripe du même email', () => {
+    it('un identifiant relié sans abonnement ne cache plus les factures de l’autre fiche Stripe', async () => {
+        const subsByCustomer = { cus_wrong: [], cus_right: [{ id: 'sub_r', status: 'active', created: 1794646800 }] };
+        const invoicesByCustomer = { cus_wrong: [], cus_right: [{ id: 'in_1', status: 'paid', amount_paid: 2880, created: 1794646800, currency: 'eur', payments: { data: [] } }] };
+        const stripe = {
+            customers: { list: vi.fn(async () => ({ data: [{ id: 'cus_right' }] })) },
+            subscriptions: { list: vi.fn(async ({ customer }) => ({ data: subsByCustomer[customer] || [] })) },
+            paymentIntents: { list: vi.fn(async () => ({ data: [] })), search: vi.fn(async () => ({ data: [] })) },
+            invoices: { list: vi.fn(async ({ customer }) => ({ data: invoicesByCustomer[customer] || [] })) },
+        };
+        const b = await fetchStripeBilling(stripe, { email: 'mfk@x.fr', customerId: 'cus_wrong' });
+        expect(b.subscriptionStatus).toBe('active');
+        expect(b.healthyCustomerId).toBe('cus_right');
+        expect(b.foundCustomerId).toBe('cus_right');
+        expect(b.payments.length).toBeGreaterThan(0);
     });
 });

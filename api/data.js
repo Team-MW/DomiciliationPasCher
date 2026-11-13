@@ -299,7 +299,13 @@ const CLIENT_METHODS = {
         const next = resolveClientStatusFromStripe(client.status, billing.subscriptionStatus);
         if (next !== client.status) await ctx.service.updateClientStatus(clientId, next);
         if (extra.payment_status === 'pending') {
-            try { await reconcilePendingPayment({ conn: ctx.conn, clientId, billing }); } catch (err) { console.error('[updateClientStatus] rattachement:', err?.message || err); }
+            try {
+                await reconcilePendingPayment({ conn: ctx.conn, clientId, billing, notify: ({ email, nom }) => ctx.sendEmail({ type: 'approval', email, nom }) });
+            } catch (err) { console.error('[updateClientStatus] rattachement:', err?.message || err); }
+        }
+        // L'identifiant Stripe relié doit être celui qui porte l'abonnement actif (sinon factures et impayés invisibles).
+        if (billing.healthyCustomerId && extra.stripe_customer_id !== billing.healthyCustomerId) {
+            try { await ctx.service.updateClientExtraInfo(clientId, { stripe_customer_id: billing.healthyCustomerId }); } catch (err) { console.error('[updateClientStatus] identifiant Stripe:', err?.message || err); }
         }
         return { id: clientId, status: next };
     },

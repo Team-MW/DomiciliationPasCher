@@ -5,6 +5,7 @@ import { GOOGLE_REVIEW_URL } from '../shared/company.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { reconcilePendingPayment } from './_payment-reconcile.js';
 import { sendBrandedMail } from './_email-kit.js';
+import { deliverEmail } from './_email-core.js';
 import { buildDocumentRequestEmail, buildMailDigestEmail, buildLeadReminderEmail, buildAccountCreatedEmail, buildReviewRequestEmail } from './_email-templates.js';
 import { computeMissingDocuments, dueDocumentReminder, clientUploadsSince } from '../shared/documentRequest.js';
 import { SOUSCRIPTION_LEADS_DDL, LEAD_REMINDER_OFFSETS_MS } from '../shared/emailTables.js';
@@ -319,7 +320,10 @@ export async function processPendingPayments({ conn, transporter, from, baseUrl,
             if (stripe) {
                 try {
                     const billing = await fetchStripeBilling(stripe, { email: client.email, customerId: extra.stripe_customer_id || null });
-                    const r = await reconcilePendingPayment({ conn, clientId: client.id, billing });
+                    const r = await reconcilePendingPayment({
+                        conn, clientId: client.id, billing,
+                        notify: ({ email: to, nom }) => deliverEmail({ type: 'approval', email: to, nom }, { baseUrl, source: 'auto' }),
+                    });
                     if (r.changed) continue;
                 } catch (err) {
                     console.error('Cron paiement: vérification Stripe impossible pour', client.email, err?.message || err);

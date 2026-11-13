@@ -171,6 +171,16 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         }
                     }
 
+                    // L'identifiant relié doit être la fiche Stripe qui porte l'abonnement actif (sinon : « Aucune facture »).
+                    if (syncData.healthyCustomerId && syncData.healthyCustomerId !== stripeCustomerId) {
+                        try {
+                            await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: syncData.healthyCustomerId });
+                            onUpdate();
+                        } catch (e) {
+                            console.error('Identifiant Stripe non recalé :', e);
+                        }
+                    }
+
                     // Vérifier le statut de l'abonnement Stripe pour automatiser les statuts client
                     if (subStatus) {
                         const newClientStatus = resolveClientStatusFromStripe(client.status, subStatus);
@@ -408,9 +418,11 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 await showAlert('Paiement Stripe retrouvé : la fiche est passée en « payé », les relances de carte sont arrêtées.', { title: 'Paiement rattaché' });
             }
 
-            if (!stripeCustomerId && syncData.foundCustomerId) {
+            // Relier (ou recaler) la fiche Stripe qui porte l'abonnement actif ; sinon la première trouvée si rien n'est relié.
+            const bestCustomerId = syncData.healthyCustomerId || (!stripeCustomerId ? syncData.foundCustomerId : null);
+            if (bestCustomerId && bestCustomerId !== stripeCustomerId) {
                 try {
-                    await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: syncData.foundCustomerId });
+                    await adminDataService.updateClientExtraInfo(client.id, { stripe_customer_id: bestCustomerId });
                     onUpdate();
                 } catch (e) {
                     console.error("Erreur auto-save stripeCustomerId in admin:", e);

@@ -4,12 +4,18 @@ import { parisDateIso } from '../shared/parisDate.js';
  * Partagé par /api/list-payments et par le recalcul serveur du statut (api/data.js).
  */
 export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
+    // Identifiant relié ET fiches Stripe portant cet email : un client peut avoir deux fiches Stripe (lien de
+    // paiement, tunnel, liaison manuelle). Avant, dès qu'un identifiant était relié, l'email était ignoré :
+    // si l'identifiant n'était pas celui qui porte l'abonnement, l'historique devenait vide (« Aucune facture »).
     const customerIdsSet = new Set();
-    if (customerId) {
-        customerIdsSet.add(customerId);
-    } else if (email) {
-        const customers = await stripe.customers.list({ email: email.trim().toLowerCase(), limit: 100 });
-        customers.data.forEach(c => customerIdsSet.add(c.id));
+    if (customerId) customerIdsSet.add(customerId);
+    if (email) {
+        try {
+            const customers = await stripe.customers.list({ email: email.trim().toLowerCase(), limit: 100 });
+            customers.data.forEach(c => customerIdsSet.add(c.id));
+        } catch (err) {
+            console.warn('Could not list customers by email:', err.message);
+        }
     }
     const customerIds = Array.from(customerIdsSet);
 
@@ -158,6 +164,7 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
         healthySubscriptionId: healthySub?.id || null,
         healthyCustomerId: healthySub?.customer || null,
         healthySubscriptionCreated: healthySub?.created ? new Date(healthySub.created * 1000).toISOString() : null,
-        foundCustomerId: customerIds.length > 0 ? customerIds[0] : null,
+        // Fiche Stripe à relier : celle qui porte l'abonnement actif, sinon la première trouvée.
+        foundCustomerId: healthySub?.customer || (customerIds.length > 0 ? customerIds[0] : null),
     };
 }

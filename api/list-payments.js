@@ -3,6 +3,8 @@ import { getDbConn } from './_db.js';
 import { requireUser, getOwnership, userOwnsStripeCustomer, sendServerError } from './_auth.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { reconcilePendingPayment } from './_payment-reconcile.js';
+import { deliverEmail } from './_email-core.js';
+import { getBaseUrl } from './_email-kit.js';
 
 /**
  * Historique de facturation Stripe.
@@ -52,7 +54,11 @@ export default async function handler(req, res) {
                 const rows = conn ? (await conn.execute("SELECT id, extra_info FROM clients WHERE LOWER(email) = ? AND status <> 'résilié' LIMIT 3", [String(email).trim().toLowerCase()])).rows || [] : [];
                 for (const row of rows) {
                     if (!String(row.extra_info || '').includes('"payment_status":"pending"')) continue;
-                    const r = await reconcilePendingPayment({ conn, clientId: row.id, billing });
+                    const baseUrl = getBaseUrl(req);
+                    const r = await reconcilePendingPayment({
+                        conn, clientId: row.id, billing,
+                        notify: ({ email: to, nom }) => deliverEmail({ type: 'approval', email: to, nom }, { baseUrl, source: 'auto' }),
+                    });
                     reconciled = reconciled || r.changed;
                 }
             } catch (err) {

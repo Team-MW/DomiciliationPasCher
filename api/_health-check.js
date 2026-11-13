@@ -16,6 +16,7 @@ import { createClerkClient } from '@clerk/backend';
 import { createLoginTicket, loginLinkUrl, ACTIVATION_LINK_TTL_SECONDS } from './_login-link.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { reconcilePendingPayment } from './_payment-reconcile.js';
+import { deliverEmail } from './_email-core.js';
 import { readServerEnv } from './_env.js';
 import { ADMIN_EMAIL } from './_smtp.js';
 import { sendBrandedMail, escapeHtml, emailButton, formatEuro } from './_email-kit.js';
@@ -38,7 +39,7 @@ const clean = (email) => String(email || '').trim().toLowerCase();
 const primaryOf = (user) => user.emailAddresses?.find((e) => e.id === user.primaryEmailAddressId) || user.emailAddresses?.[0];
 
 /** @returns {Promise<Array<{kind: string, client?: string, email?: string, detail: string}>>} */
-export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now() }) {
+export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(), baseUrl = undefined }) {
     const issues = [];
     const clients = (await conn.execute(
         "SELECT id, name, email, plan, status, clerkId, since, extra_info FROM clients WHERE status = 'actif'",
@@ -115,7 +116,10 @@ export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(
             if (extra.payment_status !== 'pending') continue;
             try {
                 const billing = await fetchStripeBilling(stripe, { email: row.email, customerId: extra.stripe_customer_id || null });
-                const r = await reconcilePendingPayment({ conn, clientId: row.id, billing });
+                const r = await reconcilePendingPayment({
+                    conn, clientId: row.id, billing,
+                    notify: ({ email: to, nom }) => deliverEmail({ type: 'approval', email: to, nom }, { baseUrl: baseUrl || undefined, source: 'auto' }),
+                });
                 if (r.changed) continue;
             } catch (err) {
                 console.warn('[health] vérification Stripe impossible pour', row.email, err?.message || err);
@@ -214,7 +218,7 @@ export function buildHealthReportEmail(issues, { baseUrl }) {
 export async function runHealthCheck({ conn, stripe, transporter, from, baseUrl }) {
     const secretKey = readServerEnv('CLERK_SECRET_KEY');
     const clerk = secretKey ? createClerkClient({ secretKey }) : null;
-    const issues = await collectHealthIssues({ conn, stripe, clerk });
+    const issues = await collectHealthIssues({ conn, stripe, clerk, baseUrl });
     if (transporter) await sendActivationLinks({ conn, transporter, from, baseUrl, issues, clerk });
     if (!issues.length || !transporter) return { healthIssues: issues.length, healthReportSent: false };
     const mail = buildHealthReportEmail(issues, { baseUrl });
