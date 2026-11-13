@@ -2,6 +2,7 @@ import { getStripe } from './_stripe-client.js';
 import { getDbConn } from './_db.js';
 import { requireUser, getOwnership, userOwnsStripeCustomer, sendServerError } from './_auth.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
+import { reconcilePendingPayment } from './_payment-reconcile.js';
 
 /**
  * Historique de facturation Stripe.
@@ -42,7 +43,23 @@ export default async function handler(req, res) {
         }
 
         const billing = await fetchStripeBilling(stripe, { email, customerId });
-        return res.status(200).json(billing);
+        // Dossier admin « carte non enregistrée » alors que Stripe a un abonnement actif : on le marque payé ici,
+        // et la fiche cesse d'afficher « Paiement en attente » (et de recevoir des relances).
+        let reconciled = false;
+        if (billing.hasHealthySubscription && email) {
+            try {
+                const conn = getDbConn();
+                const rows = conn ? (await conn.execute("SELECT id, extra_info FROM clients WHERE LOWER(email) = ? AND status <> 'résilié' LIMIT 3", [String(email).trim().toLowerCase()])).rows || [] : [];
+                for (const row of rows) {
+                    if (!String(row.extra_info || '').includes('"payment_status":"pending"')) continue;
+                    const r = await reconcilePendingPayment({ conn, clientId: row.id, billing });
+                    reconciled = reconciled || r.changed;
+                }
+            } catch (err) {
+                console.error('[list-payments] rattachement du paiement impossible:', err?.message || err);
+            }
+        }
+        return res.status(200).json({ ...billing, reconciled });
     } catch (error) {
         return sendServerError(res, error, 'list-payments');
     }

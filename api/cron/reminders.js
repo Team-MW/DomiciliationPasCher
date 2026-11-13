@@ -43,6 +43,8 @@ export default async function handler(req, res) {
     const from = getSmtpConfig()?.from;
     const baseUrl = process.env.PUBLIC_SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : getBaseUrl(req));
     const ctx = { conn, transporter, from, baseUrl };
+    // Stripe facultatif pour les relances de lien de paiement : sert à détecter un client qui a déjà payé.
+    const optionalStripe = () => { try { return getStripe(); } catch { return null; } };
 
     // Toutes les heures, de 8 h à 20 h (Paris) : récap courrier et relances d'inscription.
     // La nuit, les envois attendent le premier passage du matin.
@@ -64,7 +66,7 @@ export default async function handler(req, res) {
 
     for (const task of [processDocumentRequests, processPendingPayments]) {
         try {
-            Object.assign(hourly, await task(ctx));
+            Object.assign(hourly, await task({ ...ctx, stripe: optionalStripe() }));
         } catch (err) {
             console.error(`Cron ${task.name}:`, err);
         }

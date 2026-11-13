@@ -8,6 +8,7 @@ import { createDataService } from './_data-service.js';
 import { getAuthUser, getOwnership, userOwnsStripeCustomer, isAdminEmail } from './_auth.js';
 import { sanitizeClientExtra, isSafeDocumentUrl, isTrustedDocumentUrl } from './_client-extra.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
+import { reconcilePendingPayment } from './_payment-reconcile.js';
 import { fulfillCheckoutSession, isCheckoutSessionPaid } from './_checkout-fulfillment.js';
 import { processMailNotifications } from './_notifications.js';
 import { getTransporter, getSmtpConfig } from './_smtp.js';
@@ -297,6 +298,9 @@ const CLIENT_METHODS = {
         });
         const next = resolveClientStatusFromStripe(client.status, billing.subscriptionStatus);
         if (next !== client.status) await ctx.service.updateClientStatus(clientId, next);
+        if (extra.payment_status === 'pending') {
+            try { await reconcilePendingPayment({ conn: ctx.conn, clientId, billing }); } catch (err) { console.error('[updateClientStatus] rattachement:', err?.message || err); }
+        }
         return { id: clientId, status: next };
     },
 

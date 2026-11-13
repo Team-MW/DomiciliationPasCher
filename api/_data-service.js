@@ -414,8 +414,9 @@ export function createDataService({
             if (!cleanEmail) return false;
             const d = await conn.execute("SELECT id FROM demandes WHERE email = ? AND status = 'en_attente' LIMIT 1", [cleanEmail]);
             if (d.rows.length > 0) return true;
-            const c = await conn.execute("SELECT id FROM clients WHERE email = ? AND status <> 'résilié' LIMIT 1", [cleanEmail]);
-            return c.rows.length > 0;
+            const c = await conn.execute("SELECT id, extra_info FROM clients WHERE email = ? AND status <> 'résilié' LIMIT 3", [cleanEmail]);
+            // Dossier créé par l'admin dont la carte n'est pas encore enregistrée : le client peut payer via le site.
+            return c.rows.some((row) => parseExtraInfo(row.extra_info).payment_status !== 'pending');
         },
 
         async checkPaymentStatus(email) {

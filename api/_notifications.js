@@ -1,5 +1,7 @@
 import { parisDaysBetween } from '../shared/parisDate.js';
 import { ADMIN_EMAIL } from './_smtp.js';
+import { fetchStripeBilling } from './_stripe-billing.js';
+import { reconcilePendingPayment } from './_payment-reconcile.js';
 import { sendBrandedMail } from './_email-kit.js';
 import { buildDocumentRequestEmail, buildMailDigestEmail, buildLeadReminderEmail, buildAccountCreatedEmail } from './_email-templates.js';
 import { computeMissingDocuments, dueDocumentReminder, clientUploadsSince } from '../shared/documentRequest.js';
@@ -254,7 +256,7 @@ export async function processSouscriptionLeads({ conn, transporter, from, baseUr
 /** Relances J+2 / J+5 du lien de paiement envoyé aux clients créés depuis l'admin. */
 export const PAYMENT_REMINDER_DAYS = [2, 5];
 
-export async function processPendingPayments({ conn, transporter, from, baseUrl, now = new Date() }) {
+export async function processPendingPayments({ conn, transporter, from, baseUrl, now = new Date(), stripe = null }) {
     if (!conn || !transporter) return { paymentRemindersSent: 0 };
     const res = await conn.execute(
         "SELECT id, email, name, plan, status, extra_info FROM clients WHERE extra_info LIKE '%payment_token%'"
@@ -272,6 +274,17 @@ export async function processPendingPayments({ conn, transporter, from, baseUrl,
         if (due.length === 0) continue;
 
         try {
+            // Stripe a-t-il déjà un abonnement actif pour cet email (payé sans revenir sur le site, webhook manqué) ?
+            // Alors on rattache le paiement à la fiche et on ne relance PAS « enregistrez votre carte ».
+            if (stripe) {
+                try {
+                    const billing = await fetchStripeBilling(stripe, { email: client.email, customerId: extra.stripe_customer_id || null });
+                    const r = await reconcilePendingPayment({ conn, clientId: client.id, billing });
+                    if (r.changed) continue;
+                } catch (err) {
+                    console.error('Cron paiement: vérification Stripe impossible pour', client.email, err?.message || err);
+                }
+            }
             // Le client a peut-être payé depuis le début du passage du cron : on ne relance pas quelqu'un qui a déjà payé.
             const latest = await readFreshExtra(conn, client.id, extra);
             if (latest.payment_status !== 'pending' || latest.stripe_subscription_id) continue;

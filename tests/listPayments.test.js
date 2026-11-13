@@ -136,6 +136,10 @@ describe('List Payments API Handler (api/list-payments.js)', () => {
             payments: [],
             subscriptionStatus: 'non_trouvé',
             hasHealthySubscription: false,
+            healthySubscriptionId: null,
+            healthyCustomerId: null,
+            healthySubscriptionCreated: null,
+            reconciled: false,
             foundCustomerId: null
         });
     });

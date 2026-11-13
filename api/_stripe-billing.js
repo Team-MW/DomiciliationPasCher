@@ -26,11 +26,15 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
     let subscriptionStatus = 'non_trouvé';
     let bestRank = Infinity;
     let healthyStatus = null;
+    let healthySub = null;
     for (const cid of customerIds) {
         try {
             const subs = await stripe.subscriptions.list({ customer: cid, status: 'all', limit: 100 });
             for (const sub of subs.data) {
-                if (sub.status === 'active' || sub.status === 'trialing') healthyStatus = healthyStatus || sub.status;
+                if ((sub.status === 'active' || sub.status === 'trialing') && !healthySub) {
+                    healthyStatus = sub.status;
+                    healthySub = { id: sub.id, customer: cid, created: sub.created };
+                }
                 const rank = STATUS_PRIORITY.indexOf(sub.status);
                 if (rank !== -1 && rank < bestRank) {
                     bestRank = rank;
@@ -151,6 +155,9 @@ export async function fetchStripeBilling(stripe, { email, customerId } = {}) {
         payments,
         subscriptionStatus,
         hasHealthySubscription,
+        healthySubscriptionId: healthySub?.id || null,
+        healthyCustomerId: healthySub?.customer || null,
+        healthySubscriptionCreated: healthySub?.created ? new Date(healthySub.created * 1000).toISOString() : null,
         foundCustomerId: customerIds.length > 0 ? customerIds[0] : null,
     };
 }

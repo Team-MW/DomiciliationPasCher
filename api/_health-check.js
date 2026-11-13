@@ -14,6 +14,8 @@
  */
 import { createClerkClient } from '@clerk/backend';
 import { createLoginTicket, loginLinkUrl, ACTIVATION_LINK_TTL_SECONDS } from './_login-link.js';
+import { fetchStripeBilling } from './_stripe-billing.js';
+import { reconcilePendingPayment } from './_payment-reconcile.js';
 import { readServerEnv } from './_env.js';
 import { ADMIN_EMAIL } from './_smtp.js';
 import { sendBrandedMail, escapeHtml, emailButton, formatEuro } from './_email-kit.js';
@@ -100,6 +102,37 @@ export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(
         }
     }
 
+    // 2 bis. Dossiers créés par l'admin, carte non enregistrée : Stripe a-t-il déjà un abonnement ? (sinon, signaler)
+    if (stripe) {
+        let pendingRows = [];
+        try {
+            pendingRows = (await conn.execute("SELECT id, name, email, extra_info FROM clients WHERE extra_info LIKE '%\"payment_status\":\"pending\"%' AND status <> 'résilié'")).rows || [];
+        } catch (err) {
+            console.warn('[health] dossiers en attente de paiement illisibles:', err?.message || err);
+        }
+        for (const row of pendingRows) {
+            const extra = parseExtra(row.extra_info);
+            if (extra.payment_status !== 'pending') continue;
+            try {
+                const billing = await fetchStripeBilling(stripe, { email: row.email, customerId: extra.stripe_customer_id || null });
+                const r = await reconcilePendingPayment({ conn, clientId: row.id, billing });
+                if (r.changed) continue;
+            } catch (err) {
+                console.warn('[health] vérification Stripe impossible pour', row.email, err?.message || err);
+                continue;
+            }
+            const requested = Date.parse(extra.payment_requested_at || '');
+            const days = Number.isFinite(requested) ? Math.floor((now - requested) / DAY_MS) : null;
+            if (days !== null && days < NO_ACCOUNT_AFTER_DAYS) continue;
+            issues.push({
+                kind: 'payment_pending',
+                client: row.name,
+                email: row.email,
+                detail: `Lien de paiement envoyé${days !== null ? ` il y a ${days} jours` : ''}, aucun abonnement Stripe trouvé pour cet email. Appelez le client ou renvoyez le lien de paiement depuis sa fiche.`,
+            });
+        }
+    }
+
     // 3 + 5. Identifiants Stripe, et prix affiché = prix prélevé
     if (stripe) {
         for (const client of clients) {
@@ -154,6 +187,7 @@ export async function collectHealthIssues({ conn, stripe, clerk, now = Date.now(
 const TITLES = {
     unverified: 'Clients bloqués par « email non vérifié »',
     no_account: 'Clients actifs sans compte de connexion',
+    payment_pending: 'Lien de paiement envoyé, carte toujours non enregistrée',
     price_mismatch: 'Prix affiché différent du prix prélevé',
     stripe_missing: 'Identifiants Stripe introuvables',
     email_failed: 'Emails non envoyés (24 h)',

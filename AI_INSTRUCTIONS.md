@@ -530,3 +530,10 @@ Leçons à garder :
   (mensualité réelle : ancien tarif conservé, annuel ramené au mois). Le MRR Stripe est TTC.
 - Banc d'essai visuel (sans Clerk ni base) : scratchpad `audit5/statsharness` (alias du service → fausses données).
 - Tests : `tests/adminStats.test.js`.
+- **13/11 — paiement non rattaché** : un dossier créé par l'admin (`payment_status:'pending'`) peut avoir été payé
+  sans que la fiche le sache (client parti avant le retour sur le site, webhook manqué, paiement par le tunnel).
+  `api/_payment-reconcile.js` rattache l'abonnement Stripe sain à la fiche (payé, plus de relances) depuis :
+  list-payments (Sync Stripe admin / Vérifier mon paiement client), updateClientStatus (chargement de l'espace
+  client), relances J+2/J+5 (vérif Stripe AVANT d'envoyer), contrôle du matin (sinon issue `payment_pending`).
+  Le bouton de la fiche devient « Renvoyer le lien de paiement » tant que la carte n'est pas enregistrée.
+  `hasPaidDossier` ignore les fiches `pending` (le client peut payer via le site).

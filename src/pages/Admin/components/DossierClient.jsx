@@ -150,6 +150,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
                     const stripePayments = syncData.payments;
                     const subStatus = syncData.subscriptionStatus;
+                    // Le serveur vient de rattacher un paiement Stripe à un dossier « carte non enregistrée » : fiche à relire.
+                    if (syncData.reconciled && typeof onUpdate === 'function') onUpdate();
 
                     if (stripePayments) {
                         // "le payement doit être pri de stripe et non de la db tout le temp"
@@ -401,6 +403,10 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             }
 
             const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
+            if (syncData.reconciled) {
+                onUpdate();
+                await showAlert('Paiement Stripe retrouvé : la fiche est passée en « payé », les relances de carte sont arrêtées.', { title: 'Paiement rattaché' });
+            }
 
             if (!stripeCustomerId && syncData.foundCustomerId) {
                 try {
@@ -2332,17 +2338,27 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                 </div>
                 <button
                     onClick={async () => {
-                        const confirmed = await showConfirm(`Renvoyer l'email de bienvenue à ${client.email} ?`);
+                        const approvalExtra = parseExtraInfo(client.extra_info);
+                        const personName = [approvalExtra.prenom, approvalExtra.nom].filter(Boolean).join(' ') || client.name || '';
+                        const pendingLink = approvalExtra.payment_status === 'pending' && approvalExtra.payment_token;
+                        const confirmed = await showConfirm(pendingLink
+                            ? `Renvoyer le lien de paiement (carte à enregistrer) à ${client.email} ?`
+                            : `Renvoyer l'email « dossier validé » à ${client.email} ?`);
                         if (confirmed) {
                             try {
-                                const { sendApprovalEmail } = await import('../../../utils/emailService');
-                                const approvalExtra = parseExtraInfo(client.extra_info);
-                                const personName = [approvalExtra.prenom, approvalExtra.nom].filter(Boolean).join(' ') || client.name || '';
-                                const result = await sendApprovalEmail(client.email, personName);
-                                if (result.success) {
-                                    await showAlert("Email de relance envoyé avec succès !");
+                                if (pendingLink) {
+                                    // Carte non enregistrée : c'est le LIEN DE PAIEMENT qu'il faut renvoyer, pas « votre dossier est validé ».
+                                    const { sendAccountCreatedEmail } = await import('../../../utils/emailService');
+                                    await sendAccountCreatedEmail(client.email, personName, { paymentToken: approvalExtra.payment_token, plan: client.plan, frequence: approvalExtra.frequence });
+                                    await showAlert('Lien de paiement renvoyé au client.');
                                 } else {
-                                    await showAlert(`Erreur Email : ${result.error}`);
+                                    const { sendApprovalEmail } = await import('../../../utils/emailService');
+                                    const result = await sendApprovalEmail(client.email, personName);
+                                    if (result.success) {
+                                        await showAlert("Email de relance envoyé avec succès !");
+                                    } else {
+                                        await showAlert(`Erreur Email : ${result.error}`);
+                                    }
                                 }
                             } catch (e) {
                                 console.error(e);
@@ -2353,13 +2369,13 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)' }}
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16 }}><path d="M22 2L11 13"></path><path d="M22 2L15 22L11 13L2 9L22 2Z"></path></svg>
-                    Relancer Email Bienvenue
+                    {extra?.payment_status === 'pending' && extra?.payment_token ? 'Renvoyer le lien de paiement' : 'Relancer Email Bienvenue'}
                 </button>
             </div>
 
             {extra?.payment_status === 'pending' && (
                 <div id="admin-payment-pending-banner" style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', fontWeight: 600 }}>
-                    Paiement en attente : le client n'a pas encore enregistré sa carte bancaire
+                    Paiement en attente : aucun abonnement Stripe trouvé, le client n'a pas encore enregistré sa carte bancaire
                     {extra.payment_requested_at ? ` (lien envoyé le ${new Date(extra.payment_requested_at).toLocaleDateString('fr-FR')}` : ' ('}
                     {(extra.payment_reminders_sent || []).length ? `, relances : ${extra.payment_reminders_sent.map((d) => `J+${d}`).join(', ')})` : ')'}.
                     Relances automatiques à J+2 et J+5.
