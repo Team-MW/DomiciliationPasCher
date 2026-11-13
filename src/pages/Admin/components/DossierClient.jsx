@@ -60,6 +60,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [downloadingDocId, setDownloadingDocId] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [syncDebugText, setSyncDebugText] = useState(null);
+    // Paiements Stripe déjà chargés pour une fiche : la synchronisation ne tourne qu'une fois par session, mais la fiche
+    // recharge ses données à chaque rafraîchissement de l'admin. Sans ce cache, la liste repassait sur la base locale (vide).
+    const stripePaymentsCache = useRef(new Map());
 
     const [activeDossierTab, setActiveDossierTab] = useState('details');
     const [messages, setMessages] = useState([]);
@@ -127,7 +130,8 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                         adminDataService.getClientReexpeditions(client.id)
                     ]);
                     setDocuments(Array.isArray(docs) ? docs : []);
-                    setPayments(Array.isArray(pay) ? pay : []);
+                    const cachedStripe = stripePaymentsCache.current.get(client.id);
+                    setPayments(cachedStripe && cachedStripe.length > 0 ? cachedStripe : (Array.isArray(pay) ? pay : []));
                     setMails(Array.isArray(clientMails) ? clientMails : []);
                     setReexpeditions(Array.isArray(clientReexp) ? clientReexp : []);
                     setIsLoading(false);
@@ -165,7 +169,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
 
                         // On affiche UNIQUEMENT Stripe si on a trouvé des paiements Stripe
                         if (formattedStripe.length > 0) {
-                            setPayments(formattedStripe.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                            const sorted = formattedStripe.sort((a, b) => new Date(b.date) - new Date(a.date));
+                            stripePaymentsCache.current.set(client.id, sorted);
+                            setPayments(sorted);
                         } else {
                             // Sinon on garde les manuels s'il y en a
                             setPayments(pay);
@@ -445,7 +451,9 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                             invoice_ref: sp.invoice_ref || `STRIPE-${sp.id.substring(3, 10)}`
                         }));
                     if (formattedStripe.length > 0) {
-                        setPayments(formattedStripe.sort((a, b) => new Date(b.date) - new Date(a.date)));
+                        const sorted = formattedStripe.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        stripePaymentsCache.current.set(client.id, sorted);
+                        setPayments(sorted);
                     } else {
                         setPayments(currentPayments);
                     }
