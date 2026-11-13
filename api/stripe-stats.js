@@ -58,8 +58,9 @@ export function assembleStripeStats({
     subscriptions = [],
     now = new Date(),
     liveOnly = false,
+    months = 6,
 } = {}) {
-    const { lastMonths, monthlyData } = buildMonthBuckets(now);
+    const { lastMonths, monthlyData } = buildMonthBuckets(now, months);
     for (const charge of charges) {
         const net = chargeNetCents(charge, { liveOnly });
         if (!net) continue;
@@ -68,6 +69,7 @@ export function assembleStripeStats({
     }
 
     const revenueHistory = lastMonths.map((m) => ({
+        key: m.key,
         label: m.label,
         revenue: Math.round(monthlyData[m.key] || 0),
     }));
@@ -116,14 +118,16 @@ export default async function handler(req, res) {
         const liveOnly = isLiveSecretKey(getStripeSecretKey());
         const stripe = getStripe();
         const now = new Date();
-        const { rangeStartUnix } = buildMonthBuckets(now);
+        // ?months=12 : onglet Statistiques (6 par défaut pour le tableau de bord). Borné à 24.
+        const months = Math.min(24, Math.max(1, parseInt(String(req.query?.months || '6'), 10) || 6));
+        const { rangeStartUnix } = buildMonthBuckets(now, months);
 
         const [charges, subscriptions] = await Promise.all([
             listAll(stripe.charges.list({ created: { gte: rangeStartUnix }, limit: 100 })),
             listAll(stripe.subscriptions.list({ limit: 100 })),
         ]);
 
-        return res.status(200).json(assembleStripeStats({ charges, subscriptions, now, liveOnly }));
+        return res.status(200).json(assembleStripeStats({ charges, subscriptions, now, liveOnly, months }));
     } catch (error) {
         return sendServerError(res, error, 'stripe-stats');
     }

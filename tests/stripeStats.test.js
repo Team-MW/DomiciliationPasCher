@@ -63,8 +63,8 @@ describe('stripe-stats — agrégation réelle', () => {
         expect(stats.mrr).toBe(24);
         expect(stats.activeSubscriptions).toBe(1);
         expect(stats.revenueChangePct).toBe(percentChange(585, 398));
-        expect(stats.revenueHistory[stats.revenueHistory.length - 1]).toEqual({ label: 'Sep 2026', revenue: 585 });
-        expect(stats.revenueHistory[stats.revenueHistory.length - 2]).toEqual({ label: 'Août 2026', revenue: 398 });
+        expect(stats.revenueHistory[stats.revenueHistory.length - 1]).toEqual({ key: '2026-09', label: 'Sep 2026', revenue: 585 });
+        expect(stats.revenueHistory[stats.revenueHistory.length - 2]).toEqual({ key: '2026-08', label: 'Août 2026', revenue: 398 });
         expect(stats.source).toBe('stripe');
         expect(stats.livemode).toBe(false);
     });

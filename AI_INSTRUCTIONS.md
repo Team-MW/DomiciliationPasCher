@@ -517,3 +517,16 @@ Leçons à garder :
 - **Historique prod** : avant le 06/11/2026, `SMTP_*` et `CRON_SECRET` manquaient sur Vercel → aucun email serveur, aucun cron.
   Les clients inscrits avant cette date n'ont jamais reçu bienvenue/code : c'est l'origine des « inscrits bloqués ».
 - Tests : `tests/auditFixes20261112.test.js`. Le smoke navigateur recoche les CGV après restauration du brouillon.
+
+## Onglet admin « Statistiques » (13/11/2026)
+
+- Calculs purs dans `shared/adminStats.js` (`buildDashboard`, mois de Paris, KPI, séries, entonnoir, carte de chaleur, CSV) ;
+  données compactes serveur `getStatsDashboard` (admin seulement, jamais d'extra_info ni de fichiers) ; Stripe via
+  `/api/stripe-stats?months=N` (historique avec `key` « AAAA-MM »).
+- UI : `src/pages/Admin/components/stats/` (StatsTab, charts.jsx en SVG maison, stats.css). Palette validée
+  (bleu, orange, vert, jaune) ; une seule teinte pour la carte de chaleur ; légende dès 2 séries ; vue « Tableau »
+  sur chaque carte ; export CSV ; période 6 / 12 / 24 mois.
+- Le MRR HT « d'après les dossiers » compte les dossiers actifs + impayés + en attente de validation
+  (mensualité réelle : ancien tarif conservé, annuel ramené au mois). Le MRR Stripe est TTC.
+- Banc d'essai visuel (sans Clerk ni base) : scratchpad `audit5/statsharness` (alias du service → fausses données).
+- Tests : `tests/adminStats.test.js`.

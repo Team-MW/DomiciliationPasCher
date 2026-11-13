@@ -9,6 +9,7 @@ import logoSvg from '../../assets/DomiciliationPasCher-Logo-11.svg';
 // Components
 import { Icons } from './components/Icons';
 import OverviewTab from './components/OverviewTab';
+import StatsTab from './components/stats/StatsTab';
 import DemandesTab from './components/DemandesTab';
 import ClientsTab from './components/ClientsTab';
 import FailedPaymentsTab from './components/FailedPaymentsTab';
@@ -243,6 +244,9 @@ export default function Admin() {
                     <button className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
                         <span className="menu-icon"><Icons.Overview /></span> Dashboard
                     </button>
+                    <button className={`menu-item ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => { setActiveTab('stats'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
+                        <span className="menu-icon"><Icons.Stats /></span> Statistiques
+                    </button>
 
                     <div className="sidebar-section-title">Demandes</div>
                     <button className={`menu-item ${activeTab === 'demandes' ? 'active' : ''}`} onClick={() => { setActiveTab('demandes'); setSelectedClientId(null); setIsMobileMenuOpen(false); }}>
@@ -330,6 +334,7 @@ export default function Admin() {
                     ) : (
                         <>
                             {activeTab === 'overview' && <OverviewTab stats={stats} clients={clients} mail={mail} />}
+                            {activeTab === 'stats' && <StatsTab />}
                             {activeTab === 'demandes' && <DemandesTab demandes={demandes} onUpdate={refreshData} onSelectDemande={setSelectedDemande} showConfirm={showConfirm} showAlert={showAlert} />}
                             {activeTab === 'clients' && <ClientsTab loading={isLoading} clients={clients} searchQuery={searchQuery} onSelect={setSelectedClientId} onUpdate={refreshData} onCreateClick={() => setIsCreatingClient(true)} />}
                             {activeTab === 'billing' && <FailedPaymentsTab clients={clients} onSelect={setSelectedClientId} onUpdate={refreshData} showConfirm={showConfirm} showAlert={showAlert} />}

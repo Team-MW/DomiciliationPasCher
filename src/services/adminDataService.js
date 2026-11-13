@@ -40,7 +40,7 @@ const REMOTE_METHODS = [
     'updateClientStatus', 'updateClientExtraInfo', 'deleteClient', 'getMyAccount',
     'clerkAccountsForClient', 'linkClerkAccount', 'verifyClerkEmail', 'sendEmailVerificationCode', 'verifyEmailWithProof', 'confirmEmailVerificationCode', 'sendLoginLink',
     // demandes et souscription
-    'getDemandes', 'getInscriptionsNonFinalisees', 'addDemande', 'getDemandeBySessionId',
+    'getDemandes', 'getInscriptionsNonFinalisees', 'addDemande', 'getDemandeBySessionId', 'getStatsDashboard',
     'hasPendingDemandeForSession', 'checkPaymentStatus', 'traiterDemande', 'startDocumentRequest',
     'stopDocumentRequest', 'getEmailLogs', 'saveSouscriptionLead', 'getSouscriptionLeadByToken',
     'completeSouscriptionLead', 'deleteDemande',
@@ -108,6 +108,18 @@ export const adminDataService = {
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'Erreur inconnue de Stripe');
         return data.url;
+    },
+
+    /** Chiffres Stripe sur N mois (onglet Statistiques). Renvoie null si Stripe est indisponible. */
+    async getStripeStats(months = 12) {
+        try {
+            const res = await fetch(`/api/stripe-stats?months=${encodeURIComponent(months)}`);
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (err) {
+            console.error('Statistiques Stripe indisponibles :', err);
+            return null;
+        }
     },
 
     /** Compteurs base (serveur) + chiffres Stripe (/api/stripe-stats). */

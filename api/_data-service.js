@@ -936,6 +936,57 @@ export function createDataService({
         },
 
         // --- STATS (partie base de données ; la partie Stripe vient de /api/stripe-stats) ---
+        /**
+         * Données compactes de l'onglet admin « Statistiques » : seulement les colonnes utiles (jamais de fichiers
+         * en base64), extra_info réduit à quelques indicateurs. Chaque table manquante renvoie une liste vide.
+         */
+        async getStatsDashboard() {
+            const soft = async (sql, params = []) => {
+                try { return (await conn.execute(sql, params)).rows || []; } catch (err) {
+                    console.warn('[stats] table illisible :', err?.message || err);
+                    return [];
+                }
+            };
+            const since24 = new Date(Date.now() - 24 * 31 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            const [clientRows, demandeRows, paymentRows, mailRows, bookingRows, messageRows, emailRows, leadRows, reexpRows] = await Promise.all([
+                soft('SELECT id, plan, status, since, city, clerkId, extra_info FROM clients'),
+                soft('SELECT status, date, plan FROM demandes'),
+                soft('SELECT amount, status, date FROM payments WHERE date >= ?', [since24]),
+                soft("SELECT date, type, status, clientId, (preview IS NOT NULL AND preview <> '') AS hasScan FROM mail WHERE date >= ?", [since24]),
+                soft('SELECT date, status, type, createdAt FROM bookings'),
+                soft('SELECT sender, createdAt, status FROM messages WHERE createdAt >= ?', [since24]),
+                soft('SELECT type, status, sent_at FROM email_logs WHERE sent_at >= ?', [since24]),
+                soft('SELECT created_at, completed_at, unsubscribed_at, step, plan FROM souscription_leads'),
+                soft('SELECT status, createdAt FROM reexpeditions'),
+            ]);
+            const clients = clientRows.map((c) => {
+                const extra = parseExtraInfo(c.extra_info);
+                return {
+                    id: c.id, plan: c.plan, status: c.status, since: c.since, city: c.city || '',
+                    hasAccount: Boolean(c.clerkId && c.clerkId !== 'user_unknown'),
+                    frequence: extra.frequence === 'annuel' ? 'annuel' : 'mensuel',
+                    grille: extra.grille_tarifaire || null,
+                    paymentStatus: extra.payment_status || null,
+                    paidAt: extra.paid_at || null,
+                    contractSigned: Boolean(extra.contractSigned),
+                    procurationSigned: Boolean(extra.procurationSigned),
+                    terminatedAt: extra.domicile_terminated_at || null,
+                };
+            });
+            return {
+                generatedAt: new Date().toISOString(),
+                clients,
+                demandes: demandeRows.map((d) => ({ status: d.status, date: d.date, plan: d.plan })),
+                payments: paymentRows.map((p) => ({ amount: Number(p.amount) || 0, status: p.status, date: p.date })),
+                mail: mailRows.map((m) => ({ date: m.date, type: m.type, status: m.status, clientId: m.clientId, hasScan: Boolean(Number(m.hasScan)) })),
+                bookings: bookingRows.map((b) => ({ date: b.date, status: b.status, type: b.type, createdAt: b.createdAt })),
+                messages: messageRows.map((m) => ({ sender: m.sender, createdAt: m.createdAt, status: m.status })),
+                emails: emailRows.map((e) => ({ type: e.type, status: e.status, sentAt: e.sent_at })),
+                leads: leadRows.map((l) => ({ createdAt: l.created_at, completedAt: l.completed_at, unsubscribedAt: l.unsubscribed_at, step: l.step, plan: l.plan })),
+                reexpeditions: reexpRows.map((r) => ({ status: r.status, createdAt: r.createdAt })),
+            };
+        },
+
         async getGlobalStats() {
             const [clients, mails, demandes, unreadMsgs, pendingReexp] = await Promise.all([
                 conn.execute('SELECT COUNT(*) as total FROM clients WHERE status = ?', ['actif']),
