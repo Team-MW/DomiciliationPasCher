@@ -59,7 +59,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
     const [currentFolder] = useState(null);
     const [downloadingDocId, setDownloadingDocId] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [, setSyncDebugText] = useState(null);
+    const [syncDebugText, setSyncDebugText] = useState(null);
 
     const [activeDossierTab, setActiveDossierTab] = useState('details');
     const [messages, setMessages] = useState([]);
@@ -150,6 +150,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                     const syncData = await adminDataService.syncStripePayments(client.email, stripeCustomerId, client.since);
                     const stripePayments = syncData.payments;
                     const subStatus = syncData.subscriptionStatus;
+                    setSyncDebugText(JSON.stringify({ email: client.email, identifiantRelie: stripeCustomerId, ...syncData, payments: `${(syncData.payments || []).length} paiement(s)`, heure: new Date().toLocaleTimeString('fr-FR') }, null, 2));
                     // Le serveur vient de rattacher un paiement Stripe à un dossier « carte non enregistrée » : fiche à relire.
                     if (syncData.reconciled && typeof onUpdate === 'function') onUpdate();
 
@@ -432,7 +433,7 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
             const stripePayments = syncData.payments;
             const subStatus = syncData.subscriptionStatus;
 
-            setSyncDebugText(`DEBUG SYNC:\nURL params:\nEmail: ${client.email}\nCustomerID: ${stripeCustomerId}\nSince: ${client.since}\n\nResponse:\n${JSON.stringify(syncData, null, 2)}`);
+            setSyncDebugText(JSON.stringify({ email: client.email, identifiantRelie: stripeCustomerId, ...syncData, payments: `${(syncData.payments || []).length} paiement(s)`, heure: new Date().toLocaleTimeString('fr-FR') }, null, 2));
             let addedCount = 0;
             if (stripePayments && stripePayments.length > 0) {
                 if (stripePayments) {
@@ -2139,6 +2140,12 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                         )}
                                     </tbody>
                                 </table>
+                            {syncDebugText && (
+                                <details style={{ marginTop: '12px', fontSize: '12px', color: '#64748B' }}>
+                                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Détails techniques de la dernière synchronisation Stripe</summary>
+                                    <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px', marginTop: '8px' }}>{syncDebugText}</pre>
+                                </details>
+                            )}
                             </div>
                         </div>
                     </>

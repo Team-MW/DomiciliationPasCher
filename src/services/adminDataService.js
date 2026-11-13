@@ -79,6 +79,9 @@ export const adminDataService = {
             // Panne Stripe / serveur : on le DIT (avant : « Aucune facture » et statut « non_trouvé » comme si de rien n'était).
             if (!res.ok || data.error) throw Object.assign(new Error(data.error || `Erreur serveur (${res.status})`), { status: res.status });
             return {
+                // Tous les champs du serveur (reconciled, healthyCustomerId, hasHealthySubscription…) : avant, ils étaient
+                // perdus ici et l'écran ne pouvait ni rafraîchir la fiche ni recaler l'identifiant Stripe.
+                ...data,
                 payments: data.payments || [],
                 // Jamais 'active' par défaut : une réponse incomplète ou une panne réseau
                 // repasserait en actif un client réellement en impayé.
