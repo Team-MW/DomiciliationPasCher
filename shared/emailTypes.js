@@ -16,6 +16,7 @@ export const EMAIL_TYPE_INFO = Object.freeze({
     access_activation: { label: 'Activation de l’accès (lien 1 clic)', category: 'Compte', source: 'auto' },
     login_link: { label: 'Lien de connexion demandé', category: 'Compte', source: 'client' },
     booking_decision: { label: 'Réservation acceptée / refusée', category: 'Réservations', source: 'manuel' },
+    review_request: { label: 'Demande d’avis Google (J+7)', category: 'Compte', source: 'auto' },
     request_documents: { label: 'Demande de documents', category: 'Documents', source: 'auto' },
     request_documents_reminder: { label: 'Relance documents manquants', category: 'Documents', source: 'auto' },
     post_signature: { label: 'Contrat signé (accusé)', category: 'Documents', source: 'client' },

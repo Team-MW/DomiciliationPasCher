@@ -1,9 +1,11 @@
 import { parisDaysBetween } from '../shared/parisDate.js';
 import { ADMIN_EMAIL } from './_smtp.js';
+import { readServerEnv } from './_env.js';
+import { GOOGLE_REVIEW_URL } from '../shared/company.js';
 import { fetchStripeBilling } from './_stripe-billing.js';
 import { reconcilePendingPayment } from './_payment-reconcile.js';
 import { sendBrandedMail } from './_email-kit.js';
-import { buildDocumentRequestEmail, buildMailDigestEmail, buildLeadReminderEmail, buildAccountCreatedEmail } from './_email-templates.js';
+import { buildDocumentRequestEmail, buildMailDigestEmail, buildLeadReminderEmail, buildAccountCreatedEmail, buildReviewRequestEmail } from './_email-templates.js';
 import { computeMissingDocuments, dueDocumentReminder, clientUploadsSince } from '../shared/documentRequest.js';
 import { SOUSCRIPTION_LEADS_DDL, LEAD_REMINDER_OFFSETS_MS } from '../shared/emailTables.js';
 
@@ -255,6 +257,44 @@ export async function processSouscriptionLeads({ conn, transporter, from, baseUr
 
 /** Relances J+2 / J+5 du lien de paiement envoyé aux clients créés depuis l'admin. */
 export const PAYMENT_REMINDER_DAYS = [2, 5];
+
+/** Demande d'avis : entre J+7 et J+30 après la souscription (les clients plus anciens ne sont jamais sollicités d'un coup). */
+export const REVIEW_REQUEST_MIN_DAYS = 7;
+export const REVIEW_REQUEST_MAX_DAYS = 30;
+const REVIEW_REQUESTS_PER_RUN = 30;
+
+/** Lien d'avis : variable serveur GOOGLE_REVIEW_URL, sinon la constante de shared/company.js. Vide = désactivé. */
+export function resolveReviewUrl() {
+    const raw = String(readServerEnv('GOOGLE_REVIEW_URL') || GOOGLE_REVIEW_URL || '').trim();
+    return /^https:\/\/[^\s"'<>]+$/.test(raw) ? raw : '';
+}
+
+/**
+ * Une semaine après la souscription : « laissez-nous un avis Google ». Une seule fois par client, clients actifs
+ * dont la carte est enregistrée ; le marqueur `review_request_sent_at` est posé dans extra_info.
+ */
+export async function processReviewRequests({ conn, transporter, from, baseUrl, now = new Date(), reviewUrl = resolveReviewUrl() }) {
+    if (!conn || !transporter) return { reviewRequestsSent: 0 };
+    if (!reviewUrl) return { reviewRequestsSent: 0, reviewRequestsSkipped: 'lien d’avis non configuré' };
+    const res = await conn.execute("SELECT id, name, email, status, since, extra_info FROM clients WHERE status = 'actif'");
+    let sent = 0;
+    for (const client of res.rows || []) {
+        if (sent >= REVIEW_REQUESTS_PER_RUN) break;
+        const extra = parseExtra(client.extra_info);
+        if (extra.review_request_sent_at || extra.payment_status === 'pending' || !client.email) continue;
+        const days = parisDaysBetween(client.since, now);
+        if (!Number.isFinite(days) || days < REVIEW_REQUEST_MIN_DAYS || days > REVIEW_REQUEST_MAX_DAYS) continue;
+        try {
+            const { subject, text, html } = buildReviewRequestEmail({ nom: client.name, reviewUrl, baseUrl });
+            await sendBrandedMail(transporter, { conn, from, to: client.email, clientEmail: client.email, subject, text, html, type: 'review_request', source: 'auto' });
+            await mergeClientExtra(conn, client.id, extra, (e) => ({ ...e, review_request_sent_at: now.toISOString() }));
+            sent++;
+        } catch (err) {
+            console.error('Cron avis: envoi échoué pour', client.email, err.message);
+        }
+    }
+    return { reviewRequestsSent: sent };
+}
 
 export async function processPendingPayments({ conn, transporter, from, baseUrl, now = new Date(), stripe = null }) {
     if (!conn || !transporter) return { paymentRemindersSent: 0 };

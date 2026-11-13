@@ -270,6 +270,10 @@ supprimé (git le garde). Les scripts du quotidien restent dans `scripts/`.
 4. Modifier une signature de fonction → mettre à jour tous les appelants et tests.
 5. Après une édition par commande shell (`sed`, script), relire le fichier avant de l'éditer à nouveau.
 6. Rendre compte honnêtement : ce qui est vérifié, ce qui ne l'est pas, ce qui reste à faire.
+7. **Priorité à la lecture et à la modification directe du code** (demande du propriétaire, 13/11/2026) :
+   on lit les fichiers, on raisonne, on édite. Les commandes, requêtes et scripts (shell, Python, SQL, appels
+   d'API, navigateur) viennent **en second temps, pour tester et vérifier** ce qui a été modifié, pas pour
+   explorer ou transformer le code à l'aveugle. Pas de script jetable là où une lecture et une édition suffisent.
 
 ---
 
@@ -537,3 +541,7 @@ Leçons à garder :
   client), relances J+2/J+5 (vérif Stripe AVANT d'envoyer), contrôle du matin (sinon issue `payment_pending`).
   Le bouton de la fiche devient « Renvoyer le lien de paiement » tant que la carte n'est pas enregistrée.
   `hasPaidDossier` ignore les fiches `pending` (le client peut payer via le site).
+- **13/11 — demande d'avis Google (J+7)** : `processReviewRequests` (cron quotidien) envoie `review_request` aux clients
+  `actif` entre 7 et 30 jours après `since`, une fois (`extra.review_request_sent_at`), jamais si `payment_status:'pending'`.
+  Lien : variable serveur `GOOGLE_REVIEW_URL` sinon `GOOGLE_REVIEW_URL` dans shared/company.js ; vide = aucun envoi.
+  Les vrais avis recueillis s'affichent en remplissant `home.testimonials.items` (fr/en/ru) : la section n'apparaît que si la liste n'est pas vide.

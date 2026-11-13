@@ -8,7 +8,7 @@ import { sendBrandedMail, getBaseUrl, publicSiteUrl } from '../_email-kit.js';
 import { buildRenewalReminderEmail } from '../_email-templates.js';
 import { addCalendarMonths } from '../../shared/paymentGrace.js';
 import { runHealthCheck } from '../_health-check.js';
-import { processMailNotifications, processDocumentRequests, processSouscriptionLeads, processPendingPayments } from '../_notifications.js';
+import { processMailNotifications, processDocumentRequests, processSouscriptionLeads, processPendingPayments, processReviewRequests } from '../_notifications.js';
 
 const DAILY_RUN_HOUR_UTC = 8;
 
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, daily: false, ...hourly });
     }
 
-    for (const task of [processDocumentRequests, processPendingPayments]) {
+    for (const task of [processDocumentRequests, processPendingPayments, processReviewRequests]) {
         try {
             Object.assign(hourly, await task({ ...ctx, stripe: optionalStripe() }));
         } catch (err) {

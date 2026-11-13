@@ -632,3 +632,21 @@ export function buildBookingDecisionEmail({ nom, bookingType, bookingDate, booki
         ${signatureHtml()}`;
     return { subject, text, html };
 }
+
+
+/* ---------- Demande d'avis Google, une semaine après la souscription ---------- */
+
+export function buildReviewRequestEmail({ nom, reviewUrl, baseUrl }) {
+    const subject = 'Une semaine ensemble : votre avis compte';
+    const intro = 'Cela fait une semaine que votre domiciliation est en place. Si tout se passe bien pour vous, un avis Google nous aide énormément : il prend deux minutes et compte beaucoup pour une petite structure comme la nôtre.';
+    const fix = 'Quelque chose ne va pas ? Répondez simplement à cet email : nous corrigeons vite, et c’est le plus utile pour nous.';
+    const text = `${greetingText(nom)}\n\n${intro}\n\nLaisser un avis Google : ${reviewUrl}\n\n${fix}\n\nVotre espace client : ${clientSpace(baseUrl)}\n\n${signatureText()}`;
+    const html = `
+        ${heading('Une semaine ensemble')}
+        <p>${greetingHtml(nom)}</p>
+        <p>${escapeHtml(intro)}</p>
+        ${emailButton(reviewUrl, 'Laisser un avis Google')}
+        <p style="font-size:14px;color:#475569;">${escapeHtml(fix)}</p>
+        ${signatureHtml()}`;
+    return { subject, text, html };
+}

@@ -35,3 +35,11 @@ export const AGREMENT_NUMBER = 'AG/DOM/2026/06';
 /** Identité légale du domiciliataire (SIRET = SIREN + établissement 00019 : voir mentions légales et CGV). */
 export const COMPANY_SIREN = '101512531';
 export const COMPANY_SIRET = '10151253100019';
+
+/**
+ * Lien « Laisser un avis Google » envoyé aux nouveaux clients une semaine après leur souscription.
+ * À récupérer dans la fiche Google Business Profile : « Demander des avis » → lien court du type
+ * https://g.page/r/XXXXXXXX/review (ou https://search.google.com/local/writereview?placeid=…).
+ * Tant que cette valeur est vide (et que la variable serveur GOOGLE_REVIEW_URL ne l'est pas non plus), aucun email ne part.
+ */
+export const GOOGLE_REVIEW_URL = '';
