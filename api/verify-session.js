@@ -4,6 +4,57 @@ import { getBaseUrl } from './_email-kit.js';
 import { deliverEmail } from './_email-core.js';
 import { fulfillCheckoutSession, isCheckoutSessionPaid } from './_checkout-fulfillment.js';
 import { sendServerError } from './_auth.js';
+import { toE164French } from '../shared/phone.js';
+
+const parseExtra = (raw) => {
+    try {
+        let extra = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (typeof extra === 'string') extra = JSON.parse(extra);
+        return extra && typeof extra === 'object' ? extra : {};
+    } catch {
+        return {};
+    }
+};
+
+/** Téléphone saisi lors de la commande : demande du tunnel, ou fiche créée par l'admin. */
+async function orderPhone(session) {
+    const direct = session.customer_details?.phone;
+    if (direct) return direct;
+    const conn = getDbConn();
+    if (!conn) return null;
+    try {
+        if (session.metadata?.demande_id) {
+            const row = (await conn.execute('SELECT extra_info FROM demandes WHERE id = ?', [String(session.metadata.demande_id)])).rows?.[0];
+            if (row) return parseExtra(row.extra_info).telephone || null;
+            // Demande déjà validée par l'admin : le téléphone est sur la fiche client.
+            const email = String(session.customer_details?.email || session.metadata?.email || '').trim().toLowerCase();
+            if (email) {
+                const client = (await conn.execute('SELECT phone, extra_info FROM clients WHERE LOWER(email) = ? LIMIT 1', [email])).rows?.[0];
+                if (client) return client.phone || parseExtra(client.extra_info).telephone || null;
+            }
+        }
+        if (session.metadata?.admin_client_id) {
+            const client = (await conn.execute('SELECT phone, extra_info FROM clients WHERE id = ?', [String(session.metadata.admin_client_id)])).rows?.[0];
+            if (client) return client.phone || parseExtra(client.extra_info).telephone || null;
+        }
+    } catch (err) {
+        console.warn('[verify-session] téléphone de la commande illisible:', err?.message || err);
+    }
+    return null;
+}
+
+export async function buildOrder(session) {
+    const email = String(session.customer_details?.email || session.metadata?.email || '').trim().toLowerCase() || null;
+    const phone = toE164French(await orderPhone(session));
+    const value = Number.isFinite(Number(session.amount_total)) ? Math.round(Number(session.amount_total)) / 100 : null;
+    return {
+        transaction_id: session.id,
+        value,
+        currency: String(session.currency || 'eur').toUpperCase(),
+        ...(email ? { email } : {}),
+        ...(phone ? { phone_number: phone } : {}),
+    };
+}
 
 /**
  * Retour de paiement Stripe. La confirmation de la demande (et l'email de bienvenue) est
@@ -51,6 +102,11 @@ export default async function handler(req, res) {
             }
         }
 
+        // Données de la commande pour le suivi des conversions (Google Ads « conversions améliorées ») :
+        // montant réel, identifiant, email et téléphone du client. Uniquement pour une session PAYÉE, et le
+        // session_id (secret long et aléatoire, connu du seul payeur) sert de preuve d'accès.
+        const order = isPaid ? await buildOrder(session) : null;
+
         return res.status(200).json({
             success: isPaid,
             status: session.payment_status,
@@ -61,6 +117,7 @@ export default async function handler(req, res) {
                 type: session.metadata?.type || null,
                 demande_id: session.metadata?.demande_id || null,
             },
+            ...(order ? { order } : {}),
         });
     } catch (error) {
         return sendServerError(res, error, 'verify-session');

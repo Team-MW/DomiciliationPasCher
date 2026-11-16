@@ -63,12 +63,15 @@ describe('GET /api/verify-session', () => {
         }));
     });
 
-    it('payé : renvoie le strict nécessaire (pas d’email ni de métadonnées libres)', async () => {
+    it('payé : renvoie le nécessaire au suivi de commande (montant réel, identifiant, email), pas les métadonnées libres', async () => {
+        execute.mockResolvedValue({ rows: [] });
         retrieve.mockResolvedValue({
             id: 'cs_paid',
             status: 'complete',
             payment_status: 'paid',
             customer: 'cus_ok',
+            amount_total: 7500,
+            currency: 'eur',
             customer_details: { email: 'a@test.fr' },
             metadata: { type: 'meeting_booking', client_id: 'cli_1', email: 'a@test.fr' },
         });
@@ -81,7 +84,18 @@ describe('GET /api/verify-session', () => {
             session_id: 'cs_paid',
             confirmed: false, // les réservations sont confirmées par /api/data (client authentifié)
             metadata: { type: 'meeting_booking', demande_id: null },
+            // Conversions améliorées Google Ads : le session_id (secret du payeur) donne accès à SA commande.
+            order: { transaction_id: 'cs_paid', value: 75, currency: 'EUR', email: 'a@test.fr' },
         });
+    });
+
+    it('non payé : aucune donnée de commande (ni email, ni téléphone)', async () => {
+        retrieve.mockResolvedValue({ id: 'cs_open', status: 'open', payment_status: 'unpaid', customer: null, customer_details: { email: 'a@test.fr' }, metadata: {} });
+        await handler({ method: 'GET', query: { session_id: 'cs_open' } }, mockRes);
+        const body = mockRes.json.mock.calls.at(-1)[0];
+        expect(body.success).toBe(false);
+        expect(body.order).toBeUndefined();
+        expect(JSON.stringify(body)).not.toContain('a@test.fr');
     });
 
     it('code promo à 100 % (no_payment_required) : considéré comme payé', async () => {

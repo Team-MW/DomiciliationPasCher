@@ -4,6 +4,7 @@ import { CityIcons } from '../../utils/cityIcons';
 import { adminDataService } from '../../services/adminDataService';
 import { useTranslation } from '../../i18n/LanguageContext';
 import usePageMeta from '../../components/Seo/usePageMeta';
+import { pushPurchaseEvent } from '../../utils/purchaseEvent';
 import './Home.css';
 
 
@@ -326,6 +327,7 @@ export default function Home() {
                     localStorage.removeItem('pending_namejs');
                     localStorage.setItem('allow_registration', 'true');
                 } catch { /* stockage indisponible : l'écran s'affiche quand même */ }
+                pushPurchaseEvent(sessionId, data.order);
                 setSuccessPending(!data.confirmed);
                 setPaymentCheck(null);
                 setShowSuccessModal(true);
