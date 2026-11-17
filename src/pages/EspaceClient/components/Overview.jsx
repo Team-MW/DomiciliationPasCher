@@ -8,6 +8,7 @@ import { PLAN_CATALOG, clientPlanPricing, scanQuotaFor, currentQuotaPeriodStart 
 import { computeMissingDocuments } from '../../../../shared/documentRequest.js';
 
 import { DOMICILIATION_ADDRESS, postalAddressFor } from '../../../../shared/company.js';
+import GoogleReviewCard from './GoogleReviewCard';
 
 export default function Overview({ mail = [], documents = [], bookings = [], clientData, setActiveTab, welcomeName = '' }) {
     const { t, lang } = useTranslation();
@@ -288,6 +289,8 @@ export default function Overview({ mail = [], documents = [], bookings = [], cli
                             </div>
                         </section>
                     )}
+
+                    <GoogleReviewCard compact />
 
                     {setActiveTab && (
                         <button type="button" className="ecd-promo" onClick={() => go('compte-pro')}>

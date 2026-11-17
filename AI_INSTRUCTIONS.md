@@ -543,7 +543,9 @@ Leçons à garder :
   `hasPaidDossier` ignore les fiches `pending` (le client peut payer via le site).
 - **13/11 — demande d'avis Google (J+7)** : `processReviewRequests` (cron quotidien) envoie `review_request` aux clients
   `actif` entre 7 et 30 jours après `since`, une fois (`extra.review_request_sent_at`), jamais si `payment_status:'pending'`.
-  Lien : variable serveur `GOOGLE_REVIEW_URL` sinon `GOOGLE_REVIEW_URL` dans shared/company.js ; vide = aucun envoi.
+  Lien : variable serveur `GOOGLE_REVIEW_URL` sinon `GOOGLE_REVIEW_URL` dans shared/company.js (= fiche Google, renseigné le 17/11) ; vide = aucun envoi.
+  L'email porte le logo « G » Google + 5 étoiles (`googleReviewBlock`). Côté espace client, la carte « Votre avis compte »
+  (`GoogleReviewCard`, i18n `espaceClient.review`) est dans la colonne de l'aperçu (compacte) et dans Aide ; même lien, masquée s'il est vide.
   Les vrais avis recueillis s'affichent en remplissant `home.testimonials.items` (fr/en/ru) : la section n'apparaît que si la liste n'est pas vide.
 - **16/11 — conversions améliorées Google Ads** : sur `/?success=true&session_id=…`, Home pousse dans `dataLayer`
   `{ event:'purchase', value (montant réel TTC), currency, transaction_id (session Stripe), user_data:{ email, phone_number } }`

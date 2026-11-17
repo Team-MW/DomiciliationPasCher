@@ -37,9 +37,8 @@ export const COMPANY_SIREN = '101512531';
 export const COMPANY_SIRET = '10151253100019';
 
 /**
- * Lien « Laisser un avis Google » envoyé aux nouveaux clients une semaine après leur souscription.
- * À récupérer dans la fiche Google Business Profile : « Demander des avis » → lien court du type
- * https://g.page/r/XXXXXXXX/review (ou https://search.google.com/local/writereview?placeid=…).
- * Tant que cette valeur est vide (et que la variable serveur GOOGLE_REVIEW_URL ne l'est pas non plus), aucun email ne part.
+ * Lien « Laisser un avis Google » (fiche Google Business Profile → « Demander des avis »).
+ * Utilisé par l'email automatique à J+7 (api/_notifications.js) et par la carte « Votre avis compte »
+ * de l'espace client. Vide = email désactivé et carte masquée.
  */
-export const GOOGLE_REVIEW_URL = '';
+export const GOOGLE_REVIEW_URL = 'https://g.page/r/CVwUvXEUUvbhEBM/review';

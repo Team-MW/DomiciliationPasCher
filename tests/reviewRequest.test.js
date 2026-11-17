@@ -65,6 +65,16 @@ describe('Demande d’avis Google à J+7', () => {
         expect(transporter.sendMail).not.toHaveBeenCalled();
     });
 
+    it('lien par défaut : la fiche Google de l’entreprise, et le logo Google dans l’email', () => {
+        vi.stubEnv('GOOGLE_REVIEW_URL', '');
+        expect(resolveReviewUrl()).toBe('https://g.page/r/CVwUvXEUUvbhEBM/review');
+        const m = buildReviewRequestEmail({ nom: 'Jean', reviewUrl: resolveReviewUrl(), baseUrl: 'https://s' });
+        expect(m.html).toContain('href="https://g.page/r/CVwUvXEUUvbhEBM/review"');
+        expect(m.html).toContain('#4285F4'); // logo « G » Google inline
+        expect(m.html).toContain('Laisser un avis Google');
+        expect(m.text).toContain('https://g.page/r/CVwUvXEUUvbhEBM/review');
+    });
+
     it('resolveReviewUrl : accepte seulement une URL https propre', () => {
         vi.stubEnv('GOOGLE_REVIEW_URL', ' https://search.google.com/local/writereview?placeid=ChIJ123 ');
         expect(resolveReviewUrl()).toBe('https://search.google.com/local/writereview?placeid=ChIJ123');

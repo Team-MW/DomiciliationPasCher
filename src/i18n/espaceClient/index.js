@@ -20,6 +20,7 @@ import proAccount from './proAccount.js';
 import messages from './messages.js';
 import meeting from './meeting.js';
 import help from './help.js';
+import review from './review.js';
 import settings from './settings.js';
 
 const sections = {
@@ -36,6 +37,7 @@ const sections = {
     messages,
     meeting,
     help,
+    review,
     settings,
 };
 

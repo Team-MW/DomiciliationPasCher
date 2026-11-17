@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Icons } from './Icons';
 import { useTranslation } from '../../../i18n/LanguageContext';
 import { CONTACT_EMAIL } from '../../../constants/contact';
+import GoogleReviewCard from './GoogleReviewCard';
 
 export default function Aide({ setActiveTab }) {
     const { t } = useTranslation();
@@ -86,6 +87,8 @@ export default function Aide({ setActiveTab }) {
             </div>
 
             {/* FAQ Accordion */}
+            <GoogleReviewCard />
+
             <div className="ec-content-card" style={{ background: 'white', padding: '32px', borderRadius: '16px', border: '1px solid var(--ec-border)' }}>
                 <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--ec-text-main)', margin: '0 0 20px 0' }}>
 {t('espaceClient.help.faqTitle')}
