@@ -547,6 +547,12 @@ Leçons à garder :
   L'email porte le logo « G » Google + 5 étoiles (`googleReviewBlock`). Côté espace client, la carte « Votre avis compte »
   (`GoogleReviewCard`, i18n `espaceClient.review`) est dans la colonne de l'aperçu (compacte) et dans Aide ; même lien, masquée s'il est vide.
   Les vrais avis recueillis s'affichent en remplissant `home.testimonials.items` (fr/en/ru) : la section n'apparaît que si la liste n'est pas vide.
+- **21/11 — questions légales R123-168 dans le tunnel** : écran « Votre entreprise », après la forme juridique.
+  Source unique `shared/companyQuestions.js` (libellés fr/en/ru, `validateCompanyQuestions`, `summarizeCompanyQuestions`,
+  `hasCompanyQuestions`). Clés extra_info : `docsComptablesLieu` (expert_comptable|domicile|autre), `docsComptablesCabinet`,
+  `docsComptablesAdresse` (= adressePerso recopiée si domicile), `lieuxActivite` (tableau), `lieuActiviteAdresse`.
+  Fiche admin : encadré « Contrôle R123-168 » (vert si renseigné, ambre pour les dossiers antérieurs). Ne jamais rendre
+  ces champs bloquants côté serveur pour les anciens dossiers.
 - **16/11 — conversions améliorées Google Ads** : sur `/?success=true&session_id=…`, Home pousse dans `dataLayer`
   `{ event:'purchase', value (montant réel TTC), currency, transaction_id (session Stripe), user_data:{ email, phone_number } }`
   une seule fois par session (`src/utils/purchaseEvent.js`). Les données viennent de `/api/verify-session` (`order`,

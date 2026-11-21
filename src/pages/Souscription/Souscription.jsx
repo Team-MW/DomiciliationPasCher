@@ -10,6 +10,8 @@ import { DOMICILIATION_ADDRESS_ONE_LINE, AGREMENT_NUMBER } from '../../../shared
 import { NO_DOCUMENT_FILES, REQUIRED_DOCUMENTS, missingDocumentErrors } from './souscriptionDocuments.js';
 import { normalizeFrenchPhone, isValidFrenchPhone } from './souscriptionPhone.js';
 import { resolvePlanId } from '../../../shared/plans.js';
+import { useCurrentLang } from '../../i18n/LanguageContext';
+import { COMPANY_QUESTION_FIELDS as CQ, ACCOUNTING_LOCATION_OPTIONS, ACTIVITY_LOCATION_OPTIONS, EMPTY_COMPANY_QUESTIONS, companyQuestionLabels, validateCompanyQuestions, summarizeCompanyQuestions } from '../../../shared/companyQuestions.js';
 import './Souscription.css';
 
 /* ─── 3 phases lisibles pour le client (les 8 écrans restent inchangés) ─── */
@@ -159,6 +161,7 @@ export default function Souscription() {
         dateNaissance: '', lieuNaissance: '',
         // Entreprise
         nomSociete: '', siren: '', activite: '', nationalite: 'Française', qualite: 'Gérant',
+        ...EMPTY_COMPANY_QUESTIONS,
         // Domiciliation
         ville: 'Toulouse (31)',
         // Courrier
@@ -226,6 +229,10 @@ export default function Souscription() {
     });
 
     const currentStepId = CURRENT_STEPS[step]?.id || 'projet';
+    // Les deux questions légales (R123-168) suivent la langue du site ; le reste du tunnel est en français.
+    const lang = useCurrentLang();
+    const CQL = companyQuestionLabels(lang);
+    const homeAddressOneLine = `${data.adresse || ''}${data.complement ? `, ${data.complement}` : ''}${data.codePostal ? `, ${data.codePostal}` : ''}${data.villePerso ? ` ${data.villePerso}` : ''}`.replace(/\s+/g, ' ').trim();
     const repriseToken = searchParams.get('reprise');
 
     // Lien « Reprendre mon inscription » des emails de relance : on recharge le brouillon et l'écran.
@@ -348,6 +355,7 @@ export default function Souscription() {
             if (!data.activite.trim()) e.activite = 'Requis';
             const sirenDigits = data.siren.replace(/\s/g, '');
             if (sirenDigits && !/^(\d{9}|\d{14})$/.test(sirenDigits)) e.siren = 'SIREN à 9 chiffres (ou SIRET à 14 chiffres)';
+            Object.assign(e, validateCompanyQuestions(data, lang));
         }
         if (currentStepId === 'domiciliation') {
             if (!data.ville) e.ville = 'Veuillez choisir une ville';
@@ -769,6 +777,87 @@ export default function Souscription() {
                                     <label className="sous-label">Forme juridique</label>
                                     <input className="sous-input" value={data.formeJuridique} readOnly style={{ opacity: 0.7 }} />
                                 </div>
+
+                                {/* ── Questions légales du domiciliataire (art. R123-168 C. com.) ── */}
+                                <div className="sous-field sous-field-full cq-block">
+                                    <label className="sous-label">{CQL.accountingTitle}</label>
+                                    <div className="forme-grid" role="radiogroup" aria-label={CQL.accountingTitle}>
+                                        {ACCOUNTING_LOCATION_OPTIONS.map(opt => (
+                                            <button
+                                                type="button"
+                                                key={opt}
+                                                role="radio"
+                                                aria-checked={data[CQ.accountingLocation] === opt}
+                                                className={`forme-btn ${data[CQ.accountingLocation] === opt ? 'selected' : ''}`}
+                                                onClick={() => set(CQ.accountingLocation, opt)}
+                                            >
+                                                {CQL.accountingOptions[opt]}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {errors[CQ.accountingLocation] && <div className="field-error">{errors[CQ.accountingLocation]}</div>}
+
+                                    {data[CQ.accountingLocation] === 'expert_comptable' && (
+                                        <div className="cq-sub">
+                                            <div className="sous-field">
+                                                <label className="sous-label">{CQL.accountingFirm}</label>
+                                                <input className={`sous-input ${errors[CQ.accountingFirm] ? 'error' : ''}`} placeholder={CQL.accountingFirmPlaceholder} value={data[CQ.accountingFirm]} onChange={e => set(CQ.accountingFirm, e.target.value)} />
+                                                {errors[CQ.accountingFirm] && <div className="field-error">{errors[CQ.accountingFirm]}</div>}
+                                            </div>
+                                            <div className="sous-field">
+                                                <label className="sous-label">{CQL.accountingAddress}</label>
+                                                <input className={`sous-input ${errors[CQ.accountingAddress] ? 'error' : ''}`} placeholder={CQL.accountingAddressPlaceholder} value={data[CQ.accountingAddress]} onChange={e => set(CQ.accountingAddress, e.target.value)} />
+                                                {errors[CQ.accountingAddress] && <div className="field-error">{errors[CQ.accountingAddress]}</div>}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {data[CQ.accountingLocation] === 'domicile' && (
+                                        <div className="field-hint">{CQL.accountingHomeHint}{homeAddressOneLine ? ` ${homeAddressOneLine}` : ''}</div>
+                                    )}
+                                    {data[CQ.accountingLocation] === 'autre' && (
+                                        <div className="cq-sub">
+                                            <div className="sous-field sous-field-full">
+                                                <label className="sous-label">{CQL.accountingAddress}</label>
+                                                <input className={`sous-input ${errors[CQ.accountingAddress] ? 'error' : ''}`} placeholder={CQL.accountingAddressPlaceholder} value={data[CQ.accountingAddress]} onChange={e => set(CQ.accountingAddress, e.target.value)} />
+                                                {errors[CQ.accountingAddress] && <div className="field-error">{errors[CQ.accountingAddress]}</div>}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="sous-field sous-field-full cq-block">
+                                    <label className="sous-label">{CQL.activityTitle}</label>
+                                    <div className="field-hint" style={{ marginTop: 0, marginBottom: 8 }}>{CQL.activityHint}</div>
+                                    <div className="forme-grid" role="group" aria-label={CQL.activityTitle}>
+                                        {ACTIVITY_LOCATION_OPTIONS.map(opt => {
+                                            const places = Array.isArray(data[CQ.activityLocations]) ? data[CQ.activityLocations] : [];
+                                            const on = places.includes(opt);
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={opt}
+                                                    role="checkbox"
+                                                    aria-checked={on}
+                                                    className={`forme-btn ${on ? 'selected' : ''}`}
+                                                    onClick={() => set(CQ.activityLocations, on ? places.filter(p => p !== opt) : [...places, opt])}
+                                                >
+                                                    {CQL.activityOptions[opt]}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {errors[CQ.activityLocations] && <div className="field-error">{errors[CQ.activityLocations]}</div>}
+                                    {Array.isArray(data[CQ.activityLocations]) && data[CQ.activityLocations].includes('local_professionnel') && (
+                                        <div className="cq-sub">
+                                            <div className="sous-field sous-field-full">
+                                                <label className="sous-label">{CQL.activityAddress}</label>
+                                                <input className={`sous-input ${errors[CQ.activityAddress] ? 'error' : ''}`} placeholder={CQL.activityAddressPlaceholder} value={data[CQ.activityAddress]} onChange={e => set(CQ.activityAddress, e.target.value)} />
+                                                {errors[CQ.activityAddress] && <div className="field-error">{errors[CQ.activityAddress]}</div>}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <p className="cq-legal">{CQL.legalNote}</p>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1073,6 +1162,10 @@ export default function Souscription() {
                                     <div className="rc-row"><span>Nom</span><strong>{data.nomSociete || '—'}</strong></div>
                                     <div className="rc-row"><span>SIREN</span><strong>{data.siren || '—'}</strong></div>
                                     <div className="rc-row"><span>Activité</span><strong>{data.activite || '—'}</strong></div>
+                                    {(() => { const cq = summarizeCompanyQuestions(data, { lang, homeAddress: homeAddressOneLine }); return (<>
+                                        <div className="rc-row"><span>{CQL.recapAccounting}</span><strong>{cq.accounting || '—'}</strong></div>
+                                        <div className="rc-row"><span>{CQL.recapActivity}</span><strong>{cq.activity || '—'}</strong></div>
+                                    </>); })()}
                                 </div>
 
                                 <div className="recap-card">
@@ -1191,6 +1284,8 @@ export default function Souscription() {
                                                 justificatifDomicileUrl: justificatifUrl,
                                                 adressePerso,
                                                 adresseComplete: adressePerso,
+                                                // « À mon domicile » : l'adresse personnelle est reprise telle quelle dans le dossier (R123-168).
+                                                ...(data[CQ.accountingLocation] === 'domicile' ? { [CQ.accountingAddress]: adressePerso } : {}),
                                                 date: new Date().toLocaleDateString('fr-FR')
                                             };
                                             delete finalData.pieceIdentiteFile;

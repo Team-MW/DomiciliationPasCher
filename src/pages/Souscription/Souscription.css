@@ -577,6 +577,13 @@
     color: #1A56DB;
 }
 
+/* ── Questions légales (R123-168) ── */
+.cq-block { padding-top: 18px; border-top: 1px dashed #E2E8F0; }
+.cq-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+.cq-sub .sous-field-full { grid-column: 1 / -1; }
+.cq-legal { margin: 14px 0 0; font-size: 12.5px; line-height: 1.5; color: #64748B; }
+@media (max-width: 640px) { .cq-sub { grid-template-columns: 1fr; } }
+
 /* ── Étape 3 — Villes ── */
 .villes-grid {
     display: grid;

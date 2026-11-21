@@ -117,3 +117,9 @@ export function useTranslation() {
     if (!ctx) throw new Error('useTranslation must be used within LanguageProvider');
     return ctx;
 }
+
+/** Langue courante, 'fr' hors LanguageProvider (pages testées isolément). */
+export function useCurrentLang() {
+    const ctx = useContext(LanguageContext);
+    return ctx?.lang || 'fr';
+}

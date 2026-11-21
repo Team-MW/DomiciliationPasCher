@@ -80,6 +80,13 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
         // 3. Step 2: Entreprise
         fireEvent.change(screen.getByPlaceholderText('Ex: Ma Super SASU'), { target: { value: 'SAS Test' } });
         fireEvent.change(screen.getByPlaceholderText("Décrivez brièvement l'activité de votre entreprise…"), { target: { value: 'Consulting' } });
+        // Questions légales R123-168 : sans réponse, l'étape est bloquée.
+        fireEvent.click(screen.getByText('Suivant'));
+        expect(screen.getByText('Choisissez une réponse')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('Chez mon expert-comptable'));
+        fireEvent.change(screen.getByPlaceholderText('Ex : Cabinet Dupont Expertise'), { target: { value: 'Cabinet Test' } });
+        fireEvent.change(screen.getByPlaceholderText('Numéro, rue, code postal, ville'), { target: { value: '1 rue des Comptes, 31000 Toulouse' } });
+        fireEvent.click(screen.getByText('En ligne uniquement'));
         fireEvent.click(screen.getByText('Suivant'));
 
         dismissCoach();
@@ -143,7 +150,11 @@ describe('Onboarding Documents Upload Flow inside Souscription', () => {
                 nom: 'Doe',
                 prenom: 'John',
                 pieceIdentiteUrl: 'https://cloudinary.com/test-file.png',
-                justificatifDomicileUrl: 'https://cloudinary.com/test-file.png'
+                justificatifDomicileUrl: 'https://cloudinary.com/test-file.png',
+                docsComptablesLieu: 'expert_comptable',
+                docsComptablesCabinet: 'Cabinet Test',
+                docsComptablesAdresse: '1 rue des Comptes, 31000 Toulouse',
+                lieuxActivite: ['en_ligne'],
             })
         }));
 

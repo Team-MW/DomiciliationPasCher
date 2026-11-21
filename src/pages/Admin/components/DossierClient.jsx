@@ -12,6 +12,7 @@ import { parseExtraInfo } from '../../../utils/contractLegalFields';
 import { openDataUrl } from '../../../utils/openDataUrl';
 import { HEAVY_PLACEHOLDER } from '../../../../shared/heavyPlaceholder.js';
 import { clientPlanPricing, PLAN_CATALOG, resolvePlanId } from '../../../../shared/plans.js';
+import { summarizeCompanyQuestions, hasCompanyQuestions } from '../../../../shared/companyQuestions.js';
 
 const currentGridHt = (plan) => PLAN_CATALOG[resolvePlanId(plan)]?.ht;
 import AddInvoiceModal from './AddInvoiceModal';
@@ -2270,6 +2271,27 @@ export default function DossierClient({ client, onBack, onUpdate, showConfirm, s
                                             </div>
                                         ))}
                                     </div>
+
+                                    {/* Obligations du domiciliataire (art. R123-168 C. com.) : réponses données dans le tunnel */}
+                                    {(() => {
+                                        const cq = summarizeCompanyQuestions(extra, { lang: 'fr' });
+                                        const ok = hasCompanyQuestions(extra);
+                                        return (
+                                            <div style={{ background: ok ? '#F0FDF4' : '#FFFBEB', border: `1px solid ${ok ? '#BBF7D0' : '#FDE68A'}`, borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
+                                                <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>⚖️ Contrôle R123-168 — lieux déclarés par le client</div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                                                    <div>
+                                                        <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>Documents comptables conservés</div>
+                                                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{cq.accounting || 'Non renseigné (dossier créé avant l’ajout de la question)'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>Lieux d’exercice de l’activité</div>
+                                                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>{cq.activity || 'Non renseigné (dossier créé avant l’ajout de la question)'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Section Domiciliation */}
                                     <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}><Icons.Settings style={{ width: '20px', height: '20px', color: '#64748B' }} /> Domiciliation & Forfait</h3>

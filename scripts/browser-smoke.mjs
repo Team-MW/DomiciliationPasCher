@@ -144,6 +144,7 @@ async function checkSubscriptionFunnel(browser, base) {
         dateNaissance: '2000-01-01', lieuNaissance: 'TOULOUSE, France', nomSociete: 'TEST SCI', siren: '', activite: 'Gestion', nationalite: 'Française', qualite: 'Gérant',
         ville: 'Toulouse (31)', offre: 'notification', frequence: 'mensuel', cgv: true,
         adresse: '1 rue Test', complement: '', codePostal: '31000', villePerso: 'Toulouse', pays: 'France',
+        docsComptablesLieu: 'domicile', lieuxActivite: ['en_ligne'], // questions légales R123-168
         pieceIdentiteRecto: 'cni.pdf', pieceIdentiteVerso: 'cni.pdf', justificatifDomicile: 'edf.pdf', // noms restaurés SANS fichiers
     };
     const context = await browser.newContext({ viewport: VIEWPORTS[0], locale: 'fr-FR' });
@@ -213,6 +214,9 @@ async function checkSubscriptionFunnel(browser, base) {
             for (const k of ['pieceIdentiteUrl', 'pieceIdentiteVersoUrl', 'justificatifDomicileUrl']) {
                 if (!/^https:\/\//.test(e[k] || '')) fail(where, `la demande part SANS ${k}`);
             }
+            // Lieu de conservation des documents comptables « à mon domicile » : l'adresse personnelle est recopiée (R123-168).
+            if (!String(e.docsComptablesAdresse || '').includes('1 rue Test')) fail(where, 'adresse des documents comptables non reprise de l’adresse personnelle');
+            if (!Array.isArray(e.lieuxActivite) || !e.lieuxActivite.includes('en_ligne')) fail(where, 'lieux d’activité absents de la demande');
         }
         if (checkoutCalls === 0) fail(where, 'le paiement Stripe n’est jamais lancé');
         if (checkoutCalls > 1) fail(where, `un double clic lance ${checkoutCalls} paiements`);
