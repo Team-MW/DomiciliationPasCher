@@ -376,7 +376,7 @@ export default {
       subtitle: "Без платы за открытие · Цена гарантирована 12 месяцев",
     },
 
-    toggle: {"label": "Периодичность", "monthly": "Помесячно", "annual": "За год", "annualBadge": "-20 %", "perMonth": "без НДС/мес", "perYear": "без НДС/год", "equivMonthly": "т. е. {price} € без НДС/мес", "ttcMonth": "т. е. {price} € с НДС/мес", "ttcYear": "т. е. {price} € с НДС/год", "showDetails": "Подробнее", "hideDetails": "Скрыть"},
+    toggle: {"label": "Периодичность", "monthly": "Помесячно", "annual": "За год", "annualBadge": "-20 %", "perMonth": "без НДС/мес", "perYear": "без НДС/год", "equivAnnual": "т. е. {price} € без НДС/год", "equivMonthly": "т. е. {price} € без НДС/мес", "ttcMonth": "т. е. {price} € с НДС/мес", "ttcYear": "т. е. {price} € с НДС/год", "showDetails": "Подробнее", "hideDetails": "Скрыть"},
 
     room: {"title": "Забронируйте переговорную: 25 € без НДС/час.", "text": "Бронирование по email за 48 часов. Бесплатная отмена не позднее чем за 24 часа."},
 

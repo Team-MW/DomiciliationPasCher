@@ -366,7 +366,7 @@ export default {
   },
 
   tarifs: {
-    pageTitle: 'Domiciliation Pricing — Starting at 16€/month — DomiciliationPasCher',
+    pageTitle: 'Domiciliation Pricing — From €12.80 excl. VAT/month — DomiciliationPasCher',
 
     header: {
       eyebrow: "Transparent pricing",
@@ -376,7 +376,7 @@ export default {
       subtitle: "No setup fees · Price guaranteed for 12 months",
     },
 
-    toggle: {"label": "Billing", "monthly": "Monthly", "annual": "Annual", "annualBadge": "-20%", "perMonth": "excl. VAT/month", "perYear": "excl. VAT/year", "equivMonthly": "i.e. €{price} excl. VAT/month", "ttcMonth": "i.e. €{price} incl. VAT/month", "ttcYear": "i.e. €{price} incl. VAT/year", "showDetails": "See details", "hideDetails": "Hide details"},
+    toggle: {"label": "Billing", "monthly": "Monthly", "annual": "Annual", "annualBadge": "-20%", "perMonth": "excl. VAT/month", "perYear": "excl. VAT/year", "equivAnnual": "i.e. €{price} excl. VAT/year", "equivMonthly": "i.e. €{price} excl. VAT/month", "ttcMonth": "i.e. €{price} incl. VAT/month", "ttcYear": "i.e. €{price} incl. VAT/year", "showDetails": "See details", "hideDetails": "Hide details"},
 
     room: {"title": "Book our meeting room: €25 excl. VAT/hour.", "text": "Book by email, 48 hours in advance. Free cancellation up to 24 hours before."},
 
@@ -1370,7 +1370,7 @@ export default {
 
   seo: {
     home: { description: 'Business domiciliation in Toulouse from €16 excl. VAT/month: official registered office address, approved centre, certificate within 24 h, mail handling and 100% online sign-up.' },
-    tarifs: { description: 'Compare our domiciliation plans in Toulouse: Essentiel, Confort and Premium. Transparent pricing from €16 excl. VAT/month, 20% off with annual payment, no set-up fees.' },
+    tarifs: { description: 'Compare our domiciliation plans in Toulouse: Essentiel, Confort and Premium. Transparent pricing from €12.80 excl. VAT/month with annual payment (20% off), no set-up fees.' },
     villes: { description: 'Domicile your company at 150 rue Nicolas Louis Vauquelin, Bâtiment B, Lot 308, 31100 Toulouse: an official address for your Kbis, your banks and your customers.' },
     services: { description: 'Domiciliation, mail notification and scanning, forwarding, meeting room and company formation support: all our services in Toulouse.' },
     about: { description: 'Discover Domiciliation Pas Cher: an approved domiciliation centre in Toulouse, our values and our commitment to simple, reliable and affordable domiciliation.' },

@@ -366,7 +366,7 @@ export default {
   },
 
   tarifs: {
-    pageTitle: 'Tarifs Domiciliation — À partir de 16€ HT/mois — DomiciliationPasCher',
+    pageTitle: 'Tarifs Domiciliation — Dès 12,80 € HT/mois — DomiciliationPasCher',
 
     header: {
       eyebrow: "Tarifs transparents",
@@ -376,7 +376,7 @@ export default {
       subtitle: "Sans frais d'ouverture · Prix garanti 12 mois",
     },
 
-    toggle: {"label": "Périodicité", "monthly": "Mensuel", "annual": "Annuel", "annualBadge": "-20 %", "perMonth": "HT/mois", "perYear": "HT/an", "equivMonthly": "soit {price} € HT/mois", "ttcMonth": "soit {price} € TTC/mois", "ttcYear": "soit {price} € TTC/an", "showDetails": "Voir le détail", "hideDetails": "Masquer le détail"},
+    toggle: {"label": "Périodicité", "monthly": "Mensuel", "annual": "Annuel", "annualBadge": "-20 %", "perMonth": "HT/mois", "perYear": "HT/an", "equivAnnual": "soit {price} € HT/an", "equivMonthly": "soit {price} € HT/mois", "ttcMonth": "soit {price} € TTC/mois", "ttcYear": "soit {price} € TTC/an", "showDetails": "Voir le détail", "hideDetails": "Masquer le détail"},
 
     room: {"title": "Réservez notre salle de réunion : 25 € HT/heure.", "text": "Réservation par email, 48 h à l'avance. Annulation gratuite jusqu'à 24 h avant."},
 

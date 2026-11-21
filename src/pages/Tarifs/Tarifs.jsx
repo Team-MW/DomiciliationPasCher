@@ -20,7 +20,8 @@ const CrossIcon = () => (
 
 export default function Tarifs() {
     const { tr, lang } = useTranslation();
-    const [billing, setBilling] = useState('month');
+    // Annuel par défaut : on arrive sur « 12,80 € HT/mois » (demande client du 21/11/2026).
+    const [billing, setBilling] = useState('year');
     const [openDetails, setOpenDetails] = useState({});
     const isAnnual = billing === 'year';
     // Prix lus dans PLAN_CATALOG (jamais en dur) ; virgule décimale sauf en anglais.
@@ -70,7 +71,9 @@ export default function Tarifs() {
                     <div className="pricing-grid">
                         {tr.tarifs.plans.map(plan => {
                             const catalog = PLAN_CATALOG[plan.id] || PLAN_CATALOG.essentiel;
-                            const ht = isAnnual ? annualHt(catalog.ht) : catalog.ht;
+                            // En annuel, le gros prix est l'équivalent mensuel (12,80 €) ; l'annuel et le TTC passent en petit.
+                            const yearHt = annualHt(catalog.ht);
+                            const ht = isAnnual ? Math.round((yearHt / 12) * 100) / 100 : catalog.ht;
                             const ttc = planAmountTtc(catalog.ht, isAnnual ? 'year' : 'month');
                             const detailsOpen = Boolean(openDetails[plan.id]);
                             return (
@@ -84,10 +87,10 @@ export default function Tarifs() {
                                         <div className="pricing-amount">
                                             <span className="pricing-currency">€</span>
                                             <span className="pricing-value">{fmt(ht)}</span>
-                                            <span className="pricing-period">{isAnnual ? T.perYear : T.perMonth}</span>
+                                            <span className="pricing-period">{T.perMonth}</span>
                                         </div>
                                         <div className="pricing-ttc">
-                                            {isAnnual && <span>{T.equivMonthly.replace('{price}', fmt(Math.round((annualHt(catalog.ht) / 12) * 100) / 100))} · </span>}
+                                            {isAnnual && <span>{T.equivAnnual.replace('{price}', fmt(yearHt))} · </span>}
                                             {(isAnnual ? T.ttcYear : T.ttcMonth).replace('{price}', fmt(ttc))}
                                         </div>
                                     </div>
